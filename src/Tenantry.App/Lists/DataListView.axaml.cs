@@ -52,9 +52,15 @@ public partial class DataListView : UserControl
             _vm.SelectedRow = Grid.SelectedItem;
         };
         Grid.ContextRequested += OnContextRequested;
-        // On a narrow toolbar (the preview pane open, a small window) the display tools keep their
-        // icons and tooltips but drop their labels, rather than running off the edge.
-        Toolbar.SizeChanged += (_, e) => Toolbar.Classes.Set("narrow", e.NewSize.Width < 1000);
+        // On a narrow toolbar the display tools drop their labels; on a very narrow one every tool
+        // does. Tooltips still name each one, and the left group wraps rather than overflowing.
+        Toolbar.SizeChanged += (_, e) =>
+        {
+            Toolbar.Classes.Set("narrow", e.NewSize.Width < 1000);
+            Toolbar.Classes.Set("tiny", e.NewSize.Width < 700);
+        };
+        // The preview pane takes about a third of the space, so the list is never squeezed out.
+        SizeChanged += (_, e) => PreviewPane.Width = Math.Clamp(e.NewSize.Width * 0.34, 300, 440);
         Grid.ColumnReordered += (_, e) =>
         {
             if (_vm is not null && _columnKeys.TryGetValue(e.Column, out var key))
@@ -157,14 +163,14 @@ public partial class DataListView : UserControl
     DataGridTemplateColumn ActionsColumn() => new()
     {
         Header = "",
-        Width = new DataGridLength(80),
+        Width = new DataGridLength(48),
         CanUserResize = false,
         CanUserReorder = false,
         CanUserSort = false,
         CellTemplate = new FuncDataTemplate<object>((_, _) =>
         {
-            var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Margin = new Thickness(6, 0), VerticalAlignment = VerticalAlignment.Center };
-            panel.Children.Add(RowButton("Open", "Open in a tab", row => _vm!.OpenRow(row)));
+            // Opening is the name link; this column carries everything else for the row.
+            var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(6, 0), VerticalAlignment = VerticalAlignment.Center };
             Button? more = null;
             more = RowButton("MoreHorizontal", "More actions", row => BuildMenu(row).ShowAt(more!));
             panel.Children.Add(more);
@@ -287,14 +293,26 @@ public partial class DataListView : UserControl
                 var avatar = new Border { Child = initials, VerticalAlignment = VerticalAlignment.Center };
                 avatar.Classes.Add("avatar");
                 avatar.Classes.Add("small");
-                var name = new TextBlock { FontWeight = Avalonia.Media.FontWeight.SemiBold, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
-                name.Bind(TextBlock.TextProperty, Row(c.Text));
+                // The name is the way into the record: one click, styled as a link.
+                var nameText = new TextBlock { TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
+                nameText.Bind(TextBlock.TextProperty, Row(c.Text));
+                var name = new Button { Content = nameText };
+                name.Classes.Add("namelink");
+                name.Bind(ToolTip.TipProperty, Row(r => $"Open {c.Text(r)}"));
+                name.Click += (_, e) =>
+                {
+                    if (name.DataContext is { } row)
+                        _vm?.OpenRow(row);
+                    e.Handled = true;
+                };
                 var sub = new TextBlock { TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
                 sub.Classes.Add("caption");
+                sub.Classes.Add("subtitle");
                 sub.Bind(TextBlock.TextProperty, Row(c.Subtitle));
                 sub.Bind(ToolTip.TipProperty, Row(c.Subtitle));
                 var text = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center, Children = { name, sub } };
                 var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 12, Margin = new Thickness(12, 4) };
+                grid.Classes.Add("primarycell");
                 grid.Children.Add(avatar);
                 Avalonia.Controls.Grid.SetColumn(text, 1);
                 grid.Children.Add(text);
@@ -311,7 +329,7 @@ public partial class DataListView : UserControl
             {
                 // The first value, then "+N" for the rest: long product names never get cut
                 // off mid-pill, and the tooltip lists them all.
-                var first = new Badge { Kind = BadgeKind.Info };
+                var first = new Badge { Kind = BadgeKind.Info, MaxWidth = 210 };
                 first.Bind(Badge.TextProperty, Row(r => c.Badges(r).FirstOrDefault()));
                 first.Bind(IsVisibleProperty, Row(r => c.Badges(r).Count > 0));
                 var more = new Badge { Kind = BadgeKind.Neutral };

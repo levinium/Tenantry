@@ -14,9 +14,12 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var window = new MainWindow { DataContext = new ShellViewModel(new TenantConnector()) };
+            var shell = new ShellViewModel(new TenantConnector());
+            var window = new MainWindow { DataContext = shell };
             Platform.OpenUrl = url => _ = window.Launcher.LaunchUriAsync(new Uri(url));
             desktop.MainWindow = window;
+            // Once the window is up (so a browser sign-in has something to return to).
+            window.Opened += async (_, _) => await shell.StartAsync();
         }
 
         base.OnFrameworkInitializationCompleted();

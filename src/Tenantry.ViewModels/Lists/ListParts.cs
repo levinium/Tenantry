@@ -88,6 +88,21 @@ public sealed class FilterPill
     public IRelayCommand RemoveCommand { get; }
 }
 
+/// <summary>One sort level as a removable pill; clicking its text opens the Sort panel.</summary>
+public sealed class SortPill
+{
+    public SortPill(string text, Action remove, Action edit)
+    {
+        Text = text;
+        RemoveCommand = new RelayCommand(remove);
+        EditCommand = new RelayCommand(edit);
+    }
+
+    public string Text { get; }
+    public IRelayCommand RemoveCommand { get; }
+    public IRelayCommand EditCommand { get; }
+}
+
 /// <summary>A field offered in the Add filter menu and the sort/group pickers.</summary>
 public sealed record FieldOption(string Key, string Label, FieldKind Kind)
 {
@@ -103,11 +118,41 @@ public sealed partial class SortLevelViewModel(IReadOnlyList<FieldOption> fields
     public partial FieldOption? Field { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(DirectionText))]
+    [NotifyPropertyChangedFor(nameof(DirectionText), nameof(Ascending))]
     public partial bool Descending { get; set; }
 
+    /// <summary>The other half of the direction switch.</summary>
+    public bool Ascending
+    {
+        get => !Descending;
+        set => Descending = !value;
+    }
+
+    public string AscendingText => Field?.Kind switch
+    {
+        FieldKind.Date => "Oldest first",
+        FieldKind.Number => "Smallest first",
+        _ => "A → Z",
+    };
+
+    public string DescendingText => Field?.Kind switch
+    {
+        FieldKind.Date => "Newest first",
+        FieldKind.Number => "Largest first",
+        _ => "Z → A",
+    };
+
+    partial void OnFieldChanged(FieldOption? value)
+    {
+        OnPropertyChanged(nameof(AscendingText));
+        OnPropertyChanged(nameof(DescendingText));
+        OnPropertyChanged(nameof(DirectionText));
+    }
+
+    public string Number => (Index + 1).ToString();
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(LevelText))]
+    [NotifyPropertyChangedFor(nameof(LevelText), nameof(Number))]
     public partial int Index { get; set; }
 
     public string LevelText => Index == 0 ? "Sort by" : "Then by";

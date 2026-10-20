@@ -1,11 +1,40 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:c="using:Tenantry.App.Controls">
+        xmlns:c="using:Tenantry.App.Controls"
+        xmlns:ic="using:FluentIcons.Avalonia">
 
   <Styles.Resources>
     <!-- The stock header reserves a slot for its own sort icon even when hidden. Sorting is drawn
          by our header content, so the slot only stole width and clipped the sort indicators. -->
     <x:Double x:Key="DataGridSortIconMinWidth">0</x:Double>
+
+    <!-- One half of a two-part switch (inside Border.segmented). -->
+    <ControlTheme x:Key="SegmentButton" TargetType="RadioButton">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="Padding" Value="12,5" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="Segment" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+            <ContentPresenter Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      </Style>
+      <Style Selector="^:checked">
+        <Setter Property="Background" Value="{DynamicResource CardBg}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+      </Style>
+      <Style Selector="^:checked /template/ Border#Segment">
+        <Setter Property="BoxShadow" Value="0 1 3 0 #26000000" />
+      </Style>
+    </ControlTheme>
 
     <!-- The stock DataGrid with its horizontal scrollbar moved ABOVE the column headers and
          always shown, so a wide list says it scrolls sideways before anyone reaches the bottom.
@@ -422,20 +451,135 @@
     <Setter Property="Padding" Value="6,2" />
     <Setter Property="Foreground" Value="{DynamicResource NavSelectedFg}" />
   </Style>
+  <Style Selector="Border.pill.sort">
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+  </Style>
+  <Style Selector="Border.pill.sort Button">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+  </Style>
+
+  <!-- Panels (filter, sort, advanced, columns, views): a calm card with a header icon, a
+       body, and a footer whose main action sits bottom right. -->
   <Style Selector="Border.panel">
     <Setter Property="Background" Value="{DynamicResource CardBg}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="10" />
-    <Setter Property="Padding" Value="18,16" />
-    <Setter Property="BoxShadow" Value="0 4 16 0 #22000000" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="20,18" />
+    <Setter Property="BoxShadow" Value="0 8 24 0 #1F000000" />
+    <Setter Property="MaxWidth" Value="620" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
   </Style>
-  <Style Selector="Button.tool">
-    <Setter Property="Padding" Value="10,6" />
+  <Style Selector="Border.panel.wide">
+    <Setter Property="MaxWidth" Value="980" />
   </Style>
-  <Style Selector="Button.tool.active">
+  <Style Selector="Border.panelicon">
+    <Setter Property="Width" Value="34" />
+    <Setter Property="Height" Value="34" />
+    <Setter Property="CornerRadius" Value="9" />
     <Setter Property="Background" Value="{DynamicResource NavSelectedBg}" />
+    <Setter Property="VerticalAlignment" Value="Top" />
+  </Style>
+  <Style Selector="Border.panelicon > ic|FluentIcon">
+    <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.listbox">
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="4" />
+  </Style>
+  <Style Selector="Border.valuerow">
+    <Setter Property="Padding" Value="10,4" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="Border.valuerow:pointerover">
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+  </Style>
+  <Style Selector="Border.levelrow">
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="10,8" />
+  </Style>
+  <Style Selector="Border.groupbox">
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="BorderThickness" Value="1,1,1,1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="14,12" />
+  </Style>
+
+  <!-- A two-part switch: "Show only these | Hide these", "A → Z | Z → A". -->
+  <Style Selector="Border.segmented">
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="3" />
+  </Style>
+
+  <!-- Date presets as selectable chips -->
+  <Style Selector="ListBox.chips">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="ListBox.chips ListBoxItem">
+    <Setter Property="Padding" Value="12,6" />
+    <Setter Property="CornerRadius" Value="15" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+  <Style Selector="ListBox.chips ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+  </Style>
+  <Style Selector="ListBox.chips ListBoxItem:selected">
     <Setter Property="Foreground" Value="{DynamicResource NavSelectedFg}" />
+  </Style>
+
+  <!-- The record name in a list's first column is the way in: it reads as a link. -->
+  <Style Selector="Button.namelink">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+  </Style>
+  <Style Selector="Button.namelink TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource LinkText}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.namelink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.namelink:pointerover TextBlock">
+    <Setter Property="TextDecorations" Value="Underline" />
+  </Style>
+
+  <!-- Compact rows: one line, a smaller avatar, no subtitle. -->
+  <Style Selector="DataGrid.compact TextBlock.subtitle">
+    <Setter Property="IsVisible" Value="False" />
+  </Style>
+  <Style Selector="DataGrid.compact Border.avatar.small">
+    <Setter Property="Width" Value="22" />
+    <Setter Property="Height" Value="22" />
+    <Setter Property="CornerRadius" Value="11" />
+  </Style>
+  <Style Selector="DataGrid.compact Border.avatar.small > TextBlock">
+    <Setter Property="FontSize" Value="9" />
+  </Style>
+  <Style Selector="DataGrid.compact Grid.primarycell">
+    <Setter Property="Margin" Value="12,2" />
+  </Style>
+
+  <!-- Very narrow toolbar: every tool shows just its icon (tooltips still name it). -->
+  <Style Selector="Border.toolbar.tiny Button.tb > StackPanel > TextBlock">
+    <Setter Property="IsVisible" Value="False" />
   </Style>
   <Style Selector="Button.rowaction">
     <Setter Property="Background" Value="Transparent" />
@@ -447,13 +591,20 @@
     <Setter Property="Background" Value="{DynamicResource NavHoverBg}" />
     <Setter Property="Foreground" Value="{DynamicResource Accent}" />
   </Style>
+  <!-- Header sort button: a padded, rounded hover area that sits flush with the header text
+       (the negative margin cancels the padding, so the label stays where it was). -->
   <Style Selector="Button.header">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Padding" Value="0" />
+    <Setter Property="Padding" Value="8,5" />
+    <Setter Property="Margin" Value="-8,0,0,0" />
+    <Setter Property="CornerRadius" Value="6" />
     <Setter Property="HorizontalAlignment" Value="Stretch" />
-    <Setter Property="HorizontalContentAlignment" Value="Left" />
     <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+  </Style>
+  <Style Selector="Button.header:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavHoverBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
   </Style>
   <Style Selector="Border.sortpriority">
     <Setter Property="Background" Value="{DynamicResource AccentFill}" />
@@ -482,7 +633,7 @@
         <Border Background="{TemplateBinding Background}" CornerRadius="10" Padding="9,2"
                 HorizontalAlignment="Left" VerticalAlignment="Center">
           <TextBlock Text="{TemplateBinding Text}" Foreground="{TemplateBinding Foreground}"
-                     FontSize="12" FontWeight="SemiBold" />
+                     FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
         </Border>
       </ControlTemplate>
     </Setter>

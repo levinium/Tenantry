@@ -93,6 +93,13 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     var preview = Main();
     preview.Users.PreviewRow(preview.Users.Rows[1]);
     Render(preview, $"users-preview-{suffix}");
+    if (full)
+    {
+        Render(preview, "users-preview-small-light", 1040, 760);
+        var compact = Main();
+        compact.Users.ToggleDensity();
+        Render(compact, "users-compact-light");
+    }
 
     if (full)
     {
@@ -122,11 +129,11 @@ static void Pick(DataListViewModel list, string field, bool hide, params string[
     list.ApplyFilter();
 }
 
-void Render(object page, string name)
+void Render(object page, string name, int width = 1440, int height = 900)
 {
     var shell = new ShellViewModel(connector);
     shell.ShowPage(page);
-    var window = new MainWindow { Width = 1440, Height = 900, DataContext = shell };
+    var window = new MainWindow { Width = width, Height = height, DataContext = shell };
     window.Show();
     for (var i = 0; i < 4; i++)
     {
@@ -151,6 +158,9 @@ sealed class SnapshotConnector(ConnectedTenant demo) : ITenantConnector
     [
         new("a", "Northgate Partners", "00000000-0000-0000-0000-00000000000a", "northgate.example", "app", Now.AddMonths(-3), "admin@northgate.example", Now.AddHours(-2)),
         new("b", "Fabrikam Foundation", "00000000-0000-0000-0000-00000000000b", "fabrikam.example", "app", Now.AddMonths(-1), "it@fabrikam.example", Now.AddDays(-6)),
+        new("c", "Tailspin Toys", "00000000-0000-0000-0000-00000000000c", "tailspin.example", "app", Now.AddMonths(-2), "ops@tailspin.example", Now.AddDays(-20)),
+        new("d", "Woodgrove Clinic", "00000000-0000-0000-0000-00000000000d", "woodgrove.example", "app", Now.AddMonths(-5), "admin@woodgrove.example", Now.AddDays(-40)),
+        new("e", "Litware Academy", "00000000-0000-0000-0000-00000000000e", "litware.example", "app", Now.AddMonths(-6), "it@litware.example"),
     ];
 
     public void RemoveProfile(string profileId) { }

@@ -21,9 +21,47 @@ public sealed partial class WelcomeViewModel : ObservableObject
         Profiles = new ObservableCollection<TenantCard>(connector.LoadProfiles()
             .OrderByDescending(p => p.LastUsedAt ?? DateTimeOffset.MinValue)
             .Select(p => new TenantCard(p, now)));
+        SearchText = "";
+        VisibleProfiles = Profiles.ToArray();
     }
 
     public ObservableCollection<TenantCard> Profiles { get; }
+
+    /// <summary>The tenants matching the search box: every word must appear in the name, domain or account.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NoSearchMatches))]
+    public partial IReadOnlyList<TenantCard> VisibleProfiles { get; private set; }
+
+    [ObservableProperty]
+    public partial string SearchText { get; set; }
+
+    /// <summary>Search appears once there are enough tenants to need it.</summary>
+    public bool ShowSearch => Profiles.Count > 3;
+
+    public bool NoSearchMatches => Profiles.Count > 0 && VisibleProfiles.Count == 0;
+
+    partial void OnSearchTextChanged(string value) => ApplySearch();
+
+    void ApplySearch()
+    {
+        var words = SearchText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        VisibleProfiles = Profiles
+            .Where(p => words.All(w =>
+                p.DisplayName.Contains(w, StringComparison.OrdinalIgnoreCase)
+                || p.PrimaryDomain.Contains(w, StringComparison.OrdinalIgnoreCase)
+                || p.AccountText.Contains(w, StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+    }
+
+    /// <summary>
+    /// At startup only: with exactly one tenant there is nothing to choose, so open it. Switching
+    /// tenants later still lands here, so the home page stays reachable.
+    /// </summary>
+    public async Task OpenSoleTenantAsync()
+    {
+        if (Profiles.Count == 1 && !IsBusy)
+            await ConnectCommand.ExecuteAsync(Profiles[0]);
+    }
 
     public bool HasProfiles => Profiles.Count > 0;
 
@@ -95,8 +133,10 @@ public sealed partial class WelcomeViewModel : ObservableObject
             return;
         _connector.RemoveProfile(card.Profile.Id);
         Profiles.Remove(card);
+        ApplySearch();
         OnPropertyChanged(nameof(HasProfiles));
         OnPropertyChanged(nameof(HasNoProfiles));
+        OnPropertyChanged(nameof(ShowSearch));
     }
 
     public bool HasNoProfiles => Profiles.Count == 0;

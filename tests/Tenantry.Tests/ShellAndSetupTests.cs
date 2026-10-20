@@ -41,6 +41,50 @@ public class ShellAndSetupTests
     }
 
     [Fact]
+    public async Task A_sole_tenant_opens_at_start_but_switching_returns_home()
+    {
+        var connector = new FakeConnector();
+        connector.Profiles.Add(FakeConnector.Profile());
+        var shell = new ShellViewModel(connector);
+
+        await shell.StartAsync();
+        var main = Assert.IsType<MainViewModel>(shell.CurrentPage);
+
+        main.SwitchTenantCommand.Execute(null);
+        Assert.IsType<WelcomeViewModel>(shell.CurrentPage);
+    }
+
+    [Fact]
+    public async Task Several_tenants_stay_on_the_home_page_at_start()
+    {
+        var connector = new FakeConnector();
+        connector.Profiles.Add(FakeConnector.Profile("p1", "Contoso"));
+        connector.Profiles.Add(FakeConnector.Profile("p2", "Fabrikam"));
+        var shell = new ShellViewModel(connector);
+
+        await shell.StartAsync();
+
+        Assert.IsType<WelcomeViewModel>(shell.CurrentPage);
+    }
+
+    [Fact]
+    public void Tenant_search_matches_name_domain_or_account()
+    {
+        var connector = new FakeConnector();
+        foreach (var (id, name) in new[] { ("a", "Contoso"), ("b", "Fabrikam"), ("c", "Northwind"), ("d", "Tailspin") })
+            connector.Profiles.Add(FakeConnector.Profile(id, name));
+        var welcome = (WelcomeViewModel)new ShellViewModel(connector).CurrentPage;
+
+        Assert.True(welcome.ShowSearch);
+        welcome.SearchText = "fabrikam.example";
+        Assert.Equal(["Fabrikam"], welcome.VisibleProfiles.Select(p => p.DisplayName));
+        welcome.SearchText = "nobody";
+        Assert.True(welcome.NoSearchMatches);
+        welcome.SearchText = "";
+        Assert.Equal(4, welcome.VisibleProfiles.Count);
+    }
+
+    [Fact]
     public void Removing_a_tenant_needs_confirmation()
     {
         var connector = new FakeConnector();

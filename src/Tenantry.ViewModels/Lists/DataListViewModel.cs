@@ -179,6 +179,7 @@ public sealed partial class DataListViewModel : TabViewModel
     public ObservableCollection<FilterPill> Pills { get; } = [];
     public bool HasFilters => Pills.Count > 0;
     public int FilterCount => Pills.Count;
+    public bool HasFiltersOrSort => HasFilters || HasSort;
     public IReadOnlyList<FieldOption> FilterFields => _source.FieldOptions;
 
     [ObservableProperty]
@@ -275,6 +276,20 @@ public sealed partial class DataListViewModel : TabViewModel
     {
         if (column.Field is { } key && FilterFields.FirstOrDefault(f => f.Key == key) is { } field)
             EditFilter(field);
+    }
+
+    public bool IsBuilderOpen => Builder is not null;
+
+    partial void OnBuilderChanged(QueryGroupViewModel? value) => OnPropertyChanged(nameof(IsBuilderOpen));
+
+    /// <summary>The Advanced button: opens the builder, or closes it when it's already open.</summary>
+    [RelayCommand]
+    public void ToggleBuilder()
+    {
+        if (Builder is not null)
+            Builder = null;
+        else
+            OpenBuilder();
     }
 
     [RelayCommand]
@@ -440,6 +455,17 @@ public sealed partial class DataListViewModel : TabViewModel
         Changed();
     }
 
+    /// <summary>One pill per sort level, shown beside the filter pills so sorting can be cleared too.</summary>
+    public ObservableCollection<SortPill> SortPills { get; } = [];
+
+    public bool HasSort => _sort.Count > 0;
+
+    void RemoveSortField(string field)
+    {
+        _sort.RemoveAll(s => s.Field == field);
+        Changed();
+    }
+
     public string SortSummary => _sort.Count switch
     {
         0 => "Sort",
@@ -458,6 +484,22 @@ public sealed partial class DataListViewModel : TabViewModel
             column.SortPriority = index + 1;
             column.ShowPriority = index >= 0 && _sort.Count > 1;
         }
+        SortPills.Clear();
+        for (var i = 0; i < _sort.Count; i++)
+        {
+            var level = _sort[i];
+            var kind = SortFields.FirstOrDefault(f => f.Key == level.Field)?.Kind;
+            var direction = kind switch
+            {
+                FieldKind.Date => level.Descending ? "newest first" : "oldest first",
+                FieldKind.Number => level.Descending ? "largest first" : "smallest first",
+                _ => level.Descending ? "Z → A" : "A → Z",
+            };
+            var prefix = _sort.Count > 1 ? $"{i + 1}. " : "";
+            SortPills.Add(new SortPill($"{prefix}{LabelOf(level.Field)}, {direction}", () => RemoveSortField(level.Field), OpenSortPanel));
+        }
+        OnPropertyChanged(nameof(HasSort));
+        OnPropertyChanged(nameof(HasFiltersOrSort));
         OnPropertyChanged(nameof(SortSummary));
     }
 
@@ -607,10 +649,18 @@ public sealed partial class DataListViewModel : TabViewModel
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsCompact))]
+    [NotifyPropertyChangedFor(nameof(IsCompact), nameof(DensityTip))]
     public partial ListDensity Density { get; set; }
 
     public bool IsCompact => Density == ListDensity.Compact;
+
+    public string DensityTip => IsCompact
+        ? "Compact rows: on. Click for comfortable rows with each user's address under their name."
+        : "Compact rows: off. Click to fit more rows on screen (one line each).";
+
+    public string PreviewTip => IsPreviewOpen
+        ? "Preview: on. Click to hide the details pane."
+        : "Preview: show the selected row's details beside the list.";
 
     partial void OnDensityChanged(ListDensity value) => Save();
 
@@ -705,7 +755,7 @@ public sealed partial class DataListViewModel : TabViewModel
     public partial object? PreviewModel { get; private set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PreviewToggleText))]
+    [NotifyPropertyChangedFor(nameof(PreviewToggleText), nameof(PreviewTip))]
     public partial bool IsPreviewOpen { get; set; }
 
     /// <summary>Stays "Preview": the button's highlighted state says whether the pane is open.</summary>
@@ -841,6 +891,7 @@ public sealed partial class DataListViewModel : TabViewModel
                 c, c is ConditionGroup, EditPill, RemovePill));
         OnPropertyChanged(nameof(HasFilters));
         OnPropertyChanged(nameof(FilterCount));
+        OnPropertyChanged(nameof(HasFiltersOrSort));
 
         var selectedId = SelectedRow is { } s ? _source.Id(s) : null;
         Rows = _source.Run(CurrentQuery(), _now());

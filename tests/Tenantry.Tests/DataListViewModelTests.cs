@@ -128,6 +128,36 @@ public class DataListViewModelTests
     }
 
     [Fact]
+    public async Task Sorting_shows_as_removable_pills_and_can_be_cleared()
+    {
+        var (list, _) = await Loaded();
+        list.SortByColumn(list.Columns.Single(c => c.Key == F.Department));
+        list.AddSortByColumn(list.Columns.Single(c => c.Key == F.LastSignIn));
+        list.AddSortByColumn(list.Columns.Single(c => c.Key == F.LastSignIn));   // flips to newest first
+
+        Assert.Equal(["1. Department, A → Z", "2. Last sign-in, newest first"], list.SortPills.Select(p => p.Text));
+
+        list.SortPills[0].RemoveCommand.Execute(null);
+        Assert.Equal(["Last sign-in, newest first"], list.SortPills.Select(p => p.Text));
+
+        list.ClearSort();
+        Assert.False(list.HasSort);
+        Assert.Empty(list.SortPills);
+        Assert.Equal("Sort", list.SortSummary);
+    }
+
+    [Fact]
+    public async Task Advanced_button_toggles_the_builder()
+    {
+        var (list, _) = await Loaded();
+
+        list.ToggleBuilder();
+        Assert.True(list.IsBuilderOpen);
+        list.ToggleBuilder();
+        Assert.False(list.IsBuilderOpen);
+    }
+
+    [Fact]
     public async Task Sort_panel_edits_reorders_and_applies_levels()
     {
         var (list, _) = await Loaded();

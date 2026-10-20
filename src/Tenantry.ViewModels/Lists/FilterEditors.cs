@@ -52,9 +52,21 @@ public sealed partial class ChoiceFilterEditor : FilterEditorViewModel
         // Keep any chosen value the current data no longer has, so reopening never drops it silently.
         foreach (var missing in chosen.Where(c => Values.All(v => !string.Equals(v.Value, c, StringComparison.OrdinalIgnoreCase))))
             Values.Add(new ChoiceValueOption(missing, 0) { IsChecked = true });
+        foreach (var v in Values)
+            v.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ChoiceValueOption.IsChecked))
+                    OnPropertyChanged(nameof(SelectedText));
+            };
         HideSelected = hide;
         ValueSearch = "";
     }
+
+    public string SelectedText => Values.Count(v => v.IsChecked) switch
+    {
+        0 => "Nothing selected",
+        var n => $"{n} selected",
+    };
 
     public ObservableCollection<ChoiceValueOption> Values { get; }
 
