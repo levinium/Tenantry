@@ -5,8 +5,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Media.Transformation;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -17,8 +15,8 @@ namespace Tenantry.App.Controls;
 /// Drag-to-reorder for an ItemsControl. Rows are dragged by an element with the "draghandle"
 /// class, a visible grip, so the gesture is discoverable.
 ///
-/// While dragging, a lifted copy of the row (class "dragghost": shadow, accent outline, a slight
-/// scale-up) follows the pointer. The row's own slot stays behind as a tinted gap (class
+/// While dragging, a lifted copy of the row (class "dragghost": shadow and accent outline)
+/// follows the pointer. The row's own slot stays behind as a tinted gap (class
 /// "dragslot") and the other rows slide aside to show where it will land. On release the copy
 /// glides into the gap and only then is the move committed, so nothing jumps.
 ///
@@ -91,10 +89,8 @@ public static class DragReorder
     {
         static readonly TimeSpan Slide = TimeSpan.FromMilliseconds(170);
         static readonly TimeSpan Settle = TimeSpan.FromMilliseconds(150);
-        static readonly TimeSpan Lift = TimeSpan.FromMilliseconds(120);
         const double StartDistance = 4;
         const double EdgeZone = 32;
-        const double LiftScale = 1.025;
 
         readonly int _from = list.IndexFromContainer(row);
         readonly ScrollViewer? _scroller = list.FindAncestorOfType<ScrollViewer>();
@@ -157,21 +153,20 @@ public static class DragReorder
             if (_overlay is null)
                 return;
 
-            // Snapshot the row before it turns into the gap.
+            // The ghost is a live copy of the row built from the list's own item template, so it
+            // renders crisply at any display scaling. (A bitmap snapshot came out magnified on
+            // scaled displays.)
             _ghost = new Border
             {
                 Classes = { "dragghost" },
                 Width = row.Bounds.Width,
                 Height = row.Bounds.Height,
-                Child = new Image { Source = Snapshot(row), Width = row.Bounds.Width, Height = row.Bounds.Height },
-                RenderTransform = Scale(1),
-                Transitions = [new TransformOperationsTransition { Property = Visual.RenderTransformProperty, Duration = Lift, Easing = new CubicEaseOut() }],
+                Child = new ContentControl { Content = item, ContentTemplate = list.ItemTemplate },
             };
             var origin = row.TranslatePoint(default, _overlay) ?? default;
             Canvas.SetLeft(_ghost, origin.X);
             Canvas.SetTop(_ghost, origin.Y);
             _overlay.Children.Add(_ghost);
-            _ghost.RenderTransform = Scale(LiftScale);
 
             _content = row.GetVisualChildren().FirstOrDefault();
             if (_content is not null)
@@ -281,13 +276,8 @@ public static class DragReorder
                 done(item, _started && _target != _from ? _target : -1);
                 return;
             }
-            _ghost.Transitions =
-            [
-                new DoubleTransition { Property = Canvas.TopProperty, Duration = Settle, Easing = new CubicEaseOut() },
-                new TransformOperationsTransition { Property = Visual.RenderTransformProperty, Duration = Settle, Easing = new CubicEaseOut() },
-            ];
+            _ghost.Transitions = [new DoubleTransition { Property = Canvas.TopProperty, Duration = Settle, Easing = new CubicEaseOut() }];
             Canvas.SetTop(_ghost, listOrigin.Y + _tops[_from] + SlotOffset());
-            _ghost.RenderTransform = Scale(1);
             DispatcherTimer.RunOnce(() =>
             {
                 Restore();
@@ -317,24 +307,6 @@ public static class DragReorder
             row.Classes.Remove("dragslot");
             if (_content is not null)
                 _content.Opacity = _contentOpacity;
-        }
-
-        static RenderTargetBitmap Snapshot(Control control)
-        {
-            var scale = TopLevel.GetTopLevel(control)?.RenderScaling ?? 1;
-            var size = new PixelSize(
-                Math.Max(1, (int)Math.Ceiling(control.Bounds.Width * scale)),
-                Math.Max(1, (int)Math.Ceiling(control.Bounds.Height * scale)));
-            var bitmap = new RenderTargetBitmap(size, new Vector(96 * scale, 96 * scale));
-            bitmap.Render(control);
-            return bitmap;
-        }
-
-        static TransformOperations Scale(double factor)
-        {
-            var builder = TransformOperations.CreateBuilder(1);
-            builder.AppendScale(factor, factor);
-            return builder.Build();
         }
 
         static TransformOperations TranslateY(double y)
