@@ -1,4 +1,6 @@
 using Tenantry.Auth;
+using Tenantry.Cache;
+using Tenantry.Core.Cache;
 using Tenantry.Core.Capabilities;
 using Tenantry.Core.Lists;
 using Tenantry.Core.Permissions;
@@ -23,24 +25,42 @@ public sealed class TenantConnector : ITenantConnector
 
     public void SetDefaultProfile(string? profileId) => _store.SetDefault(profileId);
 
+    const string DatabaseFile = "cache.db";
+
     public void RemoveProfile(string profileId)
     {
         _store.Remove(profileId);
-        // The profile's token cache goes with it.
+        // The profile's token cache, local database and database key go with it.
         var folder = Path.Combine(AppPaths.Root, "tenants", profileId);
+        CacheKeyStore.Delete(profileId, AppPaths.TenantFolder(profileId));
+        SqliteEntityStore.Delete(Path.Combine(folder, DatabaseFile));
         if (System.IO.Directory.Exists(folder))
             System.IO.Directory.Delete(folder, recursive: true);
     }
 
     public async Task<ConnectedTenant> ConnectAsync(TenantProfile profile, CancellationToken cancellationToken = default)
     {
-        var tokens = await MsalTokenSource.CreateAsync(profile.ClientId, profile.TenantId, AppPaths.TenantFolder(profile.Id), profile.LastAccount);
+        var folder = AppPaths.TenantFolder(profile.Id);
+        var tokens = await MsalTokenSource.CreateAsync(profile.ClientId, profile.TenantId, folder, profile.LastAccount);
         var graph = new GraphClient(Http, tokens);
         var context = await new TenantContextLoader(graph).LoadAsync(cancellationToken);
         _store.MarkUsed(profile.Id, tokens.Account, DateTimeOffset.UtcNow);
-        return new ConnectedTenant(profile.DisplayName, tokens.Account ?? "", new GraphTenantDirectory(graph, profile.DisplayName), context,
-            ListState: new JsonListStateStore(AppPaths.TenantFolder(profile.Id)));
+
+        var entities = OpenLocalCopy(profile.Id, folder);
+        return new ConnectedTenant(profile.DisplayName, tokens.Account ?? "", new CachedTenantDirectory(entities, profile.DisplayName), context,
+            ListState: new JsonListStateStore(folder),
+            Sync: new DirectorySync(graph, entities),
+            Resources: entities);
     }
+
+    /// <summary>
+    /// The tenant's encrypted database, or an in-memory copy when the OS offers no secret store
+    /// for its key: tenant data is never written to disk unencrypted.
+    /// </summary>
+    static IEntityStore OpenLocalCopy(string profileId, string folder) =>
+        CacheKeyStore.TryGetOrCreate(profileId, folder) is { } key
+            ? SqliteEntityStore.Open(Path.Combine(folder, DatabaseFile), key)
+            : new MemoryEntityStore();
 
     /// <summary>
     /// The demo signs in as a User and Exchange Administrator in a tenant without Entra ID P1,

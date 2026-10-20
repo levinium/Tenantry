@@ -6,13 +6,17 @@ using Tenantry.Core.Tenancy;
 namespace Tenantry.ViewModels;
 
 /// <summary>A tenant after sign-in: what the main window needs to run.</summary>
+/// <param name="Sync">Keeps the local copy current; null for the demo, which has nothing to sync.</param>
+/// <param name="Resources">Released when the tenant is closed (the local database's connection).</param>
 public sealed record ConnectedTenant(
     string TenantName,
     string Account,
     ITenantDirectory Directory,
     TenantContext Context,
     bool IsDemo = false,
-    IListStateStore? ListState = null);
+    IListStateStore? ListState = null,
+    ITenantSync? Sync = null,
+    IDisposable? Resources = null);
 
 /// <summary>The outcome of the automatic setup.</summary>
 public sealed record SetupOutcome(TenantProfile Profile, bool Reused, IReadOnlyList<string> Unresolved);

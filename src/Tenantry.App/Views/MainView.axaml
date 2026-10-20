@@ -29,6 +29,20 @@
 
         <!-- Footer actions -->
         <StackPanel DockPanel.Dock="Bottom" Margin="8,8,8,14" Spacing="2">
+          <!-- How fresh the local copy is, and a way to check now -->
+          <Grid IsVisible="{Binding HasSync}" Margin="12,0,4,6" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8"
+                Background="Transparent" ToolTip.Tip="{Binding SyncTip}">
+            <Panel VerticalAlignment="Center">
+              <ic:FluentIcon Icon="CloudCheckmark" FontSize="16" Foreground="{DynamicResource TextMuted}" IsVisible="{Binding IsSyncOk}" />
+              <ic:FluentIcon Icon="CloudSync" FontSize="16" Foreground="{DynamicResource Accent}" IsVisible="{Binding IsSyncing}" />
+              <ic:FluentIcon Icon="Warning" FontSize="16" Foreground="{DynamicResource BadgeWarningFg}" IsVisible="{Binding HasSyncError}" />
+            </Panel>
+            <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Text="{Binding SyncText}" />
+            <Button Grid.Column="2" Classes="rowaction" Command="{Binding RefreshCommand}"
+                    ToolTip.Tip="Refresh: check Microsoft 365 for changes now">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="16" />
+            </Button>
+          </Grid>
           <Border Classes="divider" Margin="8,0,8,8" />
           <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
             <StackPanel Orientation="Horizontal" Spacing="10">

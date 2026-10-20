@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Each tenant's local copy: an encrypted SQLite file. SQLite3 Multiple Ciphers provides the
+       encryption (the SQLitePCLRaw SQLCipher bundle is no longer maintained); the key comes
+       from the OS secret store via Tenantry.Auth. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tenantry.Core\Tenantry.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" />
+    <PackageReference Include="SQLite3MC.PCLRaw.bundle" />
+  </ItemGroup>
+
+</Project>

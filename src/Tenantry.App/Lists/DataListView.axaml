@@ -742,7 +742,7 @@
         </DockPanel>
       </Border>
 
-      <TextBlock DockPanel.Dock="Top" Classes="muted" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" Text="Loading…" />
+      <TextBlock DockPanel.Dock="Top" Classes="muted" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" Text="{Binding LoadingText}" />
       <Border DockPanel.Dock="Top" Classes="banner error" Margin="0,0,0,8" IsVisible="{Binding LoadError, Converter={x:Static ObjectConverters.IsNotNull}}">
         <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
       </Border>

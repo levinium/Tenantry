@@ -81,6 +81,30 @@ public sealed partial class DataListViewModel : TabViewModel
     [ObservableProperty]
     public partial string? LoadError { get; private set; }
 
+    /// <summary>What the loading line says: "Loading…", or a sync's progress on a first download.</summary>
+    [ObservableProperty]
+    public partial string LoadingText { get; private set; } = "Loading…";
+
+    /// <summary>Shows the loading line with a message while something else (a first sync) fetches the data.</summary>
+    public void ShowLoading(string? text)
+    {
+        LoadingText = text ?? "Loading…";
+        IsLoading = text is not null;
+    }
+
+    /// <summary>
+    /// Updates the loading line's message (sync progress). Ignored once loading has ended:
+    /// progress reports arrive asynchronously and a late one must not bring the line back.
+    /// </summary>
+    public void UpdateLoadingText(string text)
+    {
+        if (IsLoading)
+            LoadingText = text;
+    }
+
+    /// <summary>Shows an error above the list for a failure outside the list itself (a first download).</summary>
+    public void ShowLoadError(string? message) => LoadError = message;
+
     public int Total => _source.Total;
     public bool IsEmpty => !IsLoading && Rows.Count == 0;
     public string CountText => Rows.Count == Total ? $"{Total:N0} {_source.Noun}" : $"{Rows.Count:N0} of {Total:N0} {_source.Noun}";
@@ -107,8 +131,30 @@ public sealed partial class DataListViewModel : TabViewModel
         finally
         {
             IsLoading = false;
+            LoadingText = "Loading…";
         }
         Refresh();
+    }
+
+    /// <summary>
+    /// Re-reads the rows after a background sync without disturbing the screen: search, filters,
+    /// sort, columns, the selected row and the open preview all stay as they are.
+    /// </summary>
+    public async Task ReloadAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _source.LoadAsync(cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            LoadError = Friendly.Message(e);
+            return;
+        }
+        LoadError = null;
+        OnPropertyChanged(nameof(Total));
+        CountViews();
+        Refresh(save: false);
     }
 
     // ---- Search ---------------------------------------------------------------------------

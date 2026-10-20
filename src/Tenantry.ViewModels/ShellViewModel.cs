@@ -30,13 +30,18 @@ public sealed partial class ShellViewModel : ObservableObject
 
     WelcomeViewModel NewWelcome() => new(_connector, ShowWizard, Open);
 
-    void ShowWelcome() => CurrentPage = NewWelcome();
+    void ShowWelcome()
+    {
+        // Leaving a tenant stops its periodic sync and closes its local database.
+        (CurrentPage as IDisposable)?.Dispose();
+        CurrentPage = NewWelcome();
+    }
 
     void ShowWizard() => CurrentPage = new SetupWizardViewModel(_connector, ShowWelcome, ShowWelcome);
 
     void Open(ConnectedTenant tenant)
     {
-        var main = new MainViewModel(tenant, ShowWelcome);
+        var main = new MainViewModel(tenant, ShowWelcome, syncInterval: MainViewModel.DefaultSyncInterval);
         CurrentPage = main;
         _ = main.InitializeAsync();
     }

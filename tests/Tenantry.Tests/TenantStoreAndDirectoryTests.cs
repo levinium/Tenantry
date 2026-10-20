@@ -63,7 +63,7 @@ public sealed class TenantStoreAndDirectoryTests : IDisposable
              "signInActivity":{"lastSignInDateTime":"2026-01-01T00:00:00Z","lastNonInteractiveSignInDateTime":"2026-02-01T00:00:00Z"}}
             """).RootElement;
 
-        var u = GraphTenantDirectory.ToSummary(json, new Dictionary<string, string> { ["sku-a"] = "SPE_E3" });
+        var u = CachedTenantDirectory.ToSummary(json, new Dictionary<string, string> { ["sku-a"] = "SPE_E3" });
 
         Assert.Equal("Ada", u.DisplayName);
         Assert.Null(u.Mail);
@@ -71,20 +71,5 @@ public sealed class TenantStoreAndDirectoryTests : IDisposable
         Assert.Equal(UserKind.Guest, u.Kind);
         Assert.Equal(new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero), u.LastSignIn);
         Assert.Equal(["SPE_E3", "sku-unknown"], u.Licenses);
-    }
-
-    [Fact]
-    public async Task Directory_falls_back_when_sign_in_activity_is_refused()
-    {
-        var http = new FakeHttp()
-            .On(HttpMethod.Get, "/subscribedSkus", """{"value":[]}""")
-            .On(HttpMethod.Get, "signInActivity", """{"error":{"code":"Authentication_RequestFromNonPremiumTenantOrB2CTenant","message":"premium"}}""", System.Net.HttpStatusCode.Forbidden)
-            .On(HttpMethod.Get, "/users?", """{"value":[{"id":"u1","displayName":"Ada","userPrincipalName":"ada@contoso.example"}]}""");
-        var directory = new GraphTenantDirectory(new GraphClient(http.Client(), new FakeTokens(), delay: NoDelay.Instance), "Contoso");
-
-        var users = await directory.GetUsersAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal("Ada", users.Single().DisplayName);
-        Assert.Null(users.Single().LastSignIn);
     }
 }

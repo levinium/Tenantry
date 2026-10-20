@@ -50,6 +50,15 @@ public static class Display
         };
     }
 
+    /// <summary>"at 10:42 AM" today; "Oct 19, 10:42 AM" on another day. Local time.</summary>
+    public static string Clock(DateTimeOffset when, DateTimeOffset now)
+    {
+        var local = when.ToLocalTime();
+        return local.Date == now.ToLocalTime().Date
+            ? "at " + local.ToString("t", CultureInfo.CurrentCulture)
+            : local.ToString("MMM d, ", CultureInfo.CurrentCulture) + local.ToString("t", CultureInfo.CurrentCulture);
+    }
+
     public static string Exact(DateTimeOffset? when) =>
         when?.ToLocalTime().ToString("f", CultureInfo.CurrentCulture) ?? "Never signed in";
 }

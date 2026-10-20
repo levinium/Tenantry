@@ -111,6 +111,11 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(compact, "users-compact-light");
     }
 
+    // A synced tenant: the sidebar shows when the local copy was last brought up to date.
+    var synced = new MainViewModel(connector.ConnectDemo() with { ListState = new Tenantry.Core.Lists.MemoryListStateStore(), Sync = new SnapshotSync() }, () => { });
+    synced.Users.LoadAsync().GetAwaiter().GetResult();
+    Render(synced, $"users-synced-{suffix}");
+
     if (full)
     {
         preview.OpenUser((UserSummary)preview.Users.Rows[0]);
@@ -188,6 +193,16 @@ static void Settle()
         Dispatcher.UIThread.RunJobs();
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
     }
+}
+
+/// <summary>A sync that last ran a few minutes ago and never runs again (nothing to fetch in a snapshot).</summary>
+sealed class SnapshotSync : ITenantSync
+{
+    public DateTimeOffset? LastSyncedAt { get; } = DateTimeOffset.Now.AddMinutes(-4);
+
+    public bool IsPersistent => true;
+
+    public Task<int> SyncAsync(IProgress<string>? progress = null, bool full = false, CancellationToken cancellationToken = default) => Task.FromResult(0);
 }
 
 /// <summary>Fictional saved tenants; the demo for everything else.</summary>

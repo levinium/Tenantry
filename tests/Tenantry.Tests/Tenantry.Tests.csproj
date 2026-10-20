@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\src\Tenantry.ViewModels\Tenantry.ViewModels.csproj" />
     <ProjectReference Include="..\..\src\Tenantry.Graph\Tenantry.Graph.csproj" />
     <ProjectReference Include="..\..\src\Tenantry.Exchange\Tenantry.Exchange.csproj" />
+    <ProjectReference Include="..\..\src\Tenantry.Cache\Tenantry.Cache.csproj" />
   </ItemGroup>
 
 </Project>

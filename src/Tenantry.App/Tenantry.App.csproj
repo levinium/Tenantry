@@ -30,6 +30,7 @@
     <ProjectReference Include="..\Tenantry.Demo\Tenantry.Demo.csproj" />
     <ProjectReference Include="..\Tenantry.Auth\Tenantry.Auth.csproj" />
     <ProjectReference Include="..\Tenantry.Graph\Tenantry.Graph.csproj" />
+    <ProjectReference Include="..\Tenantry.Cache\Tenantry.Cache.csproj" />
   </ItemGroup>
 
 </Project>
