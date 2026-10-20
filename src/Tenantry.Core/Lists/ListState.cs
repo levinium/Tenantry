@@ -15,15 +15,19 @@ public sealed record ColumnLayout(string Key, bool Visible, double? Width = null
 /// A named query plus, optionally, a column layout. Built-in views ship with the list and
 /// can't be deleted; saved ones belong to the user.
 /// </summary>
-public sealed record SavedView(string Id, string Name, ListQuery Query, IReadOnlyList<ColumnLayout>? Columns = null, bool BuiltIn = false);
+/// <param name="Pinned">Shown as a chip above the list (others sit in the More views menu).
+/// For built-in views this is the default; the user's own pins are kept in <see cref="ListState"/>.</param>
+public sealed record SavedView(string Id, string Name, ListQuery Query, IReadOnlyList<ColumnLayout>? Columns = null, bool BuiltIn = false, bool Pinned = false);
 
 /// <summary>Everything about a list worth remembering between sessions.</summary>
+/// <param name="PinnedViews">The views the user has pinned, by ID; null means the defaults.</param>
 public sealed record ListState(
     ListQuery Query,
     IReadOnlyList<ColumnLayout> Columns,
     ListDensity Density,
     IReadOnlyList<SavedView> Views,
-    string? CurrentViewId);
+    string? CurrentViewId,
+    IReadOnlyList<string>? PinnedViews = null);
 
 public interface IListStateStore
 {

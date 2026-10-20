@@ -37,7 +37,7 @@ public sealed class TenantConnector : ITenantConnector
         var tokens = await MsalTokenSource.CreateAsync(profile.ClientId, profile.TenantId, AppPaths.TenantFolder(profile.Id), profile.LastAccount);
         var graph = new GraphClient(Http, tokens);
         var context = await new TenantContextLoader(graph).LoadAsync(cancellationToken);
-        _store.Upsert(profile with { LastAccount = tokens.Account, LastUsedAt = DateTimeOffset.UtcNow });
+        _store.MarkUsed(profile.Id, tokens.Account, DateTimeOffset.UtcNow);
         return new ConnectedTenant(profile.DisplayName, tokens.Account ?? "", new GraphTenantDirectory(graph, profile.DisplayName), context,
             ListState: new JsonListStateStore(AppPaths.TenantFolder(profile.Id)));
     }

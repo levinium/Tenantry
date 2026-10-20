@@ -46,6 +46,18 @@ public sealed class TenantProfileStore(string path)
         return profile;
     }
 
+    /// <summary>
+    /// Records a sign-in: the account used and when. Reads the stored profile and changes only
+    /// those two fields, so anything set since the caller's copy was loaded (the default flag,
+    /// for one) survives. Writing back a whole stale copy lost the default on every open.
+    /// </summary>
+    public void MarkUsed(string profileId, string? account, DateTimeOffset when)
+    {
+        var stored = Load().FirstOrDefault(p => p.Id == profileId);
+        if (stored is not null)
+            Upsert(stored with { LastAccount = account ?? stored.LastAccount, LastUsedAt = when });
+    }
+
     /// <summary>Makes one profile the default (opened at startup), or none with null.</summary>
     public void SetDefault(string? profileId) =>
         Save(Load().Select(p => p with { IsDefault = profileId is not null && p.Id == profileId }));

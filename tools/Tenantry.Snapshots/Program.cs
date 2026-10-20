@@ -83,6 +83,7 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
 
         list.OpenColumnsPanel();
         Render(main, "panel-columns-light");
+        Render(main, "panel-columns-short-light", 1200, 620);
         list.ClosePanels();
     }
 

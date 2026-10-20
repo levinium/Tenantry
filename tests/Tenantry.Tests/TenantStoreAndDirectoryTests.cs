@@ -35,6 +35,24 @@ public sealed class TenantStoreAndDirectoryTests : IDisposable
         Assert.Equal(["1"], store.Load().Select(p => p.Id));
     }
 
+    // The bug: open a tenant you'd just made the default, come back, and it wasn't the default.
+    // Recording the sign-in wrote back the copy loaded before the default was set.
+    [Fact]
+    public void Recording_a_sign_in_keeps_the_default_set_since_the_profile_was_loaded()
+    {
+        var store = new TenantProfileStore(Path.Combine(_folder, "tenants.json"));
+        store.Upsert(Profile("1", "Zeta"));
+        var loadedEarlier = store.Load().Single();
+
+        store.SetDefault("1");
+        store.MarkUsed(loadedEarlier.Id, "admin@zeta.example", DateTimeOffset.UnixEpoch.AddDays(1));
+
+        var now = store.Load().Single();
+        Assert.True(now.IsDefault);
+        Assert.Equal("admin@zeta.example", now.LastAccount);
+        Assert.Equal(DateTimeOffset.UnixEpoch.AddDays(1), now.LastUsedAt);
+    }
+
     [Fact]
     public void Graph_user_maps_to_a_summary()
     {

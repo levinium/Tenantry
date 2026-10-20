@@ -88,6 +88,36 @@ public sealed class FilterPill
     public IRelayCommand RemoveCommand { get; }
 }
 
+/// <summary>A field in the Filter menu: its type icon, and whether it's already filtering.</summary>
+public sealed record FilterMenuItem(FieldOption Field, bool IsActive)
+{
+    public string Label => Field.Label;
+
+    public string Icon => Field.Kind switch
+    {
+        FieldKind.Choice => "CheckboxChecked",
+        FieldKind.MultiChoice => "TagMultiple",
+        FieldKind.Date => "CalendarDate",
+        FieldKind.Number => "NumberSymbol",
+        _ => "TextT",
+    };
+
+    public string KindText => Field.Kind switch
+    {
+        FieldKind.Choice => "Pick values",
+        FieldKind.MultiChoice => "Pick values",
+        FieldKind.Date => "Date",
+        FieldKind.Number => "Number",
+        _ => "Text",
+    };
+}
+
+/// <summary>A choice in the Group menu, ticked when it's the current grouping.</summary>
+public sealed record GroupMenuItem(GroupOption Option, bool IsSelected)
+{
+    public string Label => Option.Label;
+}
+
 /// <summary>One sort level as a removable pill; clicking its text opens the Sort panel.</summary>
 public sealed class SortPill
 {
@@ -180,6 +210,12 @@ public sealed partial class SavedViewItem(SavedView view) : ObservableObject
 
     [ObservableProperty]
     public partial bool IsCurrent { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PinTip))]
+    public partial bool IsPinned { get; set; }
+
+    public string PinTip => IsPinned ? "Unpin: move to the More views menu" : "Pin: show as a chip above the list";
 }
 
 /// <summary>A list's main action. Disabled with <paramref name="Tip"/> as the reason until it can run.</summary>

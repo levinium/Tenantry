@@ -9,8 +9,11 @@ public static class UserList
 {
     static readonly ListQuery ByName = ListQuery.Empty with { Sort = [new SortLevel(F.Name)] };
 
+    // The first four start pinned as chips; the rest live under More views until pinned.
+    static readonly HashSet<string> PinnedByDefault = ["all", "members", "guests", "blocked"];
+
     static SavedView View(string id, string name, params Condition[] where) =>
-        new(id, name, ByName with { Where = ConditionGroup.All(where) }, BuiltIn: true);
+        new(id, name, ByName with { Where = ConditionGroup.All(where) }, BuiltIn: true, Pinned: PinnedByDefault.Contains(id));
 
     static ChoiceCondition Is(string field, string value) => new(field, [value], []);
     static ChoiceCondition IsNot(string field, string value) => new(field, [], [value]);

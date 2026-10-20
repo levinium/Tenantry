@@ -63,8 +63,25 @@ public partial class DataListView : UserControl
         // table it would eat most of the width and leave the scrollbar a stub, so only the row
         // actions stay frozen then.
         Grid.SizeChanged += (_, e) => Grid.FrozenColumnCount = e.NewSize.Width < 720 ? 1 : 2;
-        // The preview pane takes about a third of the space, so the list is never squeezed out.
-        SizeChanged += (_, e) => PreviewPane.Width = Math.Clamp(e.NewSize.Width * 0.34, 300, 440);
+        // The preview pane takes about a third of the space, so the list is never squeezed out;
+        // panels take at most about half the height, so the table keeps some room and a
+        // panel's buttons never fall off the bottom.
+        SizeChanged += (_, e) =>
+        {
+            PreviewPane.Width = Math.Clamp(e.NewSize.Width * 0.34, 300, 440);
+            Resources["PanelMaxHeight"] = Math.Max(240, e.NewSize.Height * 0.55);
+        };
+
+        DragReorder.Attach(ColumnsList, (item, index) =>
+        {
+            if (item is ColumnViewModel column)
+                _vm?.MoveColumnTo(column, index);
+        });
+        DragReorder.Attach(SortList, (item, index) =>
+        {
+            if (item is SortLevelViewModel level)
+                _vm?.MoveSortLevelTo(level, index);
+        });
         Grid.ColumnReordered += (_, e) =>
         {
             if (_vm is not null && _columnKeys.TryGetValue(e.Column, out var key))
@@ -426,6 +443,37 @@ public partial class DataListView : UserControl
         // Hand the data to the OS now; an unflushed Avalonia clipboard on Windows blocks other
         // apps' copy and paste until this app exits (found in TrispotQR).
         await clipboard.FlushAsync();
+    }
+
+    // Menu rows run their action and close their menu.
+
+    void OnFilterFieldClick(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is FilterMenuItem item)
+        {
+            FilterButton.Flyout?.Hide();
+            _vm?.EditFilter(item.Field);
+            if (_vm is not null)
+                _vm.FilterFieldSearch = "";
+        }
+    }
+
+    void OnGroupClick(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is GroupMenuItem item)
+        {
+            GroupButton.Flyout?.Hide();
+            _vm?.SelectGroup(item.Option);
+        }
+    }
+
+    void OnMoreViewClick(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is SavedViewItem view)
+        {
+            MoreViewsButton.Flyout?.Hide();
+            _vm?.ApplyView(view);
+        }
     }
 
     void OnSaveView(object? sender, RoutedEventArgs e)

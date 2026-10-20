@@ -48,7 +48,7 @@ public sealed partial class DataListViewModel : TabViewModel
         GroupOptions = [new GroupOption(null, "No grouping"), .. source.FieldOptions.Where(f => f.Kind is FieldKind.Choice or FieldKind.MultiChoice).Select(f => new GroupOption(f.Key, f.Label))];
         SelectedGroup = GroupOptions[0];
         foreach (var v in source.BuiltInViews)
-            Views.Add(new SavedViewItem(v));
+            Views.Add(new SavedViewItem(v) { IsPinned = v.Pinned });
         Restore();
     }
 
@@ -175,6 +175,27 @@ public sealed partial class DataListViewModel : TabViewModel
     }
 
     // ---- Filters --------------------------------------------------------------------------
+
+    /// <summary>The Filter menu: every field, narrowed by <see cref="FilterFieldSearch"/>, marking ones already in use.</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<FilterMenuItem> FilterMenu { get; private set; } = [];
+
+    [ObservableProperty]
+    public partial string FilterFieldSearch { get; set; } = "";
+
+    partial void OnFilterFieldSearchChanged(string value) => UpdateFilterMenu();
+
+    void UpdateFilterMenu()
+    {
+        var active = _conditions.Select(FieldOf).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        FilterMenu = _source.FieldOptions
+            .Where(f => FilterFieldSearch.Length == 0 || f.Label.Contains(FilterFieldSearch, StringComparison.OrdinalIgnoreCase))
+            .Select(f => new FilterMenuItem(f, active.Contains(f.Key)))
+            .ToArray();
+    }
+
+    /// <summary>The Group menu, with the current choice ticked.</summary>
+    public IReadOnlyList<GroupMenuItem> GroupMenu => GroupOptions.Select(g => new GroupMenuItem(g, g == SelectedGroup)).ToArray();
 
     public ObservableCollection<FilterPill> Pills { get; } = [];
     public bool HasFilters => Pills.Count > 0;
@@ -518,6 +539,7 @@ public sealed partial class DataListViewModel : TabViewModel
     partial void OnSelectedGroupChanged(GroupOption value)
     {
         OnPropertyChanged(nameof(GroupSummary));
+        OnPropertyChanged(nameof(GroupMenu));
         Changed();
     }
 
@@ -555,6 +577,29 @@ public sealed partial class DataListViewModel : TabViewModel
         }
         ColumnsChanged?.Invoke(this, EventArgs.Empty);
         Save();
+    }
+
+    /// <summary>Drag and drop in the column chooser: put a column at a position (the primary stays first).</summary>
+    public void MoveColumnTo(ColumnViewModel column, int index)
+    {
+        var from = Columns.IndexOf(column);
+        var to = Math.Clamp(index, 1, Columns.Count - 1);
+        if (from < 0 || from == to || !column.CanHide)
+            return;
+        Columns.Move(from, to);
+        ColumnsChanged?.Invoke(this, EventArgs.Empty);
+        Save();
+    }
+
+    /// <summary>Drag and drop in the Sort panel: put a level at a position.</summary>
+    public void MoveSortLevelTo(SortLevelViewModel level, int index)
+    {
+        var from = SortLevels.IndexOf(level);
+        var to = Math.Clamp(index, 0, SortLevels.Count - 1);
+        if (from < 0 || from == to)
+            return;
+        SortLevels.Move(from, to);
+        Reindex();
     }
 
     [RelayCommand]
@@ -710,7 +755,11 @@ public sealed partial class DataListViewModel : TabViewModel
         if (name.Length == 0)
             return;
         var existing = Views.FirstOrDefault(v => !v.IsBuiltIn && v.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-        var view = new SavedViewItem(new SavedView(existing?.View.Id ?? Guid.NewGuid().ToString("N"), name, StoredQuery(), CurrentLayout()));
+        // A view you save is one you'll want to hand: pinned as a chip.
+        var view = new SavedViewItem(new SavedView(existing?.View.Id ?? Guid.NewGuid().ToString("N"), name, StoredQuery(), CurrentLayout(), Pinned: true))
+        {
+            IsPinned = existing?.IsPinned ?? true,
+        };
         if (existing is not null)
             Views[Views.IndexOf(existing)] = view;
         else
@@ -729,7 +778,35 @@ public sealed partial class DataListViewModel : TabViewModel
         Views.Remove(view);
         if (CurrentView == view)
             SetCurrentView(null);
+        UpdateViewGroups();
         Save();
+    }
+
+    /// <summary>Pins a view as a chip above the list, or moves it back to the More views menu.</summary>
+    [RelayCommand]
+    public void TogglePin(SavedViewItem view)
+    {
+        view.IsPinned = !view.IsPinned;
+        UpdateViewGroups();
+        Save();
+    }
+
+    /// <summary>The chips: pinned views, plus the current view if it isn't pinned (so you always see where you are).</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<SavedViewItem> ChipViews { get; private set; } = [];
+
+    /// <summary>Everything not shown as a chip, for the More views menu.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMoreViews), nameof(MoreViewsText))]
+    public partial IReadOnlyList<SavedViewItem> MoreViews { get; private set; } = [];
+
+    public bool HasMoreViews => MoreViews.Count > 0;
+    public string MoreViewsText => $"More views ({MoreViews.Count})";
+
+    void UpdateViewGroups()
+    {
+        ChipViews = Views.Where(v => v.IsPinned || v.IsCurrent).ToArray();
+        MoreViews = Views.Where(v => !v.IsPinned && !v.IsCurrent).ToArray();
     }
 
     void SetCurrentView(SavedViewItem? view)
@@ -737,6 +814,7 @@ public sealed partial class DataListViewModel : TabViewModel
         foreach (var v in Views)
             v.IsCurrent = v == view;
         CurrentView = view;
+        UpdateViewGroups();
     }
 
     void CountViews()
@@ -892,6 +970,7 @@ public sealed partial class DataListViewModel : TabViewModel
         OnPropertyChanged(nameof(HasFilters));
         OnPropertyChanged(nameof(FilterCount));
         OnPropertyChanged(nameof(HasFiltersOrSort));
+        UpdateFilterMenu();
 
         var selectedId = SelectedRow is { } s ? _source.Id(s) : null;
         Rows = _source.Run(CurrentQuery(), _now());
@@ -912,7 +991,8 @@ public sealed partial class DataListViewModel : TabViewModel
         if (_restoring)
             return;
         _store.Save(_source.Key, new ListState(StoredQuery(), CurrentLayout(), Density,
-            Views.Where(v => !v.IsBuiltIn).Select(v => v.View).ToArray(), CurrentView?.View.Id));
+            Views.Where(v => !v.IsBuiltIn).Select(v => v.View).ToArray(), CurrentView?.View.Id,
+            Views.Where(v => v.IsPinned).Select(v => v.View.Id).ToArray()));
     }
 
     void Restore()
@@ -931,7 +1011,13 @@ public sealed partial class DataListViewModel : TabViewModel
         else
         {
             foreach (var v in state.Views)
-                Views.Add(new SavedViewItem(v));
+                Views.Add(new SavedViewItem(v) { IsPinned = v.Pinned });
+            if (state.PinnedViews is { } pinned)
+            {
+                var ids = pinned.ToHashSet();
+                foreach (var v in Views)
+                    v.IsPinned = ids.Contains(v.View.Id);
+            }
             _conditions.AddRange(state.Query.Where.Items);
             _sort = [.. state.Query.Sort];
             SelectedGroup = GroupOptions.FirstOrDefault(g => g.Key == state.Query.GroupBy) ?? GroupOptions[0];
@@ -940,6 +1026,7 @@ public sealed partial class DataListViewModel : TabViewModel
             SetCurrentView(Views.FirstOrDefault(v => v.View.Id == state.CurrentViewId));
         }
         _restoring = false;
+        UpdateViewGroups();
         Refresh(save: false);
     }
 }

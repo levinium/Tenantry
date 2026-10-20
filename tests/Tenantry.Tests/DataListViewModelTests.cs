@@ -268,6 +268,53 @@ public class DataListViewModelTests
     }
 
     [Fact]
+    public async Task Pinned_views_are_chips_and_the_rest_are_under_more_views()
+    {
+        var store = new MemoryListStateStore();
+        var (list, _) = await Loaded(store);
+
+        Assert.Equal(["All users", "Members", "Guests", "Sign-in blocked"], list.ChipViews.Select(v => v.Name));
+        Assert.Equal("More views (4)", list.MoreViewsText);
+
+        // An unpinned view shows as a chip while it's the current one.
+        list.ApplyView(list.MoreViews.Single(v => v.View.Id == "inactive"));
+        Assert.Contains(list.ChipViews, v => v.View.Id == "inactive");
+        Assert.Equal(3, list.MoreViews.Count);
+
+        list.TogglePin(list.Views.Single(v => v.View.Id == "guests"));
+        list.TogglePin(list.Views.Single(v => v.View.Id == "licensed-blocked"));
+        list.NewViewName = "Mine";
+        list.SaveViewAs();
+        Assert.True(list.Views.Single(v => v.Name == "Mine").IsPinned);
+
+        // Pins survive a restart.
+        var (again, _) = await Loaded(store);
+        var pinned = again.Views.Where(v => v.IsPinned).Select(v => v.View.Id).ToHashSet();
+        Assert.Contains("licensed-blocked", pinned);
+        Assert.DoesNotContain("guests", pinned);
+        Assert.Contains(again.Views.Single(v => v.Name == "Mine").View.Id, pinned);
+    }
+
+    [Fact]
+    public async Task Dragging_columns_and_sort_levels()
+    {
+        var (list, _) = await Loaded();
+        var licenses = list.Columns.Single(c => c.Key == F.Licenses);
+
+        list.MoveColumnTo(licenses, 1);
+        Assert.Equal([F.Name, F.Licenses], list.Columns.Take(2).Select(c => c.Key));
+        list.MoveColumnTo(list.Columns[0], 3);                // the name column can't move
+        Assert.Equal(F.Name, list.Columns[0].Key);
+
+        list.OpenSortPanel();
+        list.AddSortLevel();
+        var second = list.SortLevels[1];
+        list.MoveSortLevelTo(second, 0);
+        Assert.Same(second, list.SortLevels[0]);
+        Assert.Equal("Sort by", second.LevelText);
+    }
+
+    [Fact]
     public async Task Primary_column_cannot_be_hidden_or_moved()
     {
         var (list, _) = await Loaded();

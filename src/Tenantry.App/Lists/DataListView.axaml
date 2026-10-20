@@ -9,6 +9,12 @@
              x:DataType="lists:DataListViewModel"
              x:Name="Root">
 
+  <UserControl.Resources>
+    <!-- Panels never grow taller than this share of the list area (set from code as the
+         window resizes); their header and buttons stay put and the middle scrolls. -->
+    <x:Double x:Key="PanelMaxHeight">520</x:Double>
+  </UserControl.Resources>
+
   <Grid ColumnDefinitions="*,Auto">
     <DockPanel Grid.Column="0" Margin="8,16,8,12" MinWidth="360">
 
@@ -29,7 +35,7 @@
               <StackPanel Spacing="10" Width="320" Margin="4">
                 <TextBlock Classes="h3" Text="Save as a view" />
                 <TextBlock Classes="caption" TextWrapping="Wrap"
-                           Text="Keeps the filters, sort, grouping and columns you have now. A name you've already used is replaced." />
+                           Text="Keeps the filters, sort, grouping and columns you have now, pinned as a chip. A name you've already used is replaced." />
                 <TextBox x:Name="NewViewNameBox" Text="{Binding NewViewName}" PlaceholderText="View name, e.g. Finance staff" />
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                   <Button Content="Manage views…" Click="OnManageViews" />
@@ -50,15 +56,15 @@
         </Button>
       </Grid>
 
-      <!-- Views: one line; scrolls sideways when the window is too narrow, with the app's standard
-           top scrollbar (above the chips, only when they overflow). -->
-      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,0,0,4">
+      <!-- Views: pinned views as chips (plus the current one), the rest under More views.
+           Few chips, so the row fits; in a narrow window it wraps rather than scrolls. -->
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,0,0,12">
         <TextBlock Classes="label" Text="VIEWS" VerticalAlignment="Top" Margin="0,7,0,0" />
-        <ScrollViewer Grid.Column="1" Theme="{StaticResource TopScrollViewer}">
-          <ItemsControl ItemsSource="{Binding Views}" Margin="0,0,0,8">
+        <WrapPanel Grid.Column="1" ItemSpacing="8" LineSpacing="8">
+          <ItemsControl ItemsSource="{Binding ChipViews}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
-                <StackPanel Orientation="Horizontal" Spacing="8" />
+                <WrapPanel ItemSpacing="8" LineSpacing="8" />
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
@@ -75,9 +81,36 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-        </ScrollViewer>
+          <Button x:Name="MoreViewsButton" Classes="chip quiet" IsVisible="{Binding HasMoreViews}"
+                  ToolTip.Tip="Other views; pin any of them from Manage views">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="{Binding MoreViewsText}" />
+              <ic:FluentIcon Icon="ChevronDown" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+            <Button.Flyout>
+              <Flyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="menu">
+                <StackPanel Width="280" Spacing="2">
+                  <TextBlock Classes="label" Margin="10,6,10,4" Text="MORE VIEWS" />
+                  <ItemsControl ItemsSource="{Binding MoreViews}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="lists:SavedViewItem">
+                        <Button Classes="menurow" Click="OnMoreViewClick">
+                          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                            <ic:FluentIcon Icon="Bookmark" FontSize="14" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Name}" />
+                            <TextBlock Grid.Column="2" Classes="caption" VerticalAlignment="Center" Text="{Binding Count}" />
+                          </Grid>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+        </WrapPanel>
         <Button Grid.Column="2" Classes="link" VerticalAlignment="Top" Margin="0,3,0,0" Command="{Binding OpenViewsPanelCommand}"
-                Content="Manage views" ToolTip.Tip="Rename, delete or apply your saved views" />
+                Content="Manage views" ToolTip.Tip="Pin, unpin, apply or delete views" />
       </Grid>
 
       <!-- Search: full width -->
@@ -128,7 +161,7 @@
           </StackPanel>
 
           <WrapPanel ItemSpacing="2" LineSpacing="2">
-            <Button Classes="tb" Classes.active="{Binding HasFilters}" ToolTip.Tip="Filter: show only rows that match a field's values">
+            <Button x:Name="FilterButton" Classes="tb" Classes.active="{Binding HasFilters}" ToolTip.Tip="Filter: show only rows that match a field's values">
               <StackPanel Orientation="Horizontal" Spacing="7">
                 <ic:FluentIcon Icon="Filter" FontSize="16" />
                 <TextBlock Text="Filter" />
@@ -138,15 +171,36 @@
                 <ic:FluentIcon Icon="ChevronDown" FontSize="11" VerticalAlignment="Center" Opacity="0.7" />
               </StackPanel>
               <Button.Flyout>
-                <MenuFlyout ItemsSource="{Binding FilterFields}" Placement="BottomEdgeAlignedLeft">
-                  <MenuFlyout.ItemContainerTheme>
-                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="lists:FieldOption">
-                      <Setter Property="Header" Value="{Binding Label}" />
-                      <Setter Property="Command" Value="{Binding #Root.((lists:DataListViewModel)DataContext).EditFilterCommand}" />
-                      <Setter Property="CommandParameter" Value="{Binding}" />
-                    </ControlTheme>
-                  </MenuFlyout.ItemContainerTheme>
-                </MenuFlyout>
+                <Flyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="menu">
+                  <StackPanel Width="300" Spacing="6">
+                    <TextBlock Classes="label" Margin="10,6,10,0" Text="FILTER BY" />
+                    <TextBox Margin="4,0" Text="{Binding FilterFieldSearch}" PlaceholderText="Find a field">
+                      <TextBox.InnerLeftContent>
+                        <ic:FluentIcon Icon="Search" FontSize="14" Margin="10,0,2,0" Foreground="{DynamicResource TextMuted}" />
+                      </TextBox.InnerLeftContent>
+                    </TextBox>
+                    <ScrollViewer MaxHeight="360">
+                      <ItemsControl ItemsSource="{Binding FilterMenu}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="lists:FilterMenuItem">
+                            <Button Classes="menurow" Click="OnFilterFieldClick">
+                              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                <Border Classes="menuicon">
+                                  <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="14" />
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                  <TextBlock Text="{Binding Label}" />
+                                  <TextBlock Classes="caption" Text="{Binding KindText}" />
+                                </StackPanel>
+                                <Border Grid.Column="2" Classes="activedot" IsVisible="{Binding IsActive}" ToolTip.Tip="Already filtering" />
+                              </Grid>
+                            </Button>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </ScrollViewer>
+                  </StackPanel>
+                </Flyout>
               </Button.Flyout>
             </Button>
             <Button Classes="tb" Classes.active="{Binding IsBuilderOpen}" Command="{Binding ToggleBuilderCommand}"
@@ -168,22 +222,31 @@
                 <ic:FluentIcon Icon="ChevronUp" FontSize="11" VerticalAlignment="Center" Opacity="0.7" IsVisible="{Binding IsSortPanelOpen}" />
               </StackPanel>
             </Button>
-            <Button Classes="tb" Classes.active="{Binding IsGrouped}" ToolTip.Tip="Group: gather rows into collapsible sections">
+            <Button x:Name="GroupButton" Classes="tb" Classes.active="{Binding IsGrouped}" ToolTip.Tip="Group: gather rows into collapsible sections">
               <StackPanel Orientation="Horizontal" Spacing="7">
                 <ic:FluentIcon Icon="GroupList" FontSize="16" />
                 <TextBlock Text="{Binding GroupSummary}" />
                 <ic:FluentIcon Icon="ChevronDown" FontSize="11" VerticalAlignment="Center" Opacity="0.7" />
               </StackPanel>
               <Button.Flyout>
-                <MenuFlyout ItemsSource="{Binding GroupOptions}" Placement="BottomEdgeAlignedLeft">
-                  <MenuFlyout.ItemContainerTheme>
-                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="lists:GroupOption">
-                      <Setter Property="Header" Value="{Binding Label}" />
-                      <Setter Property="Command" Value="{Binding #Root.((lists:DataListViewModel)DataContext).SelectGroupCommand}" />
-                      <Setter Property="CommandParameter" Value="{Binding}" />
-                    </ControlTheme>
-                  </MenuFlyout.ItemContainerTheme>
-                </MenuFlyout>
+                <Flyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="menu">
+                  <StackPanel Width="240" Spacing="2">
+                    <TextBlock Classes="label" Margin="10,6,10,4" Text="GROUP ROWS BY" />
+                    <ItemsControl ItemsSource="{Binding GroupMenu}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="lists:GroupMenuItem">
+                          <Button Classes="menurow" Classes.selected="{Binding IsSelected}" Click="OnGroupClick">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                              <TextBlock VerticalAlignment="Center" Text="{Binding Label}" />
+                              <ic:FluentIcon Grid.Column="1" Icon="Checkmark" FontSize="14" Foreground="{DynamicResource Accent}"
+                                             IsVisible="{Binding IsSelected}" VerticalAlignment="Center" />
+                            </Grid>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Flyout>
               </Button.Flyout>
             </Button>
           </WrapPanel>
@@ -197,7 +260,7 @@
                  IsVisible="{Binding SearchProblem, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
       <!-- Active filters and sorting, each removable, each with a clear-all -->
-      <WrapPanel DockPanel.Dock="Top" ItemSpacing="8" LineSpacing="8" Margin="0,2,0,10" IsVisible="{Binding HasFiltersOrSort}">
+      <WrapPanel DockPanel.Dock="Top" ItemSpacing="16" LineSpacing="8" Margin="0,2,0,10" IsVisible="{Binding HasFiltersOrSort}">
         <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasFilters}">
           <TextBlock Classes="label" Text="FILTERED BY" VerticalAlignment="Center" />
           <ItemsControl ItemsSource="{Binding Pills}">
@@ -250,14 +313,17 @@
         </StackPanel>
       </WrapPanel>
 
-      <!-- The one open panel: a filter editor -->
+      <!-- Panels. Each: header (icon, title, close) and footer (actions) stay put; the middle
+           scrolls when the window is short. One panel is open at a time. -->
+
+      <!-- Filter editors -->
       <ContentControl DockPanel.Dock="Top" Margin="0,0,0,12" Content="{Binding Editor}"
                       IsVisible="{Binding Editor, Converter={x:Static ObjectConverters.IsNotNull}}">
         <ContentControl.DataTemplates>
           <DataTemplate DataType="lists:ChoiceFilterEditor">
             <Border Classes="panel">
-              <StackPanel Spacing="14">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+              <DockPanel>
+                <Grid DockPanel.Dock="Top" Classes="panelheader" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                   <Border Classes="panelicon"><ic:FluentIcon Icon="Filter" FontSize="16" /></Border>
                   <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Classes="h3" Text="{Binding Title}" />
@@ -267,123 +333,126 @@
                     <ic:FluentIcon Icon="Dismiss" FontSize="16" />
                   </Button>
                 </Grid>
-                <Border Classes="segmented" HorizontalAlignment="Left">
-                  <StackPanel Orientation="Horizontal">
-                    <RadioButton Theme="{StaticResource SegmentButton}" GroupName="choiceMode" IsChecked="{Binding ShowSelected}" Content="Show only these" />
-                    <RadioButton Theme="{StaticResource SegmentButton}" GroupName="choiceMode" IsChecked="{Binding HideSelected}" Content="Hide these" />
-                  </StackPanel>
-                </Border>
-                <TextBox Text="{Binding ValueSearch}" PlaceholderText="Find a value" IsVisible="{Binding HasManyValues}">
-                  <TextBox.InnerLeftContent>
-                    <ic:FluentIcon Icon="Search" FontSize="14" Margin="10,0,2,0" Foreground="{DynamicResource TextMuted}" />
-                  </TextBox.InnerLeftContent>
-                </TextBox>
-                <Border Classes="listbox">
-                  <ScrollViewer MaxHeight="220">
-                    <ItemsControl ItemsSource="{Binding Values}">
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="lists:ChoiceValueOption">
-                          <Border Classes="valuerow" IsVisible="{Binding IsShown}">
-                            <Grid ColumnDefinitions="*,Auto">
-                              <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Value}" />
-                              <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" Text="{Binding Count}" />
-                            </Grid>
-                          </Border>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                  </ScrollViewer>
-                </Border>
-                <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="4">
-                  <Button Classes="link" Command="{Binding SelectAllCommand}" Content="Select all" />
-                  <Button Grid.Column="1" Classes="link" Command="{Binding SelectNoneCommand}" Content="Clear" />
-                  <TextBlock Grid.Column="2" Classes="caption" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{Binding SelectedText}" />
-                </Grid>
-                <Border Classes="divider" />
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                   <Button Classes="ghost" Content="Remove filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
                   <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                     <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}" />
                     <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyFilterCommand}" />
                   </StackPanel>
                 </Grid>
-              </StackPanel>
+                <ScrollViewer>
+                  <StackPanel Spacing="14">
+                    <Border Classes="segmented" HorizontalAlignment="Left">
+                      <StackPanel Orientation="Horizontal">
+                        <RadioButton Theme="{StaticResource SegmentButton}" GroupName="choiceMode" IsChecked="{Binding ShowSelected}" Content="Show only these" />
+                        <RadioButton Theme="{StaticResource SegmentButton}" GroupName="choiceMode" IsChecked="{Binding HideSelected}" Content="Hide these" />
+                      </StackPanel>
+                    </Border>
+                    <TextBox Text="{Binding ValueSearch}" PlaceholderText="Find a value" IsVisible="{Binding HasManyValues}">
+                      <TextBox.InnerLeftContent>
+                        <ic:FluentIcon Icon="Search" FontSize="14" Margin="10,0,2,0" Foreground="{DynamicResource TextMuted}" />
+                      </TextBox.InnerLeftContent>
+                    </TextBox>
+                    <Border Classes="listbox">
+                      <ItemsControl ItemsSource="{Binding Values}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="lists:ChoiceValueOption">
+                            <Border Classes="valuerow" IsVisible="{Binding IsShown}">
+                              <Grid ColumnDefinitions="*,Auto">
+                                <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Value}" />
+                                <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" Text="{Binding Count}" />
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </Border>
+                    <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="4">
+                      <Button Classes="link" Command="{Binding SelectAllCommand}" Content="Select all" />
+                      <Button Grid.Column="1" Classes="link" Command="{Binding SelectNoneCommand}" Content="Clear" />
+                      <TextBlock Grid.Column="2" Classes="caption" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{Binding SelectedText}" />
+                    </Grid>
+                  </StackPanel>
+                </ScrollViewer>
+              </DockPanel>
             </Border>
           </DataTemplate>
 
           <DataTemplate DataType="lists:TextFilterEditor">
             <Border Classes="panel">
-              <StackPanel Spacing="14">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                  <Border Classes="panelicon"><ic:FluentIcon Icon="Filter" FontSize="16" /></Border>
+              <DockPanel>
+                <Grid DockPanel.Dock="Top" Classes="panelheader" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                  <Border Classes="panelicon"><ic:FluentIcon Icon="TextT" FontSize="16" /></Border>
                   <TextBlock Grid.Column="1" Classes="h3" VerticalAlignment="Center" Text="{Binding Title}" />
                   <Button Grid.Column="2" Classes="rowaction" ToolTip.Tip="Close" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}">
                     <ic:FluentIcon Icon="Dismiss" FontSize="16" />
                   </Button>
                 </Grid>
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                  <ComboBox ItemsSource="{Binding Operators}" SelectedItem="{Binding Op}" MinWidth="170" />
-                  <TextBox Grid.Column="1" Text="{Binding Value}" IsVisible="{Binding NeedsValue}" PlaceholderText="Text to match" />
-                </Grid>
-                <Border Classes="divider" />
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                   <Button Classes="ghost" Content="Remove filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
                   <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                     <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}" />
                     <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyFilterCommand}" />
                   </StackPanel>
                 </Grid>
-              </StackPanel>
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                  <ComboBox ItemsSource="{Binding Operators}" SelectedItem="{Binding Op}" MinWidth="170" />
+                  <TextBox Grid.Column="1" Text="{Binding Value}" IsVisible="{Binding NeedsValue}" PlaceholderText="Text to match" />
+                </Grid>
+              </DockPanel>
             </Border>
           </DataTemplate>
 
           <DataTemplate DataType="lists:DateFilterEditor">
             <Border Classes="panel">
-              <StackPanel Spacing="14">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+              <DockPanel>
+                <Grid DockPanel.Dock="Top" Classes="panelheader" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                   <Border Classes="panelicon"><ic:FluentIcon Icon="CalendarDate" FontSize="16" /></Border>
                   <TextBlock Grid.Column="1" Classes="h3" VerticalAlignment="Center" Text="{Binding Title}" />
                   <Button Grid.Column="2" Classes="rowaction" ToolTip.Tip="Close" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}">
                     <ic:FluentIcon Icon="Dismiss" FontSize="16" />
                   </Button>
                 </Grid>
-                <ListBox Classes="chips" ItemsSource="{Binding Choices}" SelectedItem="{Binding Preset}">
-                  <ListBox.ItemsPanel>
-                    <ItemsPanelTemplate>
-                      <WrapPanel ItemSpacing="8" LineSpacing="8" />
-                    </ItemsPanelTemplate>
-                  </ListBox.ItemsPanel>
-                  <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="lists:DatePreset">
-                      <TextBlock Text="{Binding Label}" />
-                    </DataTemplate>
-                  </ListBox.ItemTemplate>
-                </ListBox>
-                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding NeedsDays}">
-                  <TextBox Width="90" Text="{Binding DaysText}" />
-                  <TextBlock VerticalAlignment="Center" Text="days" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding NeedsRange}">
-                  <CalendarDatePicker SelectedDate="{Binding From}" PlaceholderText="From" Width="170" />
-                  <TextBlock VerticalAlignment="Center" Text="to" />
-                  <CalendarDatePicker SelectedDate="{Binding To}" PlaceholderText="To" Width="170" />
-                </StackPanel>
-                <Border Classes="divider" />
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                   <Button Classes="ghost" Content="Remove filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
                   <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                     <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}" />
                     <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyFilterCommand}" />
                   </StackPanel>
                 </Grid>
-              </StackPanel>
+                <ScrollViewer>
+                  <StackPanel Spacing="14">
+                    <ListBox Classes="chips" ItemsSource="{Binding Choices}" SelectedItem="{Binding Preset}">
+                      <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel ItemSpacing="8" LineSpacing="8" />
+                        </ItemsPanelTemplate>
+                      </ListBox.ItemsPanel>
+                      <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="lists:DatePreset">
+                          <TextBlock Text="{Binding Label}" />
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                    <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding NeedsDays}">
+                      <TextBox Width="90" Text="{Binding DaysText}" />
+                      <TextBlock VerticalAlignment="Center" Text="days" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding NeedsRange}">
+                      <CalendarDatePicker SelectedDate="{Binding From}" PlaceholderText="From" Width="170" />
+                      <TextBlock VerticalAlignment="Center" Text="to" />
+                      <CalendarDatePicker SelectedDate="{Binding To}" PlaceholderText="To" Width="170" />
+                    </StackPanel>
+                  </StackPanel>
+                </ScrollViewer>
+              </DockPanel>
             </Border>
           </DataTemplate>
 
           <DataTemplate DataType="lists:NumberFilterEditor">
             <Border Classes="panel">
-              <StackPanel Spacing="14">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+              <DockPanel>
+                <Grid DockPanel.Dock="Top" Classes="panelheader" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                   <Border Classes="panelicon"><ic:FluentIcon Icon="NumberSymbol" FontSize="16" /></Border>
                   <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Classes="h3" Text="{Binding Title}" />
@@ -393,21 +462,20 @@
                     <ic:FluentIcon Icon="Dismiss" FontSize="16" />
                   </Button>
                 </Grid>
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                  <TextBlock VerticalAlignment="Center" Text="At least" />
-                  <TextBox Width="90" Text="{Binding MinText}" />
-                  <TextBlock VerticalAlignment="Center" Text="and at most" />
-                  <TextBox Width="90" Text="{Binding MaxText}" />
-                </StackPanel>
-                <Border Classes="divider" />
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                   <Button Classes="ghost" Content="Remove filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
                   <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                     <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}" />
                     <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyFilterCommand}" />
                   </StackPanel>
                 </Grid>
-              </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <TextBlock VerticalAlignment="Center" Text="At least" />
+                  <TextBox Width="90" Text="{Binding MinText}" />
+                  <TextBlock VerticalAlignment="Center" Text="and at most" />
+                  <TextBox Width="90" Text="{Binding MaxText}" />
+                </StackPanel>
+              </DockPanel>
             </Border>
           </DataTemplate>
         </ContentControl.DataTemplates>
@@ -415,8 +483,8 @@
 
       <!-- Advanced filter -->
       <Border DockPanel.Dock="Top" Classes="panel wide" Margin="0,0,0,12" IsVisible="{Binding IsBuilderOpen}">
-        <StackPanel Spacing="14" DataContext="{Binding Builder}" x:DataType="lists:QueryGroupViewModel">
-          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+        <DockPanel DataContext="{Binding Builder}" x:DataType="lists:QueryGroupViewModel">
+          <Grid DockPanel.Dock="Top" Classes="panelheader" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
             <Border Classes="panelicon"><ic:FluentIcon Icon="TextBulletListSquare" FontSize="16" /></Border>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
               <TextBlock Classes="h3" Text="Advanced filter" />
@@ -426,85 +494,7 @@
               <ic:FluentIcon Icon="Dismiss" FontSize="16" />
             </Button>
           </Grid>
-          <StackPanel Orientation="Horizontal" Spacing="10">
-            <TextBlock VerticalAlignment="Center" Text="Show rows that match" />
-            <Border Classes="segmented">
-              <StackPanel Orientation="Horizontal">
-                <RadioButton Theme="{StaticResource SegmentButton}" GroupName="rootJoin" IsChecked="{Binding MatchAll}" Content="All rules" />
-                <RadioButton Theme="{StaticResource SegmentButton}" GroupName="rootJoin" IsChecked="{Binding MatchAny}" Content="Any rule" />
-              </StackPanel>
-            </Border>
-          </StackPanel>
-          <ItemsControl ItemsSource="{Binding Rules}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Spacing="8" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="lists:QueryRuleViewModel">
-                <Border Classes="levelrow">
-                  <Grid ColumnDefinitions="180,200,*,Auto" ColumnSpacing="8">
-                    <ComboBox ItemsSource="{Binding Fields}" SelectedItem="{Binding Field}" HorizontalAlignment="Stretch" />
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding Ops}" SelectedItem="{Binding Op}" HorizontalAlignment="Stretch" />
-                    <AutoCompleteBox Grid.Column="2" Text="{Binding Value}" ItemsSource="{Binding ValueChoices}"
-                                     IsVisible="{Binding NeedsValue}" PlaceholderText="{Binding ValueHint}" FilterMode="ContainsOrdinal" MinimumPrefixLength="0" />
-                    <Button Grid.Column="3" Classes="rowaction" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this rule">
-                      <ic:FluentIcon Icon="Dismiss" FontSize="14" />
-                    </Button>
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-          <ItemsControl ItemsSource="{Binding Groups}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Spacing="10" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="lists:QueryGroupViewModel">
-                <Border Classes="groupbox">
-                  <StackPanel Spacing="8">
-                    <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
-                      <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="Group: match" />
-                      <Border Grid.Column="1" Classes="segmented">
-                        <StackPanel Orientation="Horizontal">
-                          <RadioButton Theme="{StaticResource SegmentButton}" IsChecked="{Binding MatchAll}" Content="All" />
-                          <RadioButton Theme="{StaticResource SegmentButton}" IsChecked="{Binding MatchAny}" Content="Any" />
-                        </StackPanel>
-                      </Border>
-                      <Button Grid.Column="3" Classes="link" Command="{Binding RemoveCommand}" Content="Remove group" />
-                    </Grid>
-                    <ItemsControl ItemsSource="{Binding Rules}">
-                      <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                          <StackPanel Spacing="8" />
-                        </ItemsPanelTemplate>
-                      </ItemsControl.ItemsPanel>
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="lists:QueryRuleViewModel">
-                          <Grid ColumnDefinitions="180,200,*,Auto" ColumnSpacing="8">
-                            <ComboBox ItemsSource="{Binding Fields}" SelectedItem="{Binding Field}" HorizontalAlignment="Stretch" />
-                            <ComboBox Grid.Column="1" ItemsSource="{Binding Ops}" SelectedItem="{Binding Op}" HorizontalAlignment="Stretch" />
-                            <AutoCompleteBox Grid.Column="2" Text="{Binding Value}" ItemsSource="{Binding ValueChoices}"
-                                             IsVisible="{Binding NeedsValue}" PlaceholderText="{Binding ValueHint}" FilterMode="ContainsOrdinal" MinimumPrefixLength="0" />
-                            <Button Grid.Column="3" Classes="rowaction" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this rule">
-                              <ic:FluentIcon Icon="Dismiss" FontSize="14" />
-                            </Button>
-                          </Grid>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <Button Classes="link" HorizontalAlignment="Left" Command="{Binding AddRuleCommand}" Content="+ Add rule to group" />
-                  </StackPanel>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-          <Border Classes="divider" />
-          <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+          <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
             <Button Classes="link" Command="{Binding AddRuleCommand}" Content="+ Add rule" />
             <Button Grid.Column="1" Classes="link" Command="{Binding AddGroupCommand}" Content="+ Add group" />
             <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8">
@@ -512,62 +502,104 @@
               <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyBuilderCommand}" />
             </StackPanel>
           </Grid>
-        </StackPanel>
+          <ScrollViewer>
+            <StackPanel Spacing="14">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock VerticalAlignment="Center" Text="Show rows that match" />
+                <Border Classes="segmented">
+                  <StackPanel Orientation="Horizontal">
+                    <RadioButton Theme="{StaticResource SegmentButton}" GroupName="rootJoin" IsChecked="{Binding MatchAll}" Content="All rules" />
+                    <RadioButton Theme="{StaticResource SegmentButton}" GroupName="rootJoin" IsChecked="{Binding MatchAny}" Content="Any rule" />
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+              <ItemsControl ItemsSource="{Binding Rules}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="8" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="lists:QueryRuleViewModel">
+                    <Border Classes="levelrow">
+                      <Grid ColumnDefinitions="180,200,*,Auto" ColumnSpacing="8">
+                        <ComboBox ItemsSource="{Binding Fields}" SelectedItem="{Binding Field}" HorizontalAlignment="Stretch" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Ops}" SelectedItem="{Binding Op}" HorizontalAlignment="Stretch" />
+                        <AutoCompleteBox Grid.Column="2" Text="{Binding Value}" ItemsSource="{Binding ValueChoices}"
+                                         IsVisible="{Binding NeedsValue}" PlaceholderText="{Binding ValueHint}" FilterMode="ContainsOrdinal" MinimumPrefixLength="0" />
+                        <Button Grid.Column="3" Classes="rowaction" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this rule">
+                          <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+                        </Button>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <ItemsControl ItemsSource="{Binding Groups}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="10" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="lists:QueryGroupViewModel">
+                    <Border Classes="groupbox">
+                      <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
+                          <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="Group: match" />
+                          <Border Grid.Column="1" Classes="segmented">
+                            <StackPanel Orientation="Horizontal">
+                              <RadioButton Theme="{StaticResource SegmentButton}" IsChecked="{Binding MatchAll}" Content="All" />
+                              <RadioButton Theme="{StaticResource SegmentButton}" IsChecked="{Binding MatchAny}" Content="Any" />
+                            </StackPanel>
+                          </Border>
+                          <Button Grid.Column="3" Classes="link" Command="{Binding RemoveCommand}" Content="Remove group" />
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding Rules}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                              <StackPanel Spacing="8" />
+                            </ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="lists:QueryRuleViewModel">
+                              <Grid ColumnDefinitions="180,200,*,Auto" ColumnSpacing="8">
+                                <ComboBox ItemsSource="{Binding Fields}" SelectedItem="{Binding Field}" HorizontalAlignment="Stretch" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding Ops}" SelectedItem="{Binding Op}" HorizontalAlignment="Stretch" />
+                                <AutoCompleteBox Grid.Column="2" Text="{Binding Value}" ItemsSource="{Binding ValueChoices}"
+                                                 IsVisible="{Binding NeedsValue}" PlaceholderText="{Binding ValueHint}" FilterMode="ContainsOrdinal" MinimumPrefixLength="0" />
+                                <Button Grid.Column="3" Classes="rowaction" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this rule">
+                                  <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+                                </Button>
+                              </Grid>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Classes="link" HorizontalAlignment="Left" Command="{Binding AddRuleCommand}" Content="+ Add rule to group" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
       </Border>
 
-      <!-- Sort, like Excel's: numbered levels -->
+      <!-- Sort, like Excel's: numbered levels, drag to reorder -->
       <Border DockPanel.Dock="Top" Classes="panel wide" Margin="0,0,0,12" IsVisible="{Binding IsSortPanelOpen}">
-        <StackPanel Spacing="14">
-          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" Classes="panelheader" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
             <Border Classes="panelicon"><ic:FluentIcon Icon="ArrowSort" FontSize="16" /></Border>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
               <TextBlock Classes="h3" Text="Sort" />
-              <TextBlock Classes="caption" Text="Rows are ordered by level 1, then level 2 where level 1 is equal, and so on." />
+              <TextBlock Classes="caption" Text="Level 1 first, then level 2 where level 1 is equal, and so on. Drag ⠿ to reorder." />
             </StackPanel>
             <Button Grid.Column="2" Classes="rowaction" VerticalAlignment="Top" ToolTip.Tip="Close" Command="{Binding ClosePanelsCommand}">
               <ic:FluentIcon Icon="Dismiss" FontSize="16" />
             </Button>
           </Grid>
-          <ItemsControl ItemsSource="{Binding SortLevels}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Spacing="8" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="lists:SortLevelViewModel">
-                <Border Classes="levelrow">
-                  <Grid ColumnDefinitions="Auto,Auto,200,Auto,*,Auto,Auto,Auto" ColumnSpacing="10">
-                    <Border Classes="count" VerticalAlignment="Center">
-                      <TextBlock Text="{Binding Number}" />
-                    </Border>
-                    <TextBlock Grid.Column="1" Width="60" VerticalAlignment="Center" Classes="muted" Text="{Binding LevelText}" />
-                    <ComboBox Grid.Column="2" ItemsSource="{Binding Fields}" SelectedItem="{Binding Field}" HorizontalAlignment="Stretch" />
-                    <Border Grid.Column="3" Classes="segmented">
-                      <StackPanel Orientation="Horizontal">
-                        <RadioButton Theme="{StaticResource SegmentButton}" IsChecked="{Binding Ascending}" Content="{Binding AscendingText}" />
-                        <RadioButton Theme="{StaticResource SegmentButton}" IsChecked="{Binding Descending}" Content="{Binding DescendingText}" />
-                      </StackPanel>
-                    </Border>
-                    <Button Grid.Column="5" Classes="rowaction" ToolTip.Tip="Move up a level"
-                            Command="{Binding #Root.((lists:DataListViewModel)DataContext).MoveSortLevelUpCommand}" CommandParameter="{Binding}">
-                      <ic:FluentIcon Icon="ArrowUp" FontSize="14" />
-                    </Button>
-                    <Button Grid.Column="6" Classes="rowaction" ToolTip.Tip="Move down a level"
-                            Command="{Binding #Root.((lists:DataListViewModel)DataContext).MoveSortLevelDownCommand}" CommandParameter="{Binding}">
-                      <ic:FluentIcon Icon="ArrowDown" FontSize="14" />
-                    </Button>
-                    <Button Grid.Column="7" Classes="rowaction" ToolTip.Tip="Remove this level"
-                            Command="{Binding #Root.((lists:DataListViewModel)DataContext).RemoveSortLevelCommand}" CommandParameter="{Binding}">
-                      <ic:FluentIcon Icon="Dismiss" FontSize="14" />
-                    </Button>
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-          <Border Classes="divider" />
-          <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+          <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
             <Button Classes="link" Command="{Binding AddSortLevelCommand}" Content="+ Add level" />
             <Button Grid.Column="1" Classes="ghost" Command="{Binding ClearSortCommand}" Content="Clear sorting" />
             <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8">
@@ -575,65 +607,98 @@
               <Button Classes="accent" Content="Apply" Command="{Binding ApplySortCommand}" />
             </StackPanel>
           </Grid>
-        </StackPanel>
-      </Border>
-
-      <!-- Columns -->
-      <Border DockPanel.Dock="Top" Classes="panel" Margin="0,0,0,12" IsVisible="{Binding IsColumnsPanelOpen}">
-        <StackPanel Spacing="14">
-          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-            <Border Classes="panelicon"><ic:FluentIcon Icon="TableSettings" FontSize="16" /></Border>
-            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-              <TextBlock Classes="h3" Text="Columns" />
-              <TextBlock Classes="caption" Text="Tick to show; arrows reorder. Widths you drag are remembered." />
-            </StackPanel>
-            <Button Grid.Column="2" Classes="rowaction" VerticalAlignment="Top" ToolTip.Tip="Close" Command="{Binding ClosePanelsCommand}">
-              <ic:FluentIcon Icon="Dismiss" FontSize="16" />
-            </Button>
-          </Grid>
-          <Border Classes="listbox">
-            <ItemsControl ItemsSource="{Binding Columns}">
+          <ScrollViewer>
+            <ItemsControl x:Name="SortList" ItemsSource="{Binding SortLevels}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="8" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="lists:ColumnViewModel">
-                  <Border Classes="valuerow">
-                    <Grid ColumnDefinitions="*,Auto,Auto">
-                      <CheckBox IsChecked="{Binding IsVisible}" IsEnabled="{Binding CanHide}" Content="{Binding Header}" />
-                      <Button Grid.Column="1" Classes="rowaction" ToolTip.Tip="Move left" IsEnabled="{Binding CanHide}"
-                              Command="{Binding #Root.((lists:DataListViewModel)DataContext).MoveColumnUpCommand}" CommandParameter="{Binding}">
-                        <ic:FluentIcon Icon="ArrowUp" FontSize="14" />
-                      </Button>
-                      <Button Grid.Column="2" Classes="rowaction" ToolTip.Tip="Move right" IsEnabled="{Binding CanHide}"
-                              Command="{Binding #Root.((lists:DataListViewModel)DataContext).MoveColumnDownCommand}" CommandParameter="{Binding}">
-                        <ic:FluentIcon Icon="ArrowDown" FontSize="14" />
+                <DataTemplate x:DataType="lists:SortLevelViewModel">
+                  <Border Classes="levelrow">
+                    <Grid ColumnDefinitions="Auto,Auto,Auto,200,Auto,*,Auto" ColumnSpacing="10">
+                      <Border Classes="draghandle" ToolTip.Tip="Drag to change the order">
+                        <ic:FluentIcon Icon="ReOrderDotsVertical" FontSize="16" />
+                      </Border>
+                      <Border Grid.Column="1" Classes="count" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Number}" />
+                      </Border>
+                      <TextBlock Grid.Column="2" Width="60" VerticalAlignment="Center" Classes="muted" Text="{Binding LevelText}" />
+                      <ComboBox Grid.Column="3" ItemsSource="{Binding Fields}" SelectedItem="{Binding Field}" HorizontalAlignment="Stretch" />
+                      <Border Grid.Column="4" Classes="segmented">
+                        <StackPanel Orientation="Horizontal">
+                          <RadioButton Theme="{StaticResource SegmentButton}" IsChecked="{Binding Ascending}" Content="{Binding AscendingText}" />
+                          <RadioButton Theme="{StaticResource SegmentButton}" IsChecked="{Binding Descending}" Content="{Binding DescendingText}" />
+                        </StackPanel>
+                      </Border>
+                      <Button Grid.Column="6" Classes="rowaction" ToolTip.Tip="Remove this level"
+                              Command="{Binding #Root.((lists:DataListViewModel)DataContext).RemoveSortLevelCommand}" CommandParameter="{Binding}">
+                        <ic:FluentIcon Icon="Dismiss" FontSize="14" />
                       </Button>
                     </Grid>
                   </Border>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
-          </Border>
-          <Border Classes="divider" />
-          <Grid ColumnDefinitions="Auto,*,Auto">
-            <Button Classes="ghost" Content="Reset to default" Command="{Binding ResetColumnsCommand}" />
-            <Button Grid.Column="2" Classes="accent" Content="Done" Command="{Binding ClosePanelsCommand}" />
-          </Grid>
-        </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
       </Border>
 
-      <!-- Views -->
-      <Border DockPanel.Dock="Top" Classes="panel" Margin="0,0,0,12" IsVisible="{Binding IsViewsPanelOpen}">
-        <StackPanel Spacing="14">
-          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-            <Border Classes="panelicon"><ic:FluentIcon Icon="BookmarkMultiple" FontSize="16" /></Border>
+      <!-- Columns: tick to show, drag to reorder -->
+      <Border DockPanel.Dock="Top" Classes="panel" Margin="0,0,0,12" IsVisible="{Binding IsColumnsPanelOpen}">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" Classes="panelheader" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <Border Classes="panelicon"><ic:FluentIcon Icon="TableSettings" FontSize="16" /></Border>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-              <TextBlock Classes="h3" Text="Views" />
-              <TextBlock Classes="caption" Text="Built-in views can't be deleted; yours can." />
+              <TextBlock Classes="h3" Text="Columns" />
+              <TextBlock Classes="caption" Text="Tick to show. Drag ⠿ to reorder. Widths you drag in the table are remembered." />
             </StackPanel>
             <Button Grid.Column="2" Classes="rowaction" VerticalAlignment="Top" ToolTip.Tip="Close" Command="{Binding ClosePanelsCommand}">
               <ic:FluentIcon Icon="Dismiss" FontSize="16" />
             </Button>
           </Grid>
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="Auto,*,Auto">
+            <Button Classes="ghost" Content="Reset to default" Command="{Binding ResetColumnsCommand}" />
+            <Button Grid.Column="2" Classes="accent" Content="Done" Command="{Binding ClosePanelsCommand}" />
+          </Grid>
+          <ScrollViewer>
+            <Border Classes="listbox">
+              <ItemsControl x:Name="ColumnsList" ItemsSource="{Binding Columns}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="lists:ColumnViewModel">
+                    <Border Classes="valuerow">
+                      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                        <Border Classes="draghandle" IsVisible="{Binding CanHide}" ToolTip.Tip="Drag to change the order">
+                          <ic:FluentIcon Icon="ReOrderDotsVertical" FontSize="16" />
+                        </Border>
+                        <Border Width="16" IsVisible="{Binding !CanHide}" ToolTip.Tip="Always first" />
+                        <CheckBox Grid.Column="1" IsChecked="{Binding IsVisible}" IsEnabled="{Binding CanHide}" Content="{Binding Header}" />
+                        <TextBlock Grid.Column="2" Classes="caption" VerticalAlignment="Center" Text="Always first" IsVisible="{Binding !CanHide}" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+
+      <!-- Views -->
+      <Border DockPanel.Dock="Top" Classes="panel" Margin="0,0,0,12" IsVisible="{Binding IsViewsPanelOpen}">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" Classes="panelheader" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <Border Classes="panelicon"><ic:FluentIcon Icon="BookmarkMultiple" FontSize="16" /></Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+              <TextBlock Classes="h3" Text="Views" />
+              <TextBlock Classes="caption" Text="Pinned views show as chips; the rest are under More views. Built-in views can't be deleted." />
+            </StackPanel>
+            <Button Grid.Column="2" Classes="rowaction" VerticalAlignment="Top" ToolTip.Tip="Close" Command="{Binding ClosePanelsCommand}">
+              <ic:FluentIcon Icon="Dismiss" FontSize="16" />
+            </Button>
+          </Grid>
+          <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <TextBox Text="{Binding NewViewName}" PlaceholderText="Name for the current view" />
             <Button Grid.Column="1" Classes="accent" Command="{Binding SaveViewAsCommand}">
               <StackPanel Orientation="Horizontal" Spacing="6">
@@ -642,28 +707,39 @@
               </StackPanel>
             </Button>
           </Grid>
-          <Border Classes="listbox">
-            <ItemsControl ItemsSource="{Binding Views}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="lists:SavedViewItem">
-                  <Border Classes="valuerow">
-                    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="10">
-                      <ic:FluentIcon Icon="Bookmark" FontSize="14" Foreground="{DynamicResource Accent}" IsVisible="{Binding !IsBuiltIn}" VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Name}" />
-                      <TextBlock Grid.Column="2" Classes="caption" VerticalAlignment="Center" Text="{Binding Count}" />
-                      <Button Grid.Column="3" Classes="link" Content="Show"
-                              Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyViewCommand}" CommandParameter="{Binding}" />
-                      <Button Grid.Column="4" Classes="rowaction" ToolTip.Tip="Delete this view" IsVisible="{Binding !IsBuiltIn}"
-                              Command="{Binding #Root.((lists:DataListViewModel)DataContext).DeleteViewCommand}" CommandParameter="{Binding}">
-                        <ic:FluentIcon Icon="Delete" FontSize="14" />
-                      </Button>
-                    </Grid>
-                  </Border>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </Border>
-        </StackPanel>
+          <ScrollViewer>
+            <Border Classes="listbox">
+              <ItemsControl ItemsSource="{Binding Views}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="lists:SavedViewItem">
+                    <Border Classes="valuerow">
+                      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="10">
+                        <Button Classes="rowaction" Classes.on="{Binding IsPinned}" ToolTip.Tip="{Binding PinTip}"
+                                Command="{Binding #Root.((lists:DataListViewModel)DataContext).TogglePinCommand}" CommandParameter="{Binding}">
+                          <Panel>
+                            <ic:FluentIcon Icon="Pin" FontSize="14" IsVisible="{Binding IsPinned}" Foreground="{DynamicResource Accent}" />
+                            <ic:FluentIcon Icon="PinOff" FontSize="14" IsVisible="{Binding !IsPinned}" />
+                          </Panel>
+                        </Button>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                          <TextBlock VerticalAlignment="Center" Text="{Binding Name}" />
+                          <TextBlock Classes="caption" VerticalAlignment="Center" Text="yours" IsVisible="{Binding !IsBuiltIn}" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" Classes="caption" VerticalAlignment="Center" Text="{Binding Count}" />
+                        <Button Grid.Column="3" Classes="link" Content="Show"
+                                Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyViewCommand}" CommandParameter="{Binding}" />
+                        <Button Grid.Column="4" Classes="rowaction" ToolTip.Tip="Delete this view" IsVisible="{Binding !IsBuiltIn}"
+                                Command="{Binding #Root.((lists:DataListViewModel)DataContext).DeleteViewCommand}" CommandParameter="{Binding}">
+                          <ic:FluentIcon Icon="Delete" FontSize="14" />
+                        </Button>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+          </ScrollViewer>
+        </DockPanel>
       </Border>
 
       <TextBlock DockPanel.Dock="Top" Classes="muted" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" Text="Loading…" />
@@ -672,6 +748,8 @@
       </Border>
 
       <!-- The table -->
+      <!-- No minimum height: in a very short window an open panel (and its buttons) wins over
+           the table, which comes back as soon as the panel closes. -->
       <Border Classes="card tight" ClipToBounds="True">
         <Grid>
           <DataGrid x:Name="Grid" Theme="{StaticResource TopScrollDataGrid}"
