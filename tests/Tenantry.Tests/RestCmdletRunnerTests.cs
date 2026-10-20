@@ -24,7 +24,8 @@ public class RestCmdletRunnerTests
         Assert.Equal("m1", result.Single().GetProperty("Name").GetString());
         var request = http.Requests.Single();
         Assert.Equal("Get-Mailbox", (string?)request.Json!["CmdletInput"]!["CmdletName"]);
-        Assert.Equal("Unlimited", (string?)request.Json!["CmdletInput"]!["Parameters"]!["ResultSize"]);
+        // ResultSize is the runner's to enforce; the service would read it as a page size.
+        Assert.Null(request.Json!["CmdletInput"]!["Parameters"]!["ResultSize"]);
         Assert.Equal("UPN:admin@contoso.example", request.Headers["X-AnchorMailbox"]);
         Assert.Equal("odata.maxpagesize=1000", request.Headers["Prefer"]);
         Assert.Equal(["https://outlook.office365.com/.default"], tokens.Calls.Single().Scopes);
@@ -43,6 +44,31 @@ public class RestCmdletRunnerTests
         Assert.Contains("skiptoken=p2", http.Requests[1].Url.Query);
         Assert.Equal(http.Requests[0].Body, http.Requests[1].Body);
     }
+
+    // Found by the spike: the service treats ResultSize as a page size, so a limit of 2 still
+    // walked every mailbox, two per page. The runner must stop once it has enough.
+    [Theory]
+    [InlineData(2, 1, 2)]
+    [InlineData(3, 2, 3)]
+    public async Task Result_size_caps_the_total_and_stops_paging(int resultSize, int expectedRequests, int expectedRows)
+    {
+        var http = new FakeHttp().On(HttpMethod.Post, "/InvokeCommand",
+            """{"value":[{"n":1},{"n":2}],"@odata.nextLink":"https://outlook.office365.com/adminapi/beta/tid-1/InvokeCommand?$skiptoken=more"}""");
+
+        var result = await Runner(http).InvokeAsync(CmdletEndpoint.Exchange, "Get-Mailbox",
+            new Dictionary<string, object?> { ["ResultSize"] = resultSize }, Ct);
+
+        Assert.Equal(expectedRows, result.Count);
+        Assert.Equal(expectedRequests, http.Requests.Count);
+        Assert.Equal($"odata.maxpagesize={resultSize}", http.Requests[0].Headers["Prefer"]);
+    }
+
+    [Theory]
+    [InlineData("Unlimited", null)]
+    [InlineData("25", 25)]
+    [InlineData(5000L, 5000)]
+    public void Result_limit_reads_numbers_and_ignores_unlimited(object value, int? expected) =>
+        Assert.Equal(expected, RestCmdletRunner.ResultLimit(new Dictionary<string, object?> { ["resultsize"] = value }));
 
     [Fact]
     public async Task Reports_the_most_specific_error_message()

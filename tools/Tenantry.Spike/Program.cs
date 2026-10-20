@@ -38,8 +38,8 @@ int Help()
 
 async Task<int> Setup()
 {
-    var bootstrapClient = Option("--bootstrap-client") ?? TenantryPermissions.AzurePowerShellClientId;
-    Console.WriteLine($"Signing in to create the app registration (bootstrap client {(bootstrapClient == TenantryPermissions.AzurePowerShellClientId ? "Azure PowerShell fallback" : "custom")}).");
+    var bootstrapClient = Option("--bootstrap-client") ?? TenantryPermissions.GraphCommandLineToolsClientId;
+    Console.WriteLine($"Signing in to create the app registration (bootstrap client {(bootstrapClient == TenantryPermissions.GraphCommandLineToolsClientId ? "Microsoft Graph Command Line Tools fallback" : "custom")}).");
     var tokens = await MsalTokenSource.CreateAsync(bootstrapClient, MsalTokenSource.AnyOrganization, cacheFolder: null);
     if (deviceCode)
         tokens.DeviceCodePrompt = m => { Console.WriteLine(m); return Task.CompletedTask; };

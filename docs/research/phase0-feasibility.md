@@ -462,3 +462,26 @@ Typed parameter values such as hashtables (`@{Add=...}`) use an `@odata.type` ma
   - a delegated token from **our** app with only `Exchange.Manage` gets `aud=https://ps.compliance.protection.outlook.com` and can run `Get-DlpCompliancePolicy` on Windows, macOS and Linux;
   - 302 region discovery works with a non-module client;
   - paging and `$batch` behave as CIPP shows.
+
+## 8. Spike results (2026-10-20, live tenant, Windows)
+
+Run with `tools/Tenantry.Spike` against a production tenant, delegated sign-in as a Global
+Administrator. Every check passed. Findings that change or confirm the design:
+
+| Assumption | Result |
+|---|---|
+| Azure PowerShell's client (`1950a258-...`) as the setup fallback | **Fails.** Entra returns AADSTS65002: first-party apps need preauthorisation for Graph scopes. Use Microsoft Graph Command Line Tools (`14d82eec-...`) instead, which may request any Graph scope. |
+| Graph `oauth2PermissionScopes` names are unique | **No.** Graph publishes `User.ReadBasic.All` twice. Look-ups must tolerate duplicates. |
+| `InformationProtectionPolicy.Read.All` is a delegated scope | **No.** It is application-only; the delegated name is `InformationProtectionPolicy.Read`. |
+| Exchange REST `InvokeCommand` with our own app's token (`Exchange.Manage` only) | Works. |
+| Purview REST with no compliance permission, `Exchange.Manage` only | Works. The token's `aud` is `https://ps.compliance.protection.outlook.com` and its `scp` lists the Exchange grant's scopes. |
+| Purview region discovery via the `EXOModuleFile` 302 | Works; the regional host is used for cmdlet calls. |
+| Paging via `@odata.nextLink` at `odata.maxpagesize=1000` | Works: over 1,000 recipients took 2 requests (about 38 s; Exchange is slow, so sync must use narrow selects). |
+| `ResultSize` limits the total | **No.** The service treats it as a page size: `-ResultSize 2` returned every mailbox two at a time. The runner now strips it, sends it as `maxpagesize`, and stops paging at the limit. |
+| One SharePoint token (root audience) works on the `-admin` site | Yes, 200 on both. |
+| Graph message trace (`/admin/exchange/tracing/messageTraces`) | Works; no extra service principal provisioning was needed in this tenant. |
+| Requiring assignment on the service principal plus assigning the setup admin | Works; sign-in with the new app succeeded with no consent prompt. |
+| MSAL encrypted token cache on Windows | Persistent (DPAPI). |
+
+Not yet run: macOS and Linux (WSL) checks, and authentication-method writes (the 10-minute
+MFA claims challenge), which need a test-marked user.

@@ -69,8 +69,11 @@ public sealed class AppRegistrationProvisioner
                 continue;
             }
 
-            var published = sp.Value.GetProperty("oauth2PermissionScopes").EnumerateArray()
-                .ToDictionary(s => s.GetProperty("value").GetString()!, s => s.GetProperty("id").GetString()!, StringComparer.OrdinalIgnoreCase);
+            // Real tenants publish some scope names twice (Microsoft Graph lists User.ReadBasic.All
+            // more than once), so the first entry per name wins rather than assuming uniqueness.
+            var published = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in sp.Value.GetProperty("oauth2PermissionScopes").EnumerateArray())
+                published.TryAdd(s.GetProperty("value").GetString()!, s.GetProperty("id").GetString()!);
             var scopes = new List<(string, string)>();
             foreach (var name in api.DelegatedScopes)
             {

@@ -29,8 +29,14 @@ public static class TenantryPermissions
     public const string ExchangeAppId = "00000002-0000-0ff1-ce00-000000000000";
     public const string SharePointAppId = "00000003-0000-0ff1-ce00-000000000000";
 
-    /// <summary>Azure PowerShell's public client: the setup fallback when no bootstrap app is configured.</summary>
-    public const string AzurePowerShellClientId = "1950a258-227b-4e31-a9cf-717495945fc2";
+    /// <summary>
+    /// Microsoft Graph Command Line Tools (the client behind Connect-MgGraph): the setup
+    /// fallback when no bootstrap app is configured. It may request any Graph permission
+    /// dynamically. Azure PowerShell's client (1950a258-...) does NOT work for this: Entra
+    /// refuses it with AADSTS65002 because Graph has not pre-authorised it for these scopes
+    /// (seen 2026-10-20).
+    /// </summary>
+    public const string GraphCommandLineToolsClientId = "14d82eec-204b-4c2f-b7e8-296a70dab67e";
 
     public static readonly ApiPermissions Graph = new(GraphAppId, "Microsoft Graph", "https://graph.microsoft.com",
     [
@@ -55,7 +61,7 @@ public static class TenantryPermissions
         "eDiscovery.ReadWrite.All",
         "AuditLogsQuery.Read.All",
         "RecordsManagement.ReadWrite.All",
-        "InformationProtectionPolicy.Read.All",
+        "InformationProtectionPolicy.Read", // the .All form is application-only
         "SecurityAlert.ReadWrite.All",
     ]);
 

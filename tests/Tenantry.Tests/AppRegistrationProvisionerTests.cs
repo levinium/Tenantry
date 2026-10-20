@@ -22,8 +22,10 @@ public class AppRegistrationProvisionerTests
             .On(HttpMethod.Get, "/me?", """{"id":"me-1"}""");
         foreach (var api in TenantryPermissions.All)
         {
+            // A duplicated name, as real tenants publish (User.ReadBasic.All appears twice in Graph's list).
             var scopes = api.DelegatedScopes
                 .Where(s => s != missingGraphScope)
+                .Append("User.ReadBasic.All").Append("User.ReadBasic.All")
                 .Select((s, i) => $$"""{"value":"{{s}}","id":"{{api.ResourceAppId[..4]}}-{{i}}"}""");
             http.On(HttpMethod.Get, $"servicePrincipals?$filter=appId eq '{api.ResourceAppId}'",
                 $$"""{"value":[{"id":"sp-{{api.ResourceName}}","appId":"{{api.ResourceAppId}}","oauth2PermissionScopes":[{{string.Join(",", scopes)}}]}]}""");

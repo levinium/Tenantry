@@ -54,25 +54,49 @@ public sealed class RestCmdletRunner : ICmdletRunner
         var host = endpoint == CmdletEndpoint.Compliance ? await ComplianceHostAsync(anchor, cancellationToken) : ExchangeHost;
         string[] scopes = [$"{audience}/.default"];
 
+        // The service reads ResultSize as a PAGE size, not a total: Get-Mailbox -ResultSize 2
+        // came back two at a time, one page per two mailboxes (spike, 2026-10-20). So the
+        // limit is applied here, as the module does, and the server is sent page sizes only.
+        var limit = ResultLimit(parameters);
+        var sent = parameters?
+            .Where(p => !p.Key.Equals("ResultSize", StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(p => p.Key, p => p.Value) ?? new Dictionary<string, object?>();
+        var pageSize = limit is { } n ? Math.Min(n, MaxPageSize) : MaxPageSize;
+
         var body = JsonSerializer.Serialize(new
         {
-            CmdletInput = new { CmdletName = cmdlet, Parameters = parameters ?? new Dictionary<string, object?>() },
+            CmdletInput = new { CmdletName = cmdlet, Parameters = sent },
         });
 
         var results = new List<JsonElement>();
         string? next = $"{host}/adminapi/beta/{_tenantId}/InvokeCommand";
-        while (next is not null)
+        while (next is not null && (limit is null || results.Count < limit))
         {
-            var page = await PostAsync(next, body, scopes, anchor, cmdlet, cancellationToken);
+            var page = await PostAsync(next, body, scopes, anchor, cmdlet, pageSize, cancellationToken);
             if (page.TryGetProperty("value", out var items))
                 results.AddRange(items.EnumerateArray().Select(i => i.Clone()));
             // Paging re-sends the SAME body to the next link; a next link lasts minutes only.
             next = page.TryGetProperty("@odata.nextLink", out var link) ? link.GetString() : null;
         }
-        return results;
+        return limit is { } max && results.Count > max ? results.GetRange(0, max) : results;
     }
 
-    async Task<JsonElement> PostAsync(string url, string body, string[] scopes, string anchor, string cmdlet, CancellationToken cancellationToken)
+    const int MaxPageSize = 1000;
+
+    /// <summary>The caller's ResultSize as a number, or null for "Unlimited" or none.</summary>
+    internal static int? ResultLimit(IReadOnlyDictionary<string, object?>? parameters)
+    {
+        var value = parameters?.FirstOrDefault(p => p.Key.Equals("ResultSize", StringComparison.OrdinalIgnoreCase)).Value;
+        return value switch
+        {
+            int n when n > 0 => n,
+            long n when n > 0 => (int)Math.Min(n, int.MaxValue),
+            string s when int.TryParse(s, out var n) && n > 0 => n,
+            _ => null,
+        };
+    }
+
+    async Task<JsonElement> PostAsync(string url, string body, string[] scopes, string anchor, string cmdlet, int pageSize, CancellationToken cancellationToken)
     {
         string? claims = null;
         var challenged = false;
@@ -82,7 +106,7 @@ public sealed class RestCmdletRunner : ICmdletRunner
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await _tokens.GetTokenAsync(scopes, claims, cancellationToken));
             request.Headers.Add("X-AnchorMailbox", $"UPN:{anchor}");
             request.Headers.Add("X-CmdletName", cmdlet);
-            request.Headers.Add("Prefer", "odata.maxpagesize=1000");
+            request.Headers.Add("Prefer", $"odata.maxpagesize={pageSize}");
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
 
             using var response = await _http.SendAsync(request, cancellationToken);
