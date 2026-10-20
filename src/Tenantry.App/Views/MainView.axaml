@@ -2,33 +2,60 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
              xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.MainView"
              x:DataType="vm:MainViewModel">
 
-  <Grid ColumnDefinitions="220,*">
+  <Grid ColumnDefinitions="248,*">
 
-    <!-- Sidebar: one entry per admin area. Unavailable areas stay visible but disabled,
-         with the reason as a tooltip. -->
-    <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+    <!-- Sidebar -->
+    <Border Grid.Column="0" Classes="sidebar">
       <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Margin="16,16,16,12" Spacing="2">
-          <TextBlock FontSize="18" FontWeight="SemiBold" Text="Tenantry" />
-          <TextBlock Text="{Binding TenantName}" TextTrimming="CharacterEllipsis" />
-          <TextBlock Opacity="0.6" FontSize="12" Text="{Binding Account}" TextTrimming="CharacterEllipsis" />
-        </StackPanel>
+        <!-- Who and where -->
+        <Grid DockPanel.Dock="Top" Margin="16,18,16,14" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+          <Border Classes="avatar">
+            <TextBlock Text="{Binding TenantInitials}" />
+          </Border>
+          <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+            <TextBlock Classes="h3" Text="{Binding TenantName}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="caption" Text="{Binding Account}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+        </Grid>
+        <Border DockPanel.Dock="Top" Classes="divider" Margin="16,0,16,12" />
 
-        <StackPanel DockPanel.Dock="Bottom" Margin="12" Spacing="6">
-          <Button HorizontalAlignment="Stretch" Content="Your access">
+        <!-- Footer actions -->
+        <StackPanel DockPanel.Dock="Bottom" Margin="8,8,8,14" Spacing="2">
+          <Border Classes="divider" Margin="8,0,8,8" />
+          <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Key" FontSize="18" />
+              <TextBlock Text="Your access" VerticalAlignment="Center" />
+            </StackPanel>
             <Button.Flyout>
               <Flyout Placement="RightEdgeAlignedBottom">
-                <StackPanel Spacing="8" MaxWidth="460">
-                  <TextBlock FontWeight="SemiBold" Text="What you can do in this tenant" />
+                <StackPanel Spacing="12" Width="440" Margin="4">
+                  <StackPanel Spacing="2">
+                    <TextBlock Classes="h3" Text="Your access in this tenant" />
+                    <TextBlock Classes="caption" TextWrapping="Wrap"
+                               Text="Based on your directory roles and the tenant's licenses. Features you can't use show why." />
+                  </StackPanel>
                   <ItemsControl ItemsSource="{Binding Access}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Spacing="10" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate x:DataType="vm:CapabilityRow">
-                        <Grid ColumnDefinitions="200,*" Margin="0,2">
-                          <TextBlock Grid.Column="0" Text="{Binding Title}" />
-                          <TextBlock Grid.Column="1" Text="{Binding State}" TextWrapping="Wrap" Opacity="0.8" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                          <StackPanel Spacing="1">
+                            <TextBlock Text="{Binding Title}" />
+                            <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding Reason}"
+                                       IsVisible="{Binding Reason, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                          </StackPanel>
+                          <c:Badge Grid.Column="1" Text="{Binding BadgeText}" Kind="{Binding BadgeKind}" VerticalAlignment="Top" />
                         </Grid>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -37,46 +64,63 @@
               </Flyout>
             </Button.Flyout>
           </Button>
-          <Button HorizontalAlignment="Stretch" Content="Switch tenant" Command="{Binding SwitchTenantCommand}" />
+          <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Command="{Binding SwitchTenantCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="ArrowSwap" FontSize="18" />
+              <TextBlock Text="Switch tenant" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
         </StackPanel>
 
-        <ListBox ItemsSource="{Binding Sections}" SelectedItem="{Binding SelectedSection}" Background="Transparent">
-          <ListBox.Styles>
-            <Style Selector="ListBoxItem" x:DataType="vm:NavSection">
-              <Setter Property="IsEnabled" Value="{Binding IsAvailable}" />
-              <Setter Property="ToolTip.Tip" Value="{Binding UnavailableReason}" />
-              <Setter Property="ToolTip.ShowOnDisabled" Value="True" />
-            </Style>
-          </ListBox.Styles>
-          <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="vm:NavSection">
-              <TextBlock Text="{Binding Title}" />
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
+        <!-- Areas -->
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Margin="20,0,0,2" Text="ADMIN AREAS" />
+          <ListBox Classes="nav" ItemsSource="{Binding Sections}" SelectedItem="{Binding SelectedSection}">
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem" x:DataType="vm:NavSection">
+                <Setter Property="IsEnabled" Value="{Binding IsAvailable}" />
+                <Setter Property="ToolTip.Tip" Value="{Binding UnavailableReason}" />
+                <Setter Property="ToolTip.ShowOnDisabled" Value="True" />
+              </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:NavSection">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <ic:FluentIcon Icon="{Binding Key, Converter={x:Static conv:NavIcon.Instance}}" FontSize="18" />
+                  <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </StackPanel>
       </DockPanel>
     </Border>
 
+    <!-- Content -->
     <DockPanel Grid.Column="1">
-      <Border DockPanel.Dock="Top" IsVisible="{Binding LoadError, Converter={x:Static ObjectConverters.IsNotNull}}"
-              Background="#33E81123" Padding="12,8">
+      <Border DockPanel.Dock="Top" Classes="banner error" Margin="20,16,20,0" IsVisible="{Binding LoadError, Converter={x:Static ObjectConverters.IsNotNull}}">
         <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
       </Border>
-      <Border DockPanel.Dock="Top" IsVisible="{Binding IsDemo}" Background="#22FFB900" Padding="12,6">
-        <TextBlock Text="Demo tenant: generated people on example domains. Nothing here is real, and nothing is sent anywhere." />
+      <Border DockPanel.Dock="Top" Classes="banner info" Margin="20,16,20,0" IsVisible="{Binding IsDemo}">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+          <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="Demo tenant: generated people on example domains. Nothing here is real, and nothing is sent anywhere." />
+        </StackPanel>
       </Border>
 
       <!-- Console-style tabs: list pages plus any number of open records side by side. -->
-      <TabControl x:Name="Tabs" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}" Padding="0">
+      <TabControl x:Name="Tabs" Margin="12,4,12,0" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}" Padding="0">
         <TabControl.ItemTemplate>
           <DataTemplate x:DataType="vm:TabViewModel">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="14" />
-              <Button IsVisible="{Binding CanClose}" Content="✕" FontSize="10" Padding="4,1"
-                      Background="Transparent" VerticalAlignment="Center"
+              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+              <Button Classes="ghost" IsVisible="{Binding CanClose}" Padding="4" VerticalAlignment="Center"
                       ToolTip.Tip="Close"
                       Command="{Binding #Tabs.((vm:MainViewModel)DataContext).CloseTabCommand}"
-                      CommandParameter="{Binding}" />
+                      CommandParameter="{Binding}">
+                <ic:FluentIcon Icon="Dismiss" FontSize="12" />
+              </Button>
             </StackPanel>
           </DataTemplate>
         </TabControl.ItemTemplate>

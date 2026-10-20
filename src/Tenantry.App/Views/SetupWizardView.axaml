@@ -1,86 +1,157 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.SetupWizardView"
              x:DataType="vm:SetupWizardViewModel">
   <ScrollViewer>
-    <StackPanel Margin="48" Spacing="18" MaxWidth="820" HorizontalAlignment="Center">
-      <TextBlock FontSize="26" FontWeight="SemiBold" Text="Add a tenant" />
+    <StackPanel Margin="48,48,48,48" Spacing="22" MaxWidth="820" HorizontalAlignment="Center">
+
+      <StackPanel Spacing="4">
+        <TextBlock Classes="h1" Text="Add a tenant" />
+        <TextBlock Classes="muted" TextWrapping="Wrap"
+                   Text="Tenantry signs in through its own app registration in your tenant. Delegated permissions only: it can never do more than the admin who is signed in." />
+      </StackPanel>
 
       <!-- Step 1: choose a path -->
       <StackPanel Spacing="12" IsVisible="{Binding IsChoose}">
-        <TextBlock TextWrapping="Wrap"
-                   Text="Tenantry signs in through its own app registration in your tenant. Choose how to create it." />
-        <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16" Command="{Binding ChooseAutomaticCommand}">
-          <StackPanel Spacing="4">
-            <TextBlock FontWeight="SemiBold" Text="Set it up for me (recommended)" />
-            <TextBlock Opacity="0.7" TextWrapping="Wrap" Text="Sign in once as an admin; Tenantry creates and configures the registration." />
-          </StackPanel>
+        <Button Classes="choice" Command="{Binding ChooseAutomaticCommand}">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+            <ic:FluentIcon Icon="Wand" FontSize="28" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1" Spacing="4">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Classes="h3" Text="Set it up for me" />
+                <TextBlock Classes="caption" VerticalAlignment="Center" Text="Recommended" />
+              </StackPanel>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Sign in once as an admin. Tenantry creates and configures the registration, and shows you exactly what it changes first." />
+            </StackPanel>
+            <ic:FluentIcon Grid.Column="2" Icon="ChevronRight" FontSize="18" VerticalAlignment="Center" Foreground="{DynamicResource TextMuted}" />
+          </Grid>
         </Button>
-        <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16" Command="{Binding ChooseManualCommand}">
-          <StackPanel Spacing="4">
-            <TextBlock FontWeight="SemiBold" Text="I'll create it myself" />
-            <TextBlock Opacity="0.7" TextWrapping="Wrap" Text="Run a generated PowerShell script (or use the portal), then paste the two IDs." />
-          </StackPanel>
+        <Button Classes="choice" Command="{Binding ChooseManualCommand}">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+            <ic:FluentIcon Icon="Code" FontSize="28" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1" Spacing="4">
+              <TextBlock Classes="h3" Text="I'll create it myself" />
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Run a generated PowerShell script, or follow the portal steps, then paste two IDs." />
+            </StackPanel>
+            <ic:FluentIcon Grid.Column="2" Icon="ChevronRight" FontSize="18" VerticalAlignment="Center" Foreground="{DynamicResource TextMuted}" />
+          </Grid>
         </Button>
-        <Button Content="Cancel" Command="{Binding CancelCommand}" />
+        <Button HorizontalAlignment="Left" Content="Cancel" Command="{Binding CancelCommand}" />
       </StackPanel>
 
       <!-- Automatic -->
-      <StackPanel Spacing="12" IsVisible="{Binding IsAutomatic}">
-        <TextBlock FontWeight="SemiBold" Text="What this changes in your tenant" />
-        <ItemsControl ItemsSource="{Binding AutomaticChanges}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="x:String">
-              <TextBlock Margin="0,0,0,6" TextWrapping="Wrap" Text="{Binding StringFormat=• {0}}" />
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <Expander Header="Permissions requested">
-          <ItemsControl ItemsSource="{Binding PermissionSummary}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="x:String">
-                <SelectableTextBlock Margin="0,0,0,8" TextWrapping="Wrap" FontSize="12" Text="{Binding}" />
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </Expander>
-        <StackPanel Orientation="Horizontal" Spacing="12">
-          <Button Classes="accent" Content="Sign in and set up" Command="{Binding RunAutomaticCommand}" />
+      <StackPanel Spacing="16" IsVisible="{Binding IsAutomatic}">
+        <Border Classes="card">
+          <StackPanel Spacing="14">
+            <TextBlock Classes="h3" Text="What this changes in your tenant" />
+            <ItemsControl ItemsSource="{Binding AutomaticChanges}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="10" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <ic:FluentIcon Icon="CheckmarkCircle" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Top" />
+                    <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="{Binding}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Expander Header="Permissions requested" HorizontalAlignment="Stretch">
+              <ItemsControl ItemsSource="{Binding PermissionSummary}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String">
+                    <SelectableTextBlock Classes="caption" Margin="0,0,0,8" TextWrapping="Wrap" Text="{Binding}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Expander>
+          </StackPanel>
+        </Border>
+
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="accent" Command="{Binding RunAutomaticCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ic:FluentIcon Icon="Key" FontSize="16" />
+              <TextBlock Text="Sign in and set up" />
+            </StackPanel>
+          </Button>
           <Button Content="Cancel sign-in" IsVisible="{Binding IsBusy}" Command="{Binding CancelRunCommand}" />
           <Button Content="Back" Command="{Binding BackCommand}" />
         </StackPanel>
-        <ItemsControl ItemsSource="{Binding Progress}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="x:String">
-              <TextBlock Opacity="0.8" Text="{Binding}" />
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+
+        <Border Classes="card" IsVisible="{Binding IsBusy}">
+          <ItemsControl ItemsSource="{Binding Progress}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="6" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <ic:FluentIcon Icon="Clock" FontSize="14" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" />
+                  <TextBlock Classes="muted" Text="{Binding}" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
       </StackPanel>
 
       <!-- Manual -->
-      <StackPanel Spacing="12" IsVisible="{Binding IsManual}">
-        <TextBlock TextWrapping="Wrap"
-                   Text="1. Run this script in PowerShell 7 as an admin (Cloud Application Administrator or higher). It creates the same registration the automatic setup would, and prints the two IDs." />
-        <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" CornerRadius="4" Padding="8" MaxHeight="320">
-          <ScrollViewer HorizontalScrollBarVisibility="Auto">
-            <SelectableTextBlock FontFamily="Cascadia Mono,Consolas,Menlo,monospace" FontSize="12" Text="{Binding ManualScript}" />
-          </ScrollViewer>
+      <StackPanel Spacing="16" IsVisible="{Binding IsManual}">
+        <Border Classes="card">
+          <StackPanel Spacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Border Classes="avatar small"><TextBlock Text="1" /></Border>
+              <TextBlock Classes="h3" VerticalAlignment="Center" Text="Run the setup script" />
+            </StackPanel>
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="In PowerShell 7, as an admin with Cloud Application Administrator or higher. It creates the same registration the automatic setup would and prints the two IDs." />
+            <Border Background="{DynamicResource SubtleBg}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1"
+                    CornerRadius="6" Padding="12" MaxHeight="300">
+              <ScrollViewer HorizontalScrollBarVisibility="Auto">
+                <SelectableTextBlock Classes="code" Text="{Binding ManualScript}" />
+              </ScrollViewer>
+            </Border>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Button Click="OnCopyScript">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <ic:FluentIcon Icon="Copy" FontSize="16" />
+                  <TextBlock Text="Copy script" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="caption" TextWrapping="Wrap"
+                         Text="Prefer the portal? Create a single-tenant registration with a public-client redirect URI of http://localhost, add the permissions the automatic option lists, grant admin consent, and require assignment." />
+              <HyperlinkButton Padding="0" NavigateUri="{Binding PortalUrl}" Content="Open App registrations in the Entra portal" />
+            </StackPanel>
+          </StackPanel>
         </Border>
-        <Button Content="Copy script" Click="OnCopyScript" />
-        <TextBlock TextWrapping="Wrap" Opacity="0.8">
-          <Run Text="Prefer the portal? Create a single-tenant registration with a public-client redirect URI of http://localhost, add the permissions listed under the automatic option, grant admin consent, and require assignment. Portal: " />
-          <Run Text="{Binding PortalUrl}" />
-        </TextBlock>
-        <TextBlock TextWrapping="Wrap" Text="2. Paste the IDs. Tenantry signs in with them to check everything is in place." />
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" RowSpacing="8">
-          <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Tenant ID" />
-          <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding TenantIdInput}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
-          <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Application ID" />
-          <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ClientIdInput}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
-        </Grid>
-        <StackPanel Orientation="Horizontal" Spacing="12">
+
+        <Border Classes="card">
+          <StackPanel Spacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Border Classes="avatar small"><TextBlock Text="2" /></Border>
+              <TextBlock Classes="h3" VerticalAlignment="Center" Text="Paste the IDs" />
+            </StackPanel>
+            <TextBlock Classes="muted" TextWrapping="Wrap" Text="Tenantry signs in with them to check everything is in place." />
+            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" RowSpacing="10">
+              <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Tenant ID" />
+              <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding TenantIdInput}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
+              <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Application ID" />
+              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ClientIdInput}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <StackPanel Orientation="Horizontal" Spacing="10">
           <Button Classes="accent" Content="Sign in and verify" Command="{Binding VerifyManualCommand}" />
           <Button Content="Cancel sign-in" IsVisible="{Binding IsBusy}" Command="{Binding CancelRunCommand}" />
           <Button Content="Back" Command="{Binding BackCommand}" />
@@ -88,22 +159,31 @@
       </StackPanel>
 
       <!-- Done -->
-      <StackPanel Spacing="12" IsVisible="{Binding IsDone}">
-        <TextBlock FontSize="16" TextWrapping="Wrap" Text="{Binding DoneMessage}" />
-        <StackPanel Spacing="4" IsVisible="{Binding HasUnresolved}">
-          <TextBlock TextWrapping="Wrap" Text="These permissions weren't available in this tenant; features that need them will show as unavailable:" />
-          <ItemsControl ItemsSource="{Binding Unresolved}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="x:String">
-                <TextBlock Opacity="0.8" Text="{Binding StringFormat=• {0}}" />
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+      <Border Classes="card" IsVisible="{Binding IsDone}">
+        <StackPanel Spacing="14">
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <ic:FluentIcon Icon="CheckmarkCircle" FontSize="30" Foreground="{DynamicResource BadgeSuccessFg}" />
+            <TextBlock Classes="h2" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding DoneMessage}" />
+          </StackPanel>
+          <StackPanel Spacing="6" IsVisible="{Binding HasUnresolved}">
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="These permissions weren't available in this tenant. Features that need them will show as unavailable:" />
+            <ItemsControl ItemsSource="{Binding Unresolved}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
+                    <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+          <Button Classes="accent" HorizontalAlignment="Left" Content="Back to tenants" Command="{Binding FinishCommand}" />
         </StackPanel>
-        <Button Classes="accent" Content="Back to tenants" Command="{Binding FinishCommand}" />
-      </StackPanel>
+      </Border>
 
-      <Border IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" Background="#33E81123" Padding="12,8" CornerRadius="4">
+      <Border Classes="banner error" IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}">
         <SelectableTextBlock Text="{Binding Error}" TextWrapping="Wrap" />
       </Border>
     </StackPanel>

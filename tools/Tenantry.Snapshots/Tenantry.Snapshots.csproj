@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Renders every screen to PNG, in light and dark, with no window and no clicking. Uses only
+       the demo tenant and fictional profiles, so its output is safe for docs and the README. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>tenantry-snapshots</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Headless" />
+    <PackageReference Include="Avalonia.Skia" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Tenantry.App\Tenantry.App.csproj" />
+  </ItemGroup>
+
+</Project>

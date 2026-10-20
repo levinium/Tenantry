@@ -31,7 +31,7 @@ public class UserListViewModelTests
         vm.FilterText = "it HOPPER";
 
         Assert.Equal(["Grace Hopper"], Names(vm));
-        Assert.Equal("1 of 4 users", vm.CountText);
+        Assert.Equal("1 of 4", vm.CountText);
     }
 
     [Theory]
@@ -71,6 +71,6 @@ public class UserListViewModelTests
 
         vm.SelectedUser = vm.VisibleUsers[1];
         vm.OpenSelectedCommand.Execute(null);
-        Assert.Same(vm.VisibleUsers[1], opened);
+        Assert.Same(vm.VisibleUsers[1].User, opened);
     }
 }

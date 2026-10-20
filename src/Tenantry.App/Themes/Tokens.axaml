@@ -1,0 +1,95 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Design tokens: every colour the app uses, defined once per theme. Views and styles refer
+       to these keys with DynamicResource only, so a theme switch repaints everything.
+       Both dictionaries must define the same keys. -->
+  <ResourceDictionary.ThemeDictionaries>
+
+    <ResourceDictionary x:Key="Light">
+      <Color x:Key="SystemAccentColor">#3B5BDB</Color>
+      <Color x:Key="SystemAccentColorDark1">#3451C7</Color>
+      <Color x:Key="SystemAccentColorDark2">#2C46B0</Color>
+      <Color x:Key="SystemAccentColorLight1">#4C6BE3</Color>
+      <Color x:Key="SystemAccentColorLight2">#6681EA</Color>
+      <SolidColorBrush x:Key="AccentFill" Color="#3B5BDB" />
+
+      <SolidColorBrush x:Key="WindowBg" Color="#F3F4F6" />
+      <SolidColorBrush x:Key="SidebarBg" Color="#E9EBEF" />
+      <SolidColorBrush x:Key="CardBg" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="CardBorder" Color="#D9DDE3" />
+      <SolidColorBrush x:Key="Divider" Color="#E6E8EC" />
+      <SolidColorBrush x:Key="SubtleBg" Color="#F6F7F9" />
+
+      <SolidColorBrush x:Key="TextPrimary" Color="#1F2328" />
+      <SolidColorBrush x:Key="TextSecondary" Color="#4E5763" />
+      <SolidColorBrush x:Key="TextMuted" Color="#6A737D" />
+      <SolidColorBrush x:Key="Accent" Color="#3B5BDB" />
+
+      <SolidColorBrush x:Key="NavHoverBg" Color="#DDE1E7" />
+      <SolidColorBrush x:Key="NavSelectedBg" Color="#DCE3FB" />
+      <SolidColorBrush x:Key="NavSelectedFg" Color="#1E3A8A" />
+
+      <SolidColorBrush x:Key="AvatarBg" Color="#DCE3FB" />
+      <SolidColorBrush x:Key="AvatarFg" Color="#1E3A8A" />
+
+      <SolidColorBrush x:Key="BadgeNeutralBg" Color="#E8EAED" />
+      <SolidColorBrush x:Key="BadgeNeutralFg" Color="#3D4651" />
+      <SolidColorBrush x:Key="BadgeInfoBg" Color="#E0EAFF" />
+      <SolidColorBrush x:Key="BadgeInfoFg" Color="#1D46B8" />
+      <SolidColorBrush x:Key="BadgeSuccessBg" Color="#DCF3E3" />
+      <SolidColorBrush x:Key="BadgeSuccessFg" Color="#17602F" />
+      <SolidColorBrush x:Key="BadgeWarningBg" Color="#FFF0D1" />
+      <SolidColorBrush x:Key="BadgeWarningFg" Color="#7A4A00" />
+      <SolidColorBrush x:Key="BadgeDangerBg" Color="#FDE2E1" />
+      <SolidColorBrush x:Key="BadgeDangerFg" Color="#9F1C1C" />
+
+      <SolidColorBrush x:Key="BannerErrorBg" Color="#FDE2E1" />
+      <SolidColorBrush x:Key="BannerInfoBg" Color="#FFF5DB" />
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="Dark">
+      <!-- Filled accent surfaces (buttons, the logo tile) carry white text, so this is darker
+           than the accent used for icons and links; white on it stays above 4.5:1. -->
+      <Color x:Key="SystemAccentColor">#4A66D9</Color>
+      <Color x:Key="SystemAccentColorDark1">#4560D0</Color>
+      <Color x:Key="SystemAccentColorDark2">#3E58C2</Color>
+      <Color x:Key="SystemAccentColorLight1">#4A66D9</Color>
+      <Color x:Key="SystemAccentColorLight2">#4560D0</Color>
+      <SolidColorBrush x:Key="AccentFill" Color="#4A66D9" />
+
+      <SolidColorBrush x:Key="WindowBg" Color="#18191C" />
+      <SolidColorBrush x:Key="SidebarBg" Color="#1F2024" />
+      <SolidColorBrush x:Key="CardBg" Color="#24262B" />
+      <SolidColorBrush x:Key="CardBorder" Color="#363940" />
+      <SolidColorBrush x:Key="Divider" Color="#2E3137" />
+      <SolidColorBrush x:Key="SubtleBg" Color="#1D1F23" />
+
+      <SolidColorBrush x:Key="TextPrimary" Color="#E8EAED" />
+      <SolidColorBrush x:Key="TextSecondary" Color="#B4BBC4" />
+      <SolidColorBrush x:Key="TextMuted" Color="#959DA8" />
+      <SolidColorBrush x:Key="Accent" Color="#7F9BFF" />
+
+      <SolidColorBrush x:Key="NavHoverBg" Color="#2A2C32" />
+      <SolidColorBrush x:Key="NavSelectedBg" Color="#2D3755" />
+      <SolidColorBrush x:Key="NavSelectedFg" Color="#D0DBFF" />
+
+      <SolidColorBrush x:Key="AvatarBg" Color="#2D3755" />
+      <SolidColorBrush x:Key="AvatarFg" Color="#D0DBFF" />
+
+      <SolidColorBrush x:Key="BadgeNeutralBg" Color="#33363D" />
+      <SolidColorBrush x:Key="BadgeNeutralFg" Color="#CDD2D9" />
+      <SolidColorBrush x:Key="BadgeInfoBg" Color="#1F2D52" />
+      <SolidColorBrush x:Key="BadgeInfoFg" Color="#A9C1FF" />
+      <SolidColorBrush x:Key="BadgeSuccessBg" Color="#173A26" />
+      <SolidColorBrush x:Key="BadgeSuccessFg" Color="#86E0A6" />
+      <SolidColorBrush x:Key="BadgeWarningBg" Color="#3E2F10" />
+      <SolidColorBrush x:Key="BadgeWarningFg" Color="#F4C46E" />
+      <SolidColorBrush x:Key="BadgeDangerBg" Color="#47191C" />
+      <SolidColorBrush x:Key="BadgeDangerFg" Color="#FFA3A3" />
+
+      <SolidColorBrush x:Key="BannerErrorBg" Color="#47191C" />
+      <SolidColorBrush x:Key="BannerInfoBg" Color="#3A2F14" />
+    </ResourceDictionary>
+
+  </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

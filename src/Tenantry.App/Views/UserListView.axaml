@@ -1,33 +1,130 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
-             xmlns:dir="using:Tenantry.Core.Directory"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.UserListView"
-             x:DataType="vm:UserListViewModel">
-  <DockPanel Margin="12">
-    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
-      <TextBox Grid.Column="0" Text="{Binding FilterText}"
-               PlaceholderText="Filter: any words, in any order (name, address, department, title, license, guest, disabled)" />
-      <TextBlock Grid.Column="1" Margin="12,0" VerticalAlignment="Center" Opacity="0.7" Text="{Binding CountText}" />
-      <!-- Always disabled until the change pipeline exists; the tooltip says why, including
-           when the admin lacks the role, which is the gating pattern every action follows. -->
-      <Button Grid.Column="2" Content="New user" IsEnabled="False"
-              ToolTip.Tip="{Binding CreateUsersTip}" ToolTip.ShowOnDisabled="True" />
+             x:DataType="vm:UserListViewModel"
+             x:Name="Root">
+  <DockPanel Margin="8,16,8,16">
+
+    <!-- Title row -->
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,14">
+      <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+        <TextBlock Classes="h2" Text="Users" />
+        <TextBlock Classes="caption" VerticalAlignment="Center" Margin="0,3,0,0" Text="{Binding CountText}" />
+      </StackPanel>
+      <!-- Disabled until the change pipeline exists; the tooltip says why, including when the
+           admin lacks the role, which is the gating pattern every action follows. -->
+      <Button Grid.Column="1" IsEnabled="False" ToolTip.Tip="{Binding CreateUsersTip}" ToolTip.ShowOnDisabled="True">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <ic:FluentIcon Icon="PersonAdd" FontSize="16" />
+          <TextBlock Text="New user" />
+        </StackPanel>
+      </Button>
     </Grid>
-    <TextBlock DockPanel.Dock="Top" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" Opacity="0.7"
-               Text="Loading users…" />
-    <DataGrid x:Name="Grid" ItemsSource="{Binding VisibleUsers}" SelectedItem="{Binding SelectedUser}"
-              IsReadOnly="True" CanUserSortColumns="True" CanUserResizeColumns="True"
-              GridLinesVisibility="Horizontal" DoubleTapped="OnRowDoubleTapped">
-      <DataGrid.Columns>
-        <DataGridTextColumn x:DataType="dir:UserSummary" Header="Name" Binding="{Binding DisplayName}" Width="1.3*" />
-        <DataGridTextColumn x:DataType="dir:UserSummary" Header="Sign-in name" Binding="{Binding UserPrincipalName}" Width="2*" />
-        <DataGridTextColumn x:DataType="dir:UserSummary" Header="Department" Binding="{Binding Department}" Width="*" />
-        <DataGridTextColumn x:DataType="dir:UserSummary" Header="Title" Binding="{Binding JobTitle}" Width="1.4*" />
-        <DataGridCheckBoxColumn x:DataType="dir:UserSummary" Header="Enabled" Binding="{Binding AccountEnabled}" Width="Auto" />
-        <DataGridTextColumn x:DataType="dir:UserSummary" Header="Type" Binding="{Binding Kind}" Width="Auto" />
-        <DataGridTextColumn x:DataType="dir:UserSummary" Header="Last sign-in" Binding="{Binding LastSignIn, StringFormat={}{0:g}, TargetNullValue=Never}" Width="Auto" />
-      </DataGrid.Columns>
-    </DataGrid>
+
+    <!-- Search -->
+    <TextBox DockPanel.Dock="Top" Text="{Binding FilterText}" Margin="0,0,0,12"
+             PlaceholderText="Search any words, in any order: name, address, department, title, license">
+      <TextBox.InnerLeftContent>
+        <ic:FluentIcon Icon="Search" FontSize="16" Margin="10,0,2,0" Foreground="{DynamicResource TextMuted}" />
+      </TextBox.InnerLeftContent>
+    </TextBox>
+
+    <!-- Quick filters -->
+    <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Chips}" Margin="0,0,0,14">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel ItemSpacing="8" LineSpacing="8" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:QuickFilterChip">
+          <Button Classes="chip" Classes.selected="{Binding IsSelected}"
+                  Command="{Binding #Root.((vm:UserListViewModel)DataContext).SelectChipCommand}"
+                  CommandParameter="{Binding}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="{Binding Label}" />
+              <TextBlock Opacity="0.65" Text="{Binding Count}" />
+            </StackPanel>
+          </Button>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <TextBlock DockPanel.Dock="Top" Classes="muted" IsVisible="{Binding IsLoading}" Margin="0,0,0,12" Text="Loading users…" />
+
+    <Border Classes="card tight" ClipToBounds="True">
+      <Grid>
+        <DataGrid x:Name="Grid" ItemsSource="{Binding VisibleUsers}" SelectedItem="{Binding SelectedUser}"
+                  IsReadOnly="True" CanUserSortColumns="True" CanUserResizeColumns="True"
+                  DoubleTapped="OnRowDoubleTapped">
+          <DataGrid.Columns>
+            <DataGridTemplateColumn Header="Name" SortMemberPath="DisplayName" Width="2.2*">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:UserRow">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" Margin="12,6">
+                    <Border Classes="avatar small" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Initials}" />
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                      <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Classes="caption" Text="{Binding SecondaryText}" TextTrimming="CharacterEllipsis"
+                                 ToolTip.Tip="{Binding UserPrincipalName}" />
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <!-- Template columns rather than text columns: text columns can't ellipsise, so long
+                 values were cut off mid-word. The tooltip shows the whole value. -->
+            <DataGridTemplateColumn Header="Department" SortMemberPath="Department" Width="*">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:UserRow">
+                  <TextBlock Margin="12,0" VerticalAlignment="Center" Text="{Binding Department}"
+                             TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Department}" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="Title" SortMemberPath="JobTitle" Width="1.3*">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:UserRow">
+                  <TextBlock Margin="12,0" VerticalAlignment="Center" Text="{Binding JobTitle}"
+                             TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding JobTitle}" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="Status" SortMemberPath="StatusText" Width="Auto">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:UserRow">
+                  <c:Badge Margin="12,0" Text="{Binding StatusText}" Kind="{Binding StatusKind}" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="Type" SortMemberPath="KindText" Width="Auto">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:UserRow">
+                  <c:Badge Margin="12,0" Text="{Binding KindText}" Kind="{Binding KindKind}" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="Last sign-in" SortMemberPath="LastSignInSort" Width="Auto">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:UserRow">
+                  <TextBlock Margin="12,0" VerticalAlignment="Center" Text="{Binding LastSignInText}"
+                             ToolTip.Tip="{Binding LastSignInExact}" />
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+
+        <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+          <ic:FluentIcon Icon="Search" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource TextMuted}" />
+          <TextBlock Classes="muted" HorizontalAlignment="Center" Text="No users match these filters." />
+        </StackPanel>
+      </Grid>
+    </Border>
   </DockPanel>
 </UserControl>

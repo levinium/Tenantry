@@ -1,0 +1,93 @@
+using Tenantry.Core.Directory;
+using Tenantry.ViewModels;
+
+namespace Tenantry.Tests;
+
+public class DisplayAndChipTests
+{
+    static readonly DateTimeOffset Now = new(2026, 10, 20, 12, 0, 0, TimeSpan.Zero);
+
+    [Theory]
+    [InlineData("Ada Lovelace", "AL")]
+    [InlineData("Grace Brewster Hopper", "GH")]
+    [InlineData("cher", "C")]
+    [InlineData("  ", "?")]
+    [InlineData(null, "?")]
+    [InlineData("(Shared) Front Desk", "FD")]
+    public void Initials(string? name, string expected) => Assert.Equal(expected, Display.Initials(name));
+
+    [Theory]
+    [InlineData(0, "just now")]
+    [InlineData(5, "5 minutes ago")]
+    [InlineData(90, "1 hour ago")]
+    [InlineData(60 * 5, "5 hours ago")]
+    [InlineData(60 * 30, "yesterday")]
+    [InlineData(60 * 24 * 12, "12 days ago")]
+    public void Relative_times(int minutesAgo, string expected) =>
+        Assert.Equal(expected, Display.Relative(Now.AddMinutes(-minutesAgo), Now));
+
+    [Fact]
+    public void Old_and_missing_dates()
+    {
+        Assert.Equal("Never", Display.Relative(null, Now));
+        Assert.Matches(@"^[A-Z][a-z]{2} \d{1,2}, 2025$", Display.Relative(new DateTimeOffset(2025, 3, 4, 12, 0, 0, TimeSpan.Zero), Now));
+    }
+
+    static async Task<UserListViewModel> Loaded()
+    {
+        var vm = new UserListViewModel(FakeDirectory.Standard(), _ => { }, now: () => Now);
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+        return vm;
+    }
+
+    [Fact]
+    public async Task Chips_count_their_users_at_load()
+    {
+        var vm = await Loaded();
+
+        var counts = vm.Chips.ToDictionary(c => c.Filter, c => c.Count);
+        Assert.Equal(4, counts[UserQuickFilter.All]);
+        Assert.Equal(3, counts[UserQuickFilter.Members]);
+        Assert.Equal(1, counts[UserQuickFilter.Guests]);
+        Assert.Equal(1, counts[UserQuickFilter.Blocked]);
+        Assert.Equal(4, counts[UserQuickFilter.NeverSignedIn]);
+    }
+
+    [Fact]
+    public async Task A_chip_narrows_together_with_the_text_filter()
+    {
+        var vm = await Loaded();
+
+        vm.SelectChipCommand.Execute(vm.Chips.Single(c => c.Filter == UserQuickFilter.Members));
+        vm.FilterText = "it";
+
+        Assert.Equal(["Alan Turing", "Grace Hopper"], vm.VisibleUsers.Select(u => u.DisplayName));
+        Assert.True(vm.Chips.Single(c => c.Filter == UserQuickFilter.Members).IsSelected);
+        Assert.False(vm.Chips.Single(c => c.Filter == UserQuickFilter.All).IsSelected);
+
+        vm.SelectChipCommand.Execute(vm.Chips.Single(c => c.Filter == UserQuickFilter.Blocked));
+        Assert.Equal(["Grace Hopper"], vm.VisibleUsers.Select(u => u.DisplayName));
+    }
+
+    [Fact]
+    public void Rows_read_at_a_glance()
+    {
+        var row = new UserRow(FakeDirectory.User("1", "Grace Hopper", enabled: false, kind: UserKind.Guest), Now);
+
+        Assert.Equal(("Blocked", BadgeKind.Danger), (row.StatusText, row.StatusKind));
+        Assert.Equal(("Guest", BadgeKind.Info), (row.KindText, row.KindKind));
+        Assert.Equal("Never", row.LastSignInText);
+        Assert.True(row.IsUnlicensed);
+    }
+
+    [Fact]
+    public void Guests_show_their_real_address_not_the_ext_sign_in_name()
+    {
+        var guest = new UserSummary("g", "Pat Guest", "pat_partner.example#EXT#@contoso.example", "pat@partner.example",
+            null, null, true, UserKind.Guest, Now, null, []);
+        var member = FakeDirectory.User("m", "Ada Lovelace");
+
+        Assert.Equal("pat@partner.example", new UserRow(guest, Now).SecondaryText);
+        Assert.Equal(member.UserPrincipalName, new UserRow(member, Now).SecondaryText);
+    }
+}

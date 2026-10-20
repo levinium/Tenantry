@@ -22,6 +22,9 @@ public sealed partial class ShellViewModel : ObservableObject
 
     public string Title => CurrentPage is MainViewModel main ? main.WindowTitle : "Tenantry";
 
+    /// <summary>Shows a page directly (snapshots and tests drive pages this way).</summary>
+    public void ShowPage(object page) => CurrentPage = page;
+
     WelcomeViewModel NewWelcome() => new(_connector, ShowWizard, Open);
 
     void ShowWelcome() => CurrentPage = NewWelcome();

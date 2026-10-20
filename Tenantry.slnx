@@ -10,6 +10,7 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Tenantry.Spike/Tenantry.Spike.csproj" />
+    <Project Path="tools/Tenantry.Snapshots/Tenantry.Snapshots.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Tenantry.Tests/Tenantry.Tests.csproj" />

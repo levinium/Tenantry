@@ -38,6 +38,8 @@ public sealed partial class MainViewModel : ObservableObject
 
     public string Account => _tenant.Account;
 
+    public string TenantInitials => Display.Initials(_tenant.TenantName);
+
     public bool IsDemo => _tenant.IsDemo;
 
     public string WindowTitle => $"Tenantry · {TenantName}";
@@ -114,4 +116,7 @@ public sealed partial class MainViewModel : ObservableObject
 public sealed record CapabilityRow(string Title, Availability Availability)
 {
     public string State => Availability.IsAvailable ? "Available" : Availability.Reason ?? "Unavailable";
+    public string BadgeText => Availability.IsAvailable ? "Available" : "Unavailable";
+    public BadgeKind BadgeKind => Availability.IsAvailable ? BadgeKind.Success : BadgeKind.Neutral;
+    public string? Reason => Availability.Reason;
 }

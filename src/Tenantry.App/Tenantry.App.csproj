@@ -15,6 +15,7 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="Avalonia.Controls.DataGrid" />
+    <PackageReference Include="FluentIcons.Avalonia" />
   </ItemGroup>
 
   <ItemGroup>

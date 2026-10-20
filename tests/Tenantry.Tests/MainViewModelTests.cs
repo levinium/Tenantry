@@ -16,7 +16,7 @@ public class MainViewModelTests
     public async Task Opening_a_user_twice_reuses_one_tab()
     {
         var vm = await Loaded();
-        var ada = vm.Users.VisibleUsers[0];
+        var ada = vm.Users.VisibleUsers[0].User;
 
         vm.OpenUser(ada);
         vm.SelectedTab = vm.Users;
@@ -31,8 +31,8 @@ public class MainViewModelTests
     public async Task Closing_a_record_selects_its_neighbour()
     {
         var vm = await Loaded();
-        vm.OpenUser(vm.Users.VisibleUsers[0]);
-        vm.OpenUser(vm.Users.VisibleUsers[1]);
+        vm.OpenUser(vm.Users.VisibleUsers[0].User);
+        vm.OpenUser(vm.Users.VisibleUsers[1].User);
         var last = vm.SelectedTab!;
 
         vm.CloseTabCommand.Execute(last);
@@ -56,7 +56,7 @@ public class MainViewModelTests
     public async Task Choosing_users_in_the_sidebar_returns_to_the_list()
     {
         var vm = await Loaded();
-        vm.OpenUser(vm.Users.VisibleUsers[0]);
+        vm.OpenUser(vm.Users.VisibleUsers[0].User);
         vm.SelectedSection = null;
 
         vm.SelectedSection = vm.Sections.Single(s => s.Key == "users");

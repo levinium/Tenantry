@@ -1,38 +1,65 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
-             xmlns:tenancy="using:Tenantry.Core.Tenancy"
+             xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.WelcomeView"
              x:DataType="vm:WelcomeViewModel"
              x:Name="Root">
   <ScrollViewer>
-    <StackPanel Margin="48" Spacing="20" MaxWidth="720" HorizontalAlignment="Center">
-      <StackPanel Spacing="4">
-        <TextBlock FontSize="32" FontWeight="SemiBold" Text="Tenantry" />
-        <TextBlock Opacity="0.7" TextWrapping="Wrap"
-                   Text="Administer Microsoft 365: users, mail, groups, devices and security, in one fast app." />
-      </StackPanel>
+    <StackPanel Margin="48,56,48,48" Spacing="32" MaxWidth="760" HorizontalAlignment="Center">
 
-      <StackPanel Spacing="8" IsVisible="{Binding HasProfiles}">
-        <TextBlock FontSize="16" FontWeight="SemiBold" Text="Your tenants" />
+      <!-- Brand -->
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+        <Border Width="56" Height="56" CornerRadius="14" Background="{DynamicResource AccentFill}">
+          <ic:FluentIcon Icon="ShieldCheckmark" FontSize="30" Foreground="White"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+          <TextBlock Classes="h1" Text="Tenantry" />
+          <TextBlock Classes="muted" Text="Microsoft 365 administration, fast and in one place." />
+        </StackPanel>
+      </Grid>
+
+      <!-- Saved tenants -->
+      <StackPanel Spacing="10" IsVisible="{Binding HasProfiles}">
+        <TextBlock Classes="label" Text="YOUR TENANTS" />
         <ItemsControl ItemsSource="{Binding Profiles}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="10" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="tenancy:TenantProfile">
-              <Border Margin="0,0,0,8" Padding="16,12" CornerRadius="6"
-                      Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
-                <Grid ColumnDefinitions="*,Auto,Auto">
-                  <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="{Binding DisplayName}" />
-                    <TextBlock Opacity="0.7" Text="{Binding PrimaryDomain}" />
-                    <TextBlock Opacity="0.5" FontSize="12" Text="{Binding LastAccount}" />
+            <DataTemplate x:DataType="vm:TenantCard">
+              <Border Classes="card" Padding="16">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                  <Border Classes="avatar" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Initials}" />
+                  </Border>
+                  <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Classes="h3" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Classes="muted" Text="{Binding PrimaryDomain}" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <TextBlock Classes="caption" Text="{Binding AccountText}" />
+                      <TextBlock Classes="caption" Text="·" />
+                      <TextBlock Classes="caption" Text="{Binding LastUsedText}" />
+                    </StackPanel>
                   </StackPanel>
-                  <Button Grid.Column="1" Margin="8,0" Content="Open" Classes="accent" VerticalAlignment="Center"
-                          Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).ConnectCommand}"
-                          CommandParameter="{Binding}" />
-                  <Button Grid.Column="2" Content="Remove" VerticalAlignment="Center"
-                          ToolTip.Tip="Forget this tenant on this computer (the app registration in the tenant is not touched)"
-                          Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).RemoveCommand}"
-                          CommandParameter="{Binding}" />
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Classes="accent"
+                            Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).ConnectCommand}"
+                            CommandParameter="{Binding}">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ic:FluentIcon Icon="Play" FontSize="14" />
+                        <TextBlock Text="Open" />
+                      </StackPanel>
+                    </Button>
+                    <Button Classes="ghost" ToolTip.Tip="Forget this tenant on this computer. The app registration in the tenant is not touched."
+                            Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).RemoveCommand}"
+                            CommandParameter="{Binding}">
+                      <ic:FluentIcon Icon="Dismiss" FontSize="16" />
+                    </Button>
+                  </StackPanel>
                 </Grid>
               </Border>
             </DataTemplate>
@@ -40,16 +67,41 @@
         </ItemsControl>
       </StackPanel>
 
-      <StackPanel Orientation="Horizontal" Spacing="12">
-        <Button Content="Add a tenant…" Classes="accent" Command="{Binding AddTenantCommand}" />
-        <Button Content="Open the demo tenant" Command="{Binding OpenDemoCommand}" />
-        <Button Content="Cancel sign-in" IsVisible="{Binding IsBusy}" Command="{Binding CancelSignInCommand}" />
-      </StackPanel>
-
-      <TextBlock Text="{Binding Status}" IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" TextWrapping="Wrap" />
-      <Border IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}" Background="#33E81123" Padding="12,8" CornerRadius="4">
+      <!-- Sign-in status -->
+      <Border Classes="banner info" IsVisible="{Binding IsBusy}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Status}" />
+          <Button Grid.Column="1" Content="Cancel sign-in" Command="{Binding CancelSignInCommand}" />
+        </Grid>
+      </Border>
+      <Border Classes="banner error" IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}">
         <SelectableTextBlock Text="{Binding Error}" TextWrapping="Wrap" />
       </Border>
+
+      <!-- Get started -->
+      <StackPanel Spacing="10">
+        <TextBlock Classes="label" Text="GET STARTED" />
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+          <Button Classes="choice" Command="{Binding AddTenantCommand}">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+              <ic:FluentIcon Icon="Organization" FontSize="26" Foreground="{DynamicResource Accent}" VerticalAlignment="Top" />
+              <StackPanel Grid.Column="1" Spacing="4">
+                <TextBlock Classes="h3" Text="Add a tenant" />
+                <TextBlock Classes="muted" TextWrapping="Wrap" Text="Connect a Microsoft 365 tenant you administer." />
+              </StackPanel>
+            </Grid>
+          </Button>
+          <Button Grid.Column="1" Classes="choice" Command="{Binding OpenDemoCommand}">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+              <ic:FluentIcon Icon="Sparkle" FontSize="26" Foreground="{DynamicResource Accent}" VerticalAlignment="Top" />
+              <StackPanel Grid.Column="1" Spacing="4">
+                <TextBlock Classes="h3" Text="Explore the demo" />
+                <TextBlock Classes="muted" TextWrapping="Wrap" Text="A generated tenant with sample people. Nothing real." />
+              </StackPanel>
+            </Grid>
+          </Button>
+        </Grid>
+      </StackPanel>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

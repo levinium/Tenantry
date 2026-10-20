@@ -17,10 +17,13 @@ public sealed partial class WelcomeViewModel : ObservableObject
         _connector = connector;
         _addTenant = addTenant;
         _open = open;
-        Profiles = new ObservableCollection<TenantProfile>(connector.LoadProfiles());
+        var now = DateTimeOffset.Now;
+        Profiles = new ObservableCollection<TenantCard>(connector.LoadProfiles()
+            .OrderByDescending(p => p.LastUsedAt ?? DateTimeOffset.MinValue)
+            .Select(p => new TenantCard(p, now)));
     }
 
-    public ObservableCollection<TenantProfile> Profiles { get; }
+    public ObservableCollection<TenantCard> Profiles { get; }
 
     public bool HasProfiles => Profiles.Count > 0;
 
@@ -40,8 +43,9 @@ public sealed partial class WelcomeViewModel : ObservableObject
     CancellationTokenSource? _signIn;
 
     [RelayCommand(CanExecute = nameof(NotBusy))]
-    async Task ConnectAsync(TenantProfile profile)
+    async Task ConnectAsync(TenantCard card)
     {
+        var profile = card.Profile;
         IsBusy = true;
         Error = null;
         Status = $"Signing in to {profile.DisplayName}… finish in your browser if it asks.";
@@ -73,10 +77,10 @@ public sealed partial class WelcomeViewModel : ObservableObject
     void OpenDemo() => _open(_connector.ConnectDemo());
 
     [RelayCommand]
-    void Remove(TenantProfile profile)
+    void Remove(TenantCard card)
     {
-        _connector.RemoveProfile(profile.Id);
-        Profiles.Remove(profile);
+        _connector.RemoveProfile(card.Profile.Id);
+        Profiles.Remove(card);
         OnPropertyChanged(nameof(HasProfiles));
     }
 }

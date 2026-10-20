@@ -1,35 +1,111 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.UserDetailView"
              x:DataType="vm:UserDetailViewModel">
   <ScrollViewer>
-    <StackPanel Margin="24" Spacing="16" MaxWidth="900" HorizontalAlignment="Left">
-      <StackPanel Spacing="2">
-        <TextBlock FontSize="24" FontWeight="SemiBold" Text="{Binding User.DisplayName}" />
-        <TextBlock Opacity="0.7" Text="{Binding User.UserPrincipalName}" />
-      </StackPanel>
+    <StackPanel Margin="8,16,8,24" Spacing="16" MaxWidth="1100" HorizontalAlignment="Stretch">
 
-      <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
-        <TextBlock Grid.Row="0" Grid.Column="0" Opacity="0.7" Text="Status" />
-        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Status}" />
-        <TextBlock Grid.Row="1" Grid.Column="0" Opacity="0.7" Text="Type" />
-        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding KindText}" />
-        <TextBlock Grid.Row="2" Grid.Column="0" Opacity="0.7" Text="Email" />
-        <SelectableTextBlock Grid.Row="2" Grid.Column="1" Text="{Binding User.Mail}" />
-        <TextBlock Grid.Row="3" Grid.Column="0" Opacity="0.7" Text="Department" />
-        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding User.Department}" />
-        <TextBlock Grid.Row="4" Grid.Column="0" Opacity="0.7" Text="Title" />
-        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding User.JobTitle}" />
-        <TextBlock Grid.Row="5" Grid.Column="0" Opacity="0.7" Text="Licenses" />
-        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding LicensesText}" />
-        <TextBlock Grid.Row="6" Grid.Column="0" Opacity="0.7" Text="Last sign-in" />
-        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding LastSignInText}" />
-        <TextBlock Grid.Row="7" Grid.Column="0" Opacity="0.7" Text="Created" />
-        <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding CreatedText}" />
+      <!-- Who -->
+      <Border Classes="card">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="20">
+          <Border Classes="avatar large" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Initials}" />
+          </Border>
+          <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+            <TextBlock Classes="h1" Text="{Binding User.DisplayName}" />
+            <SelectableTextBlock Classes="muted" Text="{Binding User.UserPrincipalName}" />
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+              <c:Badge Text="{Binding StatusText}" Kind="{Binding StatusKind}" />
+              <c:Badge Text="{Binding KindText}" Kind="{Binding KindKind}" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Facts, grouped so each card answers one question -->
+      <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="16">
+
+        <Border Grid.Row="0" Grid.Column="0" Classes="card">
+          <StackPanel Spacing="16">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="PersonLock" FontSize="20" Foreground="{DynamicResource Accent}" />
+              <TextBlock Classes="h3" Text="Sign-in" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="label" Text="LAST SIGN-IN" />
+              <TextBlock Classes="value" Text="{Binding LastSignInText}" />
+              <TextBlock Classes="caption" Text="{Binding LastSignInExact}" />
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="label" Text="ACCOUNT CREATED" />
+              <TextBlock Classes="value" Text="{Binding CreatedText}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="0" Grid.Column="1" Classes="card">
+          <StackPanel Spacing="16">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Building" FontSize="20" Foreground="{DynamicResource Accent}" />
+              <TextBlock Classes="h3" Text="Organization" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="label" Text="JOB TITLE" />
+              <TextBlock Classes="value" Text="{Binding JobTitle}" />
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="label" Text="DEPARTMENT" />
+              <TextBlock Classes="value" Text="{Binding Department}" />
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="label" Text="EMAIL" />
+              <SelectableTextBlock Classes="value" Text="{Binding Email}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1" Grid.Column="0" Classes="card">
+          <StackPanel Spacing="14">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Apps" FontSize="20" Foreground="{DynamicResource Accent}" />
+              <TextBlock Classes="h3" Text="Licenses" VerticalAlignment="Center" />
+            </StackPanel>
+            <ItemsControl ItemsSource="{Binding Licenses}" IsVisible="{Binding HasLicenses}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="8" LineSpacing="8" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <c:Badge Text="{Binding}" Kind="Info" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Classes="muted" IsVisible="{Binding !HasLicenses}" Text="No licenses assigned." />
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1" Grid.Column="1" Classes="card">
+          <StackPanel Spacing="16">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Key" FontSize="20" Foreground="{DynamicResource Accent}" />
+              <TextBlock Classes="h3" Text="Identifiers" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="label" Text="OBJECT ID" />
+              <SelectableTextBlock Classes="code" Text="{Binding User.Id}" />
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="label" Text="SIGN-IN NAME" />
+              <SelectableTextBlock Classes="code" Text="{Binding User.UserPrincipalName}" TextWrapping="Wrap" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
       </Grid>
-
-      <SelectableTextBlock Opacity="0.5" FontSize="12" Text="{Binding User.Id, StringFormat=Object ID: {0}}" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>
