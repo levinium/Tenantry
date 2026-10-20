@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Phase 1 spike: proves the risky API assumptions against a real tenant before the app
+       depends on them. Prints pass/fail, counts and status codes only, never tenant data, so
+       its output is safe to paste anywhere. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>tenantry-spike</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Tenantry.Auth\Tenantry.Auth.csproj" />
+    <ProjectReference Include="..\..\src\Tenantry.Graph\Tenantry.Graph.csproj" />
+    <ProjectReference Include="..\..\src\Tenantry.Exchange\Tenantry.Exchange.csproj" />
+  </ItemGroup>
+
+</Project>

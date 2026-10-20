@@ -12,6 +12,8 @@
     <PackageVersion Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="Bogus" Version="35.6.5" />
+    <PackageVersion Include="Microsoft.Identity.Client" Version="4.91.1" />
+    <PackageVersion Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.91.1" />
 
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />

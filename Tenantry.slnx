@@ -2,8 +2,14 @@
   <Folder Name="/src/">
     <Project Path="src/Tenantry.Core/Tenantry.Core.csproj" />
     <Project Path="src/Tenantry.Demo/Tenantry.Demo.csproj" />
+    <Project Path="src/Tenantry.Auth/Tenantry.Auth.csproj" />
+    <Project Path="src/Tenantry.Graph/Tenantry.Graph.csproj" />
+    <Project Path="src/Tenantry.Exchange/Tenantry.Exchange.csproj" />
     <Project Path="src/Tenantry.ViewModels/Tenantry.ViewModels.csproj" />
     <Project Path="src/Tenantry.App/Tenantry.App.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Tenantry.Spike/Tenantry.Spike.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Tenantry.Tests/Tenantry.Tests.csproj" />

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A thin Microsoft Graph client over HttpClient, and what is built on it: setup
+       provisioning, the live directory, the signed-in admin's roles and the tenant's licenses.
+       No Graph SDK: requests stay small and explicit, and tests drive them through a fake
+       HTTP handler. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tenantry.Core\Tenantry.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Tenantry.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Sign-in through MSAL with the system browser, and an encrypted per-tenant token cache
+       (DPAPI on Windows, Keychain on macOS, the Secret Service keyring on Linux). -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Identity.Client" />
+    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tenantry.Core\Tenantry.Core.csproj" />
+  </ItemGroup>
+
+</Project>

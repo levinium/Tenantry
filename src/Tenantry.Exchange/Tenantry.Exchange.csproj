@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Exchange Online and Security & Compliance cmdlets over REST, with no PowerShell. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tenantry.Core\Tenantry.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Tenantry.Tests" />
+  </ItemGroup>
+
+</Project>
