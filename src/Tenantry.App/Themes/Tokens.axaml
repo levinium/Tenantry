@@ -30,6 +30,9 @@
       <SolidColorBrush x:Key="TextMuted" Color="#6A737D" />
       <SolidColorBrush x:Key="Accent" Color="#3B5BDB" />
       <SolidColorBrush x:Key="LinkText" Color="#2343B8" />
+      <!-- Drag to reorder: the slot a dragged row will land in, and the lifted copy's shadow. -->
+      <SolidColorBrush x:Key="DropSlotBg" Color="#E6EBFD" />
+      <BoxShadows x:Key="DragShadow">0 10 28 0 #33101828, 0 2 6 0 #1F101828</BoxShadows>
 
       <SolidColorBrush x:Key="NavHoverBg" Color="#DDE1E7" />
       <SolidColorBrush x:Key="NavSelectedBg" Color="#DCE3FB" />
@@ -91,6 +94,8 @@
       <SolidColorBrush x:Key="TextMuted" Color="#959DA8" />
       <SolidColorBrush x:Key="Accent" Color="#7F9BFF" />
       <SolidColorBrush x:Key="LinkText" Color="#A8BCFF" />
+      <SolidColorBrush x:Key="DropSlotBg" Color="#262E48" />
+      <BoxShadows x:Key="DragShadow">0 12 32 0 #8C000000, 0 2 6 0 #66000000</BoxShadows>
 
       <SolidColorBrush x:Key="NavHoverBg" Color="#2A2C32" />
       <SolidColorBrush x:Key="NavSelectedBg" Color="#2D3755" />

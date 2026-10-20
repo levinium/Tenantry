@@ -597,16 +597,25 @@
   <Style Selector="Border.draghandle:pointerover > ic|FluentIcon">
     <Setter Property="Foreground" Value="{DynamicResource Accent}" />
   </Style>
-  <Style Selector="ContentPresenter.dragging">
-    <Setter Property="Opacity" Value="0.55" />
+  <Style Selector="Border.draghandle:pressed">
+    <Setter Property="Cursor" Value="DragMove" />
   </Style>
-  <Style Selector="ContentPresenter.dropabove">
+  <!-- While a row is dragged its own slot stays behind as a tinted, outlined gap (DragReorder
+       hides the row's content) and slides to where the row will land. -->
+  <Style Selector="ContentPresenter.dragslot">
+    <Setter Property="Background" Value="{DynamicResource DropSlotBg}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
-    <Setter Property="BorderThickness" Value="0,2,0,0" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
   </Style>
-  <Style Selector="ContentPresenter.dropbelow">
+  <!-- The lifted copy that follows the pointer. -->
+  <Style Selector="Border.dragghost">
+    <Setter Property="Background" Value="{DynamicResource CardBg}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
-    <Setter Property="BorderThickness" Value="0,0,0,2" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="BoxShadow" Value="{DynamicResource DragShadow}" />
+    <Setter Property="IsHitTestVisible" Value="False" />
   </Style>
   <Style Selector="Border.panelicon">
     <Setter Property="Width" Value="34" />

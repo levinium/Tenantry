@@ -1,7 +1,10 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Tenantry.App;
 using Tenantry.App.Services;
 using Tenantry.Core.Directory;
@@ -84,6 +87,12 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         list.OpenColumnsPanel();
         Render(main, "panel-columns-light");
         Render(main, "panel-columns-short-light", 1200, 620);
+        // Mid-drag: the third column lifted and pulled down two rows, the others making room.
+        Render(main, "panel-columns-drag-light", during: w => DragHandle(w, "ColumnsList", 2, 70));
+        list.ClosePanels();
+        list.AddSortByColumn(list.Columns.Single(c => c.Key == UserFields.LastSignIn));
+        list.OpenSortPanel();
+        Render(main, "panel-sort-drag-light", during: w => DragHandle(w, "SortList", 0, 60));
         list.ClosePanels();
     }
 
@@ -130,16 +139,38 @@ static void Pick(DataListViewModel list, string field, bool hide, params string[
     list.ApplyFilter();
 }
 
-void Render(object page, string name, int width = 1440, int height = 900)
+// Presses the drag handle of row `index` in the named list and moves the pointer `dy` pixels
+// without releasing, leaving the drag in progress for the capture.
+static void DragHandle(MainWindow window, string listName, int index, double dy)
+{
+    var list = window.GetVisualDescendants().OfType<ItemsControl>().Single(c => c.Name == listName);
+    var handle = list.ContainerFromIndex(index)!.GetVisualDescendants().OfType<Border>().First(b => b.Classes.Contains("draghandle"));
+    var start = handle.TranslatePoint(new Point(handle.Bounds.Width / 2, handle.Bounds.Height / 2), window)!.Value;
+    window.MouseMove(start);
+    window.MouseDown(start, MouseButton.Left);
+    for (var step = 1; step <= 6; step++)
+    {
+        window.MouseMove(start + new Point(0, dy * step / 6), RawInputModifiers.LeftMouseButton);
+        Dispatcher.UIThread.RunJobs();
+    }
+}
+
+void Render(object page, string name, int width = 1440, int height = 900, Action<MainWindow>? during = null)
 {
     var shell = new ShellViewModel(connector);
     shell.ShowPage(page);
     var window = new MainWindow { Width = width, Height = height, DataContext = shell };
     window.Show();
-    for (var i = 0; i < 10; i++)
+    Settle();
+    if (during is not null)
     {
-        Dispatcher.UIThread.RunJobs();
-        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        during(window);
+        // Let the transitions (under 200 ms) finish on the wall clock before capturing.
+        for (var i = 0; i < 12; i++)
+        {
+            Thread.Sleep(25);
+            Settle();
+        }
     }
     using var frame = window.CaptureRenderedFrame()
         ?? throw new InvalidOperationException($"No frame rendered for {name}");
@@ -148,6 +179,15 @@ void Render(object page, string name, int width = 1440, int height = 900)
 #pragma warning restore CS0618
     window.Close();
     Console.WriteLine($"  {name}.png");
+}
+
+static void Settle()
+{
+    for (var i = 0; i < 10; i++)
+    {
+        Dispatcher.UIThread.RunJobs();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+    }
 }
 
 /// <summary>Fictional saved tenants; the demo for everything else.</summary>

@@ -76,7 +76,7 @@ public partial class DataListView : UserControl
         {
             if (item is ColumnViewModel column)
                 _vm?.MoveColumnTo(column, index);
-        });
+        }, fixedLeading: 1);
         DragReorder.Attach(SortList, (item, index) =>
         {
             if (item is SortLevelViewModel level)
