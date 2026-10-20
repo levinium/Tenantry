@@ -27,6 +27,9 @@ public interface ITenantConnector
 
     void RemoveProfile(string profileId);
 
+    /// <summary>Sets the tenant opened at startup, or clears it with null.</summary>
+    void SetDefaultProfile(string? profileId);
+
     /// <summary>Signs in to a saved tenant (browser if needed) and loads roles and licenses.</summary>
     Task<ConnectedTenant> ConnectAsync(TenantProfile profile, CancellationToken cancellationToken = default);
 

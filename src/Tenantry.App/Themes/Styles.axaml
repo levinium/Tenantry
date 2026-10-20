@@ -8,6 +8,39 @@
          by our header content, so the slot only stole width and clipped the sort indicators. -->
     <x:Double x:Key="DataGridSortIconMinWidth">0</x:Double>
 
+    <!-- The app's horizontal-scroll standard: the bar sits ABOVE what it scrolls, in its own
+         row (never over the content), thin until hovered, and the row is only there when the
+         content actually overflows. Same as the table's top scrollbar. Based on the Fluent
+         ScrollViewer template (Avalonia 12.1.4); only the row order differs, and the content is
+         never spanned under the bars. -->
+    <ControlTheme x:Key="TopScrollViewer" TargetType="ScrollViewer">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+      <Setter Property="VerticalScrollBarVisibility" Value="Disabled" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,*">
+            <ScrollBar Name="PART_HorizontalScrollBar" Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,4" />
+            <ScrollContentPresenter Name="PART_ContentPresenter"
+                                    Grid.Row="1" Grid.Column="0"
+                                    Background="{TemplateBinding Background}"
+                                    Padding="{TemplateBinding Padding}"
+                                    ScrollViewer.IsScrollInertiaEnabled="{TemplateBinding IsScrollInertiaEnabled}">
+              <ScrollContentPresenter.GestureRecognizers>
+                <ScrollGestureRecognizer CanHorizontallyScroll="{Binding CanHorizontallyScroll, ElementName=PART_ContentPresenter}"
+                                         CanVerticallyScroll="{Binding CanVerticallyScroll, ElementName=PART_ContentPresenter}"
+                                         IsScrollInertiaEnabled="{Binding (ScrollViewer.IsScrollInertiaEnabled), ElementName=PART_ContentPresenter}"
+                                         Offset="{Binding Offset, ElementName=PART_ContentPresenter}"
+                                         Viewport="{Binding Viewport, ElementName=PART_ContentPresenter}"
+                                         Extent="{Binding Extent, ElementName=PART_ContentPresenter}" />
+              </ScrollContentPresenter.GestureRecognizers>
+            </ScrollContentPresenter>
+            <ScrollBar Name="PART_VerticalScrollBar" Orientation="Vertical" Grid.Row="1" Grid.Column="1" />
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+
     <!-- One half of a two-part switch (inside Border.segmented). -->
     <ControlTheme x:Key="SegmentButton" TargetType="RadioButton">
       <Setter Property="Background" Value="Transparent" />
@@ -36,10 +69,9 @@
       </Style>
     </ControlTheme>
 
-    <!-- The stock DataGrid with its horizontal scrollbar moved ABOVE the column headers and
-         always shown, so a wide list says it scrolls sideways before anyone reaches the bottom.
+    <!-- The stock DataGrid with its horizontal scrollbar moved ABOVE the column headers, so a wide list says it scrolls sideways before anyone reaches the bottom.
          Copied from Avalonia.Controls.DataGrid 12.1.2 Themes/Fluent.xaml (commit 1e12211);
-         only the row layout and AllowAutoHide differ. Shift+wheel and touchpad sideways scrolling
+         only the row layout differs. Shift+wheel and touchpad sideways scrolling
          come from DataGrid itself. Re-check against the source when upgrading the package. -->
     <ControlTheme x:Key="TopScrollDataGrid" TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
       <Setter Property="Template">
@@ -53,7 +85,7 @@
               <Grid Grid.Column="1" Grid.Row="0" ColumnDefinitions="Auto,*">
                 <Rectangle Name="PART_FrozenColumnScrollBarSpacer" />
                 <ScrollBar Name="PART_HorizontalScrollbar"
-                           AllowAutoHide="False"
+                           AllowAutoHide="{Binding Path=(ScrollViewer.AllowAutoHide), RelativeSource={RelativeSource TemplatedParent}}"
                            Grid.Column="1"
                            Orientation="Horizontal"
                            Height="{DynamicResource ScrollBarSize}" />
@@ -418,7 +450,9 @@
     <Setter Property="Background" Value="{DynamicResource NavSelectedBg}" />
     <Setter Property="Foreground" Value="{DynamicResource NavSelectedFg}" />
   </Style>
-  <Style Selector="Border.toolbar.narrow Button.tb.quiet TextBlock">
+  <!-- Child combinators (">") on purpose: a tooltip is a logical child of its button, so a
+       descendant selector here hid the tooltip text too, leaving empty tooltip boxes. -->
+  <Style Selector="Border.toolbar.narrow Button.tb.quiet > StackPanel > TextBlock">
     <Setter Property="IsVisible" Value="False" />
   </Style>
   <Style Selector="Border.count">
@@ -550,14 +584,14 @@
     <Setter Property="Cursor" Value="Hand" />
     <Setter Property="HorizontalAlignment" Value="Left" />
   </Style>
-  <Style Selector="Button.namelink TextBlock">
+  <Style Selector="Button.namelink > TextBlock">
     <Setter Property="Foreground" Value="{DynamicResource LinkText}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
   <Style Selector="Button.namelink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="Transparent" />
   </Style>
-  <Style Selector="Button.namelink:pointerover TextBlock">
+  <Style Selector="Button.namelink:pointerover > TextBlock">
     <Setter Property="TextDecorations" Value="Underline" />
   </Style>
 

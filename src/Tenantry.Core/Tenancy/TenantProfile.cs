@@ -9,6 +9,7 @@ namespace Tenantry.Core.Tenancy;
 /// <param name="PrimaryDomain">The tenant's default domain, shown for recognition.</param>
 /// <param name="ClientId">The tenant's own Tenantry app registration (application ID).</param>
 /// <param name="LastAccount">The account last used, offered as the sign-in hint.</param>
+/// <param name="IsDefault">Opens automatically when Tenantry starts. At most one profile has it.</param>
 public sealed record TenantProfile(
     string Id,
     string DisplayName,
@@ -17,4 +18,5 @@ public sealed record TenantProfile(
     string ClientId,
     DateTimeOffset CreatedAt,
     string? LastAccount = null,
-    DateTimeOffset? LastUsedAt = null);
+    DateTimeOffset? LastUsedAt = null,
+    bool IsDefault = false);

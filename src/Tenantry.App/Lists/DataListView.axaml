@@ -50,12 +50,12 @@
         </Button>
       </Grid>
 
-      <!-- Views: one line; scrolls sideways when the window is too narrow. The bottom margin
-           inside the scroller gives its thin scrollbar its own strip, below the chips. -->
+      <!-- Views: one line; scrolls sideways when the window is too narrow, with the app's standard
+           top scrollbar (above the chips, only when they overflow). -->
       <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,0,0,4">
         <TextBlock Classes="label" Text="VIEWS" VerticalAlignment="Top" Margin="0,7,0,0" />
-        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-          <ItemsControl ItemsSource="{Binding Views}" Margin="0,0,0,12">
+        <ScrollViewer Grid.Column="1" Theme="{StaticResource TopScrollViewer}">
+          <ItemsControl ItemsSource="{Binding Views}" Margin="0,0,0,8">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
                 <StackPanel Orientation="Horizontal" Spacing="8" />

@@ -59,6 +59,10 @@ public partial class DataListView : UserControl
             Toolbar.Classes.Set("narrow", e.NewSize.Width < 1000);
             Toolbar.Classes.Set("tiny", e.NewSize.Width < 700);
         };
+        // Freezing the name column only helps when there's room to scroll beside it. In a narrow
+        // table it would eat most of the width and leave the scrollbar a stub, so only the row
+        // actions stay frozen then.
+        Grid.SizeChanged += (_, e) => Grid.FrozenColumnCount = e.NewSize.Width < 720 ? 1 : 2;
         // The preview pane takes about a third of the space, so the list is never squeezed out.
         SizeChanged += (_, e) => PreviewPane.Width = Math.Clamp(e.NewSize.Width * 0.34, 300, 440);
         Grid.ColumnReordered += (_, e) =>

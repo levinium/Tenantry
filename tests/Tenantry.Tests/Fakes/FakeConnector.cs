@@ -23,6 +23,12 @@ sealed class FakeConnector : ITenantConnector
 
     public void RemoveProfile(string profileId) => Profiles.RemoveAll(p => p.Id == profileId);
 
+    public void SetDefaultProfile(string? profileId)
+    {
+        for (var i = 0; i < Profiles.Count; i++)
+            Profiles[i] = Profiles[i] with { IsDefault = profileId is not null && Profiles[i].Id == profileId };
+    }
+
     public Task<ConnectedTenant> ConnectAsync(TenantProfile profile, CancellationToken cancellationToken = default) =>
         OnConnect?.Invoke(profile, cancellationToken) ?? Task.FromResult(Tenant());
 

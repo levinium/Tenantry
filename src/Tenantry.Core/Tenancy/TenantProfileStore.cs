@@ -46,6 +46,10 @@ public sealed class TenantProfileStore(string path)
         return profile;
     }
 
+    /// <summary>Makes one profile the default (opened at startup), or none with null.</summary>
+    public void SetDefault(string? profileId) =>
+        Save(Load().Select(p => p with { IsDefault = profileId is not null && p.Id == profileId }));
+
     public static string NewId() => Guid.NewGuid().ToString("N")[..12];
 
     public void Remove(string profileId) =>

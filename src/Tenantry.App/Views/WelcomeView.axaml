@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
              xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:c="using:Tenantry.App.Controls"
              x:Class="Tenantry.App.Views.WelcomeView"
              x:DataType="vm:WelcomeViewModel"
              x:Name="Root">
@@ -61,7 +62,11 @@
                           <TextBlock Text="{Binding Initials}" />
                         </Border>
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                          <TextBlock Classes="h3" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Classes="h3" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                            <c:Badge Text="Default" Kind="Info" IsVisible="{Binding IsDefault}"
+                                     ToolTip.Tip="Opens automatically when Tenantry starts" />
+                          </StackPanel>
                           <TextBlock Classes="caption" TextTrimming="CharacterEllipsis">
                             <Run Text="{Binding PrimaryDomain}" />
                             <Run Text="  ·  " />
@@ -81,6 +86,18 @@
                           <MenuItem Header="Open" Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).ConnectCommand}" CommandParameter="{Binding}">
                             <MenuItem.Icon>
                               <ic:FluentIcon Icon="Open" FontSize="14" />
+                            </MenuItem.Icon>
+                          </MenuItem>
+                          <MenuItem Header="Open at startup (make default)" IsVisible="{Binding !IsDefault}"
+                                    Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).SetDefaultCommand}" CommandParameter="{Binding}">
+                            <MenuItem.Icon>
+                              <ic:FluentIcon Icon="Star" FontSize="14" />
+                            </MenuItem.Icon>
+                          </MenuItem>
+                          <MenuItem Header="Stop opening at startup" IsVisible="{Binding IsDefault}"
+                                    Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).ClearDefaultCommand}" CommandParameter="{Binding}">
+                            <MenuItem.Icon>
+                              <ic:FluentIcon Icon="Star" FontSize="14" />
                             </MenuItem.Icon>
                           </MenuItem>
                           <Separator />

@@ -3,6 +3,11 @@
   <!-- Design tokens: every colour the app uses, defined once per theme. Views and styles refer
        to these keys with DynamicResource only, so a theme switch repaints everything.
        Both dictionaries must define the same keys. -->
+  <!-- Idle scrollbars: the thumb shrinks to this share of the bar until hovered. Fluent's
+       default left a hairline; half the bar is visible without being heavy. -->
+  <TransformOperations x:Key="HorizontalSmallScrollThumbScaleTransform">scaleY(0.5)</TransformOperations>
+  <TransformOperations x:Key="VerticalSmallScrollThumbScaleTransform">scaleX(0.5)</TransformOperations>
+
   <ResourceDictionary.ThemeDictionaries>
 
     <ResourceDictionary x:Key="Light">

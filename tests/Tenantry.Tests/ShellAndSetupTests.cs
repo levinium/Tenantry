@@ -68,6 +68,37 @@ public class ShellAndSetupTests
     }
 
     [Fact]
+    public async Task The_default_tenant_opens_at_start_and_can_be_changed_or_cleared()
+    {
+        var connector = new FakeConnector();
+        connector.Profiles.Add(FakeConnector.Profile("p1", "Contoso"));
+        connector.Profiles.Add(FakeConnector.Profile("p2", "Fabrikam"));
+        var welcome = (WelcomeViewModel)new ShellViewModel(connector).CurrentPage;
+        var fabrikam = welcome.Profiles.Single(p => p.DisplayName == "Fabrikam");
+
+        welcome.SetDefaultCommand.Execute(fabrikam);
+        Assert.True(fabrikam.IsDefault);
+        Assert.Equal(["p2"], connector.Profiles.Where(p => p.IsDefault).Select(p => p.Id));
+
+        // A fresh start opens it.
+        ConnectedTenant? opened = null;
+        string? openedId = null;
+        connector.OnConnect = (profile, _) => { openedId = profile.Id; return Task.FromResult(opened = FakeConnector.Tenant()); };
+        var shell = new ShellViewModel(connector);
+        await shell.StartAsync();
+        Assert.Equal("p2", openedId);
+        Assert.IsType<MainViewModel>(shell.CurrentPage);
+
+        // Clearing it means a fresh start with two tenants stays home.
+        var again = (WelcomeViewModel)new ShellViewModel(connector).CurrentPage;
+        again.ClearDefaultCommand.Execute(again.Profiles.Single(p => p.IsDefault));
+        Assert.False(again.HasDefault);
+        var shell2 = new ShellViewModel(connector);
+        await shell2.StartAsync();
+        Assert.IsType<WelcomeViewModel>(shell2.CurrentPage);
+    }
+
+    [Fact]
     public void Tenant_search_matches_name_domain_or_account()
     {
         var connector = new FakeConnector();

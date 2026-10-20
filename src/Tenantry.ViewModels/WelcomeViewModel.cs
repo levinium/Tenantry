@@ -20,7 +20,7 @@ public sealed partial class WelcomeViewModel : ObservableObject
         var now = DateTimeOffset.Now;
         Profiles = new ObservableCollection<TenantCard>(connector.LoadProfiles()
             .OrderByDescending(p => p.LastUsedAt ?? DateTimeOffset.MinValue)
-            .Select(p => new TenantCard(p, now)));
+            .Select(p => new TenantCard(p, now) { IsDefault = p.IsDefault }));
         SearchText = "";
         VisibleProfiles = Profiles.ToArray();
     }
@@ -54,13 +54,36 @@ public sealed partial class WelcomeViewModel : ObservableObject
     }
 
     /// <summary>
-    /// At startup only: with exactly one tenant there is nothing to choose, so open it. Switching
-    /// tenants later still lands here, so the home page stays reachable.
+    /// At startup only: open the default tenant, or the only tenant when there's just one.
+    /// Switching tenants later still lands here, so the home page stays reachable.
     /// </summary>
-    public async Task OpenSoleTenantAsync()
+    public async Task OpenStartupTenantAsync()
     {
-        if (Profiles.Count == 1 && !IsBusy)
-            await ConnectCommand.ExecuteAsync(Profiles[0]);
+        if (IsBusy)
+            return;
+        var startup = Profiles.FirstOrDefault(p => p.IsDefault) ?? (Profiles.Count == 1 ? Profiles[0] : null);
+        if (startup is not null)
+            await ConnectCommand.ExecuteAsync(startup);
+    }
+
+    public bool HasDefault => Profiles.Any(p => p.IsDefault);
+
+    [RelayCommand]
+    void SetDefault(TenantCard card)
+    {
+        _connector.SetDefaultProfile(card.Profile.Id);
+        foreach (var p in Profiles)
+            p.IsDefault = p == card;
+        OnPropertyChanged(nameof(HasDefault));
+    }
+
+    [RelayCommand]
+    void ClearDefault(TenantCard card)
+    {
+        _connector.SetDefaultProfile(null);
+        foreach (var p in Profiles)
+            p.IsDefault = false;
+        OnPropertyChanged(nameof(HasDefault));
     }
 
     public bool HasProfiles => Profiles.Count > 0;

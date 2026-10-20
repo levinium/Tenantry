@@ -18,6 +18,10 @@ public sealed partial class TenantCard(TenantProfile profile, DateTimeOffset now
         ? $"Opened {Display.Relative(used, now)}"
         : "Not opened yet";
 
+    /// <summary>Opens automatically when Tenantry starts.</summary>
+    [ObservableProperty]
+    public partial bool IsDefault { get; set; } = false;
+
     /// <summary>True while the row asks "Remove this tenant from this computer?".</summary>
     [ObservableProperty]
     public partial bool IsConfirmingRemove { get; set; }

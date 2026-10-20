@@ -22,8 +22,8 @@ public sealed partial class ShellViewModel : ObservableObject
 
     public string Title => CurrentPage is MainViewModel main ? main.WindowTitle : "Tenantry";
 
-    /// <summary>Called once at app start: goes straight into the tenant when there is only one.</summary>
-    public Task StartAsync() => CurrentPage is WelcomeViewModel welcome ? welcome.OpenSoleTenantAsync() : Task.CompletedTask;
+    /// <summary>Called once at app start: opens the default tenant, or the only one.</summary>
+    public Task StartAsync() => CurrentPage is WelcomeViewModel welcome ? welcome.OpenStartupTenantAsync() : Task.CompletedTask;
 
     /// <summary>Shows a page directly (snapshots and tests drive pages this way).</summary>
     public void ShowPage(object page) => CurrentPage = page;

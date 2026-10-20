@@ -21,6 +21,8 @@ public sealed class TenantConnector : ITenantConnector
 
     public IReadOnlyList<TenantProfile> LoadProfiles() => _store.Load();
 
+    public void SetDefaultProfile(string? profileId) => _store.SetDefault(profileId);
+
     public void RemoveProfile(string profileId)
     {
         _store.Remove(profileId);

@@ -135,7 +135,7 @@ void Render(object page, string name, int width = 1440, int height = 900)
     shell.ShowPage(page);
     var window = new MainWindow { Width = width, Height = height, DataContext = shell };
     window.Show();
-    for (var i = 0; i < 4; i++)
+    for (var i = 0; i < 10; i++)
     {
         Dispatcher.UIThread.RunJobs();
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -156,7 +156,7 @@ sealed class SnapshotConnector(ConnectedTenant demo) : ITenantConnector
 
     public IReadOnlyList<TenantProfile> LoadProfiles() =>
     [
-        new("a", "Northgate Partners", "00000000-0000-0000-0000-00000000000a", "northgate.example", "app", Now.AddMonths(-3), "admin@northgate.example", Now.AddHours(-2)),
+        new("a", "Northgate Partners", "00000000-0000-0000-0000-00000000000a", "northgate.example", "app", Now.AddMonths(-3), "admin@northgate.example", Now.AddHours(-2), IsDefault: true),
         new("b", "Fabrikam Foundation", "00000000-0000-0000-0000-00000000000b", "fabrikam.example", "app", Now.AddMonths(-1), "it@fabrikam.example", Now.AddDays(-6)),
         new("c", "Tailspin Toys", "00000000-0000-0000-0000-00000000000c", "tailspin.example", "app", Now.AddMonths(-2), "ops@tailspin.example", Now.AddDays(-20)),
         new("d", "Woodgrove Clinic", "00000000-0000-0000-0000-00000000000d", "woodgrove.example", "app", Now.AddMonths(-5), "admin@woodgrove.example", Now.AddDays(-40)),
@@ -164,6 +164,8 @@ sealed class SnapshotConnector(ConnectedTenant demo) : ITenantConnector
     ];
 
     public void RemoveProfile(string profileId) { }
+
+    public void SetDefaultProfile(string? profileId) { }
 
     public Task<ConnectedTenant> ConnectAsync(TenantProfile profile, CancellationToken cancellationToken = default) => Task.FromResult(demo);
 
