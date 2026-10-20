@@ -17,11 +17,14 @@ public enum CmdletEndpoint
 /// </summary>
 public interface ICmdletRunner
 {
+    /// <param name="select">Properties to return, when the caller needs only a few (Get-Mailbox
+    /// objects carry hundreds); null returns everything.</param>
     Task<IReadOnlyList<JsonElement>> InvokeAsync(
         CmdletEndpoint endpoint,
         string cmdlet,
         IReadOnlyDictionary<string, object?>? parameters = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<string>? select = null);
 }
 
 public sealed class CmdletException(string cmdlet, int status, string message)

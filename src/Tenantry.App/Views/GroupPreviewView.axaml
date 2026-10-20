@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.GroupPreviewView"
+             x:DataType="vm:GroupDetailViewModel">
+  <!-- The group record, stacked to fit the preview pane; the full member list is on its page. -->
+  <StackPanel Spacing="18">
+    <StackPanel Spacing="10">
+      <Border Classes="avatar large" HorizontalAlignment="Left">
+        <TextBlock Text="{Binding Initials}" />
+      </Border>
+      <StackPanel Spacing="2">
+        <TextBlock Classes="h2" Text="{Binding Group.DisplayName}" TextWrapping="Wrap" />
+        <SelectableTextBlock Classes="muted" Text="{Binding Email}" TextWrapping="Wrap" />
+      </StackPanel>
+      <WrapPanel ItemSpacing="8" LineSpacing="8">
+        <c:Badge Text="{Binding TypeText}" Kind="{Binding TypeKind}" />
+        <c:Badge Text="{Binding MembershipText}" Kind="Neutral" />
+        <c:Badge Text="Team" Kind="Success" IsVisible="{Binding IsTeam}" />
+      </WrapPanel>
+    </StackPanel>
+
+    <Border Classes="divider" />
+    <StackPanel Spacing="12">
+      <TextBlock Classes="h3" Text="About" />
+      <StackPanel Spacing="2">
+        <TextBlock Classes="label" Text="DESCRIPTION" />
+        <TextBlock Classes="value" Text="{Binding Description}" TextWrapping="Wrap" />
+      </StackPanel>
+      <StackPanel Spacing="2">
+        <TextBlock Classes="label" Text="VISIBILITY" />
+        <TextBlock Classes="value" Text="{Binding Visibility}" />
+      </StackPanel>
+      <StackPanel Spacing="2">
+        <TextBlock Classes="label" Text="CREATED" />
+        <TextBlock Classes="value" Text="{Binding CreatedText}" />
+      </StackPanel>
+    </StackPanel>
+
+    <Border Classes="divider" />
+    <StackPanel Spacing="10">
+      <TextBlock Classes="h3" Text="Members" />
+      <TextBlock Classes="muted" Text="{Binding MembersSummary}" TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding FirstMembers}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="8" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:MemberRow">
+            <StackPanel Spacing="1">
+              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+              <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Classes="caption" Text="{Binding MoreMembersText}" TextWrapping="Wrap"
+                 IsVisible="{Binding MoreMembersText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

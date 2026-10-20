@@ -111,6 +111,37 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(compact, "users-compact-light");
     }
 
+    // Groups: the list with its preview, and a group's record page.
+    var groupsPage = Main();
+    groupsPage.SelectedSection = groupsPage.Sections.Single(s => s.Key == "groups");
+    groupsPage.Groups.PreviewRow(groupsPage.Groups.Rows.Cast<GroupSummary>().First(g => g.DisplayName == "Finance"));
+    Render(groupsPage, $"groups-{suffix}");
+    if (full)
+    {
+        groupsPage.OpenGroup(groupsPage.Groups.Rows.Cast<GroupSummary>().First(g => g.DisplayName == "Announcements"));
+        Render(groupsPage, "group-detail-light");
+
+        // Mailbox columns and the external-forwarding view.
+        var mail = Main();
+        foreach (var c in mail.Users.Columns.Where(c => c.Key is UserFields.Mailbox or UserFields.Forwarding or UserFields.ForwardingTo))
+            c.IsVisible = true;
+        mail.Users.ApplyView(mail.Users.Views.Single(v => v.View.Id == "forwarding-external"));
+        Render(mail, "users-forwarding-light");
+
+        // Ctrl+K with a query typed.
+        var search = Main();
+        search.OpenPaletteCommand.Execute(null);
+        search.Palette.Query = "fin";
+        Render(search, "palette-light");
+    }
+    else
+    {
+        var search = Main();
+        search.OpenPaletteCommand.Execute(null);
+        search.Palette.Query = "fin";
+        Render(search, "palette-dark");
+    }
+
     // A synced tenant: the sidebar shows when the local copy was last brought up to date.
     var synced = new MainViewModel(connector.ConnectDemo() with { ListState = new Tenantry.Core.Lists.MemoryListStateStore(), Sync = new SnapshotSync() }, () => { });
     synced.Users.LoadAsync().GetAwaiter().GetResult();
@@ -202,7 +233,9 @@ sealed class SnapshotSync : ITenantSync
 
     public bool IsPersistent => true;
 
-    public Task<int> SyncAsync(IProgress<string>? progress = null, bool full = false, CancellationToken cancellationToken = default) => Task.FromResult(0);
+    public IReadOnlyList<string> Notes => [];
+
+    public Task<int> SyncAsync(IProgress<string>? progress = null, SyncScope scope = SyncScope.Changes, CancellationToken cancellationToken = default) => Task.FromResult(0);
 }
 
 /// <summary>Fictional saved tenants; the demo for everything else.</summary>

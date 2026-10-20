@@ -1,8 +1,8 @@
 namespace Tenantry.Core.Directory;
 
 /// <summary>
-/// Read access to one tenant's directory. Implemented by the demo tenant now and by the local
-/// cache later; view models depend only on this.
+/// Read access to one tenant's directory: the local copy for a real tenant, generated data for
+/// the demo. View models depend only on this.
 /// </summary>
 public interface ITenantDirectory
 {
@@ -10,4 +10,6 @@ public interface ITenantDirectory
     string TenantName { get; }
 
     Task<IReadOnlyList<UserSummary>> GetUsersAsync(CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<GroupSummary>> GetGroupsAsync(CancellationToken cancellationToken = default);
 }

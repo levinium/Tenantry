@@ -17,8 +17,9 @@ public static class EntityMerge
         var merged = existing is null ? new JsonObject() : JsonNode.Parse(existing)!.AsObject();
         foreach (var (name, value) in incoming)
         {
-            // OData annotations ("@odata.type") describe the response, not the object.
-            if (name.StartsWith('@'))
+            // Annotations ("@odata.type", "EmailAddresses@odata.type", "members@delta") describe
+            // the response, not the object; the sync turns any it needs into real properties.
+            if (name.Contains('@'))
                 continue;
             merged[name] = value?.DeepClone();
         }

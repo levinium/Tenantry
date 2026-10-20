@@ -19,6 +19,12 @@ public sealed class MemoryEntityStore : IEntityStore
             return _kinds.TryGetValue(kind, out var items) ? items.Values.ToArray() : [];
     }
 
+    public string? Get(string kind, string id)
+    {
+        lock (_lock)
+            return _kinds.TryGetValue(kind, out var items) ? items.GetValueOrDefault(id) : null;
+    }
+
     public int Apply(string kind, IReadOnlyCollection<EntityChange> changes)
     {
         lock (_lock)

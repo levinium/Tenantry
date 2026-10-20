@@ -16,12 +16,27 @@ public static class UserFields
     public const string LicenseCount = "licensecount";
     public const string LastSignIn = "signin";
     public const string Created = "created";
+    public const string Mailbox = "mailbox";
+    public const string Addresses = "addresses";
+    public const string Forwarding = "forwarding";
+    public const string ForwardingTo = "forwardto";
+    public const string LitigationHold = "hold";
+    public const string Archive = "archive";
 
     public const string Active = "Active";
     public const string Blocked = "Blocked";
     public const string Member = "Member";
     public const string Guest = "Guest";
     public const string Unlicensed = "Unlicensed";
+    public const string NoMailbox = "No mailbox";
+    public const string SharedMailbox = "Shared";
+    public const string NotForwarding = "Not forwarding";
+    public const string ForwardsInternally = "Inside the organization";
+    public const string ForwardsExternally = "Outside the organization";
+    public const string On = "On";
+    public const string Off = "Off";
+
+    static string? OnOff(UserSummary u, Func<MailboxInfo, bool> flag) => u.Mailbox is { } m ? (flag(m) ? On : Off) : null;
 
     public static IReadOnlyList<Field<UserSummary>> All { get; } =
     [
@@ -48,5 +63,39 @@ public static class UserFields
         new() { Key = LicenseCount, Label = "License count", Kind = FieldKind.Number, Aliases = ["licensecount", "lc"], Number = u => u.Licenses.Count },
         new() { Key = LastSignIn, Label = "Last sign-in", Kind = FieldKind.Date, Aliases = ["lastsignin", "login"], EmptyLabel = "Never", Date = u => u.LastSignIn },
         new() { Key = Created, Label = "Created", Kind = FieldKind.Date, Aliases = ["createddate"], Date = u => u.CreatedAt },
+
+        // From Exchange (Get-Mailbox). Empty for everyone when the admin has no Exchange role.
+        new()
+        {
+            Key = Mailbox, Label = "Mailbox", Kind = FieldKind.Choice, Aliases = ["mailboxtype", "mbx"],
+            EmptyLabel = NoMailbox, ChoiceOrder = ["User", SharedMailbox, "Room", "Equipment", NoMailbox], Text = u => u.Mailbox?.Type,
+        },
+        new()
+        {
+            Key = Addresses, Label = "Email addresses", Kind = FieldKind.Text, Searchable = true, Aliases = ["alias", "aliases", "proxy"],
+            Text = u => u.Mailbox is { } m ? string.Join(" ", m.Aliases.Prepend(m.PrimaryAddress ?? "")).Trim() : null,
+        },
+        new()
+        {
+            Key = Forwarding, Label = "Forwarding", Kind = FieldKind.Choice, Aliases = ["forward", "fwd"],
+            EmptyLabel = NotForwarding, ChoiceOrder = [ForwardsExternally, ForwardsInternally, NotForwarding],
+            Text = u => u.Mailbox?.Forwarding switch
+            {
+                ForwardingKind.External => ForwardsExternally,
+                ForwardingKind.Internal => ForwardsInternally,
+                _ => null,
+            },
+        },
+        new() { Key = ForwardingTo, Label = "Forwards to", Kind = FieldKind.Text, Searchable = true, Aliases = ["forwardsto"], Text = u => u.Mailbox?.ForwardingTo },
+        new()
+        {
+            Key = LitigationHold, Label = "Litigation hold", Kind = FieldKind.Choice, Aliases = ["litigationhold", "lithold"],
+            EmptyLabel = NoMailbox, ChoiceOrder = [On, Off, NoMailbox], Text = u => OnOff(u, m => m.LitigationHold),
+        },
+        new()
+        {
+            Key = Archive, Label = "Archive", Kind = FieldKind.Choice, Aliases = ["archivemailbox"],
+            EmptyLabel = NoMailbox, ChoiceOrder = [On, Off, NoMailbox], Text = u => OnOff(u, m => m.ArchiveEnabled),
+        },
     ];
 }

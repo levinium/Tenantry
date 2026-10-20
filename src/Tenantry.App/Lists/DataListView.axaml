@@ -788,6 +788,9 @@
               <DataTemplate DataType="vm:UserDetailViewModel">
                 <views:UserPreviewView />
               </DataTemplate>
+              <DataTemplate DataType="vm:GroupDetailViewModel">
+                <views:GroupPreviewView />
+              </DataTemplate>
             </ContentControl.DataTemplates>
           </ContentControl>
         </ScrollViewer>

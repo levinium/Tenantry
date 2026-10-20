@@ -21,4 +21,5 @@ public sealed record UserSummary(
     UserKind Kind,
     DateTimeOffset CreatedAt,
     DateTimeOffset? LastSignIn,
-    IReadOnlyList<string> Licenses);
+    IReadOnlyList<string> Licenses,
+    MailboxInfo? Mailbox = null);

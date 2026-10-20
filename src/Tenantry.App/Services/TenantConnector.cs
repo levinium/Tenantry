@@ -6,6 +6,7 @@ using Tenantry.Core.Lists;
 using Tenantry.Core.Permissions;
 using Tenantry.Core.Tenancy;
 using Tenantry.Demo;
+using Tenantry.Exchange;
 using Tenantry.Graph;
 using Tenantry.ViewModels;
 
@@ -18,6 +19,9 @@ public sealed class TenantConnector : ITenantConnector
     public const string BootstrapClientVariable = "TENANTRY_BOOTSTRAP_CLIENT_ID";
 
     static readonly HttpClient Http = new();
+
+    // Purview region discovery reads a redirect rather than following it.
+    static readonly HttpClient NoRedirectHttp = new(new HttpClientHandler { AllowAutoRedirect = false });
 
     readonly TenantProfileStore _store = new();
 
@@ -49,7 +53,7 @@ public sealed class TenantConnector : ITenantConnector
         var entities = OpenLocalCopy(profile.Id, folder);
         return new ConnectedTenant(profile.DisplayName, tokens.Account ?? "", new CachedTenantDirectory(entities, profile.DisplayName), context,
             ListState: new JsonListStateStore(folder),
-            Sync: new DirectorySync(graph, entities),
+            Sync: new DirectorySync(graph, entities, new RestCmdletRunner(Http, NoRedirectHttp, tokens, profile.TenantId)),
             Resources: entities);
     }
 

@@ -47,7 +47,8 @@ public sealed class RestCmdletRunner : ICmdletRunner
     }
 
     public async Task<IReadOnlyList<JsonElement>> InvokeAsync(CmdletEndpoint endpoint, string cmdlet,
-        IReadOnlyDictionary<string, object?>? parameters = null, CancellationToken cancellationToken = default)
+        IReadOnlyDictionary<string, object?>? parameters = null, CancellationToken cancellationToken = default,
+        IReadOnlyList<string>? select = null)
     {
         var anchor = _tokens.Account ?? throw new InvalidOperationException("Sign in before running cmdlets.");
         var audience = endpoint == CmdletEndpoint.Compliance ? ComplianceHost : ExchangeHost;
@@ -69,7 +70,9 @@ public sealed class RestCmdletRunner : ICmdletRunner
         });
 
         var results = new List<JsonElement>();
-        string? next = $"{host}/adminapi/beta/{_tenantId}/InvokeCommand";
+        // $select trims each object server-side, as CIPP does; next links carry it on.
+        var query = select is { Count: > 0 } ? "?$select=" + string.Join(',', select) : "";
+        string? next = $"{host}/adminapi/beta/{_tenantId}/InvokeCommand{query}";
         while (next is not null && (limit is null || results.Count < limit))
         {
             var page = await PostAsync(next, body, scopes, anchor, cmdlet, pageSize, cancellationToken);

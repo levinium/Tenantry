@@ -17,8 +17,25 @@ public class DirectorySyncTests
     static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     // Two pages of users (a delta link at the end), one license, sign-in times for one user and
-    // for someone not in the directory (who must not be invented).
-    static FakeHttp FirstRun() => new FakeHttp()
+    // for someone not in the directory (who must not be invented). Two pages of groups: g1's
+    // members arrive split across both pages, g2 has none; g1 is a Team. groupChanges is what
+    // the groups delta link returns on the next sync (nothing, by default).
+    static FakeHttp FirstRun(string groupChanges = """{"value":[],"@odata.deltaLink":"https://graph.microsoft.com/v1.0/groups/delta?$deltatoken=gd2"}""") => new FakeHttp()
+        .On(HttpMethod.Get, "groups/delta?$select", $$$"""
+            {"value":[
+              {"id":"g1","displayName":"Finance","mailEnabled":true,"securityEnabled":false,"groupTypes":["Unified"],
+               "members@delta":[{"@odata.type":"#microsoft.graph.user","id":"u1"},{"@odata.type":"#microsoft.graph.user","id":"u2"}]}],
+             "@odata.nextLink":"{{{Base}}}groups/delta?$skiptoken=gpage2"}
+            """)
+        .On(HttpMethod.Get, "$skiptoken=gpage2", $$$"""
+            {"value":[
+              {"id":"g1","members@delta":[{"@odata.type":"#microsoft.graph.group","id":"g2"}]},
+              {"id":"g2","displayName":"Old Printer Access","mailEnabled":false,"securityEnabled":true,"groupTypes":[]}],
+             "@odata.deltaLink":"{{{Base}}}groups/delta?$deltatoken=gd1"}
+            """)
+        .On(HttpMethod.Get, "$deltatoken=gd1", groupChanges)
+        .On(HttpMethod.Get, "/domains?", """{"value":[{"id":"contoso.example","isVerified":true}]}""")
+        .On(HttpMethod.Get, "resourceProvisioningOptions", """{"value":[{"id":"g1"}]}""")
         .On(HttpMethod.Get, "/subscribedSkus", """{"value":[{"skuId":"05e9a617-0261-4cee-bb44-138d3ef5d965","skuPartNumber":"SPE_E3"}]}""")
         .On(HttpMethod.Get, "users/delta?$select", $$"""
             {"value":[
@@ -43,7 +60,7 @@ public class DirectorySyncTests
     {
         var http = FirstRun();
         var store = new MemoryEntityStore();
-        var sync = new DirectorySync(Graph(http), store, () => Now);
+        var sync = new DirectorySync(Graph(http), store, now: () => Now);
         var progress = new List<string>();
 
         await sync.SyncAsync(new SyncProgress(progress), cancellationToken: Ct);
@@ -70,7 +87,7 @@ public class DirectorySyncTests
                  "@odata.deltaLink":"{{{Base}}}users/delta?$deltatoken=d2"}
                 """);
         var store = new MemoryEntityStore();
-        var sync = new DirectorySync(Graph(http), store, () => Now);
+        var sync = new DirectorySync(Graph(http), store, now: () => Now);
         await sync.SyncAsync(cancellationToken: Ct);
         var before = http.Requests.Count;
 
@@ -97,7 +114,7 @@ public class DirectorySyncTests
         store.Apply(DirectorySync.Users, [new EntityChange("departed", JsonNode.Parse("""{"id":"departed","displayName":"Gone"}""")!.AsObject())]);
         store.SetMark(DirectorySync.Users, new SyncMark($"{Base}users/delta?$deltatoken=old", Now.AddDays(-40)));
 
-        await new DirectorySync(Graph(http), store, () => Now).SyncAsync(cancellationToken: Ct);
+        await new DirectorySync(Graph(http), store, now: () => Now).SyncAsync(cancellationToken: Ct);
 
         var users = await new CachedTenantDirectory(store, "Contoso").GetUsersAsync(Ct);
         Assert.Equal(["u1", "u2", "u3"], users.Select(u => u.Id).Order().ToArray());
@@ -110,14 +127,123 @@ public class DirectorySyncTests
         var http = new FakeHttp()
             .On(HttpMethod.Get, "users?$select=id,signInActivity", """{"error":{"code":"Authentication_RequestFromNonPremiumTenantOrB2CTenant","message":"premium"}}""", HttpStatusCode.Forbidden)
             .On(HttpMethod.Get, "/subscribedSkus", """{"value":[]}""")
-            .On(HttpMethod.Get, "users/delta?$select", $$"""{"value":[{"id":"u1","displayName":"Ada"}],"@odata.deltaLink":"{{Base}}users/delta?$deltatoken=d1"}""");
+            .On(HttpMethod.Get, "users/delta?$select", $$"""{"value":[{"id":"u1","displayName":"Ada"}],"@odata.deltaLink":"{{Base}}users/delta?$deltatoken=d1"}""")
+            .On(HttpMethod.Get, "groups/delta?$select", $$"""{"value":[],"@odata.deltaLink":"{{Base}}groups/delta?$deltatoken=gd1"}""")
+            .On(HttpMethod.Get, "/domains?", """{"value":[]}""")
+            .On(HttpMethod.Get, "resourceProvisioningOptions", """{"value":[]}""");
         var store = new MemoryEntityStore();
 
-        await new DirectorySync(Graph(http), store, () => Now).SyncAsync(cancellationToken: Ct);
+        await new DirectorySync(Graph(http), store, now: () => Now).SyncAsync(cancellationToken: Ct);
 
         var ada = (await new CachedTenantDirectory(store, "Contoso").GetUsersAsync(Ct)).Single();
         Assert.Null(ada.LastSignIn);
         Assert.NotNull(store.GetMark(DirectorySync.SignIns));
+    }
+
+    // ---- Groups -----------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Groups_collect_members_spread_over_pages_and_know_their_kind()
+    {
+        var store = new MemoryEntityStore();
+        await new DirectorySync(Graph(FirstRun()), store, now: () => Now).SyncAsync(cancellationToken: Ct);
+
+        var groups = (await new CachedTenantDirectory(store, "Contoso").GetGroupsAsync(Ct)).ToDictionary(g => g.Id);
+
+        var finance = groups["g1"];
+        Assert.Equal(GroupKind.Microsoft365, finance.Kind);
+        Assert.True(finance.IsTeam);
+        Assert.Equal([("u1", "user"), ("u2", "user"), ("g2", "group")], finance.Members.Select(m => (m.Id, m.Type)).ToArray());
+        Assert.Equal(GroupKind.Security, groups["g2"].Kind);
+        Assert.False(groups["g2"].IsTeam);
+        Assert.Empty(groups["g2"].Members);
+    }
+
+    [Fact]
+    public async Task Group_deltas_apply_joins_and_leaves_and_removals()
+    {
+        var http = FirstRun($$$"""
+            {"value":[
+              {"id":"g1","members@delta":[
+                {"@odata.type":"#microsoft.graph.user","id":"u2","@removed":{"reason":"deleted"}},
+                {"@odata.type":"#microsoft.graph.device","id":"d9"}]},
+              {"id":"g2","@removed":{"reason":"changed"}}],
+             "@odata.deltaLink":"{{{Base}}}groups/delta?$deltatoken=gd2"}
+            """)
+            .On(HttpMethod.Get, "users/delta?$deltatoken=d1", $$"""{"value":[],"@odata.deltaLink":"{{Base}}users/delta?$deltatoken=d2"}""");
+        var store = new MemoryEntityStore();
+        var sync = new DirectorySync(Graph(http), store, now: () => Now);
+        await sync.SyncAsync(cancellationToken: Ct);
+
+        await sync.SyncAsync(cancellationToken: Ct);
+
+        var finance = (await new CachedTenantDirectory(store, "Contoso").GetGroupsAsync(Ct)).Single();
+        Assert.Equal("Finance", finance.DisplayName);
+        Assert.Equal([("u1", "user"), ("g2", "group"), ("d9", "device")], finance.Members.Select(m => (m.Id, m.Type)).ToArray());
+    }
+
+    // ---- Mailboxes ----------------------------------------------------------------------------
+
+    sealed class FakeExchange(Func<IReadOnlyList<System.Text.Json.JsonElement>> answer) : Tenantry.Core.Exchange.ICmdletRunner
+    {
+        public List<(string Cmdlet, IReadOnlyList<string>? Select)> Calls { get; } = [];
+
+        public Task<IReadOnlyList<System.Text.Json.JsonElement>> InvokeAsync(Tenantry.Core.Exchange.CmdletEndpoint endpoint, string cmdlet,
+            IReadOnlyDictionary<string, object?>? parameters = null, CancellationToken cancellationToken = default, IReadOnlyList<string>? select = null)
+        {
+            Calls.Add((cmdlet, select));
+            return Task.FromResult(answer());
+        }
+    }
+
+    static IReadOnlyList<System.Text.Json.JsonElement> Rows(string json) =>
+        System.Text.Json.JsonDocument.Parse(json).RootElement.EnumerateArray().Select(e => e.Clone()).ToArray();
+
+    [Fact]
+    public async Task Mailboxes_join_their_users_and_forwarding_is_judged_against_the_tenants_domains()
+    {
+        var exchange = new FakeExchange(() => Rows("""
+            [
+              {"ExternalDirectoryObjectId":"u1","RecipientTypeDetails":"UserMailbox","PrimarySmtpAddress":"ada@contoso.example",
+               "EmailAddresses":["SMTP:ada@contoso.example","smtp:a.l@contoso.example","SIP:ada@contoso.example"],
+               "ForwardingSmtpAddress":"smtp:ada@personal.example","DeliverToMailboxAndForward":true,"ArchiveStatus":"Active"},
+              {"ExternalDirectoryObjectId":"u2","RecipientTypeDetails":"SharedMailbox","PrimarySmtpAddress":"bo@contoso.example",
+               "ForwardingSmtpAddress":"smtp:team@sub.contoso.example","LitigationHoldEnabled":true,"ArchiveStatus":"None"},
+              {"ExternalDirectoryObjectId":"","RecipientTypeDetails":"DiscoveryMailbox"}
+            ]
+            """));
+        var store = new MemoryEntityStore();
+
+        await new DirectorySync(Graph(FirstRun()), store, exchange, () => Now).SyncAsync(cancellationToken: Ct);
+
+        var users = (await new CachedTenantDirectory(store, "Contoso").GetUsersAsync(Ct)).ToDictionary(u => u.Id);
+        var ada = users["u1"].Mailbox!;
+        Assert.Equal("User", ada.Type);
+        Assert.Equal(["a.l@contoso.example"], ada.Aliases);
+        Assert.Equal(ForwardingKind.External, ada.Forwarding);
+        Assert.Equal("ada@personal.example", ada.ForwardingTo);
+        Assert.True(ada.KeepsCopyWhenForwarding);
+        Assert.True(ada.ArchiveEnabled);
+        var bo = users["u2"].Mailbox!;
+        Assert.Equal("Shared", bo.Type);
+        Assert.Equal(ForwardingKind.Internal, bo.Forwarding);
+        Assert.True(bo.LitigationHold);
+        Assert.Null(users["u3"].Mailbox);
+        // Only the properties the lists use are asked for, not all 300-odd.
+        Assert.Contains("ExternalDirectoryObjectId", exchange.Calls.Single().Select!);
+    }
+
+    [Fact]
+    public async Task No_exchange_role_leaves_a_note_and_the_rest_syncs()
+    {
+        var exchange = new FakeExchange(() => throw new Tenantry.Core.Exchange.CmdletException("Get-Mailbox", 403, "The user isn't assigned to any management roles."));
+        var store = new MemoryEntityStore();
+        var sync = new DirectorySync(Graph(FirstRun()), store, exchange, () => Now);
+
+        await sync.SyncAsync(cancellationToken: Ct);
+
+        Assert.Equal(3, store.All(DirectorySync.Users).Count);
+        Assert.Contains("management roles", Assert.Single(sync.Notes));
     }
 
     // ---- The main window around a sync ----------------------------------------------------
@@ -125,7 +251,7 @@ public class DirectorySyncTests
     static ConnectedTenant Tenant(FakeHttp http, IEntityStore store) => new(
         "Contoso", "admin@contoso.example", new CachedTenantDirectory(store, "Contoso"),
         new TenantContext(new HashSet<string>([DirectoryRoles.GlobalAdministrator]), new HashSet<string>(), true),
-        Sync: new DirectorySync(Graph(http), store, () => Now));
+        Sync: new DirectorySync(Graph(http), store, now: () => Now));
 
     [Fact]
     public async Task First_open_downloads_then_shows_the_list()
@@ -148,7 +274,7 @@ public class DirectorySyncTests
         var store = new MemoryEntityStore();
         var http = FirstRun()
             .On(HttpMethod.Get, "$deltatoken=d1", $$"""{"value":[{"id":"u3","displayName":"Cyrus"}],"@odata.deltaLink":"{{Base}}users/delta?$deltatoken=d2"}""");
-        await new DirectorySync(Graph(http), store, () => Now).SyncAsync(cancellationToken: Ct);
+        await new DirectorySync(Graph(http), store, now: () => Now).SyncAsync(cancellationToken: Ct);
 
         var vm = new MainViewModel(Tenant(http, store), now: () => Now);
         await vm.Users.LoadAsync(Ct);

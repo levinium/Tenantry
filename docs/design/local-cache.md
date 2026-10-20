@@ -47,7 +47,15 @@ Translating `ListQuery` to SQL stays possible if a much larger tenant ever needs
 |---|---|---|
 | Licenses | `subscribedSkus`, read whole | Every sync |
 | Users | `users/delta` | Every sync. The first sync pages through everyone and saves the delta link; later syncs fetch only changes and `@removed` markers. |
-| Last sign-in | `users?$select=id,signInActivity` | At most hourly; delta can't return it. Needs Entra ID P1 and a reports role. Without them the column stays empty and nothing else is affected. |
+| Groups and members | `groups/delta` with `members` | Every sync. Members arrive as `members@delta` (a large group's list is spread over several pages on a full pass; afterwards, only joins and leaves) and are stored as an id-to-type map. |
+| Last sign-in | `users?$select=id,signInActivity` | Hourly, or on Refresh; delta can't return it. Needs Entra ID P1 and a reports role. Without them the column stays empty and nothing else is affected. |
+| Mailboxes | Exchange `Get-Mailbox` over REST, with `$select` (about 13 of 338 properties, roughly 24x less data) | Hourly, or on Refresh; Exchange has no delta. Keyed by `ExternalDirectoryObjectId`, so each mailbox joins its user. Without an Exchange role the sync skips it and notes why in the status tooltip. |
+| Domains, Teams | `domains`, `groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team')` | Hourly, or on Refresh. Domains decide whether forwarding is internal or external. |
+
+**Sync scopes:**
+- **Changes** (the 10-minute timer) runs the delta reads and any hourly read that is due.
+- **Everything** (the Refresh button, and the first download) also redoes the hourly reads now.
+- **StartOver** forgets the delta links.
 
 - **Expired delta link** (410 or `syncStateNotFound`): the sync starts a full pass, which also
   removes anyone it no longer sees.
@@ -65,6 +73,10 @@ Translating `ListQuery` to SQL stays possible if a much larger tenant ever needs
 - **Sidebar status:** shows "Updated at 10:42 AM" (a clock time, which can't go stale on screen),
   "Checking for changes…", or "Couldn't update" with the reason in the tooltip.
 
-## Not yet
+## Search everything (Ctrl+K)
 
-Groups, mailboxes (from Exchange) and Ctrl+K global search come next, on the same store.
+The palette searches the loaded copy: people (name, sign-in name, email, aliases, department,
+title), groups (name, email, description, type) and every list's views. Every typed word must
+appear. Names that start with the query rank first, then names containing a word that starts
+with it, then everything else that matches; each kind shows at most six results. Choosing a
+person or group opens its record page. Choosing a view switches to that list and applies the view.

@@ -7,8 +7,13 @@ sealed class FakeDirectory(params UserSummary[] users) : ITenantDirectory
 {
     public string TenantName => "Test tenant";
 
+    public List<GroupSummary> Groups { get; } = [];
+
     public Task<IReadOnlyList<UserSummary>> GetUsersAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<UserSummary>>(users);
+
+    public Task<IReadOnlyList<GroupSummary>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<GroupSummary>>(Groups);
 
     public static UserSummary User(
         string id, string name, string? department = null, string? title = null,

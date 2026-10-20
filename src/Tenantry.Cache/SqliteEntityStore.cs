@@ -105,6 +105,18 @@ public sealed class SqliteEntityStore : IEntityStore
         }
     }
 
+    public string? Get(string kind, string id)
+    {
+        lock (_lock)
+        {
+            using var command = _connection.CreateCommand();
+            command.CommandText = "SELECT json FROM entity WHERE kind = $kind AND id = $id;";
+            command.Parameters.AddWithValue("$kind", kind);
+            command.Parameters.AddWithValue("$id", id);
+            return command.ExecuteScalar() as string;
+        }
+    }
+
     public int Apply(string kind, IReadOnlyCollection<EntityChange> changes)
     {
         lock (_lock)

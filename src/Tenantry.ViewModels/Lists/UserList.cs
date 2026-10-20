@@ -29,6 +29,9 @@ public static class UserList
         View("licensed-blocked", "Licensed but blocked", Is(F.Status, F.Blocked), IsNot(F.Licenses, F.Unlicensed)),
         View("unlicensed", "Unlicensed members", Is(F.Type, F.Member), Is(F.Status, F.Active), Is(F.Licenses, F.Unlicensed)),
         View("guests-never", "Guests never signed in", Is(F.Type, F.Guest), new DateCondition(F.LastSignIn, DateOp.Never)),
+        View("shared", "Shared mailboxes", Is(F.Mailbox, F.SharedMailbox)),
+        View("forwarding-external", "Forwarding outside the organization", Is(F.Forwarding, F.ForwardsExternally)),
+        View("licensed-shared", "Licensed shared mailboxes", Is(F.Mailbox, F.SharedMailbox), IsNot(F.Licenses, F.Unlicensed)),
     ];
 
     /// <summary>Last sign-in reads amber after 90 days or never, red after 180.</summary>
@@ -77,6 +80,23 @@ public static class UserList
             new() { Key = F.SignInName, Header = "Sign-in name", Cell = CellKind.Text, MinWidth = 220, DefaultWidth = 260, DefaultVisible = false, Text = u => u.UserPrincipalName },
             new() { Key = F.LicenseCount, Header = "License count", Cell = CellKind.Number, MinWidth = 110, DefaultWidth = 120, DefaultVisible = false,
                 Number = u => u.Licenses.Count },
+            new() { Key = F.Mailbox, Header = "Mailbox", Cell = CellKind.Badge, MinWidth = 110, DefaultWidth = 120, DefaultVisible = false,
+                Badge = u => u.Mailbox is { } m ? (m.Type, m.Type == F.SharedMailbox ? BadgeKind.Info : BadgeKind.Neutral) : (F.NoMailbox, BadgeKind.Neutral) },
+            new() { Key = F.Forwarding, Header = "Forwarding", Cell = CellKind.Badge, MinWidth = 150, DefaultWidth = 190, DefaultVisible = false,
+                Badge = u => u.Mailbox?.Forwarding switch
+                {
+                    ForwardingKind.External => (F.ForwardsExternally, BadgeKind.Danger),
+                    ForwardingKind.Internal => (F.ForwardsInternally, BadgeKind.Info),
+                    _ => (F.NotForwarding, BadgeKind.Neutral),
+                } },
+            new() { Key = F.ForwardingTo, Header = "Forwards to", Cell = CellKind.Text, MinWidth = 180, DefaultWidth = 220, DefaultVisible = false,
+                Text = u => u.Mailbox?.ForwardingTo },
+            new() { Key = F.Addresses, Header = "Email addresses", Cell = CellKind.Text, MinWidth = 220, DefaultWidth = 300, DefaultVisible = false,
+                Text = u => u.Mailbox is { } m ? string.Join(", ", m.Aliases.Prepend(m.PrimaryAddress ?? "").Where(a => a.Length > 0)) : null },
+            new() { Key = F.LitigationHold, Header = "Litigation hold", Cell = CellKind.Text, MinWidth = 120, DefaultWidth = 130, DefaultVisible = false,
+                Text = u => u.Mailbox is { } m ? (m.LitigationHold ? F.On : F.Off) : null },
+            new() { Key = F.Archive, Header = "Archive", Cell = CellKind.Text, MinWidth = 100, DefaultWidth = 110, DefaultVisible = false,
+                Text = u => u.Mailbox is { } m ? (m.ArchiveEnabled ? F.On : F.Off) : null },
         ],
     };
 }

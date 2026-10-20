@@ -19,6 +19,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     readonly Func<DateTimeOffset> _now;
     readonly TimeSpan? _syncInterval;
     readonly CancellationTokenSource _lifetime = new();
+    readonly DirectoryIndex _index = new();
 
     /// <param name="syncInterval">How often to check for changes while open; null checks only on open and on Refresh.</param>
     public MainViewModel(ConnectedTenant tenant, Action? switchTenant = null, Func<DateTimeOffset>? now = null, TimeSpan? syncInterval = null)
@@ -30,15 +31,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         LastSyncedAt = tenant.Sync?.LastSyncedAt;
 
         var createUsers = Evaluate(Capabilities.EditUsers);
-        Users = DataListViewModel.Create(UserList.Definition(_now), ct => tenant.Directory.GetUsersAsync(ct), OpenUser, tenant.ListState, _now);
+        Users = DataListViewModel.Create(UserList.Definition(_now), LoadUsersAsync, OpenUser, tenant.ListState, _now);
         Users.PrimaryAction = new ListPrimaryAction("New user", "PersonAdd", false,
-            createUsers.IsAvailable ? "Creating users arrives with the change pipeline (Phase 6)" : createUsers.Reason!);
+            createUsers.IsAvailable ? "Creating users arrives with the change pipeline (Phase 3)" : createUsers.Reason!);
+        Groups = DataListViewModel.Create(GroupList.Definition(g => NewGroupPage(g)), LoadGroupsAsync, OpenGroup, tenant.ListState, _now);
+        Groups.PrimaryAction = new ListPrimaryAction("New group", "PeopleAdd", false, "Creating groups arrives with the change pipeline (Phase 3)");
 
         var readUsers = Evaluate(Capabilities.ReadUsers);
         Sections =
         [
             new NavSection("users", "Users", readUsers.Reason),
-            new NavSection("groups", "Groups & teams", Later),
+            new NavSection("groups", "Groups & teams", readUsers.Reason),
             new NavSection("mail", "Mail & security", Later),
             new NavSection("sharepoint", "SharePoint & OneDrive", Later),
             new NavSection("devices", "Devices", Later),
@@ -65,6 +68,37 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public DataListViewModel Users { get; }
 
+    public DataListViewModel Groups { get; }
+
+    /// <summary>Lists in sidebar order, so each sidebar entry maps to one list tab.</summary>
+    IEnumerable<(string Section, DataListViewModel List)> AreaLists => [("users", Users), ("groups", Groups)];
+
+    async Task<IReadOnlyList<UserSummary>> LoadUsersAsync(CancellationToken cancellationToken)
+    {
+        var users = await _tenant.Directory.GetUsersAsync(cancellationToken);
+        _index.SetUsers(users);
+        return users;
+    }
+
+    async Task<IReadOnlyList<GroupSummary>> LoadGroupsAsync(CancellationToken cancellationToken)
+    {
+        var groups = await _tenant.Directory.GetGroupsAsync(cancellationToken);
+        _index.SetGroups(groups);
+        return groups;
+    }
+
+    async Task LoadListsAsync(CancellationToken cancellationToken)
+    {
+        await Users.LoadAsync(cancellationToken);
+        await Groups.LoadAsync(cancellationToken);
+    }
+
+    async Task ReloadListsAsync(CancellationToken cancellationToken)
+    {
+        await Users.ReloadAsync(cancellationToken);
+        await Groups.ReloadAsync(cancellationToken);
+    }
+
     /// <summary>Every gated feature and whether this admin can use it here, for the "Your access" panel.</summary>
     public IReadOnlyList<CapabilityRow> Access => Capabilities.All
         .Select(c => new CapabilityRow(c.Title, Evaluate(c)))
@@ -87,23 +121,34 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (_tenant.Sync is not { } sync)
         {
-            await Users.LoadAsync(cancellationToken);
+            await LoadListsAsync(cancellationToken);
             return;
         }
 
         if (sync.LastSyncedAt is null)
         {
-            Users.ShowLoading("Downloading the directory for the first time…");
-            var ok = await SyncAsync(new Progress<string>(Users.UpdateLoadingText), cancellationToken) is not null;
-            await Users.LoadAsync(cancellationToken);
+            const string first = "Downloading the directory for the first time…";
+            Users.ShowLoading(first);
+            Groups.ShowLoading(first);
+            var progress = new Progress<string>(text =>
+            {
+                Users.UpdateLoadingText(text);
+                Groups.UpdateLoadingText(text);
+            });
+            var ok = await SyncAsync(progress, SyncScope.Everything, cancellationToken) is not null;
+            await LoadListsAsync(cancellationToken);
             if (!ok)
-                Users.ShowLoadError($"Couldn't download the directory: {SyncError} Use Refresh (bottom left) to try again.");
+            {
+                var message = $"Couldn't download the directory: {SyncError} Use Refresh (bottom left) to try again.";
+                Users.ShowLoadError(message);
+                Groups.ShowLoadError(message);
+            }
         }
         else
         {
-            await Users.LoadAsync(cancellationToken);
-            if (await SyncAsync(null, cancellationToken) > 0)
-                await Users.ReloadAsync(cancellationToken);
+            await LoadListsAsync(cancellationToken);
+            if (await SyncAsync(null, SyncScope.Changes, cancellationToken) > 0)
+                await ReloadListsAsync(cancellationToken);
         }
 
         if (_syncInterval is { } interval)
@@ -147,24 +192,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 : "The copy is encrypted on this computer.";
             var when = LastSyncedAt is { } at ? $"Last brought up to date {Display.Exact(at)}. " : "";
             var error = SyncError is not null && !IsSyncing ? $"The last check failed: {SyncError} " : "";
-            return $"{error}{when}Lists read a local copy of the directory, so they are instant. " +
-                   $"Tenantry checks for changes when you open the tenant and every {DefaultSyncInterval.TotalMinutes:0} minutes while it's open. {where} " +
-                   "Click Refresh to check now.";
+            var notes = _tenant.Sync?.Notes is { Count: > 0 } n ? string.Join(" ", n) + " " : "";
+            return $"{error}{notes}{when}Lists read a local copy of the directory, so they are instant. " +
+                   $"Tenantry checks for changes when you open the tenant and every {DefaultSyncInterval.TotalMinutes:0} minutes while it's open; " +
+                   $"mailboxes and last sign-in times are re-read hourly. {where} " +
+                   "Click Refresh to check everything now.";
         }
     }
 
     bool CanRefresh => HasSync && !IsSyncing;
 
-    /// <summary>Checks for changes now and updates the lists if any arrived.</summary>
+    /// <summary>Checks everything now (including the hourly reads) and updates the lists if anything changed.</summary>
     [RelayCommand(CanExecute = nameof(CanRefresh))]
     async Task Refresh()
     {
-        if (await SyncAsync(null, _lifetime.Token) > 0)
-            await Users.ReloadAsync(_lifetime.Token);
+        if (await SyncAsync(null, SyncScope.Everything, _lifetime.Token) > 0)
+            await ReloadListsAsync(_lifetime.Token);
     }
 
     /// <summary>Runs one sync; returns the number of changes, or null if it failed (see <see cref="SyncError"/>).</summary>
-    async Task<int?> SyncAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    async Task<int?> SyncAsync(IProgress<string>? progress, SyncScope scope, CancellationToken cancellationToken)
     {
         if (_tenant.Sync is not { } sync)
             return 0;
@@ -172,7 +219,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             // Off the UI thread: a first download parses and writes thousands of objects.
-            var changed = await Task.Run(() => sync.SyncAsync(progress, cancellationToken: cancellationToken), cancellationToken);
+            var changed = await Task.Run(() => sync.SyncAsync(progress, scope, cancellationToken), cancellationToken);
             SyncError = null;
             return changed;
         }
@@ -195,8 +242,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                if (!IsSyncing && await SyncAsync(null, cancellationToken) > 0)
-                    await Users.ReloadAsync(cancellationToken);
+                if (!IsSyncing && await SyncAsync(null, SyncScope.Changes, cancellationToken) > 0)
+                    await ReloadListsAsync(cancellationToken);
             }
         }
         catch (OperationCanceledException)
@@ -213,10 +260,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _tenant.Resources?.Dispose();
     }
 
+    /// <summary>A sidebar entry opens its list as a tab (once) and shows it.</summary>
     partial void OnSelectedSectionChanged(NavSection? value)
     {
-        if (value?.Key == "users")
-            SelectedTab = Users;
+        foreach (var (section, list) in AreaLists)
+        {
+            if (value?.Key != section)
+                continue;
+            if (!Tabs.Contains(list))
+                Tabs.Insert(Tabs.Count(t => t is DataListViewModel), list);
+            SelectedTab = list;
+        }
+    }
+
+    /// <summary>Choosing a list's tab highlights its sidebar entry, so the two never disagree.</summary>
+    partial void OnSelectedTabChanged(TabViewModel? value)
+    {
+        foreach (var (section, list) in AreaLists)
+        {
+            if (value == list)
+                SelectedSection = Sections.First(s => s.Key == section);
+        }
     }
 
     /// <summary>Opens a user's record page, or switches to it if it is already open.</summary>
@@ -229,6 +293,87 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Tabs.Add(existing);
         }
         SelectedTab = existing;
+    }
+
+    /// <summary>Opens a group's record page, or switches to it if it is already open.</summary>
+    public void OpenGroup(GroupSummary group)
+    {
+        var existing = Tabs.OfType<GroupDetailViewModel>().FirstOrDefault(t => t.Group.Id == group.Id);
+        if (existing is null)
+        {
+            existing = NewGroupPage(group);
+            Tabs.Add(existing);
+        }
+        SelectedTab = existing;
+    }
+
+    GroupDetailViewModel NewGroupPage(GroupSummary group) => new(group, _index, OpenUser, OpenGroup);
+
+    // ---- Ctrl+K ---------------------------------------------------------------------------
+
+    PaletteViewModel? _palette;
+
+    public PaletteViewModel Palette => _palette ??= new PaletteViewModel(PaletteEntries, () => IsPaletteOpen = false);
+
+    [ObservableProperty]
+    public partial bool IsPaletteOpen { get; set; }
+
+    [RelayCommand]
+    void OpenPalette()
+    {
+        Palette.Reset();
+        IsPaletteOpen = true;
+    }
+
+    /// <summary>Everyone, every group and every list view, built when the palette first searches.</summary>
+    IReadOnlyList<PaletteEntry> PaletteEntries()
+    {
+        var entries = new List<PaletteEntry>();
+        foreach (var u in _index.AllUsers)
+        {
+            var address = u.Kind == UserKind.Guest && u.Mail is { Length: > 0 } m ? m : u.UserPrincipalName;
+            var searchText = string.Join(' ', [u.DisplayName, u.UserPrincipalName, u.Mail, u.Department, u.JobTitle,
+                .. u.Mailbox?.Aliases ?? []]).ToLowerInvariant();
+            entries.Add(new PaletteEntry("User", u.DisplayName, u.Department is { Length: > 0 } d ? $"{address} · {d}" : address,
+                "Person", searchText, () => OpenUser(u)));
+        }
+        foreach (var g in _index.AllGroups)
+        {
+            var searchText = string.Join(' ', g.DisplayName, g.Mail, g.Description, GroupSummary.KindName(g.Kind)).ToLowerInvariant();
+            entries.Add(new PaletteEntry("Group", g.DisplayName, g.Mail ?? GroupSummary.KindName(g.Kind), "People", searchText, () => OpenGroup(g)));
+        }
+        foreach (var (section, list) in AreaLists)
+        {
+            foreach (var view in list.Views)
+            {
+                entries.Add(new PaletteEntry("View", view.Name, $"{list.Title} view", "Filter",
+                    $"{view.Name} {list.Title} view".ToLowerInvariant(), () =>
+                    {
+                        SelectedSection = Sections.First(s => s.Key == section);
+                        list.ApplyView(view);
+                    }));
+            }
+        }
+        return entries;
+    }
+
+    /// <summary>The local copy by id, rebuilt on each load, so group pages can name their members.</summary>
+    sealed class DirectoryIndex : IDirectoryIndex
+    {
+        Dictionary<string, UserSummary> _users = new(StringComparer.Ordinal);
+        Dictionary<string, GroupSummary> _groups = new(StringComparer.Ordinal);
+
+        public void SetUsers(IReadOnlyList<UserSummary> users) => _users = users.ToDictionary(u => u.Id, StringComparer.Ordinal);
+
+        public void SetGroups(IReadOnlyList<GroupSummary> groups) => _groups = groups.ToDictionary(g => g.Id, StringComparer.Ordinal);
+
+        public IEnumerable<UserSummary> AllUsers => _users.Values;
+
+        public IEnumerable<GroupSummary> AllGroups => _groups.Values;
+
+        public UserSummary? User(string id) => _users.GetValueOrDefault(id);
+
+        public GroupSummary? Group(string id) => _groups.GetValueOrDefault(id);
     }
 
     [RelayCommand]

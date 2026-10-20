@@ -1,0 +1,102 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.GroupDetailView"
+             x:DataType="vm:GroupDetailViewModel"
+             x:Name="Root">
+  <ScrollViewer>
+    <StackPanel Margin="8,16,8,24" Spacing="16" MaxWidth="1100" HorizontalAlignment="Stretch">
+
+      <!-- Which group -->
+      <Border Classes="card">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="20">
+          <Border Classes="avatar large" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Initials}" />
+          </Border>
+          <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+            <TextBlock Classes="h1" Text="{Binding Group.DisplayName}" TextWrapping="Wrap" />
+            <SelectableTextBlock Classes="muted" Text="{Binding Email}" />
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+              <c:Badge Text="{Binding TypeText}" Kind="{Binding TypeKind}" />
+              <c:Badge Text="{Binding MembershipText}" Kind="Neutral" />
+              <c:Badge Text="Team" Kind="Success" IsVisible="{Binding IsTeam}" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+        <Border Classes="card">
+          <StackPanel Spacing="16">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Info" FontSize="20" Foreground="{DynamicResource Accent}" />
+              <TextBlock Classes="h3" Text="About" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="label" Text="DESCRIPTION" />
+              <TextBlock Classes="value" Text="{Binding Description}" TextWrapping="Wrap" />
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="label" Text="VISIBILITY" />
+              <TextBlock Classes="value" Text="{Binding Visibility}" />
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="label" Text="CREATED" />
+              <TextBlock Classes="value" Text="{Binding CreatedText}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Column="1" Classes="card">
+          <StackPanel Spacing="16">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Key" FontSize="20" Foreground="{DynamicResource Accent}" />
+              <TextBlock Classes="h3" Text="Identifiers" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="label" Text="OBJECT ID" />
+              <SelectableTextBlock Classes="code" Text="{Binding Group.Id}" />
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Classes="label" Text="EMAIL" />
+              <SelectableTextBlock Classes="code" Text="{Binding Email}" TextWrapping="Wrap" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Members: people and groups open their own record pages -->
+      <Border Classes="card">
+        <StackPanel Spacing="14">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="People" FontSize="20" Foreground="{DynamicResource Accent}" />
+            <TextBlock Classes="h3" Text="Members" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Classes="muted" Text="{Binding MembersSummary}" />
+          <ItemsControl ItemsSource="{Binding Members}" IsVisible="{Binding HasMembers}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:MemberRow">
+                <Border Classes="valuerow">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Spacing="1" VerticalAlignment="Center">
+                      <Button Classes="namelink" HorizontalAlignment="Left" IsVisible="{Binding CanOpen}"
+                              ToolTip.Tip="Open this member's record page"
+                              Command="{Binding #Root.((vm:GroupDetailViewModel)DataContext).OpenMemberCommand}" CommandParameter="{Binding}">
+                        <TextBlock Text="{Binding Name}" />
+                      </Button>
+                      <TextBlock Text="{Binding Name}" IsVisible="{Binding !CanOpen}" />
+                      <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <c:Badge Grid.Column="1" Text="{Binding TypeText}" Kind="{Binding TypeKind}" VerticalAlignment="Center" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

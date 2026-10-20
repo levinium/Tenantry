@@ -29,6 +29,9 @@ public interface IEntityStore : IDisposable
     /// <summary>Every object of a kind, as JSON text.</summary>
     IReadOnlyList<string> All(string kind);
 
+    /// <summary>One object as JSON text, or null.</summary>
+    string? Get(string kind, string id);
+
     /// <summary>Applies changes in one transaction and returns how many objects actually changed.</summary>
     int Apply(string kind, IReadOnlyCollection<EntityChange> changes);
 

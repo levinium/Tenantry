@@ -70,7 +70,7 @@ public class MainViewModelTests
     {
         var vm = new MainViewModel(FakeConnector.Tenant());
 
-        Assert.All(vm.Sections.Where(s => s.Key != "users"), s =>
+        Assert.All(vm.Sections.Where(s => s.Key is not ("users" or "groups")), s =>
         {
             Assert.False(s.IsAvailable);
             Assert.False(string.IsNullOrWhiteSpace(s.UnavailableReason));
