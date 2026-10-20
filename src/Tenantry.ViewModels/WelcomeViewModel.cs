@@ -76,11 +76,28 @@ public sealed partial class WelcomeViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(NotBusy))]
     void OpenDemo() => _open(_connector.ConnectDemo());
 
+    // Removing is two steps: ask (from the row's menu), then confirm on the row itself.
+
     [RelayCommand]
-    void Remove(TenantCard card)
+    void AskRemove(TenantCard card)
     {
+        foreach (var other in Profiles)
+            other.IsConfirmingRemove = other == card;
+    }
+
+    [RelayCommand]
+    void CancelRemove(TenantCard card) => card.IsConfirmingRemove = false;
+
+    [RelayCommand]
+    void ConfirmRemove(TenantCard card)
+    {
+        if (!card.IsConfirmingRemove)
+            return;
         _connector.RemoveProfile(card.Profile.Id);
         Profiles.Remove(card);
         OnPropertyChanged(nameof(HasProfiles));
+        OnPropertyChanged(nameof(HasNoProfiles));
     }
+
+    public bool HasNoProfiles => Profiles.Count == 0;
 }

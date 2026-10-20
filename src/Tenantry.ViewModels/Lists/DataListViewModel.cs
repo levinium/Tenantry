@@ -178,6 +178,7 @@ public sealed partial class DataListViewModel : TabViewModel
 
     public ObservableCollection<FilterPill> Pills { get; } = [];
     public bool HasFilters => Pills.Count > 0;
+    public int FilterCount => Pills.Count;
     public IReadOnlyList<FieldOption> FilterFields => _source.FieldOptions;
 
     [ObservableProperty]
@@ -470,7 +471,16 @@ public sealed partial class DataListViewModel : TabViewModel
 
     public bool IsGrouped => SelectedGroup.Key is not null;
 
-    partial void OnSelectedGroupChanged(GroupOption value) => Changed();
+    public string GroupSummary => IsGrouped ? $"Group: {SelectedGroup.Label}" : "Group";
+
+    partial void OnSelectedGroupChanged(GroupOption value)
+    {
+        OnPropertyChanged(nameof(GroupSummary));
+        Changed();
+    }
+
+    [RelayCommand]
+    public void SelectGroup(GroupOption option) => SelectedGroup = option;
 
     public string GroupKeyOf(object row) => SelectedGroup.Key is { } key ? _source.GroupKey(row, key) : "";
 
@@ -688,33 +698,49 @@ public sealed partial class DataListViewModel : TabViewModel
 
     // ---- Preview, open, menus, export ----------------------------------------------------
 
+    // The preview pane is a toggle on the toolbar. While it's open it shows whichever row is
+    // selected, so moving through the list previews each row in turn.
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsPreviewOpen))]
     public partial object? PreviewModel { get; private set; }
 
-    object? _previewRow;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreviewToggleText))]
+    public partial bool IsPreviewOpen { get; set; }
 
-    public bool IsPreviewOpen => PreviewModel is not null;
+    /// <summary>Stays "Preview": the button's highlighted state says whether the pane is open.</summary>
+    public string PreviewToggleText => "Preview";
 
+    public bool HasPreviewContent => PreviewModel is not null;
+
+    partial void OnIsPreviewOpenChanged(bool value) => UpdatePreview();
+
+    partial void OnSelectedRowChanged(object? value) => UpdatePreview();
+
+    void UpdatePreview()
+    {
+        PreviewModel = IsPreviewOpen && SelectedRow is { } row ? _source.Preview(row) : null;
+        OnPropertyChanged(nameof(HasPreviewContent));
+    }
+
+    [RelayCommand]
+    public void TogglePreview() => IsPreviewOpen = !IsPreviewOpen && HasPreview;
+
+    /// <summary>Selects the row and opens the preview on it (the row menu's "Show in preview").</summary>
     [RelayCommand]
     public void PreviewRow(object row)
     {
-        _previewRow = row;
         SelectedRow = row;
-        PreviewModel = _source.Preview(row);
+        IsPreviewOpen = true;
     }
 
     [RelayCommand]
-    public void ClosePreview()
-    {
-        _previewRow = null;
-        PreviewModel = null;
-    }
+    public void ClosePreview() => IsPreviewOpen = false;
 
     [RelayCommand]
     public void ExpandPreview()
     {
-        if (_previewRow is { } row)
+        if (SelectedRow is { } row)
             _source.Open(row);
     }
 
@@ -732,9 +758,9 @@ public sealed partial class DataListViewModel : TabViewModel
     public IReadOnlyList<RowMenuItem> MenuFor(object row)
     {
         var items = new List<RowMenuItem>();
-        if (HasPreview)
-            items.Add(new RowMenuItem("Preview", "PanelRight", () => PreviewRow(row)));
         items.Add(new RowMenuItem("Open", "Open", () => _source.Open(row)));
+        if (HasPreview)
+            items.Add(new RowMenuItem("Show in preview", "PanelRight", () => PreviewRow(row)));
         var actions = _source.Actions(row);
         if (actions.Count > 0)
         {
@@ -814,6 +840,7 @@ public sealed partial class DataListViewModel : TabViewModel
             Pills.Add(new FilterPill(c is ConditionGroup g ? $"Advanced: {CountRules(g)} rule{(CountRules(g) == 1 ? "" : "s")}" : _source.Describe(c),
                 c, c is ConditionGroup, EditPill, RemovePill));
         OnPropertyChanged(nameof(HasFilters));
+        OnPropertyChanged(nameof(FilterCount));
 
         var selectedId = SelectedRow is { } s ? _source.Id(s) : null;
         Rows = _source.Run(CurrentQuery(), _now());

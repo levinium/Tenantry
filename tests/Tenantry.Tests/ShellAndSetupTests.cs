@@ -41,6 +41,29 @@ public class ShellAndSetupTests
     }
 
     [Fact]
+    public void Removing_a_tenant_needs_confirmation()
+    {
+        var connector = new FakeConnector();
+        connector.Profiles.Add(FakeConnector.Profile("p1", "Contoso"));
+        connector.Profiles.Add(FakeConnector.Profile("p2", "Fabrikam"));
+        var welcome = (WelcomeViewModel)new ShellViewModel(connector).CurrentPage;
+        var contoso = welcome.Profiles.Single(p => p.DisplayName == "Contoso");
+
+        welcome.ConfirmRemoveCommand.Execute(contoso);          // not asked yet: nothing happens
+        Assert.Equal(2, welcome.Profiles.Count);
+
+        welcome.AskRemoveCommand.Execute(contoso);
+        Assert.True(contoso.IsConfirmingRemove);
+        welcome.CancelRemoveCommand.Execute(contoso);
+        Assert.False(contoso.IsConfirmingRemove);
+
+        welcome.AskRemoveCommand.Execute(contoso);
+        welcome.ConfirmRemoveCommand.Execute(contoso);
+        Assert.Equal(["Fabrikam"], welcome.Profiles.Select(p => p.DisplayName));
+        Assert.Equal(["p2"], connector.Profiles.Select(p => p.Id));
+    }
+
+    [Fact]
     public async Task A_failed_sign_in_stays_on_welcome_with_a_readable_error()
     {
         var connector = new FakeConnector

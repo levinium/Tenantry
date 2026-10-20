@@ -252,19 +252,38 @@ public class DataListViewModelTests
     }
 
     [Fact]
-    public async Task Preview_expand_and_row_menu()
+    public async Task Preview_follows_the_selection_while_open()
     {
         var (list, opened) = await Loaded();
+
+        list.TogglePreview();
+        Assert.True(list.IsPreviewOpen);
+        Assert.False(list.HasPreviewContent);                     // nothing selected yet
+
+        list.SelectedRow = list.Rows[1];
+        Assert.Equal("Alan", ((Tenantry.ViewModels.UserDetailViewModel)list.PreviewModel!).User.DisplayName);
+        list.SelectedRow = list.Rows[0];
+        Assert.Equal("Ada", ((Tenantry.ViewModels.UserDetailViewModel)list.PreviewModel!).User.DisplayName);
+
+        list.ExpandPreview();
+        Assert.Equal("Ada", opened.Single().DisplayName);
+
+        list.TogglePreview();
+        Assert.Null(list.PreviewModel);
+        Assert.Equal("Preview", list.PreviewToggleText);
+    }
+
+    [Fact]
+    public async Task Row_menu()
+    {
+        var (list, _) = await Loaded();
         var alan = list.Rows[1];
 
-        list.PreviewRow(alan);
-        Assert.True(list.IsPreviewOpen);
-        Assert.IsType<Tenantry.ViewModels.UserDetailViewModel>(list.PreviewModel);
-        list.ExpandPreview();
-        Assert.Equal("Alan", opened.Single().DisplayName);
-
         var menu = list.MenuFor(alan);
-        Assert.Equal("Preview", menu[0].Label);
+        Assert.Equal(["Open", "Show in preview"], menu.Take(2).Select(m => m.Label));
+        menu[1].Run!();
+        Assert.True(list.IsPreviewOpen);
+        Assert.Same(alan, list.SelectedRow);
         Assert.Contains(menu, m => m.Label == "Open in Entra admin center");
         Assert.Equal("E5; Visio", menu.Single(m => m.Label == "Copy licenses").CopyText);
         Assert.Equal("alan@contoso.example", menu.Single(m => m.Label == "Copy address").CopyText);

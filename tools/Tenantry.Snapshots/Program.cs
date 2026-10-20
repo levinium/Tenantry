@@ -36,6 +36,12 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     var full = theme == ThemeVariant.Light;
 
     Render(new ShellViewModel(connector).CurrentPage, $"welcome-{suffix}");
+    if (full)
+    {
+        var welcome = (WelcomeViewModel)new ShellViewModel(connector).CurrentPage;
+        welcome.AskRemoveCommand.Execute(welcome.Profiles[1]);
+        Render(welcome, "welcome-confirm-remove-light");
+    }
 
     var wizard = new SetupWizardViewModel(connector, () => { }, () => { });
     wizard.ChooseAutomaticCommand.Execute(null);
@@ -47,7 +53,7 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     // Filtered, two-level sort: pills, header arrows and priority numbers.
     var list = main.Users;
     Pick(list, UserFields.Status, hide: true, "Blocked");
-    Pick(list, UserFields.Licenses, hide: false, "E5", "E3");
+    Pick(list, UserFields.Licenses, hide: false, "Microsoft 365 E5", "Microsoft 365 E3");
     list.SortByColumn(list.Columns.Single(c => c.Key == UserFields.Department));
     list.AddSortByColumn(list.Columns.Single(c => c.Key == UserFields.Status));
     if (args.Contains("--debug"))

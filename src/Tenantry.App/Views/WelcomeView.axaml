@@ -6,66 +6,24 @@
              x:DataType="vm:WelcomeViewModel"
              x:Name="Root">
   <ScrollViewer>
-    <StackPanel Margin="48,56,48,48" Spacing="32" MaxWidth="760" HorizontalAlignment="Center">
+    <StackPanel Margin="48,40,48,40" Spacing="24" MaxWidth="880">
 
-      <!-- Brand -->
-      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
-        <Border Width="56" Height="56" CornerRadius="14" Background="{DynamicResource AccentFill}">
-          <ic:FluentIcon Icon="ShieldCheckmark" FontSize="30" Foreground="White"
-                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+      <!-- Header: who we are on the left, the one main action on the right -->
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+        <Border Width="40" Height="40" CornerRadius="10" Background="{DynamicResource AccentFill}" VerticalAlignment="Center">
+          <ic:FluentIcon Icon="ShieldCheckmark" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
         </Border>
-        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-          <TextBlock Classes="h1" Text="Tenantry" />
-          <TextBlock Classes="muted" Text="Microsoft 365 administration, fast and in one place." />
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+          <TextBlock Classes="h2" Text="Tenantry" />
+          <TextBlock Classes="caption" Text="Microsoft 365 administration" />
         </StackPanel>
+        <Button Grid.Column="2" Classes="accent" VerticalAlignment="Center" Command="{Binding AddTenantCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ic:FluentIcon Icon="Add" FontSize="16" />
+            <TextBlock Text="Add tenant" />
+          </StackPanel>
+        </Button>
       </Grid>
-
-      <!-- Saved tenants -->
-      <StackPanel Spacing="10" IsVisible="{Binding HasProfiles}">
-        <TextBlock Classes="label" Text="YOUR TENANTS" />
-        <ItemsControl ItemsSource="{Binding Profiles}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Spacing="10" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:TenantCard">
-              <Border Classes="card" Padding="16">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
-                  <Border Classes="avatar" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Initials}" />
-                  </Border>
-                  <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                    <TextBlock Classes="h3" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Classes="muted" Text="{Binding PrimaryDomain}" TextTrimming="CharacterEllipsis" />
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                      <TextBlock Classes="caption" Text="{Binding AccountText}" />
-                      <TextBlock Classes="caption" Text="·" />
-                      <TextBlock Classes="caption" Text="{Binding LastUsedText}" />
-                    </StackPanel>
-                  </StackPanel>
-                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Button Classes="accent"
-                            Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).ConnectCommand}"
-                            CommandParameter="{Binding}">
-                      <StackPanel Orientation="Horizontal" Spacing="6">
-                        <ic:FluentIcon Icon="Play" FontSize="14" />
-                        <TextBlock Text="Open" />
-                      </StackPanel>
-                    </Button>
-                    <Button Classes="ghost" ToolTip.Tip="Forget this tenant on this computer. The app registration in the tenant is not touched."
-                            Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).RemoveCommand}"
-                            CommandParameter="{Binding}">
-                      <ic:FluentIcon Icon="Dismiss" FontSize="16" />
-                    </Button>
-                  </StackPanel>
-                </Grid>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </StackPanel>
 
       <!-- Sign-in status -->
       <Border Classes="banner info" IsVisible="{Binding IsBusy}">
@@ -78,29 +36,88 @@
         <SelectableTextBlock Text="{Binding Error}" TextWrapping="Wrap" />
       </Border>
 
-      <!-- Get started -->
-      <StackPanel Spacing="10">
-        <TextBlock Classes="label" Text="GET STARTED" />
-        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-          <Button Classes="choice" Command="{Binding AddTenantCommand}">
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
-              <ic:FluentIcon Icon="Organization" FontSize="26" Foreground="{DynamicResource Accent}" VerticalAlignment="Top" />
-              <StackPanel Grid.Column="1" Spacing="4">
-                <TextBlock Classes="h3" Text="Add a tenant" />
-                <TextBlock Classes="muted" TextWrapping="Wrap" Text="Connect a Microsoft 365 tenant you administer." />
-              </StackPanel>
-            </Grid>
-          </Button>
-          <Button Grid.Column="1" Classes="choice" Command="{Binding OpenDemoCommand}">
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
-              <ic:FluentIcon Icon="Sparkle" FontSize="26" Foreground="{DynamicResource Accent}" VerticalAlignment="Top" />
-              <StackPanel Grid.Column="1" Spacing="4">
-                <TextBlock Classes="h3" Text="Explore the demo" />
-                <TextBlock Classes="muted" TextWrapping="Wrap" Text="A generated tenant with sample people. Nothing real." />
-              </StackPanel>
-            </Grid>
-          </Button>
-        </Grid>
+      <!-- Tenants: one list, one row each -->
+      <StackPanel Spacing="10" IsVisible="{Binding HasProfiles}">
+        <TextBlock Classes="label" Text="TENANTS" />
+        <Border Classes="card tight" ClipToBounds="True">
+          <ItemsControl ItemsSource="{Binding Profiles}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:TenantCard">
+                <StackPanel>
+                  <Grid ColumnDefinitions="*,Auto" Margin="0">
+                    <Button Classes="listrow" Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).ConnectCommand}" CommandParameter="{Binding}"
+                            ToolTip.Tip="Open this tenant">
+                      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                        <Border Classes="avatar" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Initials}" />
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                          <TextBlock Classes="h3" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Classes="caption" TextTrimming="CharacterEllipsis">
+                            <Run Text="{Binding PrimaryDomain}" />
+                            <Run Text="  ·  " />
+                            <Run Text="{Binding AccountText}" />
+                          </TextBlock>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                          <TextBlock Classes="caption" VerticalAlignment="Center" Text="{Binding LastUsedText}" />
+                          <ic:FluentIcon Icon="ChevronRight" FontSize="16" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" />
+                        </StackPanel>
+                      </Grid>
+                    </Button>
+                    <Button Grid.Column="1" Classes="rowaction" Margin="4,0,12,0" VerticalAlignment="Center" ToolTip.Tip="More">
+                      <ic:FluentIcon Icon="MoreHorizontal" FontSize="18" />
+                      <Button.Flyout>
+                        <MenuFlyout Placement="BottomEdgeAlignedRight">
+                          <MenuItem Header="Open" Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).ConnectCommand}" CommandParameter="{Binding}">
+                            <MenuItem.Icon>
+                              <ic:FluentIcon Icon="Open" FontSize="14" />
+                            </MenuItem.Icon>
+                          </MenuItem>
+                          <Separator />
+                          <MenuItem Header="Remove from this computer…" Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).AskRemoveCommand}" CommandParameter="{Binding}">
+                            <MenuItem.Icon>
+                              <ic:FluentIcon Icon="Delete" FontSize="14" />
+                            </MenuItem.Icon>
+                          </MenuItem>
+                        </MenuFlyout>
+                      </Button.Flyout>
+                    </Button>
+                  </Grid>
+
+                  <!-- Confirmation, in place, only after choosing Remove from the menu -->
+                  <Border IsVisible="{Binding IsConfirmingRemove}" Background="{DynamicResource BannerErrorBg}" Padding="20,12">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Text="{Binding RemoveQuestion}" />
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Classes="danger" Content="Remove" Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).ConfirmRemoveCommand}" CommandParameter="{Binding}" />
+                        <Button Content="Cancel" Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).CancelRemoveCommand}" CommandParameter="{Binding}" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                  <Border Classes="divider" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+      </StackPanel>
+
+      <!-- No tenants yet -->
+      <Border Classes="card" IsVisible="{Binding HasNoProfiles}" Padding="32">
+        <StackPanel Spacing="10" HorizontalAlignment="Center">
+          <ic:FluentIcon Icon="Organization" FontSize="36" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center" />
+          <TextBlock Classes="h3" HorizontalAlignment="Center" Text="No tenants yet" />
+          <TextBlock Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="420"
+                     Text="Add a Microsoft 365 tenant you administer. Tenantry walks you through connecting it." />
+          <Button Classes="accent" HorizontalAlignment="Center" Content="Add tenant" Command="{Binding AddTenantCommand}" />
+        </StackPanel>
+      </Border>
+
+      <!-- The demo, out of the way -->
+      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+        <TextBlock Classes="caption" VerticalAlignment="Center" Text="Want to look around first?" />
+        <Button Classes="link" Command="{Binding OpenDemoCommand}" Content="Explore the demo tenant" />
       </StackPanel>
     </StackPanel>
   </ScrollViewer>

@@ -34,11 +34,8 @@ public partial class DataListView : UserControl
     public DataListView()
     {
         InitializeComponent();
-        Grid.DoubleTapped += (_, e) =>
-        {
-            if (RowOf(e.Source) is { } row)
-                _vm?.OpenRow(row);
-        };
+        // Rows open from their Open button (or Enter); no double-click, so a stray double-click
+        // never opens a tab, and nothing depends on knowing a gesture.
         Grid.KeyDown += (_, e) =>
         {
             if (e.Key == Key.Enter && _vm?.SelectedRow is not null)
@@ -51,12 +48,13 @@ public partial class DataListView : UserControl
         {
             if (_vm is null || _syncingSelection)
                 return;
+            // The view model updates the preview pane from the selection.
             _vm.SelectedRow = Grid.SelectedItem;
-            // With the preview open, moving through rows previews each one.
-            if (_vm.IsPreviewOpen && Grid.SelectedItem is { } row)
-                _vm.PreviewRow(row);
         };
         Grid.ContextRequested += OnContextRequested;
+        // On a narrow toolbar (the preview pane open, a small window) the display tools keep their
+        // icons and tooltips but drop their labels, rather than running off the edge.
+        Toolbar.SizeChanged += (_, e) => Toolbar.Classes.Set("narrow", e.NewSize.Width < 1000);
         Grid.ColumnReordered += (_, e) =>
         {
             if (_vm is not null && _columnKeys.TryGetValue(e.Column, out var key))
@@ -159,16 +157,14 @@ public partial class DataListView : UserControl
     DataGridTemplateColumn ActionsColumn() => new()
     {
         Header = "",
-        Width = new DataGridLength(_vm!.HasPreview ? 112 : 80),
+        Width = new DataGridLength(80),
         CanUserResize = false,
         CanUserReorder = false,
         CanUserSort = false,
         CellTemplate = new FuncDataTemplate<object>((_, _) =>
         {
             var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Margin = new Thickness(6, 0), VerticalAlignment = VerticalAlignment.Center };
-            if (_vm.HasPreview)
-                panel.Children.Add(RowButton("PanelRight", "Preview", row => _vm.PreviewRow(row)));
-            panel.Children.Add(RowButton("Open", "Open in a tab", row => _vm.OpenRow(row)));
+            panel.Children.Add(RowButton("Open", "Open in a tab", row => _vm!.OpenRow(row)));
             Button? more = null;
             more = RowButton("MoreHorizontal", "More actions", row => BuildMenu(row).ShowAt(more!));
             panel.Children.Add(more);
@@ -313,18 +309,27 @@ public partial class DataListView : UserControl
             }
             case CellKind.Badges:
             {
-                var items = new ItemsControl
-                {
-                    VerticalAlignment = VerticalAlignment.Center,
-                    ItemsPanel = new FuncTemplate<Panel?>(() => new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 }),
-                    ItemTemplate = new FuncDataTemplate<string>((value, _) => new Badge { Text = value, Kind = BadgeKind.Info }),
-                };
-                items.Bind(ItemsControl.ItemsSourceProperty, Row(c.Badges));
+                // The first value, then "+N" for the rest: long product names never get cut
+                // off mid-pill, and the tooltip lists them all.
+                var first = new Badge { Kind = BadgeKind.Info };
+                first.Bind(Badge.TextProperty, Row(r => c.Badges(r).FirstOrDefault()));
+                first.Bind(IsVisibleProperty, Row(r => c.Badges(r).Count > 0));
+                var more = new Badge { Kind = BadgeKind.Neutral };
+                more.Bind(Badge.TextProperty, Row(r => $"+{c.Badges(r).Count - 1}"));
+                more.Bind(IsVisibleProperty, Row(r => c.Badges(r).Count > 1));
                 var empty = new TextBlock { Text = c.EmptyText, VerticalAlignment = VerticalAlignment.Center };
                 empty.Classes.Add("caption");
                 empty.Bind(IsVisibleProperty, Row(r => c.Badges(r).Count == 0));
-                var panel = new Panel { Margin = new Thickness(12, 0), ClipToBounds = true, Children = { items, empty } };
-                panel.Bind(ToolTip.TipProperty, Row(r => c.Badges(r).Count == 0 ? null : string.Join(", ", c.Badges(r))));
+                var panel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 6,
+                    Margin = new Thickness(12, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    ClipToBounds = true,
+                    Children = { first, more, empty },
+                };
+                panel.Bind(ToolTip.TipProperty, Row(r => c.Badges(r).Count == 0 ? null : string.Join("\n", c.Badges(r))));
                 return panel;
             }
             case CellKind.Date when c.DateCell is { } date:
@@ -399,6 +404,23 @@ public partial class DataListView : UserControl
         // Hand the data to the OS now; an unflushed Avalonia clipboard on Windows blocks other
         // apps' copy and paste until this app exits (found in TrispotQR).
         await clipboard.FlushAsync();
+    }
+
+    void OnSaveView(object? sender, RoutedEventArgs e)
+    {
+        if (_vm is null || string.IsNullOrWhiteSpace(_vm.NewViewName))
+        {
+            NewViewNameBox.Focus();
+            return;
+        }
+        _vm.SaveViewAsCommand.Execute(null);
+        SaveViewButton.Flyout?.Hide();
+    }
+
+    void OnManageViews(object? sender, RoutedEventArgs e)
+    {
+        SaveViewButton.Flyout?.Hide();
+        _vm?.OpenViewsPanelCommand.Execute(null);
     }
 
     async void OnExport(object? sender, RoutedEventArgs e)

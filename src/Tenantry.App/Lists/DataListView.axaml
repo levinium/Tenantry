@@ -12,13 +12,34 @@
   <Grid ColumnDefinitions="*,Auto">
     <DockPanel Grid.Column="0" Margin="8,16,8,12">
 
-      <!-- Title and main action -->
-      <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+      <!-- Title, saving the view, and the list's main action -->
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,12">
         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
           <TextBlock Classes="h2" Text="{Binding Title}" />
           <TextBlock Classes="caption" VerticalAlignment="Center" Margin="0,3,0,0" Text="{Binding CountText}" />
         </StackPanel>
-        <Button Grid.Column="1" Classes="accent"
+        <Button Grid.Column="1" x:Name="SaveViewButton" Classes="outline" Classes.attention="{Binding IsModified}"
+                ToolTip.Tip="Save the current filters, sort, grouping and columns as a view you can come back to">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ic:FluentIcon Icon="Save" FontSize="16" />
+            <TextBlock Text="Save view" />
+          </StackPanel>
+          <Button.Flyout>
+            <Flyout Placement="BottomEdgeAlignedRight">
+              <StackPanel Spacing="10" Width="320" Margin="4">
+                <TextBlock Classes="h3" Text="Save as a view" />
+                <TextBlock Classes="caption" TextWrapping="Wrap"
+                           Text="Keeps the filters, sort, grouping and columns you have now. A name you've already used is replaced." />
+                <TextBox x:Name="NewViewNameBox" Text="{Binding NewViewName}" PlaceholderText="View name, e.g. Finance staff" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="accent" Content="Save" Click="OnSaveView" />
+                  <Button Content="Manage views…" Click="OnManageViews" />
+                </StackPanel>
+              </StackPanel>
+            </Flyout>
+          </Button.Flyout>
+        </Button>
+        <Button Grid.Column="2" Classes="accent"
                 IsVisible="{Binding PrimaryAction, Converter={x:Static ObjectConverters.IsNotNull}}"
                 IsEnabled="{Binding PrimaryAction.IsEnabled, FallbackValue=False}"
                 ToolTip.Tip="{Binding PrimaryAction.Tip}" ToolTip.ShowOnDisabled="True">
@@ -29,14 +50,13 @@
         </Button>
       </Grid>
 
-      <!-- Views: one click to a saved or built-in view, with how many rows each has -->
-      <ScrollViewer DockPanel.Dock="Top" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,12">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock Classes="label" Text="VIEWS" VerticalAlignment="Center" Margin="0,0,4,0" />
-          <ItemsControl ItemsSource="{Binding Views}">
+      <!-- Views: wrap rather than scroll, so nothing overlays the tools below -->
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,0,0,12">
+        <TextBlock Classes="label" Text="VIEWS" VerticalAlignment="Top" Margin="0,7,0,0" />
+          <ItemsControl Grid.Column="1" ItemsSource="{Binding Views}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
-                <StackPanel Orientation="Horizontal" Spacing="8" />
+                <WrapPanel ItemSpacing="8" LineSpacing="8" />
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
@@ -53,16 +73,10 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <Button Classes="tool ghost" Command="{Binding OpenViewsPanelCommand}" ToolTip.Tip="Save the current filters, sort and columns as a view, or delete your views">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <ic:FluentIcon Icon="BookmarkMultiple" FontSize="16" />
-              <TextBlock Text="Manage views" />
-            </StackPanel>
-          </Button>
-        </StackPanel>
-      </ScrollViewer>
+        <Button Grid.Column="2" Classes="link" VerticalAlignment="Top" Margin="0,3,0,0" Command="{Binding OpenViewsPanelCommand}" Content="Manage views" />
+      </Grid>
 
-      <!-- Search: full width, its own row -->
+      <!-- Search: full width -->
       <TextBox DockPanel.Dock="Top" Margin="0,0,0,10" Text="{Binding SearchText}" PlaceholderText="{Binding SearchHint}">
         <TextBox.InnerLeftContent>
           <ic:FluentIcon Icon="Search" FontSize="16" Margin="10,0,2,0" Foreground="{DynamicResource TextMuted}" />
@@ -73,72 +87,103 @@
         </TextBox.InnerRightContent>
       </TextBox>
 
-      <!-- Tools: labelled, one row -->
-      <WrapPanel DockPanel.Dock="Top" ItemSpacing="8" LineSpacing="8" Margin="0,0,0,6">
+      <!-- Toolbar. Left: what rows you see and in what order. Right: how they're shown and output. -->
+      <Border DockPanel.Dock="Top" x:Name="Toolbar" Classes="toolbar" Margin="0,0,0,8">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <StackPanel Orientation="Horizontal" Spacing="2">
+            <Button Classes="tb" Classes.active="{Binding HasFilters}" ToolTip.Tip="Filter by any field">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ic:FluentIcon Icon="Filter" FontSize="16" />
+                <TextBlock Text="Filter" />
+                <Border Classes="count" IsVisible="{Binding HasFilters}">
+                  <TextBlock Text="{Binding FilterCount}" />
+                </Border>
+                <ic:FluentIcon Icon="ChevronDown" FontSize="11" VerticalAlignment="Center" Opacity="0.7" />
+              </StackPanel>
+              <Button.Flyout>
+                <MenuFlyout ItemsSource="{Binding FilterFields}" Placement="BottomEdgeAlignedLeft">
+                  <MenuFlyout.ItemContainerTheme>
+                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="lists:FieldOption">
+                      <Setter Property="Header" Value="{Binding Label}" />
+                      <Setter Property="Command" Value="{Binding #Root.((lists:DataListViewModel)DataContext).EditFilterCommand}" />
+                      <Setter Property="CommandParameter" Value="{Binding}" />
+                    </ControlTheme>
+                  </MenuFlyout.ItemContainerTheme>
+                </MenuFlyout>
+              </Button.Flyout>
+            </Button>
+            <Button Classes="tb" Classes.active="{Binding Builder, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    Command="{Binding OpenBuilderCommand}" ToolTip.Tip="Combine rules with AND / OR">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ic:FluentIcon Icon="TextBulletListSquare" FontSize="16" />
+                <TextBlock Text="Advanced" />
+              </StackPanel>
+            </Button>
 
-        <Button Classes="tool" ToolTip.Tip="Filter by any field">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <ic:FluentIcon Icon="FilterAdd" FontSize="16" />
-            <TextBlock Text="Filter" />
-            <ic:FluentIcon Icon="ChevronDown" FontSize="12" VerticalAlignment="Center" />
+            <Border Classes="vsep" />
+
+            <Button Classes="tb" Classes.active="{Binding IsSortPanelOpen}" Command="{Binding OpenSortPanelCommand}"
+                    ToolTip.Tip="Sort by one or more columns">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ic:FluentIcon Icon="ArrowSort" FontSize="16" />
+                <TextBlock Text="{Binding SortSummary}" />
+                <ic:FluentIcon Icon="ChevronDown" FontSize="11" VerticalAlignment="Center" Opacity="0.7" />
+              </StackPanel>
+            </Button>
+            <Button Classes="tb" Classes.active="{Binding IsGrouped}" ToolTip.Tip="Group rows into collapsible sections">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ic:FluentIcon Icon="GroupList" FontSize="16" />
+                <TextBlock Text="{Binding GroupSummary}" />
+                <ic:FluentIcon Icon="ChevronDown" FontSize="11" VerticalAlignment="Center" Opacity="0.7" />
+              </StackPanel>
+              <Button.Flyout>
+                <MenuFlyout ItemsSource="{Binding GroupOptions}" Placement="BottomEdgeAlignedLeft">
+                  <MenuFlyout.ItemContainerTheme>
+                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="lists:GroupOption">
+                      <Setter Property="Header" Value="{Binding Label}" />
+                      <Setter Property="Command" Value="{Binding #Root.((lists:DataListViewModel)DataContext).SelectGroupCommand}" />
+                      <Setter Property="CommandParameter" Value="{Binding}" />
+                    </ControlTheme>
+                  </MenuFlyout.ItemContainerTheme>
+                </MenuFlyout>
+              </Button.Flyout>
+            </Button>
           </StackPanel>
-          <Button.Flyout>
-            <MenuFlyout ItemsSource="{Binding FilterFields}" Placement="BottomEdgeAlignedLeft">
-              <MenuFlyout.ItemContainerTheme>
-                <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="lists:FieldOption">
-                  <Setter Property="Header" Value="{Binding Label}" />
-                  <Setter Property="Command" Value="{Binding #Root.((lists:DataListViewModel)DataContext).EditFilterCommand}" />
-                  <Setter Property="CommandParameter" Value="{Binding}" />
-                </ControlTheme>
-              </MenuFlyout.ItemContainerTheme>
-            </MenuFlyout>
-          </Button.Flyout>
-        </Button>
 
-        <Button Classes="tool" Classes.active="{Binding Builder, Converter={x:Static ObjectConverters.IsNotNull}}"
-                Command="{Binding OpenBuilderCommand}" ToolTip.Tip="Combine rules with AND / OR">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <ic:FluentIcon Icon="Filter" FontSize="16" />
-            <TextBlock Text="Advanced" />
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2">
+            <Button Classes="tb quiet" Classes.active="{Binding IsColumnsPanelOpen}" Command="{Binding OpenColumnsPanelCommand}"
+                    ToolTip.Tip="Show, hide and reorder columns">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ic:FluentIcon Icon="TableSettings" FontSize="16" />
+                <TextBlock Text="Columns" />
+              </StackPanel>
+            </Button>
+            <Button Classes="tb quiet" Classes.active="{Binding IsCompact}" Command="{Binding ToggleDensityCommand}"
+                    ToolTip.Tip="Switch between comfortable and compact rows">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ic:FluentIcon Icon="RowTriple" FontSize="16" />
+                <TextBlock Text="Compact" />
+              </StackPanel>
+            </Button>
+            <Button Classes="tb quiet" Click="OnExport" ToolTip.Tip="Save what's shown (filtered rows, visible columns) as a CSV file">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ic:FluentIcon Icon="ArrowDownload" FontSize="16" />
+                <TextBlock Text="Export" />
+              </StackPanel>
+            </Button>
+
+            <Border Classes="vsep" IsVisible="{Binding HasPreview}" />
+
+            <Button Classes="tb toggle" Classes.active="{Binding IsPreviewOpen}" IsVisible="{Binding HasPreview}"
+                    Command="{Binding TogglePreviewCommand}" ToolTip.Tip="Show the selected row's details beside the list">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ic:FluentIcon Icon="PanelRight" FontSize="16" />
+                <TextBlock Text="{Binding PreviewToggleText}" />
+              </StackPanel>
+            </Button>
           </StackPanel>
-        </Button>
-
-        <Button Classes="tool" Classes.active="{Binding IsSortPanelOpen}" Command="{Binding OpenSortPanelCommand}"
-                ToolTip.Tip="Sort by one or more columns">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <ic:FluentIcon Icon="ArrowSort" FontSize="16" />
-            <TextBlock Text="{Binding SortSummary}" />
-          </StackPanel>
-        </Button>
-
-        <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="Group rows into collapsible sections">
-          <ic:FluentIcon Icon="GroupList" FontSize="16" VerticalAlignment="Center" />
-          <ComboBox ItemsSource="{Binding GroupOptions}" SelectedItem="{Binding SelectedGroup}" MinWidth="150" />
-        </StackPanel>
-
-        <Button Classes="tool" Classes.active="{Binding IsColumnsPanelOpen}" Command="{Binding OpenColumnsPanelCommand}"
-                ToolTip.Tip="Show, hide and reorder columns">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <ic:FluentIcon Icon="TableSettings" FontSize="16" />
-            <TextBlock Text="Columns" />
-          </StackPanel>
-        </Button>
-
-        <Button Classes="tool" Classes.active="{Binding IsCompact}" Command="{Binding ToggleDensityCommand}"
-                ToolTip.Tip="Switch between comfortable and compact rows">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <ic:FluentIcon Icon="RowTriple" FontSize="16" />
-            <TextBlock Text="Compact" />
-          </StackPanel>
-        </Button>
-
-        <Button Classes="tool" Click="OnExport" ToolTip.Tip="Save what's shown (filtered rows, visible columns) as a CSV file">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <ic:FluentIcon Icon="ArrowDownload" FontSize="16" />
-            <TextBlock Text="Export" />
-          </StackPanel>
-        </Button>
-      </WrapPanel>
+        </Grid>
+      </Border>
 
       <!-- What the search box understood -->
       <TextBlock DockPanel.Dock="Top" Classes="caption" Margin="4,0,0,6" Text="{Binding SearchUnderstood}"
@@ -490,7 +535,7 @@
       <DockPanel>
         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="16,12,8,8">
           <TextBlock Classes="label" VerticalAlignment="Center" Text="PREVIEW" />
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding ExpandPreviewCommand}" ToolTip.Tip="Open the full record in a tab">
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding ExpandPreviewCommand}" IsEnabled="{Binding HasPreviewContent}" ToolTip.Tip="Open the full record in a tab">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowMaximize" FontSize="14" />
               <TextBlock Text="Open full record" />
@@ -501,6 +546,8 @@
           </Button>
         </Grid>
         <Border DockPanel.Dock="Top" Classes="divider" />
+        <TextBlock DockPanel.Dock="Top" Classes="muted" Margin="16,24" TextWrapping="Wrap" IsVisible="{Binding !HasPreviewContent}"
+                   Text="Select a row to see its details here." />
         <ScrollViewer>
           <ContentControl Content="{Binding PreviewModel}" Margin="16,12">
             <ContentControl.DataTemplates>

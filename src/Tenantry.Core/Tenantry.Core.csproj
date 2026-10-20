@@ -3,4 +3,8 @@
   <!-- Domain models and the interfaces every data source implements (live tenant, local cache,
        demo). No UI, no Microsoft SDKs, no platform code. -->
 
+  <ItemGroup>
+    <EmbeddedResource Include="Licensing\license-names.json" LogicalName="Tenantry.Core.Licensing.license-names.json" />
+  </ItemGroup>
+
 </Project>

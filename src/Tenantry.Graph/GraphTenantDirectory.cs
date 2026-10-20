@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Tenantry.Core.Directory;
+using Tenantry.Core.Licensing;
 
 namespace Tenantry.Graph;
 
@@ -17,8 +18,12 @@ public sealed class GraphTenantDirectory(GraphClient graph, string tenantName) :
     public async Task<IReadOnlyList<UserSummary>> GetUsersAsync(CancellationToken cancellationToken = default)
     {
         var skuNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // Product names ("Microsoft 365 Business Premium"), not Graph's codes ("SPB").
         await foreach (var sku in graph.GetAllAsync("subscribedSkus?$select=skuId,skuPartNumber", cancellationToken))
-            skuNames[sku.GetProperty("skuId").GetString()!] = sku.GetProperty("skuPartNumber").GetString()!;
+        {
+            var id = sku.GetProperty("skuId").GetString()!;
+            skuNames[id] = LicenseNames.For(id, sku.GetProperty("skuPartNumber").GetString());
+        }
 
         // signInActivity needs Entra ID P1 and a reports-reading role. Without them Graph
         // refuses the whole request, so fall back to the list without last sign-in.

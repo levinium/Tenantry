@@ -17,8 +17,14 @@ public sealed class DemoTenantDirectory : ITenantDirectory
     static readonly string[] Departments =
         ["Finance", "Operations", "Facilities", "Communications", "Education", "IT", "Development", "Programs"];
 
+    // Product names as the admin center shows them (and as Tenantry shows real tenants' licenses).
     static readonly string[] Licenses =
-        ["Business Premium", "Business Basic", "Exchange Online (Plan 1)", "E3", "E5"];
+    [
+        "Microsoft 365 Business Premium", "Microsoft 365 Business Basic", "Exchange Online (Plan 1)",
+        "Microsoft 365 E3", "Microsoft 365 E5",
+    ];
+
+    const string FreeAddOn = "Microsoft Power Automate Free";
 
     readonly int _userCount;
     readonly int _seed;
@@ -74,7 +80,10 @@ public sealed class DemoTenantDirectory : ITenantDirectory
                 Kind: isGuest ? UserKind.Guest : UserKind.Member,
                 CreatedAt: created,
                 LastSignIn: faker.Random.Bool(0.9f) ? now.AddMinutes(-faker.Random.Int(5, 60 * 24 * 120)) : null,
-                Licenses: isGuest ? [] : [faker.PickRandom(Licenses)]));
+                Licenses: isGuest ? []
+                    : faker.Random.Bool(0.05f) ? []
+                    : faker.Random.Bool(0.25f) ? [faker.PickRandom(Licenses), FreeAddOn]
+                    : [faker.PickRandom(Licenses)]));
         }
 
         return users;
