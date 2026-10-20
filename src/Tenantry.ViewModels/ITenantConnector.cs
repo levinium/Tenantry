@@ -1,5 +1,6 @@
 using Tenantry.Core.Capabilities;
 using Tenantry.Core.Directory;
+using Tenantry.Core.Lists;
 using Tenantry.Core.Tenancy;
 
 namespace Tenantry.ViewModels;
@@ -10,7 +11,8 @@ public sealed record ConnectedTenant(
     string Account,
     ITenantDirectory Directory,
     TenantContext Context,
-    bool IsDemo = false);
+    bool IsDemo = false,
+    IListStateStore? ListState = null);
 
 /// <summary>The outcome of the automatic setup.</summary>
 public sealed record SetupOutcome(TenantProfile Profile, bool Reused, IReadOnlyList<string> Unresolved);

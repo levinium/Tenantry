@@ -1,5 +1,6 @@
 using Tenantry.Auth;
 using Tenantry.Core.Capabilities;
+using Tenantry.Core.Lists;
 using Tenantry.Core.Permissions;
 using Tenantry.Core.Tenancy;
 using Tenantry.Demo;
@@ -35,7 +36,8 @@ public sealed class TenantConnector : ITenantConnector
         var graph = new GraphClient(Http, tokens);
         var context = await new TenantContextLoader(graph).LoadAsync(cancellationToken);
         _store.Upsert(profile with { LastAccount = tokens.Account, LastUsedAt = DateTimeOffset.UtcNow });
-        return new ConnectedTenant(profile.DisplayName, tokens.Account ?? "", new GraphTenantDirectory(graph, profile.DisplayName), context);
+        return new ConnectedTenant(profile.DisplayName, tokens.Account ?? "", new GraphTenantDirectory(graph, profile.DisplayName), context,
+            ListState: new JsonListStateStore(AppPaths.TenantFolder(profile.Id)));
     }
 
     /// <summary>

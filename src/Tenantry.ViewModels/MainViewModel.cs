@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Tenantry.Core.Capabilities;
 using Tenantry.Core.Directory;
+using Tenantry.ViewModels.Lists;
 
 namespace Tenantry.ViewModels;
 
@@ -12,12 +13,18 @@ public sealed partial class MainViewModel : ObservableObject
 
     readonly ConnectedTenant _tenant;
     readonly Action _switchTenant;
+    readonly Func<DateTimeOffset> _now;
 
-    public MainViewModel(ConnectedTenant tenant, Action? switchTenant = null)
+    public MainViewModel(ConnectedTenant tenant, Action? switchTenant = null, Func<DateTimeOffset>? now = null)
     {
         _tenant = tenant;
         _switchTenant = switchTenant ?? (() => { });
-        Users = new UserListViewModel(tenant.Directory, OpenUser, Evaluate(Capabilities.EditUsers));
+        _now = now ?? (() => DateTimeOffset.Now);
+
+        var createUsers = Evaluate(Capabilities.EditUsers);
+        Users = DataListViewModel.Create(UserList.Definition(_now), ct => tenant.Directory.GetUsersAsync(ct), OpenUser, tenant.ListState, _now);
+        Users.PrimaryAction = new ListPrimaryAction("New user", "PersonAdd", false,
+            createUsers.IsAvailable ? "Creating users arrives with the change pipeline (Phase 6)" : createUsers.Reason!);
 
         var readUsers = Evaluate(Capabilities.ReadUsers);
         Sections =
@@ -48,7 +55,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<TabViewModel> Tabs { get; } = [];
 
-    public UserListViewModel Users { get; }
+    public DataListViewModel Users { get; }
 
     /// <summary>Every gated feature and whether this admin can use it here, for the "Your access" panel.</summary>
     public IReadOnlyList<CapabilityRow> Access => Capabilities.All
@@ -61,22 +68,9 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial NavSection? SelectedSection { get; set; }
 
-    [ObservableProperty]
-    public partial string? LoadError { get; private set; }
-
     public Availability Evaluate(Capability capability) => CapabilityEvaluator.Evaluate(capability, _tenant.Context);
 
-    public async Task InitializeAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            await Users.LoadAsync(cancellationToken);
-        }
-        catch (Exception e)
-        {
-            LoadError = Friendly.Message(e);
-        }
-    }
+    public Task InitializeAsync(CancellationToken cancellationToken = default) => Users.LoadAsync(cancellationToken);
 
     partial void OnSelectedSectionChanged(NavSection? value)
     {
@@ -90,7 +84,7 @@ public sealed partial class MainViewModel : ObservableObject
         var existing = Tabs.OfType<UserDetailViewModel>().FirstOrDefault(t => t.User.Id == user.Id);
         if (existing is null)
         {
-            existing = new UserDetailViewModel(user);
+            existing = new UserDetailViewModel(user, _now());
             Tabs.Add(existing);
         }
         SelectedTab = existing;

@@ -140,8 +140,8 @@ public class ShellAndSetupTests
         var main = new MainViewModel(FakeConnector.Tenant(roles: [DirectoryRoles.HelpdeskAdministrator]));
 
         Assert.True(main.Sections.Single(s => s.Key == "users").IsAvailable);
-        Assert.False(main.Users.CreateUsers.IsAvailable);
-        Assert.Equal("Requires the User Administrator role", main.Users.CreateUsersTip);
+        Assert.False(main.Users.PrimaryAction!.IsEnabled);
+        Assert.Equal("Requires the User Administrator role", main.Users.PrimaryAction.Tip);
         var signIns = main.Access.Single(a => a.Title == Capabilities.ReadSignInLogs.Title);
         Assert.StartsWith("Requires one of these roles", signIns.State);
         Assert.Equal("Available", main.Access.Single(a => a.Title == Capabilities.ResetPasswords.Title).State);

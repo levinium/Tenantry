@@ -13,7 +13,11 @@ public partial class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-            desktop.MainWindow = new MainWindow { DataContext = new ShellViewModel(new TenantConnector()) };
+        {
+            var window = new MainWindow { DataContext = new ShellViewModel(new TenantConnector()) };
+            Platform.OpenUrl = url => _ = window.Launcher.LaunchUriAsync(new Uri(url));
+            desktop.MainWindow = window;
+        }
 
         base.OnFrameworkInitializationCompleted();
     }

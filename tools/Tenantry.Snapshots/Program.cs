@@ -4,8 +4,10 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Tenantry.App;
 using Tenantry.App.Services;
+using Tenantry.Core.Directory;
 using Tenantry.Core.Tenancy;
 using Tenantry.ViewModels;
+using Tenantry.ViewModels.Lists;
 
 // tenantry-snapshots <output folder>
 //
@@ -31,38 +33,94 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
 {
     Application.Current!.RequestedThemeVariant = theme;
     var suffix = theme == ThemeVariant.Light ? "light" : "dark";
+    var full = theme == ThemeVariant.Light;
 
     Render(new ShellViewModel(connector).CurrentPage, $"welcome-{suffix}");
 
     var wizard = new SetupWizardViewModel(connector, () => { }, () => { });
-    Render(wizard, $"wizard-choose-{suffix}");
     wizard.ChooseAutomaticCommand.Execute(null);
     Render(wizard, $"wizard-automatic-{suffix}");
-    wizard.BackCommand.Execute(null);
-    wizard.ChooseManualCommand.Execute(null);
-    Render(wizard, $"wizard-manual-{suffix}");
 
-    var main = new MainViewModel(connector.ConnectDemo(), () => { });
-    // The demo directory answers synchronously, so this completes without a message loop.
-    main.InitializeAsync().GetAwaiter().GetResult();
+    var main = Main();
     Render(main, $"users-{suffix}");
 
-    main.Users.QuickFilter = UserQuickFilter.Guests;
-    Render(main, $"users-guests-{suffix}");
-    main.Users.QuickFilter = UserQuickFilter.All;
+    // Filtered, two-level sort: pills, header arrows and priority numbers.
+    var list = main.Users;
+    Pick(list, UserFields.Status, hide: true, "Blocked");
+    Pick(list, UserFields.Licenses, hide: false, "E5", "E3");
+    list.SortByColumn(list.Columns.Single(c => c.Key == UserFields.Department));
+    list.AddSortByColumn(list.Columns.Single(c => c.Key == UserFields.Status));
+    if (args.Contains("--debug"))
+        foreach (var c in list.Columns.Where(c => c.IsSorted || c.Key == UserFields.Status))
+            Console.WriteLine($"    {c.Key}: sort={c.Sort} priority={c.SortPriority} show={c.ShowPriority} text='{c.PriorityText}' glyph={c.SortGlyph}");
+    Render(main, $"users-filtered-{suffix}");
 
-    main.OpenUser(main.Users.VisibleUsers[0].User);
-    Render(main, $"user-detail-{suffix}");
+    if (full)
+    {
+        list.EditFilter(list.FilterFields.Single(f => f.Key == UserFields.Licenses));
+        Render(main, "panel-choice-filter-light");
+
+        list.OpenSortPanel();
+        Render(main, "panel-sort-light");
+
+        list.OpenBuilder();
+        var b = list.Builder!;
+        b.MatchAny = true;
+        b.Rules[0].Field = b.Rules[0].Fields.Single(f => f.Key == UserFields.LastSignIn);
+        b.Rules[0].Op = b.Rules[0].Ops.Single(o => o.Key == "older");
+        b.Rules[0].Value = "90";
+        b.AddRule();
+        b.Rules[1].Field = b.Rules[1].Fields.Single(f => f.Key == UserFields.Licenses);
+        b.Rules[1].Value = "Unlicensed";
+        b.AddGroup();
+        Render(main, "panel-builder-light");
+
+        list.OpenColumnsPanel();
+        Render(main, "panel-columns-light");
+        list.ClosePanels();
+    }
+
+    var grouped = Main();
+    grouped.Users.SelectedGroup = grouped.Users.GroupOptions.Single(g => g.Key == UserFields.Department);
+    Render(grouped, $"users-grouped-{suffix}");
+
+    var preview = Main();
+    preview.Users.PreviewRow(preview.Users.Rows[1]);
+    Render(preview, $"users-preview-{suffix}");
+
+    if (full)
+    {
+        preview.OpenUser((UserSummary)preview.Users.Rows[0]);
+        Render(preview, "user-detail-light");
+    }
 }
 
 Console.WriteLine($"Snapshots written to {output}");
 return 0;
 
+MainViewModel Main()
+{
+    var main = new MainViewModel(connector.ConnectDemo() with { ListState = new Tenantry.Core.Lists.MemoryListStateStore() }, () => { });
+    // The demo directory answers synchronously, so this completes without a message loop.
+    main.InitializeAsync().GetAwaiter().GetResult();
+    return main;
+}
+
+static void Pick(DataListViewModel list, string field, bool hide, params string[] values)
+{
+    list.EditFilter(list.FilterFields.Single(f => f.Key == field));
+    var editor = (ChoiceFilterEditor)list.Editor!;
+    foreach (var v in editor.Values)
+        v.IsChecked = values.Contains(v.Value);
+    editor.HideSelected = hide;
+    list.ApplyFilter();
+}
+
 void Render(object page, string name)
 {
     var shell = new ShellViewModel(connector);
     shell.ShowPage(page);
-    var window = new MainWindow { Width = 1280, Height = 820, DataContext = shell };
+    var window = new MainWindow { Width = 1440, Height = 900, DataContext = shell };
     window.Show();
     for (var i = 0; i < 4; i++)
     {

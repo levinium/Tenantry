@@ -2,6 +2,78 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:c="using:Tenantry.App.Controls">
 
+  <Styles.Resources>
+    <!-- The stock header reserves a slot for its own sort icon even when hidden. Sorting is drawn
+         by our header content, so the slot only stole width and clipped the sort indicators. -->
+    <x:Double x:Key="DataGridSortIconMinWidth">0</x:Double>
+
+    <!-- The stock DataGrid with its horizontal scrollbar moved ABOVE the column headers and
+         always shown, so a wide list says it scrolls sideways before anyone reaches the bottom.
+         Copied from Avalonia.Controls.DataGrid 12.1.2 Themes/Fluent.xaml (commit 1e12211);
+         only the row layout and AllowAutoHide differ. Shift+wheel and touchpad sideways scrolling
+         come from DataGrid itself. Re-check against the source when upgrading the package. -->
+    <ControlTheme x:Key="TopScrollDataGrid" TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border x:Name="DataGridBorder"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}">
+            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,*" ClipToBounds="True">
+              <Grid Grid.Column="1" Grid.Row="0" ColumnDefinitions="Auto,*">
+                <Rectangle Name="PART_FrozenColumnScrollBarSpacer" />
+                <ScrollBar Name="PART_HorizontalScrollbar"
+                           AllowAutoHide="False"
+                           Grid.Column="1"
+                           Orientation="Horizontal"
+                           Height="{DynamicResource ScrollBarSize}" />
+              </Grid>
+
+              <DataGridColumnHeader Name="PART_TopLeftCornerHeader" Grid.Row="1"
+                                    Theme="{StaticResource DataGridTopLeftColumnHeader}" />
+              <DataGridColumnHeadersPresenter Name="PART_ColumnHeadersPresenter"
+                                              Grid.Column="1" Grid.Row="1" Grid.ColumnSpan="2" />
+              <Rectangle Name="PART_ColumnHeadersAndRowsSeparator"
+                         Grid.Row="1" Grid.ColumnSpan="3" Grid.Column="0"
+                         VerticalAlignment="Bottom" Height="1"
+                         Fill="{DynamicResource DataGridGridLinesBrush}" />
+
+              <DataGridRowsPresenter Name="PART_RowsPresenter"
+                                     Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                     ScrollViewer.IsScrollInertiaEnabled="{TemplateBinding IsScrollInertiaEnabled}">
+                <DataGridRowsPresenter.GestureRecognizers>
+                  <ScrollGestureRecognizer CanHorizontallyScroll="True"
+                                           CanVerticallyScroll="True"
+                                           IsScrollInertiaEnabled="{Binding (ScrollViewer.IsScrollInertiaEnabled), ElementName=PART_RowsPresenter}" />
+                </DataGridRowsPresenter.GestureRecognizers>
+              </DataGridRowsPresenter>
+              <Rectangle Name="PART_BottomRightCorner" IsVisible="False" Grid.Column="2" Grid.Row="0" />
+              <ScrollBar Name="PART_VerticalScrollbar"
+                         AllowAutoHide="{Binding Path=(ScrollViewer.AllowAutoHide), RelativeSource={RelativeSource TemplatedParent}}"
+                         Orientation="Vertical"
+                         Grid.Column="2" Grid.Row="2"
+                         Width="{DynamicResource ScrollBarSize}" />
+
+              <Border x:Name="PART_DisabledVisualElement"
+                      Grid.ColumnSpan="3" Grid.Column="0" Grid.Row="0" Grid.RowSpan="3"
+                      IsHitTestVisible="False"
+                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      CornerRadius="2"
+                      Background="{DynamicResource DataGridDisabledVisualElementBackground}"
+                      IsVisible="{Binding !$parent[DataGrid].IsEnabled}" />
+            </Grid>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+      <!-- Undo the stock theme's span of the rows presenter over the scrollbar rows. -->
+      <Style Selector="^ /template/ DataGridRowsPresenter#PART_RowsPresenter">
+        <Setter Property="Grid.RowSpan" Value="1" />
+        <Setter Property="Grid.ColumnSpan" Value="2" />
+      </Style>
+    </ControlTheme>
+  </Styles.Resources>
+
   <!-- Surfaces -->
   <Style Selector="Window">
     <Setter Property="Background" Value="{DynamicResource WindowBg}" />
@@ -194,13 +266,79 @@
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
     <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
-    <Setter Property="Padding" Value="12,8" />
+    <Setter Property="Padding" Value="12,8,4,8" />
   </Style>
   <Style Selector="DataGridRow">
     <Setter Property="MinHeight" Value="48" />
   </Style>
+  <Style Selector="DataGrid.compact DataGridRow">
+    <Setter Property="MinHeight" Value="34" />
+  </Style>
+  <Style Selector="DataGridRowGroupHeader">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+    <Setter Property="IsItemCountVisible" Value="True" />
+  </Style>
+
+  <!-- Filter pills and toolbar -->
+  <Style Selector="Border.pill">
+    <Setter Property="CornerRadius" Value="15" />
+    <Setter Property="Background" Value="{DynamicResource NavSelectedBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Padding" Value="4,2" />
+  </Style>
+  <Style Selector="Border.pill Button">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="6,2" />
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedFg}" />
+  </Style>
+  <Style Selector="Border.panel">
+    <Setter Property="Background" Value="{DynamicResource CardBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="18,16" />
+    <Setter Property="BoxShadow" Value="0 4 16 0 #22000000" />
+  </Style>
+  <Style Selector="Button.tool">
+    <Setter Property="Padding" Value="10,6" />
+  </Style>
+  <Style Selector="Button.tool.active">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedFg}" />
+  </Style>
+  <Style Selector="Button.rowaction">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="5" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+  </Style>
+  <Style Selector="Button.rowaction:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavHoverBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+  </Style>
+  <Style Selector="Button.header">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+    <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+  </Style>
+  <Style Selector="Border.sortpriority">
+    <Setter Property="Background" Value="{DynamicResource AccentFill}" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="MinWidth" Value="16" />
+    <Setter Property="Height" Value="16" />
+    <Setter Property="Padding" Value="4,0" />
+  </Style>
+  <!-- No cell padding: each cell template sets its own margins, and padding on top of them
+       clipped narrow badges ("Membe"). -->
   <Style Selector="DataGridCell">
-    <Setter Property="Padding" Value="12,0" />
+    <Setter Property="Padding" Value="0" />
   </Style>
 
   <!-- Tabs -->

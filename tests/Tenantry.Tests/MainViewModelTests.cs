@@ -1,3 +1,4 @@
+using Tenantry.Core.Directory;
 using Tenantry.Tests.Fakes;
 using Tenantry.ViewModels;
 
@@ -16,7 +17,7 @@ public class MainViewModelTests
     public async Task Opening_a_user_twice_reuses_one_tab()
     {
         var vm = await Loaded();
-        var ada = vm.Users.VisibleUsers[0].User;
+        var ada = ((UserSummary)vm.Users.Rows[0]);
 
         vm.OpenUser(ada);
         vm.SelectedTab = vm.Users;
@@ -31,8 +32,8 @@ public class MainViewModelTests
     public async Task Closing_a_record_selects_its_neighbour()
     {
         var vm = await Loaded();
-        vm.OpenUser(vm.Users.VisibleUsers[0].User);
-        vm.OpenUser(vm.Users.VisibleUsers[1].User);
+        vm.OpenUser(((UserSummary)vm.Users.Rows[0]));
+        vm.OpenUser(((UserSummary)vm.Users.Rows[1]));
         var last = vm.SelectedTab!;
 
         vm.CloseTabCommand.Execute(last);
@@ -56,7 +57,7 @@ public class MainViewModelTests
     public async Task Choosing_users_in_the_sidebar_returns_to_the_list()
     {
         var vm = await Loaded();
-        vm.OpenUser(vm.Users.VisibleUsers[0].User);
+        vm.OpenUser(((UserSummary)vm.Users.Rows[0]));
         vm.SelectedSection = null;
 
         vm.SelectedSection = vm.Sections.Single(s => s.Key == "users");

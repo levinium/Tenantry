@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.UserPreviewView"
+             x:DataType="vm:UserDetailViewModel">
+  <!-- The user record, stacked to fit the preview pane. -->
+  <StackPanel Spacing="18">
+    <StackPanel Spacing="10">
+      <Border Classes="avatar large" HorizontalAlignment="Left">
+        <TextBlock Text="{Binding Initials}" />
+      </Border>
+      <StackPanel Spacing="2">
+        <TextBlock Classes="h2" Text="{Binding User.DisplayName}" TextWrapping="Wrap" />
+        <SelectableTextBlock Classes="muted" Text="{Binding User.UserPrincipalName}" TextWrapping="Wrap" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <c:Badge Text="{Binding StatusText}" Kind="{Binding StatusKind}" />
+        <c:Badge Text="{Binding KindText}" Kind="{Binding KindKind}" />
+      </StackPanel>
+    </StackPanel>
+
+    <Border Classes="divider" />
+    <StackPanel Spacing="12">
+      <TextBlock Classes="h3" Text="Sign-in" />
+      <StackPanel Spacing="2">
+        <TextBlock Classes="label" Text="LAST SIGN-IN" />
+        <TextBlock Classes="value" Text="{Binding LastSignInText}" />
+        <TextBlock Classes="caption" Text="{Binding LastSignInExact}" />
+      </StackPanel>
+      <StackPanel Spacing="2">
+        <TextBlock Classes="label" Text="ACCOUNT CREATED" />
+        <TextBlock Classes="value" Text="{Binding CreatedText}" />
+      </StackPanel>
+    </StackPanel>
+
+    <Border Classes="divider" />
+    <StackPanel Spacing="12">
+      <TextBlock Classes="h3" Text="Organization" />
+      <StackPanel Spacing="2">
+        <TextBlock Classes="label" Text="JOB TITLE" />
+        <TextBlock Classes="value" Text="{Binding JobTitle}" TextWrapping="Wrap" />
+      </StackPanel>
+      <StackPanel Spacing="2">
+        <TextBlock Classes="label" Text="DEPARTMENT" />
+        <TextBlock Classes="value" Text="{Binding Department}" />
+      </StackPanel>
+      <StackPanel Spacing="2">
+        <TextBlock Classes="label" Text="EMAIL" />
+        <SelectableTextBlock Classes="value" Text="{Binding Email}" TextWrapping="Wrap" />
+      </StackPanel>
+    </StackPanel>
+
+    <Border Classes="divider" />
+    <StackPanel Spacing="10">
+      <TextBlock Classes="h3" Text="Licenses" />
+      <ItemsControl ItemsSource="{Binding Licenses}" IsVisible="{Binding HasLicenses}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="8" LineSpacing="8" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <c:Badge Text="{Binding}" Kind="Info" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Classes="muted" IsVisible="{Binding !HasLicenses}" Text="No licenses assigned." />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

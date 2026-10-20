@@ -33,42 +33,6 @@ public class DisplayAndChipTests
         Assert.Matches(@"^[A-Z][a-z]{2} \d{1,2}, 2025$", Display.Relative(new DateTimeOffset(2025, 3, 4, 12, 0, 0, TimeSpan.Zero), Now));
     }
 
-    static async Task<UserListViewModel> Loaded()
-    {
-        var vm = new UserListViewModel(FakeDirectory.Standard(), _ => { }, now: () => Now);
-        await vm.LoadAsync(TestContext.Current.CancellationToken);
-        return vm;
-    }
-
-    [Fact]
-    public async Task Chips_count_their_users_at_load()
-    {
-        var vm = await Loaded();
-
-        var counts = vm.Chips.ToDictionary(c => c.Filter, c => c.Count);
-        Assert.Equal(4, counts[UserQuickFilter.All]);
-        Assert.Equal(3, counts[UserQuickFilter.Members]);
-        Assert.Equal(1, counts[UserQuickFilter.Guests]);
-        Assert.Equal(1, counts[UserQuickFilter.Blocked]);
-        Assert.Equal(4, counts[UserQuickFilter.NeverSignedIn]);
-    }
-
-    [Fact]
-    public async Task A_chip_narrows_together_with_the_text_filter()
-    {
-        var vm = await Loaded();
-
-        vm.SelectChipCommand.Execute(vm.Chips.Single(c => c.Filter == UserQuickFilter.Members));
-        vm.FilterText = "it";
-
-        Assert.Equal(["Alan Turing", "Grace Hopper"], vm.VisibleUsers.Select(u => u.DisplayName));
-        Assert.True(vm.Chips.Single(c => c.Filter == UserQuickFilter.Members).IsSelected);
-        Assert.False(vm.Chips.Single(c => c.Filter == UserQuickFilter.All).IsSelected);
-
-        vm.SelectChipCommand.Execute(vm.Chips.Single(c => c.Filter == UserQuickFilter.Blocked));
-        Assert.Equal(["Grace Hopper"], vm.VisibleUsers.Select(u => u.DisplayName));
-    }
-
     [Fact]
     public void Rows_read_at_a_glance()
     {

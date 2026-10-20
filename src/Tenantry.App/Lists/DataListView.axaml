@@ -1,0 +1,516 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:lists="using:Tenantry.ViewModels.Lists"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Lists.DataListView"
+             x:DataType="lists:DataListViewModel"
+             x:Name="Root">
+
+  <Grid ColumnDefinitions="*,Auto">
+    <DockPanel Grid.Column="0" Margin="8,16,8,12">
+
+      <!-- Title and main action -->
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <TextBlock Classes="h2" Text="{Binding Title}" />
+          <TextBlock Classes="caption" VerticalAlignment="Center" Margin="0,3,0,0" Text="{Binding CountText}" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="accent"
+                IsVisible="{Binding PrimaryAction, Converter={x:Static ObjectConverters.IsNotNull}}"
+                IsEnabled="{Binding PrimaryAction.IsEnabled, FallbackValue=False}"
+                ToolTip.Tip="{Binding PrimaryAction.Tip}" ToolTip.ShowOnDisabled="True">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ic:FluentIcon Icon="{Binding PrimaryAction.Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="16" />
+            <TextBlock Text="{Binding PrimaryAction.Label}" />
+          </StackPanel>
+        </Button>
+      </Grid>
+
+      <!-- Views: one click to a saved or built-in view, with how many rows each has -->
+      <ScrollViewer DockPanel.Dock="Top" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,12">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Classes="label" Text="VIEWS" VerticalAlignment="Center" Margin="0,0,4,0" />
+          <ItemsControl ItemsSource="{Binding Views}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="lists:SavedViewItem">
+                <Button Classes="chip" Classes.selected="{Binding IsCurrent}"
+                        Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyViewCommand}"
+                        CommandParameter="{Binding}">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <ic:FluentIcon Icon="Bookmark" FontSize="12" IsVisible="{Binding !IsBuiltIn}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Name}" />
+                    <TextBlock Opacity="0.65" Text="{Binding Count}" />
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Button Classes="tool ghost" Command="{Binding OpenViewsPanelCommand}" ToolTip.Tip="Save the current filters, sort and columns as a view, or delete your views">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="BookmarkMultiple" FontSize="16" />
+              <TextBlock Text="Manage views" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- Search: full width, its own row -->
+      <TextBox DockPanel.Dock="Top" Margin="0,0,0,10" Text="{Binding SearchText}" PlaceholderText="{Binding SearchHint}">
+        <TextBox.InnerLeftContent>
+          <ic:FluentIcon Icon="Search" FontSize="16" Margin="10,0,2,0" Foreground="{DynamicResource TextMuted}" />
+        </TextBox.InnerLeftContent>
+        <TextBox.InnerRightContent>
+          <ic:FluentIcon Icon="QuestionCircle" FontSize="16" Margin="4,0,10,0" Foreground="{DynamicResource TextMuted}"
+                         ToolTip.Tip="{x:Static lists:DataListViewModel.SearchHelp}" Background="Transparent" />
+        </TextBox.InnerRightContent>
+      </TextBox>
+
+      <!-- Tools: labelled, one row -->
+      <WrapPanel DockPanel.Dock="Top" ItemSpacing="8" LineSpacing="8" Margin="0,0,0,6">
+
+        <Button Classes="tool" ToolTip.Tip="Filter by any field">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="FilterAdd" FontSize="16" />
+            <TextBlock Text="Filter" />
+            <ic:FluentIcon Icon="ChevronDown" FontSize="12" VerticalAlignment="Center" />
+          </StackPanel>
+          <Button.Flyout>
+            <MenuFlyout ItemsSource="{Binding FilterFields}" Placement="BottomEdgeAlignedLeft">
+              <MenuFlyout.ItemContainerTheme>
+                <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="lists:FieldOption">
+                  <Setter Property="Header" Value="{Binding Label}" />
+                  <Setter Property="Command" Value="{Binding #Root.((lists:DataListViewModel)DataContext).EditFilterCommand}" />
+                  <Setter Property="CommandParameter" Value="{Binding}" />
+                </ControlTheme>
+              </MenuFlyout.ItemContainerTheme>
+            </MenuFlyout>
+          </Button.Flyout>
+        </Button>
+
+        <Button Classes="tool" Classes.active="{Binding Builder, Converter={x:Static ObjectConverters.IsNotNull}}"
+                Command="{Binding OpenBuilderCommand}" ToolTip.Tip="Combine rules with AND / OR">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Filter" FontSize="16" />
+            <TextBlock Text="Advanced" />
+          </StackPanel>
+        </Button>
+
+        <Button Classes="tool" Classes.active="{Binding IsSortPanelOpen}" Command="{Binding OpenSortPanelCommand}"
+                ToolTip.Tip="Sort by one or more columns">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="ArrowSort" FontSize="16" />
+            <TextBlock Text="{Binding SortSummary}" />
+          </StackPanel>
+        </Button>
+
+        <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="Group rows into collapsible sections">
+          <ic:FluentIcon Icon="GroupList" FontSize="16" VerticalAlignment="Center" />
+          <ComboBox ItemsSource="{Binding GroupOptions}" SelectedItem="{Binding SelectedGroup}" MinWidth="150" />
+        </StackPanel>
+
+        <Button Classes="tool" Classes.active="{Binding IsColumnsPanelOpen}" Command="{Binding OpenColumnsPanelCommand}"
+                ToolTip.Tip="Show, hide and reorder columns">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="TableSettings" FontSize="16" />
+            <TextBlock Text="Columns" />
+          </StackPanel>
+        </Button>
+
+        <Button Classes="tool" Classes.active="{Binding IsCompact}" Command="{Binding ToggleDensityCommand}"
+                ToolTip.Tip="Switch between comfortable and compact rows">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="RowTriple" FontSize="16" />
+            <TextBlock Text="Compact" />
+          </StackPanel>
+        </Button>
+
+        <Button Classes="tool" Click="OnExport" ToolTip.Tip="Save what's shown (filtered rows, visible columns) as a CSV file">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="ArrowDownload" FontSize="16" />
+            <TextBlock Text="Export" />
+          </StackPanel>
+        </Button>
+      </WrapPanel>
+
+      <!-- What the search box understood -->
+      <TextBlock DockPanel.Dock="Top" Classes="caption" Margin="4,0,0,6" Text="{Binding SearchUnderstood}"
+                 IsVisible="{Binding SearchUnderstood, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      <TextBlock DockPanel.Dock="Top" FontSize="12" Foreground="{DynamicResource BadgeWarningFg}" Margin="4,0,0,6" Text="{Binding SearchProblem}"
+                 IsVisible="{Binding SearchProblem, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+      <!-- Active filters -->
+      <WrapPanel DockPanel.Dock="Top" ItemSpacing="8" LineSpacing="8" Margin="0,4,0,8" IsVisible="{Binding HasFilters}">
+        <TextBlock Classes="label" Text="FILTERED BY" VerticalAlignment="Center" />
+        <ItemsControl ItemsSource="{Binding Pills}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemSpacing="8" LineSpacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="lists:FilterPill">
+              <Border Classes="pill">
+                <StackPanel Orientation="Horizontal">
+                  <Button Command="{Binding EditCommand}" ToolTip.Tip="Change this filter">
+                    <TextBlock Text="{Binding Text}" FontSize="13" />
+                  </Button>
+                  <Button Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this filter" Padding="4,2">
+                    <ic:FluentIcon Icon="Dismiss" FontSize="12" />
+                  </Button>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Button Classes="ghost" Padding="6,4" Command="{Binding ClearFiltersCommand}" Content="Clear all" />
+      </WrapPanel>
+
+      <!-- The one open panel: filter editor, query builder, sort, columns or views -->
+      <ContentControl DockPanel.Dock="Top" Margin="0,0,0,12" Content="{Binding Editor}"
+                      IsVisible="{Binding Editor, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <ContentControl.DataTemplates>
+          <DataTemplate DataType="lists:ChoiceFilterEditor">
+            <Border Classes="panel">
+              <StackPanel Spacing="12" MaxWidth="560" HorizontalAlignment="Left">
+                <TextBlock Classes="h3" Text="{Binding Title}" />
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                  <RadioButton GroupName="choiceMode" IsChecked="{Binding ShowSelected}" Content="Show only the checked values" />
+                  <RadioButton GroupName="choiceMode" IsChecked="{Binding HideSelected}" Content="Hide the checked values" />
+                </StackPanel>
+                <TextBox Text="{Binding ValueSearch}" PlaceholderText="Find a value" IsVisible="{Binding HasManyValues}" />
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <Button Classes="ghost" Padding="6,2" Command="{Binding SelectAllCommand}" Content="Select all" />
+                  <Button Classes="ghost" Padding="6,2" Command="{Binding SelectNoneCommand}" Content="Clear" />
+                </StackPanel>
+                <ScrollViewer MaxHeight="260">
+                  <ItemsControl ItemsSource="{Binding Values}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="lists:ChoiceValueOption">
+                        <CheckBox IsChecked="{Binding IsChecked}" IsVisible="{Binding IsShown}" Margin="0,1">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding Value}" />
+                            <TextBlock Classes="caption" VerticalAlignment="Center" Text="{Binding Count}" />
+                          </StackPanel>
+                        </CheckBox>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyFilterCommand}" />
+                  <Button Content="Remove filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
+                  <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+
+          <DataTemplate DataType="lists:TextFilterEditor">
+            <Border Classes="panel">
+              <StackPanel Spacing="12" MaxWidth="560" HorizontalAlignment="Left">
+                <TextBlock Classes="h3" Text="{Binding Title}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <ComboBox ItemsSource="{Binding Operators}" SelectedItem="{Binding Op}" MinWidth="170" />
+                  <TextBox Width="280" Text="{Binding Value}" IsVisible="{Binding NeedsValue}" PlaceholderText="text" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyFilterCommand}" />
+                  <Button Content="Remove filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
+                  <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+
+          <DataTemplate DataType="lists:DateFilterEditor">
+            <Border Classes="panel">
+              <StackPanel Spacing="12" MaxWidth="560" HorizontalAlignment="Left">
+                <TextBlock Classes="h3" Text="{Binding Title}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Preset}" MinWidth="220" />
+                  <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding NeedsDays}">
+                    <TextBox Width="80" Text="{Binding DaysText}" />
+                    <TextBlock VerticalAlignment="Center" Text="days" />
+                  </StackPanel>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding NeedsRange}">
+                  <CalendarDatePicker SelectedDate="{Binding From}" PlaceholderText="From" Width="160" />
+                  <TextBlock VerticalAlignment="Center" Text="to" />
+                  <CalendarDatePicker SelectedDate="{Binding To}" PlaceholderText="To" Width="160" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyFilterCommand}" />
+                  <Button Content="Remove filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
+                  <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+
+          <DataTemplate DataType="lists:NumberFilterEditor">
+            <Border Classes="panel">
+              <StackPanel Spacing="12" MaxWidth="560" HorizontalAlignment="Left">
+                <TextBlock Classes="h3" Text="{Binding Title}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock VerticalAlignment="Center" Text="At least" />
+                  <TextBox Width="90" Text="{Binding MinText}" />
+                  <TextBlock VerticalAlignment="Center" Text="and at most" />
+                  <TextBox Width="90" Text="{Binding MaxText}" />
+                </StackPanel>
+                <TextBlock Classes="caption" Text="Leave either box empty for no limit on that side." />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyFilterCommand}" />
+                  <Button Content="Remove filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
+                  <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ContentControl.DataTemplates>
+      </ContentControl>
+
+      <!-- Query builder -->
+      <Border DockPanel.Dock="Top" Classes="panel" Margin="0,0,0,12" IsVisible="{Binding Builder, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <StackPanel Spacing="12" DataContext="{Binding Builder}" x:DataType="lists:QueryGroupViewModel">
+          <TextBlock Classes="h3" Text="Advanced filter" />
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <TextBlock VerticalAlignment="Center" Text="Show rows that match" />
+            <RadioButton GroupName="rootJoin" IsChecked="{Binding MatchAll}" Content="all of these rules" />
+            <RadioButton GroupName="rootJoin" IsChecked="{Binding MatchAny}" Content="any of these rules" />
+          </StackPanel>
+          <ItemsControl ItemsSource="{Binding Rules}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="lists:QueryRuleViewModel">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <ComboBox ItemsSource="{Binding Fields}" SelectedItem="{Binding Field}" MinWidth="160" />
+                  <ComboBox ItemsSource="{Binding Ops}" SelectedItem="{Binding Op}" MinWidth="190" />
+                  <AutoCompleteBox Width="220" Text="{Binding Value}" ItemsSource="{Binding ValueChoices}"
+                                   IsVisible="{Binding NeedsValue}" PlaceholderText="{Binding ValueHint}" FilterMode="ContainsOrdinal" MinimumPrefixLength="0" />
+                  <Button Classes="ghost" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this rule">
+                    <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+                  </Button>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <ItemsControl ItemsSource="{Binding Groups}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="10" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="lists:QueryGroupViewModel">
+                <Border BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="8" Padding="12" Background="{DynamicResource SubtleBg}">
+                  <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                      <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="Group: match" />
+                      <RadioButton IsChecked="{Binding MatchAll}" Content="all" />
+                      <RadioButton IsChecked="{Binding MatchAny}" Content="any" />
+                      <Button Classes="ghost" Command="{Binding RemoveCommand}" Content="Remove group" />
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Rules}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Spacing="8" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="lists:QueryRuleViewModel">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ComboBox ItemsSource="{Binding Fields}" SelectedItem="{Binding Field}" MinWidth="160" />
+                            <ComboBox ItemsSource="{Binding Ops}" SelectedItem="{Binding Op}" MinWidth="190" />
+                            <AutoCompleteBox Width="220" Text="{Binding Value}" ItemsSource="{Binding ValueChoices}"
+                                             IsVisible="{Binding NeedsValue}" PlaceholderText="{Binding ValueHint}" FilterMode="ContainsOrdinal" MinimumPrefixLength="0" />
+                            <Button Classes="ghost" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this rule">
+                              <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+                            </Button>
+                          </StackPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Classes="ghost" HorizontalAlignment="Left" Command="{Binding AddRuleCommand}" Content="+ Add rule to group" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="ghost" Command="{Binding AddRuleCommand}" Content="+ Add rule" />
+            <Button Classes="ghost" Command="{Binding AddGroupCommand}" Content="+ Add group" ToolTip.Tip="A group of rules with its own all/any, for questions like (A or B) and C" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyBuilderCommand}" />
+            <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelBuilderCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Sort, like Excel's: ordered levels -->
+      <Border DockPanel.Dock="Top" Classes="panel" Margin="0,0,0,12" IsVisible="{Binding IsSortPanelOpen}">
+        <StackPanel Spacing="12" HorizontalAlignment="Left">
+          <TextBlock Classes="h3" Text="Sort" />
+          <ItemsControl ItemsSource="{Binding SortLevels}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="lists:SortLevelViewModel">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Width="64" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding LevelText}" />
+                  <ComboBox ItemsSource="{Binding Fields}" SelectedItem="{Binding Field}" MinWidth="180" />
+                  <Button MinWidth="130" Command="{Binding ToggleDirectionCommand}" ToolTip.Tip="Change direction">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <ic:FluentIcon Icon="ArrowSort" FontSize="14" />
+                      <TextBlock Text="{Binding DirectionText}" />
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="ghost" ToolTip.Tip="Move up" Command="{Binding #Root.((lists:DataListViewModel)DataContext).MoveSortLevelUpCommand}" CommandParameter="{Binding}">
+                    <ic:FluentIcon Icon="ArrowUp" FontSize="14" />
+                  </Button>
+                  <Button Classes="ghost" ToolTip.Tip="Move down" Command="{Binding #Root.((lists:DataListViewModel)DataContext).MoveSortLevelDownCommand}" CommandParameter="{Binding}">
+                    <ic:FluentIcon Icon="ArrowDown" FontSize="14" />
+                  </Button>
+                  <Button Classes="ghost" ToolTip.Tip="Remove this level" Command="{Binding #Root.((lists:DataListViewModel)DataContext).RemoveSortLevelCommand}" CommandParameter="{Binding}">
+                    <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+                  </Button>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Button Classes="ghost" HorizontalAlignment="Left" Command="{Binding AddSortLevelCommand}" Content="+ Add level" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="accent" Content="Apply" Command="{Binding ApplySortCommand}" />
+            <Button Content="Clear sorting" Command="{Binding ClearSortCommand}" />
+            <Button Content="Cancel" Command="{Binding ClosePanelsCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Columns -->
+      <Border DockPanel.Dock="Top" Classes="panel" Margin="0,0,0,12" IsVisible="{Binding IsColumnsPanelOpen}">
+        <StackPanel Spacing="10" HorizontalAlignment="Left">
+          <TextBlock Classes="h3" Text="Columns" />
+          <TextBlock Classes="caption" Text="Tick to show. Use the arrows to reorder. Column widths you drag are remembered." />
+          <ItemsControl ItemsSource="{Binding Columns}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="lists:ColumnViewModel">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <CheckBox Width="220" IsChecked="{Binding IsVisible}" IsEnabled="{Binding CanHide}" Content="{Binding Header}" />
+                  <Button Classes="ghost" ToolTip.Tip="Move left" IsEnabled="{Binding CanHide}"
+                          Command="{Binding #Root.((lists:DataListViewModel)DataContext).MoveColumnUpCommand}" CommandParameter="{Binding}">
+                    <ic:FluentIcon Icon="ArrowUp" FontSize="14" />
+                  </Button>
+                  <Button Classes="ghost" ToolTip.Tip="Move right" IsEnabled="{Binding CanHide}"
+                          Command="{Binding #Root.((lists:DataListViewModel)DataContext).MoveColumnDownCommand}" CommandParameter="{Binding}">
+                    <ic:FluentIcon Icon="ArrowDown" FontSize="14" />
+                  </Button>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="accent" Content="Done" Command="{Binding ClosePanelsCommand}" />
+            <Button Content="Reset to default" Command="{Binding ResetColumnsCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Views -->
+      <Border DockPanel.Dock="Top" Classes="panel" Margin="0,0,0,12" IsVisible="{Binding IsViewsPanelOpen}">
+        <StackPanel Spacing="12" HorizontalAlignment="Left" MinWidth="460">
+          <TextBlock Classes="h3" Text="Views" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox Width="260" Text="{Binding NewViewName}" PlaceholderText="Name for the current view" />
+            <Button Classes="accent" Command="{Binding SaveViewAsCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Save" FontSize="14" />
+                <TextBlock Text="Save current view" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+          <TextBlock Classes="caption" Text="Saves the filters, sort, grouping and columns you have now. Using a name you already saved replaces it." />
+          <ItemsControl ItemsSource="{Binding Views}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="lists:SavedViewItem">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,2">
+                  <TextBlock VerticalAlignment="Center" Text="{Binding Name}" />
+                  <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" Text="{Binding Count}" />
+                  <Button Grid.Column="2" Classes="ghost" Content="Show"
+                          Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyViewCommand}" CommandParameter="{Binding}" />
+                  <Button Grid.Column="3" Classes="ghost" ToolTip.Tip="Delete this view" IsVisible="{Binding !IsBuiltIn}"
+                          Command="{Binding #Root.((lists:DataListViewModel)DataContext).DeleteViewCommand}" CommandParameter="{Binding}">
+                    <ic:FluentIcon Icon="Delete" FontSize="14" />
+                  </Button>
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Button HorizontalAlignment="Left" Content="Close" Command="{Binding ClosePanelsCommand}" />
+        </StackPanel>
+      </Border>
+
+      <TextBlock DockPanel.Dock="Top" Classes="muted" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" Text="Loading…" />
+      <Border DockPanel.Dock="Top" Classes="banner error" Margin="0,0,0,8" IsVisible="{Binding LoadError, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
+      </Border>
+
+      <!-- The table -->
+      <Border Classes="card tight" ClipToBounds="True">
+        <Grid>
+          <DataGrid x:Name="Grid" Theme="{StaticResource TopScrollDataGrid}"
+                    IsReadOnly="True" CanUserSortColumns="False" CanUserResizeColumns="True" CanUserReorderColumns="True"
+                    FrozenColumnCount="2" SelectionMode="Single" />
+          <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+            <ic:FluentIcon Icon="Search" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource TextMuted}" />
+            <TextBlock Classes="muted" HorizontalAlignment="Center" Text="Nothing matches these filters." />
+            <Button HorizontalAlignment="Center" Content="Clear filters" Command="{Binding ClearFiltersCommand}" IsVisible="{Binding HasFilters}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+    </DockPanel>
+
+    <!-- Preview pane -->
+    <Border Grid.Column="1" Classes="card" Width="420" Margin="4,16,8,12" Padding="0" IsVisible="{Binding IsPreviewOpen}">
+      <DockPanel>
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="16,12,8,8">
+          <TextBlock Classes="label" VerticalAlignment="Center" Text="PREVIEW" />
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding ExpandPreviewCommand}" ToolTip.Tip="Open the full record in a tab">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowMaximize" FontSize="14" />
+              <TextBlock Text="Open full record" />
+            </StackPanel>
+          </Button>
+          <Button Grid.Column="2" Classes="ghost" Command="{Binding ClosePreviewCommand}" ToolTip.Tip="Close the preview">
+            <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+          </Button>
+        </Grid>
+        <Border DockPanel.Dock="Top" Classes="divider" />
+        <ScrollViewer>
+          <ContentControl Content="{Binding PreviewModel}" Margin="16,12">
+            <ContentControl.DataTemplates>
+              <DataTemplate DataType="vm:UserDetailViewModel">
+                <views:UserPreviewView />
+              </DataTemplate>
+            </ContentControl.DataTemplates>
+          </ContentControl>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+  </Grid>
+</UserControl>

@@ -1,6 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:lists="using:Tenantry.ViewModels.Lists"
+             xmlns:listviews="using:Tenantry.App.Lists"
              xmlns:views="using:Tenantry.App.Views"
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:conv="using:Tenantry.App.Converters"
@@ -98,9 +100,6 @@
 
     <!-- Content -->
     <DockPanel Grid.Column="1">
-      <Border DockPanel.Dock="Top" Classes="banner error" Margin="20,16,20,0" IsVisible="{Binding LoadError, Converter={x:Static ObjectConverters.IsNotNull}}">
-        <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
-      </Border>
       <Border DockPanel.Dock="Top" Classes="banner info" Margin="20,16,20,0" IsVisible="{Binding IsDemo}">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -125,8 +124,8 @@
           </DataTemplate>
         </TabControl.ItemTemplate>
         <TabControl.DataTemplates>
-          <DataTemplate DataType="vm:UserListViewModel">
-            <views:UserListView />
+          <DataTemplate DataType="lists:DataListViewModel">
+            <listviews:DataListView />
           </DataTemplate>
           <DataTemplate DataType="vm:UserDetailViewModel">
             <views:UserDetailView />
