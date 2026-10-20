@@ -1,0 +1,4 @@
+# Reviewed false positives (fingerprint = commit:file:rule:line).
+# Entra's built-in Conditional Access Administrator role template ID: a public, documented
+# constant (learn.microsoft.com permissions reference), not a credential.
+118b8b14158074f84d7224110aa6c8d24e0283b4:src/Tenantry.Core/Capabilities/DirectoryRoles.cs:generic-api-key:18
