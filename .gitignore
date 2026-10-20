@@ -1,0 +1,22 @@
+bin/
+obj/
+dist/
+release/
+*.user
+.vs/
+.vscode/
+.idea/
+TestResults/
+
+# This repository is public and must never contain data from a real tenant. Anything the app or
+# the tests could write from a live tenant is kept out by pattern as well as by design: tenant
+# profiles, caches, change logs and test settings belong in the OS app-data folder, not here.
+*.log
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.har
+appsettings.*.local.json
+tenant*.local.json
+testsettings*.json

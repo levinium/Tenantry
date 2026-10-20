@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             x:Class="Tenantry.App.Views.UserDetailView"
+             x:DataType="vm:UserDetailViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="24" Spacing="16" MaxWidth="900" HorizontalAlignment="Left">
+      <StackPanel Spacing="2">
+        <TextBlock FontSize="24" FontWeight="SemiBold" Text="{Binding User.DisplayName}" />
+        <TextBlock Opacity="0.7" Text="{Binding User.UserPrincipalName}" />
+      </StackPanel>
+
+      <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+        <TextBlock Grid.Row="0" Grid.Column="0" Opacity="0.7" Text="Status" />
+        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Status}" />
+        <TextBlock Grid.Row="1" Grid.Column="0" Opacity="0.7" Text="Type" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding KindText}" />
+        <TextBlock Grid.Row="2" Grid.Column="0" Opacity="0.7" Text="Email" />
+        <SelectableTextBlock Grid.Row="2" Grid.Column="1" Text="{Binding User.Mail}" />
+        <TextBlock Grid.Row="3" Grid.Column="0" Opacity="0.7" Text="Department" />
+        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding User.Department}" />
+        <TextBlock Grid.Row="4" Grid.Column="0" Opacity="0.7" Text="Title" />
+        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding User.JobTitle}" />
+        <TextBlock Grid.Row="5" Grid.Column="0" Opacity="0.7" Text="Licenses" />
+        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding LicensesText}" />
+        <TextBlock Grid.Row="6" Grid.Column="0" Opacity="0.7" Text="Last sign-in" />
+        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding LastSignInText}" />
+        <TextBlock Grid.Row="7" Grid.Column="0" Opacity="0.7" Text="Created" />
+        <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding CreatedText}" />
+      </Grid>
+
+      <SelectableTextBlock Opacity="0.5" FontSize="12" Text="{Binding User.Id, StringFormat=Object ID: {0}}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

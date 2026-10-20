@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain models and the interfaces every data source implements (live tenant, local cache,
+       demo). No UI, no Microsoft SDKs, no platform code. -->
+
+</Project>

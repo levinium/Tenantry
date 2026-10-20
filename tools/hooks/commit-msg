@@ -1,0 +1,15 @@
+#!/bin/sh
+# Leak guard: refuses a commit message that contains a denylisted term.
+. "$(dirname "$0")/denylist-lib.sh"
+
+patterns=$(load_patterns) || exit 1
+trap 'rm -f "$patterns"' EXIT
+[ -s "$patterns" ] || exit 0
+
+hits=$(grep -n -i -F -f "$patterns" "$1")
+if [ -n "$hits" ]; then
+  printf '%s\n' "$hits" >&2
+  leak_fail "the commit message contains a denylisted term."
+fi
+
+exit 0

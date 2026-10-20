@@ -1,0 +1,15 @@
+# LF everywhere, in the repository and the working copy. Git for Windows sets core.autocrlf=true
+# system wide; without this a checkout rewrites the tree to CRLF and the hooks and shell scripts
+# fail on macOS/Linux with a "bad interpreter" error naming an invisible character.
+* text=auto eol=lf
+
+# Git hooks have no extension, so name them explicitly.
+tools/hooks/* text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
+*.zip binary

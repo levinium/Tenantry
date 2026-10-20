@@ -1,0 +1,42 @@
+#!/bin/sh
+# Leak guard, last line of defence before anything reaches the remote. For every ref being
+# pushed it scans the full tree at the new tip (binary files included) plus every outgoing
+# commit's message, author, committer and patch. This also catches commits that were made
+# with --no-verify, which skips pre-commit and commit-msg.
+. "$(dirname "$0")/denylist-lib.sh"
+
+patterns=$(load_patterns) || exit 1
+trap 'rm -f "$patterns"' EXIT
+[ -s "$patterns" ] || exit 0
+
+zero=0000000000000000000000000000000000000000
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue   # deleting a remote branch sends no content
+
+  tree_hits=$(git grep -n -i -F -f "$patterns" "$local_sha")
+  if [ -n "$tree_hits" ]; then
+    printf '%s\n' "$tree_hits" >&2
+    leak_fail "files at $local_ref contain a denylisted term."
+  fi
+
+  path_hits=$(git ls-tree -r --name-only "$local_sha" | grep -i -F -f "$patterns")
+  if [ -n "$path_hits" ]; then
+    printf '%s\n' "$path_hits" >&2
+    leak_fail "file paths at $local_ref contain a denylisted term."
+  fi
+
+  if [ "$remote_sha" = "$zero" ]; then
+    range="$local_sha --not --remotes"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  # $range is deliberately unquoted so "--not --remotes" splits into arguments.
+  history_hits=$(git log -p --format=fuller $range | grep -n -i -F -f "$patterns")
+  if [ -n "$history_hits" ]; then
+    printf '%s\n' "$history_hits" >&2
+    leak_fail "outgoing commits to $remote_ref contain a denylisted term (message, author or patch)."
+  fi
+done
+
+exit 0

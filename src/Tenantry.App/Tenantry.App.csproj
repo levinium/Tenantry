@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- WinExe hides the console window on Windows and is ignored on macOS and Linux. -->
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>Tenantry</AssemblyName>
+    <Version>0.1.0</Version>
+    <Product>Tenantry</Product>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tenantry.ViewModels\Tenantry.ViewModels.csproj" />
+    <ProjectReference Include="..\Tenantry.Demo\Tenantry.Demo.csproj" />
+  </ItemGroup>
+
+</Project>

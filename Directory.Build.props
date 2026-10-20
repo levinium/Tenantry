@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <!-- Plain net10.0 everywhere: Tenantry ships on Windows, macOS and Linux, so no project may
+         take a -windows target. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

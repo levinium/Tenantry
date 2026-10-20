@@ -1,0 +1,59 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Tenantry.ViewModels"
+        xmlns:views="using:Tenantry.App.Views"
+        x:Class="Tenantry.App.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="{Binding WindowTitle}"
+        Width="1280" Height="800" MinWidth="800" MinHeight="500">
+
+  <Grid ColumnDefinitions="220,*">
+
+    <!-- Sidebar: one entry per admin area. Areas not built yet stay visible but disabled,
+         with the reason as a tooltip. -->
+    <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Margin="16,16,16,4" FontSize="18" FontWeight="SemiBold" Text="Tenantry" />
+        <TextBlock DockPanel.Dock="Top" Margin="16,0,16,12" Opacity="0.7" Text="{Binding TenantName}" />
+        <ListBox ItemsSource="{Binding Sections}" SelectedItem="{Binding SelectedSection}" Background="Transparent">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem" x:DataType="vm:NavSection">
+              <Setter Property="IsEnabled" Value="{Binding IsAvailable}" />
+              <Setter Property="ToolTip.Tip" Value="{Binding UnavailableReason}" />
+              <Setter Property="ToolTip.ShowOnDisabled" Value="True" />
+            </Style>
+          </ListBox.Styles>
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:NavSection">
+              <TextBlock Text="{Binding Title}" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <!-- Console-style tabs: list pages plus any number of open records side by side. -->
+    <TabControl Grid.Column="1" x:Name="Tabs" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}" Padding="0">
+      <TabControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:TabViewModel">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="14" />
+            <Button IsVisible="{Binding CanClose}" Content="✕" FontSize="10" Padding="4,1"
+                    Background="Transparent" VerticalAlignment="Center"
+                    ToolTip.Tip="Close"
+                    Command="{Binding #Tabs.((vm:MainViewModel)DataContext).CloseTabCommand}"
+                    CommandParameter="{Binding}" />
+          </StackPanel>
+        </DataTemplate>
+      </TabControl.ItemTemplate>
+      <TabControl.DataTemplates>
+        <DataTemplate DataType="vm:UserListViewModel">
+          <views:UserListView />
+        </DataTemplate>
+        <DataTemplate DataType="vm:UserDetailViewModel">
+          <views:UserDetailView />
+        </DataTemplate>
+      </TabControl.DataTemplates>
+    </TabControl>
+  </Grid>
+</Window>

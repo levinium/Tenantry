@@ -1,0 +1,23 @@
+#!/bin/sh
+# Leak guard: refuses the commit if any file in the index, by path or by content (binary files
+# included), contains a denylisted term. Scans the whole index, not just the diff, so a term
+# that slipped in before the denylist grew is caught on the next commit.
+. "$(dirname "$0")/denylist-lib.sh"
+
+patterns=$(load_patterns) || exit 1
+trap 'rm -f "$patterns"' EXIT
+[ -s "$patterns" ] || exit 0
+
+path_hits=$(git ls-files --cached | grep -i -F -f "$patterns")
+if [ -n "$path_hits" ]; then
+  printf '%s\n' "$path_hits" >&2
+  leak_fail "file paths above contain a denylisted term."
+fi
+
+content_hits=$(git grep --cached -n -i -F -f "$patterns")
+if [ -n "$content_hits" ]; then
+  printf '%s\n' "$content_hits" >&2
+  leak_fail "staged content above contains a denylisted term."
+fi
+
+exit 0
