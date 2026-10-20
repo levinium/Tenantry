@@ -23,8 +23,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # Build everything first: `dotnet test` only builds what the tests reference, which
+      # leaves out the Avalonia app and the spike tool.
+      - name: Build
+        run: dotnet build Tenantry.slnx -c Release
+
       - name: Test
-        run: dotnet test Tenantry.slnx -c Release --verbosity normal
+        run: dotnet test Tenantry.slnx -c Release --no-build --verbosity normal
 
   # Secrets scan over the whole history. The private-term denylist is deliberately NOT here:
   # its terms are the sensitive data, so it lives only on developer machines and is enforced

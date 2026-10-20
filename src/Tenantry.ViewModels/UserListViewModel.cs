@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Tenantry.Core.Capabilities;
 using Tenantry.Core.Directory;
 
 namespace Tenantry.ViewModels;
@@ -13,16 +14,25 @@ public sealed partial class UserListViewModel : TabViewModel
     // substring checks rather than re-joining and re-casing every field every time.
     (UserSummary User, string Haystack)[] _index = [];
 
-    public UserListViewModel(ITenantDirectory directory, Action<UserSummary> openUser)
+    public UserListViewModel(ITenantDirectory directory, Action<UserSummary> openUser, Availability? createUsers = null)
     {
         _directory = directory;
         _openUser = openUser;
+        CreateUsers = createUsers ?? Availability.Yes;
         FilterText = "";
         VisibleUsers = [];
     }
 
     public override string Title => "Users";
     public override bool CanClose => false;
+
+    /// <summary>Whether this admin may create users; the button shows the reason when not.</summary>
+    public Availability CreateUsers { get; }
+
+    public string CreateUsersTip => CreateUsers.IsAvailable ? "Creating users arrives with the change pipeline (Phase 6)" : CreateUsers.Reason!;
+
+    [ObservableProperty]
+    public partial bool IsLoading { get; private set; }
 
     [ObservableProperty]
     public partial string FilterText { get; set; }
@@ -42,10 +52,18 @@ public sealed partial class UserListViewModel : TabViewModel
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        var users = await _directory.GetUsersAsync(cancellationToken);
-        _index = users.Select(u => (u, BuildHaystack(u))).ToArray();
-        OnPropertyChanged(nameof(TotalCount));
-        ApplyFilter();
+        IsLoading = true;
+        try
+        {
+            var users = await _directory.GetUsersAsync(cancellationToken);
+            _index = users.Select(u => (u, BuildHaystack(u))).ToArray();
+            OnPropertyChanged(nameof(TotalCount));
+            ApplyFilter();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     partial void OnFilterTextChanged(string value) => ApplyFilter();

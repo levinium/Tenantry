@@ -20,6 +20,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Tenantry.ViewModels\Tenantry.ViewModels.csproj" />
     <ProjectReference Include="..\Tenantry.Demo\Tenantry.Demo.csproj" />
+    <ProjectReference Include="..\Tenantry.Auth\Tenantry.Auth.csproj" />
+    <ProjectReference Include="..\Tenantry.Graph\Tenantry.Graph.csproj" />
   </ItemGroup>
 
 </Project>

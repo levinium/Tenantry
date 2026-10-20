@@ -32,6 +32,22 @@ public sealed class TenantProfileStore(string path)
     public void Upsert(TenantProfile profile) =>
         Save(Load().Where(p => p.Id != profile.Id).Append(profile));
 
+    /// <summary>
+    /// Records a tenant that setup just connected: updates the existing profile for that
+    /// tenant (keeping its ID, and so its token cache) or creates one.
+    /// </summary>
+    public TenantProfile SaveSetup(string tenantId, string tenantName, string primaryDomain, string clientId, string? account, string? newProfileId = null)
+    {
+        var existing = Load().FirstOrDefault(p => string.Equals(p.TenantId, tenantId, StringComparison.OrdinalIgnoreCase));
+        var profile = existing is not null
+            ? existing with { ClientId = clientId, LastAccount = account ?? existing.LastAccount, PrimaryDomain = primaryDomain }
+            : new TenantProfile(newProfileId ?? NewId(), tenantName, tenantId, primaryDomain, clientId, DateTimeOffset.UtcNow, account);
+        Upsert(profile);
+        return profile;
+    }
+
+    public static string NewId() => Guid.NewGuid().ToString("N")[..12];
+
     public void Remove(string profileId) =>
         Save(Load().Where(p => p.Id != profileId));
 }

@@ -1,3 +1,4 @@
+using Tenantry.Tests.Fakes;
 using Tenantry.ViewModels;
 
 namespace Tenantry.Tests;
@@ -6,7 +7,7 @@ public class MainViewModelTests
 {
     static async Task<MainViewModel> Loaded()
     {
-        var vm = new MainViewModel(FakeDirectory.Standard());
+        var vm = new MainViewModel(FakeConnector.Tenant());
         await vm.InitializeAsync();
         return vm;
     }
@@ -66,7 +67,7 @@ public class MainViewModelTests
     [Fact]
     public void Unbuilt_sections_are_disabled_with_a_reason()
     {
-        var vm = new MainViewModel(FakeDirectory.Standard());
+        var vm = new MainViewModel(FakeConnector.Tenant());
 
         Assert.All(vm.Sections.Where(s => s.Key != "users"), s =>
         {

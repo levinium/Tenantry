@@ -1,0 +1,204 @@
+using System.Diagnostics;
+using Tenantry.Core.Capabilities;
+using Tenantry.Core.Permissions;
+using Tenantry.Tests.Fakes;
+using Tenantry.ViewModels;
+
+namespace Tenantry.Tests;
+
+public class ShellAndSetupTests
+{
+    [Fact]
+    public void Starts_on_the_welcome_screen_listing_saved_tenants()
+    {
+        var connector = new FakeConnector();
+        connector.Profiles.Add(FakeConnector.Profile());
+
+        var shell = new ShellViewModel(connector);
+
+        var welcome = Assert.IsType<WelcomeViewModel>(shell.CurrentPage);
+        Assert.True(welcome.HasProfiles);
+        Assert.Equal("Contoso", welcome.Profiles.Single().DisplayName);
+        Assert.Equal("Tenantry", shell.Title);
+    }
+
+    [Fact]
+    public async Task Opening_a_tenant_shows_it_and_switching_returns_to_welcome()
+    {
+        var connector = new FakeConnector();
+        connector.Profiles.Add(FakeConnector.Profile());
+        var shell = new ShellViewModel(connector);
+        var welcome = (WelcomeViewModel)shell.CurrentPage;
+
+        await welcome.ConnectCommand.ExecuteAsync(welcome.Profiles[0]);
+
+        var main = Assert.IsType<MainViewModel>(shell.CurrentPage);
+        Assert.Equal("Tenantry · Contoso", shell.Title);
+        Assert.Equal("admin@contoso.example", main.Account);
+
+        main.SwitchTenantCommand.Execute(null);
+        Assert.IsType<WelcomeViewModel>(shell.CurrentPage);
+    }
+
+    [Fact]
+    public async Task A_failed_sign_in_stays_on_welcome_with_a_readable_error()
+    {
+        var connector = new FakeConnector
+        {
+            OnConnect = (_, _) => throw new InvalidOperationException("AADSTS50105: The signed in user is not assigned to a role for the application."),
+        };
+        connector.Profiles.Add(FakeConnector.Profile());
+        var shell = new ShellViewModel(connector);
+        var welcome = (WelcomeViewModel)shell.CurrentPage;
+
+        await welcome.ConnectCommand.ExecuteAsync(welcome.Profiles[0]);
+
+        Assert.Same(welcome, shell.CurrentPage);
+        Assert.StartsWith("Your account isn't assigned to Tenantry", welcome.Error);
+        Assert.False(welcome.IsBusy);
+    }
+
+    [Fact]
+    public async Task Sign_in_can_be_cancelled()
+    {
+        var connector = new FakeConnector
+        {
+            OnConnect = async (_, ct) => { await Task.Delay(Timeout.Infinite, ct); throw new UnreachableException(); },
+        };
+        connector.Profiles.Add(FakeConnector.Profile());
+        var welcome = (WelcomeViewModel)new ShellViewModel(connector).CurrentPage;
+
+        var running = welcome.ConnectCommand.ExecuteAsync(welcome.Profiles[0]);
+        Assert.True(welcome.IsBusy);
+        welcome.CancelSignInCommand.Execute(null);
+        await running.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.Equal("Sign-in was cancelled.", welcome.Error);
+        Assert.False(welcome.IsBusy);
+    }
+
+    [Fact]
+    public async Task Automatic_setup_reports_progress_and_unresolved_permissions()
+    {
+        var connector = new FakeConnector
+        {
+            OnSetup = (progress, _) =>
+            {
+                progress.Report("Creating the Tenantry app registration");
+                return Task.FromResult(new SetupOutcome(FakeConnector.Profile(), false, ["Microsoft Graph: X.Read"]));
+            },
+        };
+        var wizard = new SetupWizardViewModel(connector, () => { }, () => { });
+
+        wizard.ChooseAutomaticCommand.Execute(null);
+        await wizard.RunAutomaticCommand.ExecuteAsync(null);
+
+        Assert.True(wizard.IsDone);
+        Assert.Contains("Creating the Tenantry app registration", wizard.Progress);
+        Assert.True(wizard.HasUnresolved);
+        Assert.Equal("Contoso is ready. The app registration was created.", wizard.DoneMessage);
+    }
+
+    [Theory]
+    [InlineData("", "", false)]
+    [InlineData("not-a-guid", "11111111-1111-1111-1111-111111111111", false)]
+    [InlineData(" 11111111-1111-1111-1111-111111111111 ", "22222222-2222-2222-2222-222222222222", true)]
+    public void Manual_verify_needs_two_ids(string tenant, string client, bool enabled)
+    {
+        var wizard = new SetupWizardViewModel(new FakeConnector(), () => { }, () => { })
+        {
+            TenantIdInput = tenant,
+            ClientIdInput = client,
+        };
+
+        Assert.Equal(enabled, wizard.VerifyManualCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Manual_verify_passes_trimmed_ids()
+    {
+        (string, string)? seen = null;
+        var connector = new FakeConnector
+        {
+            OnManual = (t, c, _) => { seen = (t, c); return Task.FromResult(FakeConnector.Profile()); },
+        };
+        var wizard = new SetupWizardViewModel(connector, () => { }, () => { })
+        {
+            TenantIdInput = " 11111111-1111-1111-1111-111111111111",
+            ClientIdInput = "22222222-2222-2222-2222-222222222222 ",
+        };
+
+        await wizard.VerifyManualCommand.ExecuteAsync(null);
+
+        Assert.Equal(("11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"), seen);
+        Assert.True(wizard.IsDone);
+    }
+
+    [Fact]
+    public void Missing_roles_and_licenses_gate_features_with_reasons()
+    {
+        var main = new MainViewModel(FakeConnector.Tenant(roles: [DirectoryRoles.HelpdeskAdministrator]));
+
+        Assert.True(main.Sections.Single(s => s.Key == "users").IsAvailable);
+        Assert.False(main.Users.CreateUsers.IsAvailable);
+        Assert.Equal("Requires the User Administrator role", main.Users.CreateUsersTip);
+        var signIns = main.Access.Single(a => a.Title == Capabilities.ReadSignInLogs.Title);
+        Assert.StartsWith("Requires one of these roles", signIns.State);
+        Assert.Equal("Available", main.Access.Single(a => a.Title == Capabilities.ResetPasswords.Title).State);
+    }
+
+    [Fact]
+    public void Manual_script_requests_every_permission_in_the_catalogue()
+    {
+        var script = ManualSetupScript.Generate();
+
+        foreach (var api in TenantryPermissions.All)
+        {
+            Assert.Contains($"'{api.ResourceAppId}'", script);
+            Assert.All(api.DelegatedScopes, s => Assert.Contains($"'{s}'", script));
+        }
+        Assert.Contains("AppRoleAssignmentRequired", script);
+    }
+
+    // The script is handed to admins to run, so it must at least parse. Checked with the real
+    // PowerShell parser whenever pwsh is installed (developer machines and CI runners).
+    [Fact]
+    public async Task Manual_script_parses_in_powershell()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"tenantry-setup-{Guid.NewGuid():N}.ps1");
+        await File.WriteAllTextAsync(file, ManualSetupScript.Generate(), TestContext.Current.CancellationToken);
+        try
+        {
+            // The path goes inside the command text: with -Command, trailing arguments are
+            // appended to the command rather than passed as $args.
+            var quoted = "'" + file.Replace("'", "''") + "'";
+            var command = $"$e=$null; [void][System.Management.Automation.Language.Parser]::ParseFile({quoted},[ref]$null,[ref]$e); " +
+                          "if ($e) { $e | ForEach-Object { Write-Output ($_.Extent.StartLineNumber.ToString() + ': ' + $_.Message) }; exit 1 }; exit 0";
+            var start = new ProcessStartInfo("pwsh", ["-NoProfile", "-NonInteractive", "-Command", command])
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            Process? process;
+            try
+            {
+                process = Process.Start(start);
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                Assert.Skip("pwsh is not installed");
+                return;
+            }
+            using (process)
+            {
+                var output = await process!.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+                await process.WaitForExitAsync(TestContext.Current.CancellationToken);
+                Assert.True(process.ExitCode == 0, $"Parse errors:\n{output}");
+            }
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+}

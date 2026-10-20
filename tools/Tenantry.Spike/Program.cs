@@ -47,13 +47,7 @@ async Task<int> Setup()
     var graph = new GraphClient(new HttpClient(), tokens, TenantryPermissions.BootstrapScopes);
     var result = await new AppRegistrationProvisioner(graph).ProvisionAsync(new Progress<string>(p => Console.WriteLine($"  {p}")));
 
-    var profile = new TenantProfile(Guid.NewGuid().ToString("N")[..12], result.TenantName, result.TenantId,
-        result.PrimaryDomain, result.ClientId, DateTimeOffset.UtcNow, tokens.Account);
-    var store = new TenantProfileStore();
-    var existing = store.Load().FirstOrDefault(p => p.TenantId == result.TenantId);
-    if (existing is not null)
-        profile = existing with { ClientId = result.ClientId, LastAccount = tokens.Account };
-    store.Upsert(profile);
+    var profile = new TenantProfileStore().SaveSetup(result.TenantId, result.TenantName, result.PrimaryDomain, result.ClientId, tokens.Account);
 
     Console.WriteLine();
     Console.WriteLine($"App registration: {(result.Reused ? "updated existing" : "created")}");
