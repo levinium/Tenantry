@@ -11,9 +11,9 @@
 
       <!-- Header: who we are on the left, the one main action on the right -->
       <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
-        <Border Width="40" Height="40" CornerRadius="10" Background="{DynamicResource AccentFill}" VerticalAlignment="Center">
-          <ic:FluentIcon Icon="ShieldCheckmark" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
-        </Border>
+        <Image Source="/Assets/tenantry-256.png" Width="44" Height="44" VerticalAlignment="Center"
+               RenderOptions.BitmapInterpolationMode="HighQuality" />
+
         <StackPanel Grid.Column="1" VerticalAlignment="Center">
           <TextBlock Classes="h2" Text="Tenantry" />
           <TextBlock Classes="caption" Text="Microsoft 365 administration" />
