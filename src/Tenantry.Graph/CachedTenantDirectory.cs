@@ -41,6 +41,16 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             AutoReplyState? reply = Str(d.RootElement, "autoReply") is { } r && Enum.TryParse<AutoReplyState>(r, out var state) ? state : null;
             details[id] = (used, reply);
         }
+        // Email apps (Get-CASMailbox), with the organization's SMTP-sending default.
+        var apps = new Dictionary<string, EmailApps>(StringComparer.Ordinal);
+        var cas = store.All(DirectorySync.CasMailboxes).Select(j => JsonDocument.Parse(j)).ToArray();
+        var orgSmtpOn = !cas.Any(d => Str(d.RootElement, "id") == DirectorySync.OrgSettingsId && Bool(d.RootElement, "smtpClientAuthenticationDisabled"));
+        foreach (var d in cas)
+        {
+            if (Str(d.RootElement, "ExternalDirectoryObjectId") is { } owner)
+                apps[owner] = ToEmailApps(d.RootElement, orgSmtpOn);
+            d.Dispose();
+        }
         var mailboxes = new Dictionary<string, MailboxInfo>(StringComparer.Ordinal);
         foreach (var json in store.All(DirectorySync.Mailboxes))
         {
@@ -48,7 +58,9 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             if (Str(mailbox.RootElement, "ExternalDirectoryObjectId") is not { } owner)
                 continue;
             var info = ToMailbox(mailbox.RootElement, domains);
-            mailboxes[owner] = details.TryGetValue(owner, out var extra) ? info with { UsedBytes = extra.Used, AutoReply = extra.Reply } : info;
+            if (details.TryGetValue(owner, out var extra))
+                info = info with { UsedBytes = extra.Used, AutoReply = extra.Reply };
+            mailboxes[owner] = apps.TryGetValue(owner, out var a) ? info with { Apps = a } : info;
         }
 
         var stored = store.All(DirectorySync.Users);
@@ -262,6 +274,16 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             ArchiveEnabled: string.Equals(Str(m, "ArchiveStatus"), "Active", StringComparison.OrdinalIgnoreCase),
             HiddenFromAddressList: Bool(m, "HiddenFromAddressListsEnabled"),
             QuotaBytes: MailDetails.ParseBytes(Str(m, "ProhibitSendReceiveQuota")));
+    }
+
+    /// <summary>A Get-CASMailbox row as <see cref="EmailApps"/>; SMTP sending left unset follows the organization.</summary>
+    internal static EmailApps ToEmailApps(JsonElement c, bool orgSmtpOn)
+    {
+        bool On(string name) => !c.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.False;
+        bool? smtp = c.TryGetProperty("SmtpClientAuthenticationDisabled", out var s) && s.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? s.ValueKind == JsonValueKind.False
+            : null;
+        return new EmailApps(On("OWAEnabled"), On("MAPIEnabled"), On("ActiveSyncEnabled"), On("PopEnabled"), On("ImapEnabled"), On("EwsEnabled"), smtp, orgSmtpOn);
     }
 
     static bool IsInternal(string address, IReadOnlySet<string> domains)

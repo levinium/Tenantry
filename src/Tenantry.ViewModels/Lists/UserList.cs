@@ -36,6 +36,10 @@ public static class UserList
         View("nearly-full", "Mailbox nearly full", Is(F.Storage, F.NearlyFull)),
         View("auto-reply", "Automatic reply on", new ChoiceCondition(F.AutoReply, [F.On, F.Scheduled], [])),
         View("hidden", "Hidden from the address list", Is(F.AddressList, F.Hidden)),
+        // Older ways in that often sign in without multi-factor sign-in: worth reviewing.
+        View("pop-imap", "POP or IMAP on", new ChoiceCondition(F.EmailAppsOn, ["POP", "IMAP"], [])),
+        View("hold", "Litigation hold on", Is(F.LitigationHold, F.On)),
+        View("archive", "Archive on", Is(F.Archive, F.On)),
         View("licensed-shared", "Licensed shared mailboxes", Is(F.Mailbox, F.SharedMailbox), IsNot(F.Licenses, F.Unlicensed)),
     ];
 

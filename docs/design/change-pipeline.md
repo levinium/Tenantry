@@ -79,6 +79,27 @@ Records serialise as-is into the change log.
 - Send on behalf needs a mail recipient. Exchange refuses it for an account with no mailbox, and
   Tenantry says so in plain words.
 
+### Mailbox settings (4b-2)
+
+| Change | Sent as | Read back | Caution |
+|---|---|---|---|
+| Recipients per message, largest message sent or received | `Set-Mailbox -RecipientLimits / -MaxSendSize / -MaxReceiveSize` ("25 MB") | the property; Exchange appends the bytes, so a prefix match counts | no |
+| Only senders inside the organization | `Set-Mailbox -RequireSenderAuthenticationEnabled` | the property | when turned on |
+| Allowed senders | `Set-Mailbox -AcceptMessagesOnlyFromSendersOrMembers @{Add/Remove=…}` | the list contains (or not) the sender | when removing |
+| Email apps (OWA, Outlook, mobile, EWS, POP, IMAP, SMTP sending) | `Set-CASMailbox -<App>Enabled`; SMTP is `-SmtpClientAuthenticationDisabled`, inverted | `Get-CASMailbox` into the local copy | when turned off |
+| Online archive | `Enable-Mailbox -Archive` / `Disable-Mailbox -Archive` | `ArchiveStatus` | when turned off (contents go after 30 days) |
+| Auto-expanding archive | `Enable-Mailbox -AutoExpandingArchive` | `AutoExpandingArchiveEnabled` | always (it can't be undone) |
+| Litigation hold | `Set-Mailbox -LitigationHoldEnabled -LitigationHoldDuration <days or Unlimited> -RetentionComment` | `LitigationHoldEnabled` | always |
+| Retention policy | `Set-Mailbox -RetentionPolicy` | the property | no |
+
+- The Mail tab reads these live: `Get-Mailbox` with the extra properties, `Get-CASMailbox`,
+  `Get-TransportConfig` (the organization's SMTP default, used when a mailbox doesn't set its own),
+  `Get-RetentionPolicy` names, and `Get-MailboxStatistics -Archive` only when an archive exists
+  (it errors otherwise).
+- Litigation hold needs Exchange Online Plan 2 or the Exchange Online Archiving add-on. Exchange
+  refuses it on other plans with a clear message, which Tenantry shows as is.
+- Auto-expanding archiving was not tested live, because it can't be turned off again.
+
 ## Write guard and Test mode
 
 - **What it allows:** while a tenant is in Test mode, only objects whose **address** starts with

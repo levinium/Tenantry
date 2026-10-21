@@ -114,7 +114,9 @@ public sealed class DemoTenantDirectory : ITenantDirectory
             {
                 Mailbox = new MailboxInfo(type, u.Mail, random.Bool(0.3f) ? [$"{alias[0]}{alias[(alias.IndexOf('.') + 1)..]}@{Domain}"] : [],
                     forwarding, to, forwarding != ForwardingKind.None && random.Bool(), random.Bool(0.1f), random.Bool(0.3f), type == "Shared" && random.Bool(),
-                    used, quota, reply),
+                    used, quota, reply,
+                    // Most have every app on; a few still allow POP or IMAP (worth a review).
+                    new EmailApps(true, true, true, random.Bool(0.08f), random.Bool(0.12f), true, null, false)),
             };
         }).ToArray();
     }

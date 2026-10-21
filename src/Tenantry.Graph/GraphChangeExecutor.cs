@@ -64,6 +64,12 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
         SetHiddenFromAddressList h => await SetMailboxAsync(h.User, new() { ["HiddenFromAddressListsEnabled"] = h.New },
             row => row.TryGetPropertyValue("HiddenFromAddressListsEnabled", out var v) && v?.GetValueKind() == JsonValueKind.True == h.New, cancellationToken),
         SetAutoReply r => await SetAutoReplyAsync(r, cancellationToken),
+        SetMailboxValue v => await SetMailboxValueAsync(v, cancellationToken),
+        SetEmailApp a => await SetEmailAppAsync(a, cancellationToken),
+        SetArchive a => await SetArchiveAsync(a, cancellationToken),
+        EnableAutoExpandingArchive a => await EnableAutoExpandingAsync(a, cancellationToken),
+        SetLitigationHold h => await SetLitigationHoldAsync(h, cancellationToken),
+        SetAllowedSender s => await SetAllowedSenderAsync(s, cancellationToken),
         _ =>new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 
@@ -334,7 +340,19 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
     /// Set-Mailbox with the given parameters, then reads the mailbox back (the list's properties)
     /// into the local copy until <paramref name="done"/> holds.
     /// </summary>
-    async Task<ApplyResult> SetMailboxAsync(ChangeTarget user, Dictionary<string, object?> parameters, Func<JsonObject, bool> done, CancellationToken cancellationToken)
+    async Task<ApplyResult> SetMailboxAsync(ChangeTarget user, Dictionary<string, object?> parameters, Func<JsonObject, bool> done, CancellationToken cancellationToken,
+        IReadOnlyList<string>? alsoRead = null) =>
+        await RunAndReadBackAsync(user, "Set-Mailbox", parameters, "Get-Mailbox", [.. DirectorySync.MailboxSelect, .. alsoRead ?? []],
+            DirectorySync.Mailboxes, done, cancellationToken);
+
+    /// <summary>
+    /// Runs an Exchange cmdlet against a mailbox, then reads the mailbox back with
+    /// <paramref name="readCmdlet"/> (storing the row under <paramref name="storeKind"/>, when
+    /// given, so lists follow) until <paramref name="done"/> holds; Exchange can take a few
+    /// seconds to show a change.
+    /// </summary>
+    async Task<ApplyResult> RunAndReadBackAsync(ChangeTarget user, string cmdlet, Dictionary<string, object?> parameters, string readCmdlet,
+        IReadOnlyList<string> select, string? storeKind, Func<JsonObject, bool> done, CancellationToken cancellationToken)
     {
         if (exchange is null)
             return NoExchange;
@@ -342,7 +360,7 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
         parameters["Identity"] = identity;
         try
         {
-            await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Set-Mailbox", parameters, cancellationToken);
+            await exchange.InvokeAsync(CmdletEndpoint.Exchange, cmdlet, parameters, cancellationToken);
         }
         catch (CmdletException e)
         {
@@ -353,17 +371,81 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
         {
             if (wait > TimeSpan.Zero)
                 await _delay(wait, cancellationToken);
-            var rows = await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-Mailbox",
-                new Dictionary<string, object?> { ["Identity"] = identity }, cancellationToken, DirectorySync.MailboxSelect);
+            var rows = await exchange.InvokeAsync(CmdletEndpoint.Exchange, readCmdlet,
+                new Dictionary<string, object?> { ["Identity"] = identity }, cancellationToken, select);
             if (rows.Count == 0)
                 continue;
             var row = JsonNode.Parse(rows[0].GetRawText())!.AsObject();
-            store.Apply(DirectorySync.Mailboxes, [new EntityChange(user.Id, row, OnlyIfExists: true)]);
+            if (storeKind is not null)
+                store.Apply(storeKind, [new EntityChange(user.Id, row, OnlyIfExists: true)]);
             if (done(row))
                 return new ApplyResult(ChangeOutcome.Applied);
         }
         return new ApplyResult(ChangeOutcome.AppliedNotYetVisible,
             "Exchange accepted the change but still shows the old setting; it usually appears within a minute.");
+    }
+
+    // ---- Mailbox settings (4b-2) ----------------------------------------------------------------
+
+    /// <summary>
+    /// Whether what Exchange shows is what was sent: booleans as booleans; anything else as text,
+    /// where Exchange may add detail after it ("35 MB" comes back as "35 MB (36,700,160 bytes)").
+    /// </summary>
+    static bool Shows(JsonNode? actual, JsonNode? wanted)
+    {
+        if (wanted is null)
+            return actual is null || actual.GetValueKind() == JsonValueKind.Null || (actual.GetValueKind() == JsonValueKind.String && actual.GetValue<string>().Length == 0);
+        if (wanted.GetValueKind() is JsonValueKind.True or JsonValueKind.False)
+            return actual is not null && actual.GetValueKind() == wanted.GetValueKind();
+        var want = wanted.GetValueKind() == JsonValueKind.String ? wanted.GetValue<string>() : wanted.ToJsonString();
+        var have = actual is null ? "" : actual.GetValueKind() == JsonValueKind.String ? actual.GetValue<string>() : actual.ToJsonString();
+        return have.StartsWith(want, StringComparison.OrdinalIgnoreCase);
+    }
+
+    Task<ApplyResult> SetMailboxValueAsync(SetMailboxValue change, CancellationToken cancellationToken) =>
+        SetMailboxAsync(change.User, new() { [change.Parameter] = change.Value?.DeepClone() }, row => Shows(row[change.Parameter], change.Value),
+            cancellationToken, [change.Parameter]);
+
+    /// <summary>Set-CASMailbox; SMTP sending's parameter says "disabled", so its value is inverted.</summary>
+    Task<ApplyResult> SetEmailAppAsync(SetEmailApp change, CancellationToken cancellationToken)
+    {
+        var value = change.Parameter == "SmtpClientAuthenticationDisabled" ? !change.New : change.New;
+        return RunAndReadBackAsync(change.User, "Set-CASMailbox", new() { [change.Parameter] = value }, "Get-CASMailbox",
+            ["ExternalDirectoryObjectId", change.Parameter], DirectorySync.CasMailboxes,
+            row => row[change.Parameter]?.GetValueKind() == (value ? JsonValueKind.True : JsonValueKind.False), cancellationToken);
+    }
+
+    Task<ApplyResult> SetArchiveAsync(SetArchive change, CancellationToken cancellationToken)
+    {
+        Dictionary<string, object?> parameters = change.New ? new() { ["Archive"] = true } : new() { ["Archive"] = true, ["Confirm"] = false };
+        return RunAndReadBackAsync(change.User, change.New ? "Enable-Mailbox" : "Disable-Mailbox", parameters, "Get-Mailbox",
+            [.. DirectorySync.MailboxSelect], DirectorySync.Mailboxes,
+            row => string.Equals(Text(row, "ArchiveStatus"), "Active", StringComparison.OrdinalIgnoreCase) == change.New, cancellationToken);
+    }
+
+    Task<ApplyResult> EnableAutoExpandingAsync(EnableAutoExpandingArchive change, CancellationToken cancellationToken) =>
+        RunAndReadBackAsync(change.User, "Enable-Mailbox", new() { ["AutoExpandingArchive"] = true }, "Get-Mailbox",
+            ["AutoExpandingArchiveEnabled"], null, row => row["AutoExpandingArchiveEnabled"]?.GetValueKind() == JsonValueKind.True, cancellationToken);
+
+    Task<ApplyResult> SetLitigationHoldAsync(SetLitigationHold change, CancellationToken cancellationToken)
+    {
+        var parameters = new Dictionary<string, object?> { ["LitigationHoldEnabled"] = change.NewOn };
+        if (change.NewOn)
+        {
+            parameters["LitigationHoldDuration"] = change.NewDays is { } days ? days.ToString(System.Globalization.CultureInfo.InvariantCulture) : "Unlimited";
+            parameters["RetentionComment"] = change.NewNote ?? "";
+        }
+        return SetMailboxAsync(change.User, parameters,
+            row => row["LitigationHoldEnabled"]?.GetValueKind() == (change.NewOn ? JsonValueKind.True : JsonValueKind.False), cancellationToken,
+            ["LitigationHoldDuration", "RetentionComment"]);
+    }
+
+    Task<ApplyResult> SetAllowedSenderAsync(SetAllowedSender change, CancellationToken cancellationToken)
+    {
+        var sender = change.Sender.Address ?? change.Sender.Name;
+        return SetMailboxAsync(change.User, new() { ["AcceptMessagesOnlyFromSendersOrMembers"] = AddOrRemove(change.New, sender) },
+            row => (row["AcceptMessagesOnlyFromSendersOrMembers"] is JsonArray list && list.Any(s => Names(s?.GetValue<string>(), change.Sender))) == change.New,
+            cancellationToken, ["AcceptMessagesOnlyFromSendersOrMembers"]);
     }
 
     /// <summary>

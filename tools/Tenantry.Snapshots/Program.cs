@@ -274,6 +274,13 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "user-mail-light", height: 1400);
         editing.Pending.DiscardAllCommand.Execute(null);
 
+        // Mail settings, the whole tab: limits changed, POP being turned off.
+        page.MailTab.MaxSendDraft = "25";
+        page.MailTab.StageLimitsCommand.Execute(null);
+        page.MailTab.AppRows.Single(r => r.Name == "POP").IsOn = !page.MailTab.AppRows.Single(r => r.Name == "POP").IsOn;
+        Render(editing, "user-mail-settings-light", height: 3000);
+        editing.Pending.DiscardAllCommand.Execute(null);
+
         // Groups & access: their groups (one membership being removed), a group being searched for.
         editing.Groups.LoadAsync().GetAwaiter().GetResult();
         page.Update(page.User);

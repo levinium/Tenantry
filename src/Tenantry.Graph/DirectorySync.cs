@@ -30,6 +30,9 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
     /// <summary>Each mailbox's size and automatic-reply state (one Exchange read per mailbox for each).</summary>
     public const string MailboxDetails = "mailboxdetails";
 
+    /// <summary>Each mailbox's email apps (Get-CASMailbox), and the organization's SMTP-sending default.</summary>
+    public const string CasMailboxes = "casmailbox";
+
     public const string Users = "user";
     public const string Groups = "group";
     public const string Skus = "sku";
@@ -342,14 +345,56 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         return changed;
     }
 
+    /// <summary>The Get-CASMailbox properties the lists use: each email app on or off.</summary>
+    internal static readonly string[] CasSelect =
+        ["ExternalDirectoryObjectId", "OWAEnabled", "MAPIEnabled", "ActiveSyncEnabled", "EwsEnabled", "PopEnabled", "ImapEnabled", "SmtpClientAuthenticationDisabled"];
+
+    /// <summary>
+    /// Every mailbox's email apps in one call (measured live: about 4 s for 600 mailboxes), plus
+    /// the organization's SMTP-sending default, which a mailbox follows unless set on its own.
+    /// </summary>
+    async Task<int> SyncCasMailboxesAsync(List<string> notes, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var transport = exchange!.InvokeAsync(CmdletEndpoint.Exchange, "Get-TransportConfig", null, cancellationToken, ["SmtpClientAuthenticationDisabled"]);
+            var rows = await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-CASMailbox",
+                new Dictionary<string, object?> { ["ResultSize"] = "Unlimited" }, cancellationToken, CasSelect);
+            var changes = new List<EntityChange>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var row in rows)
+            {
+                if (!row.TryGetProperty("ExternalDirectoryObjectId", out var owner) || owner.GetString() is not { Length: > 0 } id)
+                    continue;
+                seen.Add(id);
+                changes.Add(new EntityChange(id, ToObject(row)));
+            }
+            var org = (await transport).FirstOrDefault();
+            var orgSmtpOff = org.ValueKind == JsonValueKind.Object && org.TryGetProperty("SmtpClientAuthenticationDisabled", out var d) && d.ValueKind == JsonValueKind.True;
+            changes.Add(new EntityChange(OrgSettingsId, new JsonObject { ["id"] = OrgSettingsId, ["smtpClientAuthenticationDisabled"] = orgSmtpOff }));
+            seen.Add(OrgSettingsId);
+            return store.Apply(CasMailboxes, changes) + store.RemoveExcept(CasMailboxes, seen);
+        }
+        catch (CmdletException e)
+        {
+            notes.Add($"Email app settings weren't read: {e.Explanation}");
+            return 0;
+        }
+    }
+
+    /// <summary>The row under <see cref="CasMailboxes"/> holding the organization's defaults.</summary>
+    public const string OrgSettingsId = "_organization";
     async Task<int> SyncMailboxesAsync(List<string> notes, IProgress<string>? progress, CancellationToken cancellationToken)
     {
         var changed = 0;
         try
         {
             progress?.Report("Reading mailboxes…");
+            // Email apps (Get-CASMailbox) for everyone take a few seconds; read alongside.
+            var casWork = SyncCasMailboxesAsync(notes, cancellationToken);
             var rows = await exchange!.InvokeAsync(CmdletEndpoint.Exchange, "Get-Mailbox",
                 new Dictionary<string, object?> { ["ResultSize"] = "Unlimited" }, cancellationToken, MailboxSelect);
+            changed += await casWork;
             var changes = new List<EntityChange>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var shared = new List<(string Id, string Address)>();
@@ -364,7 +409,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
                     && row.TryGetProperty("PrimarySmtpAddress", out var address) && address.GetString() is { Length: > 0 } a)
                     shared.Add((id, a));
             }
-            changed = store.Apply(Mailboxes, changes) + store.RemoveExcept(Mailboxes, seen);
+            changed += store.Apply(Mailboxes, changes) + store.RemoveExcept(Mailboxes, seen);
             changed += await SyncMailboxAccessAsync(shared, notes, progress, cancellationToken);
         }
         catch (CmdletException e)

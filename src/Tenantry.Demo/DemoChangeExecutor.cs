@@ -61,10 +61,55 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
                 records?.RememberAutoReply(r.User.Id, r.New);
                 directory.Update(r.User.Id, u => u.Mailbox is { } m ? u with { Mailbox = m with { AutoReply = r.New.State } } : u);
             }),
+            SetMailboxValue v => await SettingsAsync(v.User.Id, s => v.Parameter switch
+            {
+                "RecipientLimits" => s with { RecipientLimit = v.New },
+                "MaxSendSize" => s with { MaxSendBytes = MailDetails.ParseBytes(v.New) },
+                "MaxReceiveSize" => s with { MaxReceiveBytes = MailDetails.ParseBytes(v.New) },
+                "RequireSenderAuthenticationEnabled" => s with { OnlyInternalSenders = v.Value?.GetValue<bool>() == true },
+                "RetentionPolicy" => s with { RetentionPolicy = v.New },
+                _ => s,
+            }, cancellationToken),
+            SetEmailApp a => await SettingsAsync(a.User.Id, s => s with { Apps = Switch(s.Apps, a.Parameter, a.New) }, cancellationToken,
+                m => m with { Apps = Switch(m.Apps ?? new EmailApps(true, true, true, false, false, true, null, false), a.Parameter, a.New) }),
+            SetArchive a => await SettingsAsync(a.User.Id, s => s with { ArchiveOn = a.New, AutoExpandingArchive = a.New && s.AutoExpandingArchive, ArchiveUsedBytes = a.New ? 0 : null },
+                cancellationToken, m => m with { ArchiveEnabled = a.New }),
+            EnableAutoExpandingArchive a => await SettingsAsync(a.User.Id, s => s with { AutoExpandingArchive = true }, cancellationToken),
+            SetLitigationHold h => await SettingsAsync(h.User.Id, s => h.NewOn
+                    ? s with { HoldOn = true, HoldDays = h.NewDays, HoldNote = h.NewNote, HoldSince = s.HoldOn ? s.HoldSince : DateTimeOffset.UtcNow, HoldBy = s.HoldBy ?? "you" }
+                    : s with { HoldOn = false, HoldSince = null, HoldBy = null },
+                cancellationToken, m => m with { LitigationHold = h.NewOn }),
+            SetAllowedSender a => await SettingsAsync(a.User.Id, s => s with
+            {
+                AllowedSenders = a.New ? s.AllowedSenders.Append(a.Sender.Name).Distinct().ToArray()
+                    : s.AllowedSenders.Where(x => !string.Equals(x, a.Sender.Name, StringComparison.OrdinalIgnoreCase)).ToArray(),
+            }, cancellationToken),
             _ => null,
         };
         return result ?? new ApplyResult(ChangeOutcome.Failed, $"The demo can't apply \"{change.Label}\" changes.");
     }
+
+    /// <summary>Changes the Mail tab's settings and, when given, the list's copy of the mailbox.</summary>
+    async Task<ApplyResult?> SettingsAsync(string userId, Func<MailboxSettings, MailboxSettings> change, CancellationToken cancellationToken,
+        Func<MailboxInfo, MailboxInfo>? listed = null)
+    {
+        var user = (await directory.GetUsersAsync(cancellationToken)).FirstOrDefault(u => u.Id == userId);
+        if (records is null || user?.Mailbox is not { } mailbox)
+            return null;
+        records.RememberSettings(userId, mailbox, change);
+        return listed is null ? new ApplyResult(ChangeOutcome.Applied) : Mailbox(userId, listed);
+    }
+
+    static EmailApps Switch(EmailApps apps, string parameter, bool on) => parameter switch
+    {
+        "OWAEnabled" => apps with { Owa = on },
+        "MAPIEnabled" => apps with { Outlook = on },
+        "ActiveSyncEnabled" => apps with { Mobile = on },
+        "EwsEnabled" => apps with { Ews = on },
+        "PopEnabled" => apps with { Pop = on },
+        "ImapEnabled" => apps with { Imap = on },
+        _ => apps with { SmtpSend = on },
+    };
 
     ApplyResult? Mailbox(string userId, Func<MailboxInfo, MailboxInfo> change) =>
         Done(directory.Update(userId, u => u.Mailbox is { } m ? u with { Mailbox = change(m) } : u));

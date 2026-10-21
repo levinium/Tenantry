@@ -56,6 +56,37 @@ public sealed class DemoUserRecords(DemoTenantDirectory directory) : IUserRecord
     /// <summary>Automatic replies set through the demo's change executor.</summary>
     public void RememberAutoReply(string userId, AutoReply reply) => _autoReplies[userId] = reply;
 
+    readonly Dictionary<string, MailboxSettings> _settings = new(StringComparer.Ordinal);
+
+    /// <summary>A settings change made through the demo's change executor.</summary>
+    public void RememberSettings(string userId, MailboxInfo mailbox, Func<MailboxSettings, MailboxSettings> change) =>
+        _settings[userId] = change(SettingsFor(userId, mailbox));
+
+    /// <summary>Settings from the person's stable seed, matching what the list shows (hold, archive, apps).</summary>
+    MailboxSettings SettingsFor(string userId, MailboxInfo mailbox)
+    {
+        if (_settings.TryGetValue(userId, out var known))
+            return known;
+        var random = new Random(StableSeed(userId) + 2);
+        return _settings[userId] = new MailboxSettings(
+            RecipientLimit: "500",
+            MaxSendBytes: 35 * 1024 * 1024,
+            MaxReceiveBytes: 36 * 1024 * 1024,
+            OnlyInternalSenders: mailbox.Type == "Shared" && random.NextDouble() < 0.5,
+            AllowedSenders: [],
+            Apps: mailbox.Apps ?? new EmailApps(true, true, true, false, false, true, null, false),
+            ArchiveOn: mailbox.ArchiveEnabled,
+            AutoExpandingArchive: mailbox.ArchiveEnabled && random.NextDouble() < 0.3,
+            ArchiveUsedBytes: mailbox.ArchiveEnabled ? (long)(random.NextDouble() * 20e9) : null,
+            HoldOn: mailbox.LitigationHold,
+            HoldDays: mailbox.LitigationHold && random.NextDouble() < 0.5 ? 2555 : null,
+            HoldNote: mailbox.LitigationHold ? "Records retention review" : null,
+            HoldSince: mailbox.LitigationHold ? DateTimeOffset.UtcNow.AddDays(-random.Next(30, 900)) : null,
+            HoldBy: mailbox.LitigationHold ? "admin@" + DemoTenantDirectory.Domain : null,
+            RetentionPolicy: "Default MRM Policy",
+            RetentionPolicies: ["Default MRM Policy", "Keep 7 years", "Delete after 1 year"]);
+    }
+
     /// <summary>
     /// Mail settings from the generated mailbox, plus storage that looks lived-in: most mailboxes
     /// are a few GB into 50 GB, about one in ten is nearly full. One in eight has a reply on.
@@ -73,7 +104,10 @@ public sealed class DemoUserRecords(DemoTenantDirectory directory) : IUserRecord
                 : AutoReply.Off;
         return new MailDetails(mailbox.PrimaryAddress ?? address, mailbox.Aliases, mailbox.ForwardingTo, false, mailbox.KeepsCopyWhenForwarding,
             mailbox.HiddenFromAddressList, reply, used, quota, (long)(quota * 0.98), 1_000 + random.Next(60_000),
-            [DemoTenantDirectory.Domain, "northgate.onmicrosoft.example"]);
+            [DemoTenantDirectory.Domain, "northgate.onmicrosoft.example"])
+        {
+            Settings = SettingsFor(userId, mailbox),
+        };
     }
 
     /// <summary>A manager set (or cleared, with null) through the demo's change executor.</summary>

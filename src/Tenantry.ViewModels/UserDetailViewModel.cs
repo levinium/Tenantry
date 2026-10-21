@@ -155,7 +155,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         new AccountSection(User, _records, _pipeline, _canEdit, _index),
         new LicensesSection(User, _records, _pipeline, _canEdit),
         new GroupsAccessSection(User, _index, _pipeline, _canEdit, _records, _openGroup, _openUser),
-        new MailSection(User, _records, _pipeline, _canEdit),
+        new MailSection(User, _records, _pipeline, _canEdit, _index),
         new PlannedSection("onedrive", "OneDrive", "Cloud", "update 4d",
             ["Storage used against the quota", "Open their OneDrive", "Give someone (a manager) access"]),
         new PlannedSection("security", "Security & sign-in", "ShieldLock", "update 4c",

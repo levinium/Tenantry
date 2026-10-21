@@ -26,6 +26,7 @@ public static class UserFields
     public const string AutoReply = "autoreply";
     public const string StorageUsed = "storage";
     public const string Storage = "storagestate";
+    public const string EmailAppsOn = "emailapps";
 
     public const string Active = "Active";
     public const string Blocked = "Blocked";
@@ -153,6 +154,12 @@ public static class UserFields
         {
             Key = StorageUsed, Label = "Storage used (%)", Kind = FieldKind.Number, Aliases = ["used", "storageused"],
             Number = u => u.Mailbox?.UsedPercent is { } p ? Math.Round(p) : null,
+        },
+        new()
+        {
+            Key = EmailAppsOn, Label = "Email apps on", Kind = FieldKind.MultiChoice, Aliases = ["apps", "protocols", "pop", "imap"],
+            EmptyLabel = "None", ChoiceOrder = EmailApps.All.Select(a => a.Name).ToArray(),
+            Values = u => u.Mailbox?.Apps is { } apps ? EmailApps.All.Where(a => apps.IsOn(a.Parameter)).Select(a => a.Name).ToArray() : [],
         },
     ];
 }

@@ -4,6 +4,7 @@
              xmlns:dir="using:Tenantry.Core.Directory"
              xmlns:conv="using:Tenantry.App.Converters"
              xmlns:c="using:Tenantry.App.Controls"
+             xmlns:views="using:Tenantry.App.Views"
              xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.MailSectionView"
              x:DataType="rec:MailSection"
@@ -172,8 +173,167 @@
         </StackPanel>
       </Border>
 
+      <!-- Settings (4b-2) -->
+      <StackPanel Spacing="12" IsVisible="{Binding HasSettings}">
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+          <!-- Limits -->
+          <Border Classes="card">
+            <StackPanel Spacing="10">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <ic:FluentIcon Icon="Gauge" FontSize="18" Foreground="{DynamicResource Accent}" />
+                <TextBlock Classes="h3" Text="Limits" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock Classes="value" Text="{Binding LimitsText}" TextWrapping="Wrap" />
+              <TextBlock Classes="pendingtext" Text="{Binding LimitsPendingText}" IsVisible="{Binding HasLimitsPending}" TextWrapping="Wrap" />
+              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="8" IsEnabled="{Binding CanEdit}">
+                <TextBlock Text="Recipients per message" VerticalAlignment="Center" />
+                <TextBox Grid.Column="1" Text="{Binding RecipientLimitDraft}" Width="110" ToolTip.Tip="1 to 1,000 (or Unlimited)" />
+                <TextBlock Grid.Row="1" Text="Largest message they can send (MB)" VerticalAlignment="Center" />
+                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MaxSendDraft}" Width="110" ToolTip.Tip="1 to 150 MB" />
+                <TextBlock Grid.Row="2" Text="Largest message they can receive (MB)" VerticalAlignment="Center" />
+                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding MaxReceiveDraft}" Width="110" ToolTip.Tip="1 to 150 MB" />
+              </Grid>
+              <Button Classes="accent" HorizontalAlignment="Left" Content="Stage limits" Command="{Binding StageLimitsCommand}" IsEnabled="{Binding CanEdit}"
+                      ToolTip.Tip="Stage these limits for review" />
+              <TextBlock Classes="error" Text="{Binding LimitsError}" IsVisible="{Binding HasLimitsError}" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+
+          <!-- Archive -->
+          <Border Grid.Column="1" Classes="card">
+            <StackPanel Spacing="10">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <ic:FluentIcon Icon="Archive" FontSize="18" Foreground="{DynamicResource Accent}" />
+                <TextBlock Classes="h3" Text="Online archive" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock Classes="value" Text="{Binding ArchiveText}" TextWrapping="Wrap" />
+              <ToggleSwitch IsChecked="{Binding ArchiveOn}" IsEnabled="{Binding CanEdit}" OnContent="Archive on" OffContent="Archive off"
+                            ToolTip.Tip="Switching stages the change for review. Turning it off deletes the archive's contents after 30 days." />
+              <Button Classes="ghost" HorizontalAlignment="Left" Content="Let the archive grow automatically…" Command="{Binding EnableAutoExpandingCommand}"
+                      IsVisible="{Binding CanEnableAutoExpanding}"
+                      ToolTip.Tip="Auto-expanding archiving adds space as the archive fills, up to 1.5 TB. Microsoft offers no way to turn it off again." />
+              <TextBlock Classes="pendingtext" Text="{Binding ArchivePendingText}" IsVisible="{Binding HasArchivePending}" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <!-- Who can send to them -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="MailInbox" FontSize="18" Foreground="{DynamicResource Accent}" />
+              <TextBlock Classes="h3" Text="Who can send to them" VerticalAlignment="Center" />
+            </StackPanel>
+            <ToggleSwitch IsChecked="{Binding OnlyInternal}" IsEnabled="{Binding CanEdit}"
+                          OnContent="Only people in the organization" OffContent="Anyone, including people outside the organization"
+                          ToolTip.Tip="Switching stages the change for review" />
+            <TextBlock Classes="pendingtext" Text="{Binding SendersPendingText}" IsVisible="{Binding HasSendersPending}" />
+            <TextBlock Classes="caption" Text="{Binding SendersText}" TextWrapping="Wrap" />
+            <ItemsControl ItemsSource="{Binding AllowedSenders}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="rec:SenderRow">
+                  <Border Classes="valuerow">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                      <StackPanel Spacing="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                      <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+                      <Button Grid.Column="2" Classes="rowaction" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
+                              ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
+                        <Panel>
+                          <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !HasPending}" />
+                          <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding HasPending}" />
+                        </Panel>
+                      </Button>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Panel IsEnabled="{Binding CanEdit}">
+              <views:PersonPickerView DataContext="{Binding SenderPicker}" />
+            </Panel>
+          </StackPanel>
+        </Border>
+
+        <!-- Email apps -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="AppsList" FontSize="18" Foreground="{DynamicResource Accent}" />
+              <TextBlock Classes="h3" Text="Email apps" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock Classes="caption" TextWrapping="Wrap"
+                       Text="The ways their mail can be reached. Turning one off stops apps and devices that use it; each switch stages a change for review." />
+            <ItemsControl ItemsSource="{Binding AppRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="rec:EmailAppRow">
+                  <Border Classes="valuerow">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                      <StackPanel Spacing="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                        <TextBlock Classes="caption" Text="{Binding Explanation}" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <c:Badge Grid.Column="1" Text="Pending" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+                      <ToggleSwitch Grid.Column="2" IsChecked="{Binding IsOn}" IsEnabled="{Binding CanEdit}" OnContent="On" OffContent="Off" VerticalAlignment="Center" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+          <!-- Litigation hold -->
+          <Border Classes="card">
+            <StackPanel Spacing="10">
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                <ic:FluentIcon Icon="Gavel" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Classes="h3" Text="Litigation hold" VerticalAlignment="Center" />
+                <c:Badge Grid.Column="2" Text="On hold" Kind="Warning" IsVisible="{Binding IsOnHold}" />
+              </Grid>
+              <TextBlock Classes="value" Text="{Binding HoldText}" TextWrapping="Wrap" />
+              <TextBlock Classes="caption" TextWrapping="Wrap" Text="Needs Exchange Online Plan 2 (in E3 and E5) or the Exchange Online Archiving add-on." />
+              <TextBlock Classes="caption" Text="{Binding HoldNoteText}" IsVisible="{Binding HasHoldNote}" TextWrapping="Wrap" />
+              <TextBlock Classes="pendingtext" Text="{Binding HoldPendingText}" IsVisible="{Binding HasHoldPending}" TextWrapping="Wrap" />
+              <StackPanel Spacing="8" IsEnabled="{Binding CanEdit}">
+                <ToggleSwitch IsChecked="{Binding HoldOnDraft}" OnContent="Keep everything (hold on)" OffContent="No hold" />
+                <StackPanel Spacing="8" IsVisible="{Binding HoldOnDraft}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Keep items for" VerticalAlignment="Center" />
+                    <TextBox Text="{Binding HoldDaysDraft}" Width="90" PlaceholderText="Always" />
+                    <TextBlock Text="days" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <TextBox Text="{Binding HoldNoteDraft}" PlaceholderText="Note for the person (optional), e.g. the matter it's for" />
+                </StackPanel>
+                <Button Classes="accent" HorizontalAlignment="Left" Content="Stage litigation hold" Command="{Binding StageHoldCommand}"
+                        ToolTip.Tip="Stage this hold setting for review. Holds are legal matters: it asks for a second confirmation." />
+                <TextBlock Classes="error" Text="{Binding HoldError}" IsVisible="{Binding HasHoldError}" TextWrapping="Wrap" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- Retention policy -->
+          <Border Grid.Column="1" Classes="card">
+            <StackPanel Spacing="10">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <ic:FluentIcon Icon="CalendarClock" FontSize="18" Foreground="{DynamicResource Accent}" />
+                <TextBlock Classes="h3" Text="Retention policy" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock Classes="caption" TextWrapping="Wrap"
+                         Text="Exchange's rules for moving old mail to the archive and deleting it. Choosing one stages the change for review." />
+              <ComboBox ItemsSource="{Binding RetentionPolicies}" SelectedItem="{Binding RetentionPolicy}" IsEnabled="{Binding CanEdit}"
+                        HorizontalAlignment="Stretch" PlaceholderText="No policy" />
+              <TextBlock Classes="pendingtext" Text="{Binding RetentionPendingText}" IsVisible="{Binding HasRetentionPending}" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+        </Grid>
+      </StackPanel>
+
       <TextBlock Classes="caption" TextWrapping="Wrap"
-                 Text="Coming next to this tab: limits and who can send to them, email apps (POP, IMAP, ActiveSync…), archive, litigation hold (4b-2); recover deleted items, inbox rules, folder permissions, mobile devices, message trace, convert to shared (4b-3)." />
+                 Text="Coming next to this tab: recover deleted items, inbox rules, folder permissions, mobile devices, message trace and convert to shared." />
     </StackPanel>
   </StackPanel>
 </UserControl>

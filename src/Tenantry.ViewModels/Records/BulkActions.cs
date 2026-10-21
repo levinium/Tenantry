@@ -95,6 +95,27 @@ public static class BulkActions
                 },
                 choiceLabel: "Address list", choices: [new BulkChoice("Hide from the address list", true), new BulkChoice("Show in the address list", false)]),
 
+            new("Turn an email app off", "Stop everyone reaching their mail one way, such as POP or IMAP (older apps that often skip multi-factor sign-in).", "PlugDisconnected",
+                (a, _) => Task.FromResult(EmailApp(selected(), (string)a.Choice!.Value, false)),
+                choiceLabel: "App", choices: AppChoices(), isCaution: true),
+
+            new("Turn an email app on", "Let everyone reach their mail one more way.", "PlugConnected",
+                (a, _) => Task.FromResult(EmailApp(selected(), (string)a.Choice!.Value, true)),
+                choiceLabel: "App", choices: AppChoices()),
+
+            new("Litigation hold", "Keep every item in their mailboxes, even ones they delete, until the hold is lifted; or lift it.", "Gavel",
+                (a, _) =>
+                {
+                    var on = (bool)a.Choice!.Value;
+                    var note = a.Text.Trim() is { Length: > 0 } n ? n : null;
+                    return Task.FromResult(Plan(selected(), u => u.Mailbox is not { } m ? (null, $"{u.DisplayName}: no mailbox")
+                        : m.LitigationHold == on ? (null, $"{u.DisplayName}: {(on ? "already on hold" : "not on hold")}")
+                        // The list doesn't hold a hold's days or note; turning it off leaves them as Exchange has them.
+                        : (new SetLitigationHold(GroupAccess.Target(u), m.LitigationHold, null, null, on, null, on ? note : null), null)));
+                },
+                choiceLabel: "Hold", choices: [new BulkChoice("Turn on (keep items indefinitely)", true), new BulkChoice("Turn off", false)],
+                textLabel: "Note for the hold (optional)", isCaution: true),
+
             new("Add to a group", "Make everyone a member of one group.", "PeopleAdd",
                 (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } g ? Membership(selected(), g, GroupRole.Member, true)
                     : BulkPlan.Invalid("That group isn't in the local copy any more.")),
@@ -133,6 +154,19 @@ public static class BulkActions
     }
 
     static BulkChoice[] Rights() => GroupAccess.Rights.Select(r => new BulkChoice(SetMailboxAccess.RightName(r), r)).ToArray();
+
+    /// <summary>POP and IMAP first: the ones an admin most often turns off.</summary>
+    static BulkChoice[] AppChoices() => EmailApps.All.OrderBy(a => a.Parameter is "PopEnabled" or "ImapEnabled" ? 0 : 1)
+        .Select(a => new BulkChoice(a.Name, a.Parameter)).ToArray();
+
+    static BulkPlan EmailApp(IReadOnlyList<UserSummary> users, string parameter, bool on)
+    {
+        var name = EmailApps.All.First(a => a.Parameter == parameter).Name;
+        return Plan(users, u => u.Mailbox is not { } m ? (null, $"{u.DisplayName}: no mailbox")
+            : m.Apps is not { } apps ? (null, $"{u.DisplayName}: email apps not read yet (refresh first)")
+            : apps.IsOn(parameter) == on ? (null, $"{u.DisplayName}: {name} already {(on ? "on" : "off")}")
+            : (new SetEmailApp(GroupAccess.Target(u), parameter, name, !on, on), null));
+    }
 
     /// <summary>The details a bulk edit can set, in the order the selection panel shows them.</summary>
     public static IReadOnlyList<(string Property, string Label)> DetailFields => Details;

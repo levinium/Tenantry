@@ -30,6 +30,12 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetForwarding), "setForwarding")]
 [JsonDerivedType(typeof(SetAutoReply), "setAutoReply")]
 [JsonDerivedType(typeof(SetHiddenFromAddressList), "setHiddenFromAddressList")]
+[JsonDerivedType(typeof(SetMailboxValue), "setMailboxValue")]
+[JsonDerivedType(typeof(SetEmailApp), "setEmailApp")]
+[JsonDerivedType(typeof(SetArchive), "setArchive")]
+[JsonDerivedType(typeof(EnableAutoExpandingArchive), "enableAutoExpandingArchive")]
+[JsonDerivedType(typeof(SetLitigationHold), "setLitigationHold")]
+[JsonDerivedType(typeof(SetAllowedSender), "setAllowedSender")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -299,6 +305,104 @@ public sealed record SetHiddenFromAddressList(ChangeTarget User, bool Old, bool 
     public override string After => New ? "Hidden" : "Shown";
     public override bool IsNoChange => Old == New;
     public override ChangeOp Since(ChangeOp earlier) => earlier is SetHiddenFromAddressList e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>
+/// Sets one plain Set-Mailbox setting (a limit, the retention policy, internal-only senders).
+/// <see cref="Value"/> is what Exchange is sent ("35 MB", 500, true); the texts are how it reads.
+/// </summary>
+public sealed record SetMailboxValue(ChangeTarget User, string Parameter, string ParameterLabel, string Old, string New,
+    System.Text.Json.Nodes.JsonNode? Value, bool Caution = false) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "mbx:" + Parameter;
+    public override string Label => ParameterLabel;
+    public override string Before => Old;
+    public override string After => New;
+    public override bool IsCaution => Caution;
+    public override bool IsNoChange => string.Equals(Old, New, StringComparison.OrdinalIgnoreCase);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetMailboxValue e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>
+/// Switches one way of reaching a mailbox on or off (Set-CASMailbox): Outlook on the web, POP,
+/// IMAP, SMTP sending… Switching one off can stop someone's app or device working: a caution change.
+/// </summary>
+/// <param name="Parameter">The Set-CASMailbox parameter ("PopEnabled"; "SmtpClientAuthenticationDisabled" is inverted).</param>
+public sealed record SetEmailApp(ChangeTarget User, string Parameter, string AppName, bool Old, bool New) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "mailapp:" + Parameter;
+    public override string Label => AppName;
+    public override string Before => Old ? "On" : "Off";
+    public override string After => New ? "On" : "Off";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetEmailApp e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>
+/// Turns the online archive on or off. Turning it off is a caution change: the archive's contents
+/// can no longer be reached, and after 30 days they're gone.
+/// </summary>
+public sealed record SetArchive(ChangeTarget User, bool Old, bool New) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "archive";
+    public override string Label => "Online archive";
+    public override string Before => Old ? "On" : "Off";
+    public override string After => New ? "On" : "Off (its contents are deleted after 30 days)";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetArchive e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>Turns on auto-expanding archiving. Microsoft offers no way back: always a caution change.</summary>
+public sealed record EnableAutoExpandingArchive(ChangeTarget User) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "autoexpand";
+    public override string Label => "Auto-expanding archive";
+    public override string Before => "Off";
+    public override string After => "On (can't be turned off again)";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
+/// Litigation hold on (keeping every item, even deleted ones, for <see cref="NewDays"/> days or
+/// indefinitely, with a note) or off. Both ways are caution changes: holds are legal matters.
+/// </summary>
+public sealed record SetLitigationHold(ChangeTarget User, bool OldOn, int? OldDays, string? OldNote, bool NewOn, int? NewDays, string? NewNote) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "hold";
+    public override string Label => "Litigation hold";
+    public override string Before => Describe(OldOn, OldDays, OldNote);
+    public override string After => Describe(NewOn, NewDays, NewNote);
+    public override bool IsCaution => true;
+    public override bool IsNoChange => OldOn == NewOn && (!NewOn || (OldDays == NewDays && (OldNote ?? "") == (NewNote ?? "")));
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetLitigationHold e ? this with { OldOn = e.OldOn, OldDays = e.OldDays, OldNote = e.OldNote } : this;
+
+    static string Describe(bool on, int? days, string? note) => !on ? "Off"
+        : $"On, keeping items {(days is { } d ? $"{d:N0} days" : "indefinitely")}{(string.IsNullOrWhiteSpace(note) ? "" : $" ({note})")}";
+}
+
+/// <summary>
+/// Adds someone to (or removes them from) the people and groups a mailbox accepts mail from. While
+/// the list has anyone on it, nobody else can send to the mailbox.
+/// </summary>
+public sealed record SetAllowedSender(ChangeTarget User, ChangeTarget Sender, bool Old, bool New) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "accept:" + Sender.Id.ToLowerInvariant();
+    public override string Label => $"Allowed sender {Sender.Name}";
+    public override string Before => Old ? "Allowed" : "Not on the list";
+    public override string After => New ? "Allowed" : "Removed";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetAllowedSender e ? this with { Old = e.Old } : this;
 }
 
 /// <summary>Blocks or allows a user's sign-in (Graph accountEnabled).</summary>

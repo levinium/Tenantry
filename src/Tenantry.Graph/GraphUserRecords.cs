@@ -157,7 +157,8 @@ public sealed class GraphUserRecords(GraphClient graph, IEntityStore store, ICmd
             throw new InvalidOperationException("Exchange Online isn't connected for this tenant.");
         var identity = new Dictionary<string, object?> { ["Identity"] = address };
         var mailboxTask = exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-Mailbox", identity, cancellationToken,
-            [.. DirectorySync.MailboxSelect, "IssueWarningQuota"]);
+            [.. DirectorySync.MailboxSelect, .. SettingsSelect]);
+        var settingsTask = ReadSettingsPartsAsync(identity, cancellationToken);
         var replyTask = exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-MailboxAutoReplyConfiguration", identity, cancellationToken,
             ["AutoReplyState", "StartTime", "EndTime", "InternalMessage", "ExternalMessage", "ExternalAudience"]);
         var statsTask = ReadStatisticsAsync(identity, cancellationToken);
@@ -185,7 +186,88 @@ public sealed class GraphUserRecords(GraphClient graph, IEntityStore store, ICmd
             QuotaBytes: MailDetails.ParseBytes(Text(mailbox, "ProhibitSendReceiveQuota")),
             WarningBytes: MailDetails.ParseBytes(Text(mailbox, "IssueWarningQuota")),
             Items: long.TryParse(Text(stats, "ItemCount"), out var items) ? items : null,
-            Domains: domains);
+            Domains: domains)
+        {
+            Settings = await ToSettingsAsync(mailbox, address, await settingsTask, cancellationToken),
+        };
+    }
+
+    /// <summary>The Get-Mailbox properties behind the Mail tab's settings (beyond the list's).</summary>
+    static readonly string[] SettingsSelect =
+    [
+        "IssueWarningQuota", "RecipientLimits", "MaxSendSize", "MaxReceiveSize", "RequireSenderAuthenticationEnabled",
+        "AcceptMessagesOnlyFromSendersOrMembers", "AutoExpandingArchiveEnabled", "LitigationHoldDuration", "LitigationHoldDate",
+        "LitigationHoldOwner", "RetentionComment", "RetentionPolicy",
+    ];
+
+    /// <summary>Email apps, the organization's SMTP-sending default and the retention policies; each optional.</summary>
+    async Task<(JsonElement Cas, bool OrgSmtpOn, IReadOnlyList<string> Policies)> ReadSettingsPartsAsync(Dictionary<string, object?> identity, CancellationToken cancellationToken)
+    {
+        async Task<IReadOnlyList<JsonElement>> Try(string cmdlet, Dictionary<string, object?>? parameters, string[] select)
+        {
+            try
+            {
+                return await exchange!.InvokeAsync(CmdletEndpoint.Exchange, cmdlet, parameters, cancellationToken, select);
+            }
+            catch (CmdletException)
+            {
+                return [];
+            }
+        }
+        var cas = Try("Get-CASMailbox", identity, DirectorySync.CasSelect);
+        var transport = Try("Get-TransportConfig", null, ["SmtpClientAuthenticationDisabled"]);
+        var policies = Try("Get-RetentionPolicy", null, ["Name"]);
+        var org = (await transport).FirstOrDefault();
+        return ((await cas).FirstOrDefault(),
+            !(org.ValueKind == JsonValueKind.Object && org.TryGetProperty("SmtpClientAuthenticationDisabled", out var d) && d.ValueKind == JsonValueKind.True),
+            (await policies).Select(p => p.TryGetProperty("Name", out var n) ? n.GetString() : null).OfType<string>().Order(StringComparer.CurrentCulture).ToArray());
+    }
+
+    async Task<MailboxSettings> ToSettingsAsync(JsonElement m, string address, (JsonElement Cas, bool OrgSmtpOn, IReadOnlyList<string> Policies) parts,
+        CancellationToken cancellationToken)
+    {
+        string? Text(string name) => m.TryGetProperty(name, out var v) ? v.ValueKind == JsonValueKind.String ? v.GetString() : v.ValueKind == JsonValueKind.Null ? null : v.ToString() : null;
+        bool Flag(string name) => m.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
+        var archiveOn = string.Equals(Text("ArchiveStatus"), "Active", StringComparison.OrdinalIgnoreCase);
+        long? archiveUsed = null;
+        if (archiveOn)
+        {
+            try
+            {
+                var stats = await exchange!.InvokeAsync(CmdletEndpoint.Exchange, "Get-MailboxStatistics",
+                    new Dictionary<string, object?> { ["Identity"] = address, ["Archive"] = true }, cancellationToken, ["TotalItemSize"]);
+                archiveUsed = stats.Count > 0 && stats[0].TryGetProperty("TotalItemSize", out var s) ? MailDetails.ParseBytes(s.GetString()) : null;
+            }
+            catch (CmdletException)
+            {
+                // A new archive can take a while to be readable; its size stays unknown.
+            }
+        }
+        var holdDuration = Text("LitigationHoldDuration");
+        int? holdDays = holdDuration is null || holdDuration.Equals("Unlimited", StringComparison.OrdinalIgnoreCase) ? null
+            : TimeSpan.TryParse(holdDuration, System.Globalization.CultureInfo.InvariantCulture, out var span) ? (int)span.TotalDays
+            : int.TryParse(holdDuration, out var plain) ? plain : null;
+        var senders = m.TryGetProperty("AcceptMessagesOnlyFromSendersOrMembers", out var list) && list.ValueKind == JsonValueKind.Array
+            ? list.EnumerateArray().Select(s => s.GetString()).OfType<string>().ToArray()
+            : [];
+        return new MailboxSettings(
+            RecipientLimit: Text("RecipientLimits") ?? "Unlimited",
+            MaxSendBytes: MailDetails.ParseBytes(Text("MaxSendSize")),
+            MaxReceiveBytes: MailDetails.ParseBytes(Text("MaxReceiveSize")),
+            OnlyInternalSenders: Flag("RequireSenderAuthenticationEnabled"),
+            AllowedSenders: senders,
+            Apps: parts.Cas.ValueKind == JsonValueKind.Object ? CachedTenantDirectory.ToEmailApps(parts.Cas, parts.OrgSmtpOn)
+                : new EmailApps(true, true, true, true, true, true, null, parts.OrgSmtpOn),
+            ArchiveOn: archiveOn,
+            AutoExpandingArchive: Flag("AutoExpandingArchiveEnabled"),
+            ArchiveUsedBytes: archiveUsed,
+            HoldOn: Flag("LitigationHoldEnabled"),
+            HoldDays: holdDays,
+            HoldNote: Text("RetentionComment") is { Length: > 0 } note ? note : null,
+            HoldSince: DateTimeOffset.TryParse(Text("LitigationHoldDate"), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var since) ? since : null,
+            HoldBy: Text("LitigationHoldOwner") is { Length: > 0 } by ? by : null,
+            RetentionPolicy: Text("RetentionPolicy") is { Length: > 0 } policy ? policy : null,
+            RetentionPolicies: parts.Policies);
     }
 
     async Task<JsonElement> ReadStatisticsAsync(Dictionary<string, object?> identity, CancellationToken cancellationToken)

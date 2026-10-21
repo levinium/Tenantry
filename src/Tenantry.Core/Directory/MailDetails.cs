@@ -48,6 +48,65 @@ public sealed record AutoReply(AutoReplyState State, DateTimeOffset? Start, Date
 }
 
 /// <summary>
+/// The ways a mailbox can be reached, each on or off (Get-CASMailbox). SMTP sending (client
+/// SMTP authentication) can be left to the organization's default, given in
+/// <see cref="OrgSmtpSendOn"/>.
+/// </summary>
+public sealed record EmailApps(bool Owa, bool Outlook, bool Mobile, bool Pop, bool Imap, bool Ews, bool? SmtpSend, bool OrgSmtpSendOn)
+{
+    public bool SmtpSendEffective => SmtpSend ?? OrgSmtpSendOn;
+
+    /// <summary>The Set-CASMailbox parameter behind each app, with how it reads to a person.</summary>
+    public static readonly IReadOnlyList<(string Parameter, string Name, string Explanation)> All =
+    [
+        ("OWAEnabled", "Outlook on the web", "Mail in a browser"),
+        ("MAPIEnabled", "Outlook desktop", "The Outlook app on Windows and Mac"),
+        ("ActiveSyncEnabled", "Mobile mail", "Phones' built-in mail apps (Exchange ActiveSync)"),
+        ("EwsEnabled", "Exchange Web Services", "Older apps and add-ins that connect through EWS"),
+        ("PopEnabled", "POP", "Older mail apps; often signs in without multi-factor sign-in"),
+        ("ImapEnabled", "IMAP", "Older mail apps; often signs in without multi-factor sign-in"),
+        ("SmtpClientAuthenticationDisabled", "SMTP sending", "Devices and apps that send mail by signing in with a password (scanners, older apps)"),
+    ];
+
+    public bool IsOn(string parameter) => parameter switch
+    {
+        "OWAEnabled" => Owa,
+        "MAPIEnabled" => Outlook,
+        "ActiveSyncEnabled" => Mobile,
+        "EwsEnabled" => Ews,
+        "PopEnabled" => Pop,
+        "ImapEnabled" => Imap,
+        _ => SmtpSendEffective,
+    };
+}
+
+/// <summary>
+/// A mailbox's settings beyond the everyday ones (the Mail tab's 4b-2 part): limits, who may send
+/// to it, email apps, archive, litigation hold and retention. Read live from Exchange.
+/// </summary>
+/// <param name="RecipientLimit">Most recipients in one message ("500" or "Unlimited", as Exchange says it).</param>
+/// <param name="AllowedSenders">When not empty, only these people and groups may send to it (as Exchange names them).</param>
+/// <param name="HoldDays">How long held items are kept; null means indefinitely.</param>
+/// <param name="RetentionPolicies">The tenant's retention policies, to choose from.</param>
+public sealed record MailboxSettings(
+    string RecipientLimit,
+    long? MaxSendBytes,
+    long? MaxReceiveBytes,
+    bool OnlyInternalSenders,
+    IReadOnlyList<string> AllowedSenders,
+    EmailApps Apps,
+    bool ArchiveOn,
+    bool AutoExpandingArchive,
+    long? ArchiveUsedBytes,
+    bool HoldOn,
+    int? HoldDays,
+    string? HoldNote,
+    DateTimeOffset? HoldSince,
+    string? HoldBy,
+    string? RetentionPolicy,
+    IReadOnlyList<string> RetentionPolicies);
+
+/// <summary>
 /// A mailbox's everyday settings as the Mail tab reads them live from Exchange: addresses,
 /// forwarding, automatic replies, address-list visibility and storage against the quota.
 /// </summary>
@@ -68,6 +127,9 @@ public sealed record MailDetails(
     long? Items,
     IReadOnlyList<string> Domains)
 {
+    /// <summary>Limits, email apps, archive, hold and retention (null where they couldn't be read).</summary>
+    public MailboxSettings? Settings { get; init; }
+
     /// <summary>Used / quota as a fraction, when both are known (an unlimited quota gives null).</summary>
     public double? UsedFraction => UsedBytes is { } used && QuotaBytes is { } quota && quota > 0 ? (double)used / quota : null;
 

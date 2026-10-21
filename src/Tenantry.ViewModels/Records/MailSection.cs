@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Tenantry.Core.Capabilities;
 using Tenantry.Core.Changes;
 using Tenantry.Core.Directory;
+using Tenantry.ViewModels.Editing;
 
 namespace Tenantry.ViewModels.Records;
 
@@ -28,7 +29,7 @@ public sealed partial class AddressRow(string address, bool isPrimary, string? p
 }
 
 /// <summary>
-/// The Mail tab (4b-1): storage against the quota, email addresses (aliases and the primary),
+/// The Mail tab: storage against the quota, email addresses (aliases and the primary),
 /// forwarding, automatic replies and address-list visibility. Read live from Exchange when first
 /// shown. Simple switches stage at once; forms (forwarding, replies) stage with their button.
 /// </summary>
@@ -38,15 +39,18 @@ public sealed partial class MailSection : RecordSection, IDisposable
     readonly IUserRecords? _records;
     readonly ChangePipeline? _pipeline;
     readonly Availability _canEdit;
+    readonly IDirectoryIndex _index;
     MailDetails? _data;
     bool _loading;
 
-    public MailSection(UserSummary user, IUserRecords? records, ChangePipeline? pipeline, Availability canEdit)
+    public MailSection(UserSummary user, IUserRecords? records, ChangePipeline? pipeline, Availability canEdit, IDirectoryIndex? index = null)
     {
         _user = user;
         _records = records;
         _pipeline = pipeline;
         _canEdit = canEdit;
+        _index = index ?? EmptyIndex.Instance;
+        SenderPicker = new PersonPicker("Accept mail only from: type a name or group", SenderOptions, AddSender);
         Summary = SummaryFor(user.Mailbox, null);
         if (_pipeline is not null)
             _pipeline.Changed += OnPendingChanged;
@@ -139,6 +143,7 @@ public sealed partial class MailSection : RecordSection, IDisposable
     void Rebuild()
     {
         RebuildAddresses();
+        RebuildSettings();
         foreach (var name in new[]
                  {
                      nameof(IsReady), nameof(UsedText), nameof(UsedPercent), nameof(ItemsText), nameof(IsNearlyFull), nameof(HasStorage),
@@ -454,6 +459,7 @@ public sealed partial class MailSection : RecordSection, IDisposable
         ExternalMessage = reply.External;
         SameOutside = reply.External.Length == 0 || reply.External == reply.Internal;
         Audience = reply.Audience;
+        ResetSettingsDrafts();
     }
 
     public void Dispose()
