@@ -70,8 +70,23 @@ public sealed class TenantConnector : ITenantConnector
                 // The same one-step setup as adding a tenant: it finds this tenant's existing
                 // registration and grants whatever is missing.
                 await SetUpAutomaticallyAsync(progress, ct);
-                await tokens.RefreshAsync([TenantryPermissions.Graph.DefaultScope], ct);
-                return MissingPermissions(tokens);
+                // Microsoft 365 takes a little while to apply a new grant: a token asked for at
+                // once can still lack it (seen live: the first run "failed", a second one passed).
+                // So check again over about a minute and a half before saying anything is missing.
+                var missing = (IReadOnlyList<string>)[];
+                foreach (var wait in PermissionWaits)
+                {
+                    if (wait > TimeSpan.Zero)
+                    {
+                        progress.Report("Waiting for Microsoft 365 to apply the new permissions (this can take a minute)…");
+                        await Task.Delay(wait, ct);
+                    }
+                    await tokens.RefreshAsync([TenantryPermissions.Graph.DefaultScope], ct);
+                    missing = MissingPermissions(tokens);
+                    if (missing.Count == 0)
+                        break;
+                }
+                return missing;
             },
             ListState: new JsonListStateStore(folder),
             Sync: new DirectorySync(graph, entities, exchange),
@@ -80,6 +95,10 @@ public sealed class TenantConnector : ITenantConnector
                 new JsonTestModeStore(folder, TestModeByDefault), account),
             Records: new GraphUserRecords(graph, entities, exchange));
     }
+
+    /// <summary>How long to wait before each re-check of newly granted permissions (about 90 s in all).</summary>
+    static readonly TimeSpan[] PermissionWaits =
+        [TimeSpan.Zero, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(25), TimeSpan.FromSeconds(35)];
 
     /// <summary>Graph permissions Tenantry asks for that this sign-in's token doesn't carry.</summary>
     static IReadOnlyList<string> MissingPermissions(MsalTokenSource tokens)
