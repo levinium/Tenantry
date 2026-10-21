@@ -217,21 +217,62 @@ public partial class DataListView : UserControl
                     RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(DataGridRow) },
                     Mode = BindingMode.OneWay,
                 });
-                ToolTip.SetTip(check, "Check to include this row when editing several at once");
+                ToolTip.SetTip(check, "Check to include this row when editing several at once. Shift-click checks or clears every row from the last one you clicked.");
+                // Click carries no key state, so Shift is read as the pointer goes down.
+                var shift = false;
+                check.AddHandler(PointerPressedEvent, (_, e) => shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift),
+                    RoutingStrategies.Tunnel, handledEventsToo: true);
                 check.Click += (_, e) =>
                 {
                     if (check.DataContext is { } row)
-                    {
-                        if (Grid.SelectedItems.Contains(row))
-                            Grid.SelectedItems.Remove(row);
-                        else
-                            Grid.SelectedItems.Add(row);
-                    }
+                        ToggleChecked(row, shift);
                     e.Handled = true;
                 };
                 return check;
             }, supportsRecycling: true),
         };
+    }
+
+    /// <summary>The row whose checkbox was clicked last: where a Shift-click range starts.</summary>
+    object? _checkAnchor;
+
+    /// <summary>
+    /// Checks or clears one row; with Shift, every row from the last one clicked to this one
+    /// takes this row's new state (as in a mail inbox). The view model hears about it once.
+    /// </summary>
+    void ToggleChecked(object row, bool range)
+    {
+        var check = !Grid.SelectedItems.Contains(row);
+        var rows = new List<object> { row };
+        if (range && _checkAnchor is { } anchor && !ReferenceEquals(anchor, row))
+        {
+            // In the order shown (grouped lists show rows group by group).
+            var shown = (Grid.ItemsSource as System.Collections.IEnumerable)?.Cast<object>().ToList() ?? [];
+            var from = shown.IndexOf(anchor);
+            var to = shown.IndexOf(row);
+            if (from >= 0 && to >= 0)
+                rows = shown.GetRange(Math.Min(from, to), Math.Abs(to - from) + 1);
+        }
+        _checkAnchor = row;
+
+        _syncingSelection = true;
+        foreach (var r in rows)
+        {
+            var isChecked = Grid.SelectedItems.Contains(r);
+            if (check && !isChecked)
+                Grid.SelectedItems.Add(r);
+            else if (!check && isChecked)
+                Grid.SelectedItems.Remove(r);
+        }
+        _syncingSelection = false;
+        if (_vm is not null)
+        {
+            _syncingSelection = true;
+            _vm.SelectedRows = Grid.SelectedItems.Cast<object>().ToArray();
+            _vm.SelectedRow = Grid.SelectedItem;
+            _syncingSelection = false;
+        }
+        UpdateSelectAll();
     }
 
     void UpdateSelectAll()

@@ -294,8 +294,22 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "mailbox-people-light");
         editing.CloseDialog();
         editing.Pending.DiscardAllCommand.Execute(null);
-        // Bulk edit: three users checked turn the preview into the selection panel.
+        // Shift-click range on the checkboxes: click row 2, Shift-click row 6 → rows 2 to 6.
         editing.SelectedSection = editing.Sections.Single(s => s.Key == "users");
+        editing.Users.ClearSelectionCommand.Execute(null);
+        Render(editing, "users-range-light", during: w =>
+        {
+            ClickCheck(w, 1, shift: false);
+            ClickCheck(w, 5, shift: true);
+        });
+        var shownRows = editing.Users.Rows.ToList();
+        var range = editing.Users.SelectedRows.Select(r => shownRows.IndexOf(r)).Order().ToArray();
+        Console.WriteLine($"    shift-click range checked rows: {string.Join(",", range)}");
+        if (!range.SequenceEqual([1, 2, 3, 4, 5]))
+            throw new InvalidOperationException("Shift-click range didn't check rows 1 to 5");
+        editing.Users.SelectedRows = [];
+
+        // Bulk edit: three users checked turn the preview into the selection panel.
         editing.Users.SelectedRows = editing.Users.Rows.Skip(3).Take(3).ToArray();
         Render(editing, "users-selected-light");
         // A detail staged for all of them, and an action opened in place.
@@ -365,6 +379,22 @@ static void Pick(DataListViewModel list, string field, bool hide, params string[
 
 // Presses the drag handle of row `index` in the named list and moves the pointer `dy` pixels
 // without releasing, leaving the drag in progress for the capture.
+/// <summary>Clicks a row's checkbox (the index-th one shown), with Shift held when asked.</summary>
+static void ClickCheck(MainWindow window, int index, bool shift)
+{
+    var grid = window.GetVisualDescendants().OfType<DataGrid>().First(g => g.IsVisible);
+    var check = grid.GetVisualDescendants().OfType<DataGridRow>()
+        .OrderBy(r => r.TranslatePoint(new Point(0, 0), grid)!.Value.Y)
+        .ElementAt(index)
+        .GetVisualDescendants().OfType<CheckBox>().First();
+    var at = check.TranslatePoint(new Point(check.Bounds.Width / 2, check.Bounds.Height / 2), window)!.Value;
+    var modifiers = shift ? RawInputModifiers.Shift : RawInputModifiers.None;
+    window.MouseMove(at, modifiers);
+    window.MouseDown(at, MouseButton.Left, modifiers);
+    window.MouseUp(at, MouseButton.Left, modifiers);
+    Dispatcher.UIThread.RunJobs();
+}
+
 static void DragHandle(MainWindow window, string listName, int index, double dy)
 {
     var list = window.GetVisualDescendants().OfType<ItemsControl>().Single(c => c.Name == listName);
