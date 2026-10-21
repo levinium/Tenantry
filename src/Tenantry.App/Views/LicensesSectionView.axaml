@@ -1,0 +1,134 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.LicensesSectionView"
+             x:DataType="rec:LicensesSection"
+             x:Name="Root">
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Left">
+    <TextBlock Classes="muted" Text="Reading their licenses…" IsVisible="{Binding IsLoading}" />
+    <Border Classes="banner error" IsVisible="{Binding HasError}">
+      <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
+    </Border>
+    <Border Classes="banner warning" IsVisible="{Binding MissingUsageLocation}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="Warning" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                   Text="No usage location is set. Microsoft won't assign licenses until one is: set it on the Account tab (Sign-in and licensing)." />
+      </StackPanel>
+    </Border>
+
+    <!-- Licenses -->
+    <Border Classes="card" IsVisible="{Binding IsReady}">
+      <StackPanel Spacing="14">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+          <ic:FluentIcon Icon="Apps" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Classes="h3" Text="Licenses" VerticalAlignment="Center" />
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+            <ComboBox Width="360" ItemsSource="{Binding AddOptions}" SelectedItem="{Binding SelectedToAdd}"
+                      PlaceholderText="Choose a license to add" IsEnabled="{Binding CanAddLicenses}" MaxDropDownHeight="360">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="rec:LicenseOption">
+                  <StackPanel Spacing="1" Classes.unavailable="{Binding !IsAvailable}">
+                    <TextBlock Text="{Binding Sku.Name}" />
+                    <TextBlock Classes="caption" Text="{Binding Label}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button Classes="accent" Command="{Binding AddLicenseCommand}" Content="Add license"
+                    ToolTip.Tip="Stage this license for review in Pending changes" />
+          </StackPanel>
+        </Grid>
+
+        <TextBlock Classes="muted" Text="No licenses: no mailbox, Office apps or OneDrive." IsVisible="{Binding !HasLicenses}" />
+        <ItemsControl ItemsSource="{Binding Licenses}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:LicenseRow">
+              <Border Classes="licenserow" Classes.pending="{Binding HasPending}">
+                <StackPanel Spacing="10">
+                  <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="12">
+                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding Source}" />
+                      <TextBlock Classes="error" Text="{Binding Error}" TextWrapping="Wrap" IsVisible="{Binding HasError}" />
+                    </StackPanel>
+                    <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+                    <Button Grid.Column="2" Classes="ghost" IsVisible="{Binding HasApps}" Command="{Binding ToggleExpandedCommand}"
+                            ToolTip.Tip="Show the apps in this license, with a switch for each">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{Binding AppsSummary}" VerticalAlignment="Center" />
+                        <ic:FluentIcon Icon="ChevronDown" FontSize="11" VerticalAlignment="Center" IsVisible="{Binding !IsExpanded}" />
+                        <ic:FluentIcon Icon="ChevronUp" FontSize="11" VerticalAlignment="Center" IsVisible="{Binding IsExpanded}" />
+                      </StackPanel>
+                    </Button>
+                    <Button Grid.Column="3" Classes="rowaction" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}"
+                            ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
+                      <Panel>
+                        <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !HasPending}" />
+                        <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding HasPending}" />
+                      </Panel>
+                    </Button>
+                  </Grid>
+                  <ItemsControl ItemsSource="{Binding Apps}" IsVisible="{Binding ShowApps}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <WrapPanel ItemSpacing="24" LineSpacing="4" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="rec:AppSwitch">
+                        <ToggleSwitch Width="280" IsChecked="{Binding IsOn}" IsEnabled="{Binding CanEdit}"
+                                      OnContent="{Binding Name}" OffContent="{Binding Name}"
+                                      ToolTip.Tip="Turning an app off is staged for review in Pending changes" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
+    <!-- Enterprise apps -->
+    <Border Classes="card" IsVisible="{Binding IsReady}">
+      <StackPanel Spacing="12">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="Grid" FontSize="18" Foreground="{DynamicResource Accent}" />
+          <TextBlock Classes="h3" Text="Enterprise apps" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Classes="muted" Text="Not assigned to any enterprise apps." IsVisible="{Binding !HasAppAssignments}" />
+        <ItemsControl ItemsSource="{Binding AppAssignments}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:AppAssignmentRow">
+              <Border Classes="valuerow">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                  <StackPanel Spacing="1">
+                    <TextBlock Text="{Binding Name}" />
+                    <TextBlock Classes="caption" Text="{Binding Since}" />
+                  </StackPanel>
+                  <c:Badge Grid.Column="1" Text="Removing" Kind="Info" IsVisible="{Binding IsPendingRemove}" VerticalAlignment="Center" />
+                  <Button Grid.Column="2" Classes="rowaction" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
+                          ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
+                    <Panel>
+                      <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !IsPendingRemove}" />
+                      <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding IsPendingRemove}" />
+                    </Panel>
+                  </Button>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

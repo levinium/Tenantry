@@ -18,6 +18,13 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             // Everything else on the Account tab lives only in the record details.
             SetUserText => Done(records is not null),
             SetSignInAllowed s => Done(directory.Update(s.User.Id, u => u with { AccountEnabled = s.New })),
+            SetLicenseAssigned l when DemoUserRecords.SkuName(l.SkuId) is { } name =>
+                Done(directory.Update(l.User.Id, u => u with
+                {
+                    Licenses = l.New ? u.Licenses.Append(name).Distinct().ToArray() : u.Licenses.Where(x => x != name).ToArray(),
+                })),
+            SetLicenseApps a => Remember(() => records?.RememberApps(a.User.Id, a.SkuId, a.NewDisabled)),
+            RemoveAppAssignment r => Remember(() => records?.RememberRemovedApp(r.AssignmentId)),
             ResetPassword => new ApplyResult(ChangeOutcome.Applied, Reveal: TemporaryPassword.Create()),
             RevokeSessions => new ApplyResult(ChangeOutcome.Applied, "Signed out of every session (demo)."),
             _ => null,
@@ -26,6 +33,14 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
     }
 
     static ApplyResult? Done(bool applied) => applied ? new ApplyResult(ChangeOutcome.Applied) : null;
+
+    ApplyResult? Remember(Action remember)
+    {
+        if (records is null)
+            return null;
+        remember();
+        return new ApplyResult(ChangeOutcome.Applied);
+    }
 
     static string? Empty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

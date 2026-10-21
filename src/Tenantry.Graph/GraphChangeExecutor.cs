@@ -27,6 +27,15 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
         SetSignInAllowed s => await PatchUserAsync(s.User.Id, "accountEnabled", JsonValue.Create(s.New), cancellationToken),
         ResetPassword r => await ResetPasswordAsync(r, cancellationToken),
         RevokeSessions r => await RevokeSessionsAsync(r, cancellationToken),
+        SetLicenseAssigned l => await AssignLicenseAsync(l.User.Id,
+            l.New ? new JsonArray(new JsonObject { ["skuId"] = l.SkuId, ["disabledPlans"] = new JsonArray() }) : [],
+            l.New ? [] : new JsonArray(l.SkuId),
+            licenses => licenses.Any(x => x.SkuId == l.SkuId) == l.New, cancellationToken),
+        SetLicenseApps a => await AssignLicenseAsync(a.User.Id,
+            new JsonArray(new JsonObject { ["skuId"] = a.SkuId, ["disabledPlans"] = new JsonArray(a.NewDisabled.Select(p => (JsonNode)p).ToArray()) }),
+            [],
+            licenses => licenses.FirstOrDefault(x => x.SkuId == a.SkuId) is { } x && x.Disabled.ToHashSet().SetEquals(a.NewDisabled), cancellationToken),
+        RemoveAppAssignment r => await RemoveAppAssignmentAsync(r, cancellationToken),
         _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 
@@ -49,6 +58,62 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
                 },
             }, cancellationToken);
             return new ApplyResult(ChangeOutcome.Applied, Reveal: password);
+        }
+        catch (GraphException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, Describe(e));
+        }
+    }
+
+    /// <summary>
+    /// Adds or removes licenses (or changes a license's apps, by re-adding it with a new list of
+    /// disabled plans), reads the user's licenses back into the local copy, and refreshes the
+    /// tenant's license counts so "available" stays right.
+    /// </summary>
+    async Task<ApplyResult> AssignLicenseAsync(string userId, JsonArray add, JsonArray remove,
+        Func<IReadOnlyList<(string SkuId, IReadOnlyList<string> Disabled)>, bool> done, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await graph.PostAsync($"users/{userId}/assignLicense", new JsonObject { ["addLicenses"] = add, ["removeLicenses"] = remove }, cancellationToken);
+        }
+        catch (GraphException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, Describe(e));
+        }
+
+        await RefreshSkusAsync(cancellationToken);
+        foreach (var wait in ReadBackWaits)
+        {
+            if (wait > TimeSpan.Zero)
+                await _delay(wait, cancellationToken);
+            var user = await graph.GetAsync($"users/{userId}?$select=id,assignedLicenses", cancellationToken);
+            store.Apply(DirectorySync.Users, [new EntityChange(userId, JsonNode.Parse(user.GetRawText())!.AsObject(), OnlyIfExists: true)]);
+            var licenses = user.GetProperty("assignedLicenses").EnumerateArray()
+                .Select(l => (l.GetProperty("skuId").GetString()!,
+                    (IReadOnlyList<string>)(l.TryGetProperty("disabledPlans", out var d) ? d.EnumerateArray().Select(p => p.GetString()!).ToArray() : [])))
+                .ToArray();
+            if (done(licenses))
+                return new ApplyResult(ChangeOutcome.Applied);
+        }
+        return new ApplyResult(ChangeOutcome.AppliedNotYetVisible,
+            "Microsoft 365 accepted the change but still shows the old licenses; it usually appears within a minute.");
+    }
+
+    async Task RefreshSkusAsync(CancellationToken cancellationToken)
+    {
+        var changes = new List<EntityChange>();
+        await foreach (var sku in graph.GetAllAsync($"subscribedSkus?$select={DirectorySync.SkuSelect}", cancellationToken))
+            changes.Add(new EntityChange(sku.GetProperty("skuId").GetString()!, JsonNode.Parse(sku.GetRawText())!.AsObject()));
+        store.Apply(DirectorySync.Skus, changes);
+    }
+
+    async Task<ApplyResult> RemoveAppAssignmentAsync(RemoveAppAssignment remove, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await graph.DeleteAsync($"users/{remove.User.Id}/appRoleAssignments/{remove.AssignmentId}", cancellationToken);
+            return new ApplyResult(ChangeOutcome.Applied);
         }
         catch (GraphException e)
         {

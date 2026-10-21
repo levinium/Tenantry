@@ -267,6 +267,9 @@ public class ChangePipelineTests
 
         public Task<IReadOnlyList<string>> GetDomainsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<string>>(["contoso.example"]);
+
+        public Task<UserLicensing> GetLicensingAsync(string userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new UserLicensing("GB", [], [], []));
     }
 
     [Fact]

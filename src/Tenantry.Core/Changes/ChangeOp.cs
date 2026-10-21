@@ -19,6 +19,9 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetTestModeChange), "setTestMode")]
 [JsonDerivedType(typeof(ResetPassword), "resetPassword")]
 [JsonDerivedType(typeof(RevokeSessions), "revokeSessions")]
+[JsonDerivedType(typeof(SetLicenseAssigned), "setLicense")]
+[JsonDerivedType(typeof(SetLicenseApps), "setLicenseApps")]
+[JsonDerivedType(typeof(RemoveAppAssignment), "removeAppAssignment")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -91,6 +94,54 @@ public sealed record ResetPassword(ChangeTarget User, bool MustChangeAtNextSignI
     public override string Label => "Password";
     public override string Before => "Current password";
     public override string After => MustChangeAtNextSignIn ? "New temporary password (must change at next sign-in)" : "New password";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Gives or takes away one license (assignLicense). Taking one away is a caution change.</summary>
+public sealed record SetLicenseAssigned(ChangeTarget User, string SkuId, string SkuName, bool Old, bool New) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "license:" + SkuId;
+    public override string Label => SkuName;
+    public override string Before => Old ? "Assigned" : "Not assigned";
+    public override string After => New ? "Assigned" : "Removed";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetLicenseAssigned e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>
+/// Turns apps (service plans) on or off inside a license the user has, by the license's list
+/// of disabled plans. Turning any app off is a caution change.
+/// </summary>
+/// <param name="PlanNames">Plan id → name, for reading the change.</param>
+public sealed record SetLicenseApps(ChangeTarget User, string SkuId, string SkuName, IReadOnlyList<string> OldDisabled, IReadOnlyList<string> NewDisabled,
+    IReadOnlyDictionary<string, string> PlanNames) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "apps:" + SkuId;
+    public override string Label => $"{SkuName} apps";
+    public override string Before => Describe(OldDisabled);
+    public override string After => Describe(NewDisabled);
+    public override bool IsCaution => NewDisabled.Except(OldDisabled).Any();
+    public override bool IsNoChange => OldDisabled.ToHashSet().SetEquals(NewDisabled);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetLicenseApps e ? this with { OldDisabled = e.OldDisabled } : this;
+
+    string Describe(IReadOnlyList<string> disabled) => disabled.Count == 0
+        ? "All apps on"
+        : "Off: " + string.Join(", ", disabled.Select(id => PlanNames.GetValueOrDefault(id, id)).Order(StringComparer.CurrentCulture));
+}
+
+/// <summary>Removes the user's assignment to an enterprise application.</summary>
+public sealed record RemoveAppAssignment(ChangeTarget User, string AssignmentId, string AppName) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "app:" + AssignmentId;
+    public override string Label => AppName;
+    public override string Before => "Assigned";
+    public override string After => "Removed";
     public override bool IsCaution => true;
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;

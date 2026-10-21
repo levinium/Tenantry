@@ -13,6 +13,9 @@
     <DataTemplate DataType="rec:AccountSection">
       <views:AccountSectionView />
     </DataTemplate>
+    <DataTemplate DataType="rec:LicensesSection">
+      <views:LicensesSectionView />
+    </DataTemplate>
     <DataTemplate DataType="rec:PlannedSection">
       <views:PlannedSectionView />
     </DataTemplate>

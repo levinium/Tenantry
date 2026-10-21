@@ -250,6 +250,18 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         page.Account.LoadAsync().GetAwaiter().GetResult();
         editing.Pending!.DiscardAllCommand.Execute(null);
         Render(editing, "user-account-light");
+
+        // Licenses & apps: a license opened to its apps, one switched off, another being added.
+        page.SelectedSection = page.LicensesTab;
+        page.LicensesTab.LoadAsync().GetAwaiter().GetResult();
+        page.LicensesTab.Licenses[0].IsExpanded = true;
+        page.LicensesTab.Licenses[0].Apps.Last().IsOn = false;
+        page.LicensesTab.Licenses[0].IsExpanded = true;
+        page.LicensesTab.SelectedToAdd = page.LicensesTab.AddOptions.First(o => o.IsAvailable);
+        page.LicensesTab.AddLicenseCommand.Execute(null);
+        page.LicensesTab.Licenses[0].IsExpanded = true;
+        Render(editing, "user-licenses-light");
+        editing.Pending.DiscardAllCommand.Execute(null);
         // Demo people aren't test objects, so Test mode would (rightly) refuse the reset.
         editing.Pending.TurnOffTestModeCommand.Execute(null);
         editing.Pending.StartTurnOffCommand.Execute(null);

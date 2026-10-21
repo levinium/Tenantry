@@ -35,7 +35,10 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
     public const string SignIns = "signin";
 
     const string UserSelect = "id,displayName,userPrincipalName,mail,department,jobTitle,accountEnabled,userType,createdDateTime,assignedLicenses";
-    const string GroupSelect = "id,displayName,mail,mailEnabled,securityEnabled,groupTypes,description,visibility,createdDateTime,members";
+    /// <summary>Licenses with counts and their apps, for the license picker and per-app switches.</summary>
+    public const string SkuSelect = "skuId,skuPartNumber,prepaidUnits,consumedUnits,servicePlans,appliesTo,capabilityStatus";
+
+    const string GroupSelect ="id,displayName,mail,mailEnabled,securityEnabled,groupTypes,description,visibility,createdDateTime,members";
 
     /// <summary>The few Get-Mailbox properties the lists use, of the 300-odd it returns.</summary>
     static readonly string[] MailboxSelect =
@@ -69,7 +72,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         try
         {
             var notes = new List<string>();
-            var changed = await ReadWholeAsync(Skus, "subscribedSkus?$select=skuId,skuPartNumber", "skuId", cancellationToken);
+            var changed = await ReadWholeAsync(Skus, $"subscribedSkus?$select={SkuSelect}", "skuId", cancellationToken);
             changed += await SyncDeltaAsync(Users, $"users/delta?$select={UserSelect}", "users", scope, _ => item => new EntityChange(Id(item), ToObject(item)), progress, cancellationToken);
             changed += await SyncDeltaAsync(Groups, $"groups/delta?$select={GroupSelect}", "groups", scope, GroupMapper, progress, cancellationToken);
 

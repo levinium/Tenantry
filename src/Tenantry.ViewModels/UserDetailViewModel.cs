@@ -111,6 +111,8 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
 
     public AccountSection Account => Sections.OfType<AccountSection>().Single();
 
+    public LicensesSection LicensesTab => Sections.OfType<LicensesSection>().Single();
+
     public IReadOnlyList<RecordSection> ManageRows => Sections.Skip(1).ToArray();
 
     [ObservableProperty]
@@ -122,9 +124,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
     [
         new OverviewSection(this),
         new AccountSection(User, _records, _pipeline, _canEdit),
-        new PlannedSection("licenses", "Licenses & apps", "Apps", "the next update (4a)",
-            ["Add and remove licenses, with how many are left", "Turn individual apps on or off inside a license",
-             "Licenses inherited from groups, and where they come from", "License assignment errors", "Enterprise apps assigned to them"]),
+        new LicensesSection(User, _records, _pipeline, _canEdit),
         new PlannedSection("groups", "Groups & access", "People", "the next update (4a)",
             ["Groups and teams they belong to or own: add and remove", "Shared mailboxes they can use, and with what rights",
              "Who can use their mailbox (Full access, Send as, Send on behalf)"]),
