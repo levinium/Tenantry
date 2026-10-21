@@ -7,14 +7,25 @@
   <StackPanel Spacing="18" Width="760">
     <!-- A sync running now (from here, the sidebar or the timer), and the background read -->
     <Border Classes="banner info" IsVisible="{Binding HasLiveText}">
-      <StackPanel Orientation="Horizontal" Spacing="10">
-        <ic:FluentIcon Icon="CloudSync" FontSize="16" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
-        <TextBlock Text="{Binding LiveText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+      <StackPanel Spacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Classes="spin" Icon="ArrowSync" FontSize="16" Foreground="{DynamicResource Accent}" VerticalAlignment="Center">
+            <ic:FluentIcon.RenderTransform>
+              <RotateTransform />
+            </ic:FluentIcon.RenderTransform>
+          </ic:FluentIcon>
+          <TextBlock Text="{Binding LiveText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+        </StackPanel>
+        <ProgressBar Classes="working" />
       </StackPanel>
     </Border>
     <Border Classes="banner neutral" IsVisible="{Binding HasBackgroundText}">
       <StackPanel Orientation="Horizontal" Spacing="10">
-        <ic:FluentIcon Icon="Storage" FontSize="16" VerticalAlignment="Center" />
+        <ic:FluentIcon Classes="spin" Icon="ArrowSync" FontSize="16" VerticalAlignment="Center">
+          <ic:FluentIcon.RenderTransform>
+            <RotateTransform />
+          </ic:FluentIcon.RenderTransform>
+        </ic:FluentIcon>
         <TextBlock VerticalAlignment="Center" TextWrapping="Wrap">
           <Run Text="In the background: " FontWeight="SemiBold" />
           <Run Text="{Binding BackgroundText}" />

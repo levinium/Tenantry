@@ -952,6 +952,32 @@
     </Style.Animations>
   </Style>
 
+  <!-- A spinning icon (syncing). Like the spinner, it needs a RotateTransform set on the icon
+       itself: animating RenderTransform as transform operations throws "No animator". -->
+  <Style Selector="ic|FluentIcon.spin">
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Style.Animations>
+      <Animation Duration="0:0:1.2" IterationCount="Infinite">
+        <KeyFrame Cue="0%">
+          <Setter Property="RotateTransform.Angle" Value="0" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="RotateTransform.Angle" Value="360" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+
+  <!-- A thin moving bar under a status line while work runs. -->
+  <Style Selector="ProgressBar.working">
+    <Setter Property="IsIndeterminate" Value="True" />
+    <Setter Property="Height" Value="3" />
+    <Setter Property="MinHeight" Value="3" />
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+  </Style>
+
   <!-- Main tabs: hidden while the area's list is the only page open -->
   <Style Selector="TabControl.liststrip /template/ ItemsPresenter#PART_ItemsPresenter">
     <Setter Property="IsVisible" Value="False" />

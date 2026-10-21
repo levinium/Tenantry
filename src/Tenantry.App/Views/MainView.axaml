@@ -47,17 +47,29 @@
           <!-- How fresh the local copy is, and a way to check now -->
           <Grid IsVisible="{Binding HasSync}" Margin="12,0,4,6" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8"
                 Background="Transparent" ToolTip.Tip="{Binding SyncTip}">
-            <Panel VerticalAlignment="Center">
+            <Panel VerticalAlignment="Top" Margin="0,1,0,0">
               <ic:FluentIcon Icon="CloudCheckmark" FontSize="16" Foreground="{DynamicResource TextMuted}" IsVisible="{Binding IsSyncOk}" />
-              <ic:FluentIcon Icon="CloudSync" FontSize="16" Foreground="{DynamicResource Accent}" IsVisible="{Binding IsSyncing}" />
+              <ic:FluentIcon Classes="spin" Icon="ArrowSync" FontSize="16" Foreground="{DynamicResource Accent}" IsVisible="{Binding IsSyncing}">
+                <ic:FluentIcon.RenderTransform>
+                  <RotateTransform />
+                </ic:FluentIcon.RenderTransform>
+              </ic:FluentIcon>
               <ic:FluentIcon Icon="Warning" FontSize="16" Foreground="{DynamicResource BadgeWarningFg}" IsVisible="{Binding HasSyncError}" />
             </Panel>
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
               <TextBlock Classes="caption" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" Text="{Binding SyncText}" />
+              <ProgressBar Classes="working" Margin="0,3,0,1" IsVisible="{Binding IsSyncing}" />
               <!-- The background read (mailbox sizes and replies) under it, while it runs -->
-              <TextBlock Classes="caption" Foreground="{DynamicResource TextMuted}" FontSize="11" TextTrimming="CharacterEllipsis"
-                         Text="{Binding BackgroundText}" IsVisible="{Binding HasBackgroundText}"
-                         ToolTip.Tip="Reading every mailbox's size and automatic replies in the background; the lists update when it's done" />
+              <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding HasBackgroundText}"
+                          ToolTip.Tip="Reading every mailbox's size and automatic replies in the background; the lists update when it's done">
+                <ic:FluentIcon Classes="spin" Icon="ArrowSync" FontSize="11" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center">
+                  <ic:FluentIcon.RenderTransform>
+                    <RotateTransform />
+                  </ic:FluentIcon.RenderTransform>
+                </ic:FluentIcon>
+                <TextBlock Classes="caption" Foreground="{DynamicResource TextMuted}" FontSize="11" TextTrimming="CharacterEllipsis"
+                           Text="{Binding BackgroundText}" VerticalAlignment="Center" />
+              </StackPanel>
             </StackPanel>
             <Button Grid.Column="2" Classes="rowaction" Command="{Binding RefreshCommand}"
                     ToolTip.Tip="Refresh: check Microsoft 365 for changes now">

@@ -367,6 +367,29 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     synced.OpenSettingsCommand.Execute(null);
     Render(synced, $"settings-{suffix}");
     synced.CloseDialog();
+
+    // Mid-sync: the spinning icon, the step, the moving bar and the background line; then Settings showing it.
+    var paused = new PausedSync();
+    var busy = new MainViewModel(connector.ConnectDemo() with
+    {
+        ListState = new Tenantry.Core.Lists.MemoryListStateStore(), Sync = paused, SyncSettings = new MemorySyncSettingsStore(),
+    }, () => { });
+    // Pumped, not blocked on: its sync awaits on the UI thread, which a GetResult() would deadlock.
+    var starting = busy.InitializeAsync();
+    for (var deadline = DateTime.UtcNow.AddSeconds(20); !starting.IsCompleted && DateTime.UtcNow < deadline;)
+    {
+        Dispatcher.UIThread.RunJobs();
+        Thread.Sleep(5);
+    }
+    if (!starting.IsCompleted)
+        throw new InvalidOperationException("The paused tenant didn't start within 20 s");
+    paused.RaiseBackground();
+    busy.RefreshCommand.Execute(null);
+    Render(busy, $"syncing-{suffix}");
+    busy.OpenSettingsCommand.Execute(null);
+    Render(busy, $"settings-syncing-{suffix}");
+    paused.Release.SetResult();
+    busy.CloseDialog();
     if (full)
     {
         // The new mailbox views: nearly full, with the storage and reply columns shown.
@@ -500,6 +523,28 @@ sealed class SnapshotSync : ITenantSync
         new("Mailboxes", "Mailbox types, addresses, forwarding, address list; who can use shared mailboxes", DateTimeOffset.Now.AddMinutes(-34), "Every hour"),
         new("Mailbox size and automatic replies", "Two reads per mailbox, in the background", DateTimeOffset.Now.AddMinutes(-31), "Every hour"),
     ];
+}
+
+/// <summary>A sync paused partway (a step reported, the background read running), for the mid-sync snapshot.</summary>
+sealed class PausedSync : ITenantSync
+{
+    public TaskCompletionSource Release { get; } = new();
+    public DateTimeOffset? LastSyncedAt { get; } = DateTimeOffset.Now.AddMinutes(-4);
+    public bool IsPersistent => true;
+    public IReadOnlyList<string> Notes => [];
+    public string? BackgroundStatus => "Mailbox sizes: 120 of 604";
+    public event EventHandler? BackgroundStatusChanged;
+
+    public void RaiseBackground() => BackgroundStatusChanged?.Invoke(this, EventArgs.Empty);
+
+    public async Task<int> SyncAsync(IProgress<string>? progress = null, SyncScope scope = SyncScope.Changes, CancellationToken cancellationToken = default)
+    {
+        if (scope == SyncScope.Changes)
+            return 0;
+        progress?.Report("Shared mailbox access: 5 of 13…");
+        await Release.Task;
+        return 0;
+    }
 }
 
 /// <summary>Fictional saved tenants; the demo for everything else.</summary>
