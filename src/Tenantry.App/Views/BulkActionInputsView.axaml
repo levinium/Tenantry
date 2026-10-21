@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             x:Class="Tenantry.App.Views.BulkActionInputsView"
+             x:DataType="ed:BulkAction"
+             x:Name="Root">
+  <!-- What one bulk action asks for: someone or something (picker), a choice, a value. -->
+  <StackPanel Spacing="10">
+    <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+
+    <StackPanel Spacing="6" IsVisible="{Binding HasPicker}">
+      <views:PersonPickerView DataContext="{Binding Picker}" IsVisible="{Binding !#Root.((ed:BulkAction)DataContext).HasPicked}" />
+      <Border Classes="togglerow" IsVisible="{Binding HasPicked}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <StackPanel Spacing="1">
+            <TextBlock Text="{Binding Picked.Name, FallbackValue=''}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="caption" Text="{Binding Picked.Detail, FallbackValue=''}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Content="Change" Command="{Binding ClearPickedCommand}" ToolTip.Tip="Choose someone or something else" />
+        </Grid>
+      </Border>
+    </StackPanel>
+
+    <StackPanel Spacing="4" IsVisible="{Binding HasChoices}">
+      <TextBlock Classes="label" Text="{Binding ChoiceLabel}" />
+      <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Choice}" HorizontalAlignment="Stretch" MaxDropDownHeight="360" PlaceholderText="Choose…" />
+      <TextBlock Classes="caption" Text="Reading the tenant's licenses…" IsVisible="{Binding IsLoadingChoices}" />
+    </StackPanel>
+
+    <StackPanel Spacing="4" IsVisible="{Binding HasText}">
+      <TextBlock Classes="label" Text="{Binding TextLabel}" />
+      <TextBox Text="{Binding Text}" PlaceholderText="Leave empty to clear it" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

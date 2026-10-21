@@ -126,9 +126,10 @@ public sealed partial class BulkEditorViewModel : ObservableObject
     const int SkippedShown = 6;
 
     readonly ChangePipeline _pipeline;
-    readonly Action _close;
+    readonly Action? _close;
 
-    public BulkEditorViewModel(string heading, IReadOnlyList<BulkAction> actions, ChangePipeline pipeline, Action close)
+    /// <param name="close">Closes the editor when it's a popup; null when it sits inside the selection panel.</param>
+    public BulkEditorViewModel(string heading, IReadOnlyList<BulkAction> actions, ChangePipeline pipeline, Action? close = null)
     {
         Heading = heading;
         Actions = actions;
@@ -238,6 +239,12 @@ public sealed partial class BulkEditorViewModel : ObservableObject
         }
     }
 
+    public bool HasClose => _close is not null;
+
     [RelayCommand]
-    void Done() => _close();
+    void Done() => _close?.Invoke();
+
+    /// <summary>Opens an action's inputs, or folds them away when it's already open.</summary>
+    [RelayCommand]
+    void Toggle(BulkAction action) => Selected = Selected == action ? null : action;
 }

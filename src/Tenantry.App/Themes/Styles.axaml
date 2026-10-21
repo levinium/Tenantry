@@ -219,13 +219,45 @@
     <Setter Property="Background" Value="{DynamicResource DropSlotBg}" />
   </Style>
 
-  <!-- Bulk edit: the bar above a list when several rows are checked. -->
-  <Style Selector="Border.selectionbar">
-    <Setter Property="Background" Value="{DynamicResource DropSlotBg}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
-    <Setter Property="BorderThickness" Value="1" />
+  <!-- Selection panel: checked rows as removable chips; actions as rows that open in place. -->
+  <Style Selector="Border.chip">
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="10,3,4,3" />
+  </Style>
+  <Style Selector="Button.chipx">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="4" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+  </Style>
+  <Style Selector="Button.chipx:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavHoverBg}" />
+  </Style>
+  <Style Selector="TextBlock.value.mixed">
+    <Setter Property="FontStyle" Value="Italic" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+  </Style>
+  <Style Selector="Border.bulkrow">
     <Setter Property="CornerRadius" Value="8" />
-    <Setter Property="Padding" Value="14,6" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Border.bulkrow.open">
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+  </Style>
+  <Style Selector="Button.bulkhead">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="12,9" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.bulkhead:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavHoverBg}" />
   </Style>
 
   <!-- People picker: matches drop below the search box as a light, bordered list. -->

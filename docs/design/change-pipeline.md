@@ -93,10 +93,19 @@ mode, because nothing in it is real.
 - **4a:** the rest of the Account tab (password reset, sign-out everywhere, manager); licenses
   and apps; group owners and members and mailbox access, editable from the user, the group page
   and the group preview's Manage popup.
-- **4a, bulk edit:** every list has a checkbox column (Ctrl- and Shift-click work too). With two
-  or more rows checked, a bar offers "Edit N users…" (or groups and mailboxes). The bulk editor
-  offers a set of actions described as data (`BulkAction`: an optional picker, choice and text
-  value, plus a planner). Each action plans one change per row and lists the rows it skips with
-  the reason. `ChangePipeline.StageAll` stages them together and raises `Changed` once. Pending
-  changes are indexed by (target, key), so screens can look up a slot without scanning the tray.
+- **4a, bulk edit:** every list has a checkbox column (Ctrl- and Shift-click work too), and
+  "Select from list" checks the rows named in pasted text. With two or more rows checked, the
+  preview pane becomes the **selection panel** (`SelectionPanelViewModel`), which opens on its
+  own and holds:
+  - who is selected, each with × to uncheck;
+  - what they have in common;
+  - for users, every editable detail, showing the shared value or "Mixed"
+    (`BulkDetailsViewModel`);
+  - the bulk actions as rows that open in place.
+
+  Actions are described as data (`BulkAction`: an optional picker, choice and text value, plus a
+  planner that reads the current selection). Each plans one change per row and lists the rows it
+  skips with the reason. `ChangePipeline.StageAll` stages them together and raises `Changed`
+  once. Pending changes are indexed by (target, key), so screens can look up a slot without
+  scanning the tray.
 - **Next:** a Change log area.

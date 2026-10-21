@@ -1,7 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:rec="using:Tenantry.ViewModels.Records"
-             xmlns:ed="using:Tenantry.ViewModels.Editing"
              xmlns:views="using:Tenantry.App.Views"
              x:Class="Tenantry.App.App"
              Name="Tenantry"
@@ -26,8 +25,8 @@
     <DataTemplate DataType="rec:GroupPeopleEditor">
       <views:GroupPeopleEditorView />
     </DataTemplate>
-    <DataTemplate DataType="ed:BulkEditorViewModel">
-      <views:BulkEditorView />
+    <DataTemplate DataType="rec:SelectionPanelViewModel">
+      <views:SelectionPanelView />
     </DataTemplate>
     <DataTemplate DataType="rec:GroupsAccessSection">
       <views:GroupsAccessSectionView />

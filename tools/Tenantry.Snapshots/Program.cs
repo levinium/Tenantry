@@ -62,7 +62,6 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     Pick(list, UserFields.Licenses, hide: false, "Microsoft 365 E5", "Microsoft 365 E3");
     list.SortByColumn(list.Columns.Single(c => c.Key == UserFields.Department));
     list.AddSortByColumn(list.Columns.Single(c => c.Key == UserFields.Status));
-    if (args.Contains("--debug"))
         foreach (var c in list.Columns.Where(c => c.IsSorted || c.Key == UserFields.Status))
             Console.WriteLine($"    {c.Key}: sort={c.Sort} priority={c.SortPriority} show={c.ShowPriority} text='{c.PriorityText}' glyph={c.SortGlyph}");
     Render(main, $"users-filtered-{suffix}");
@@ -295,21 +294,29 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "mailbox-people-light");
         editing.CloseDialog();
         editing.Pending.DiscardAllCommand.Execute(null);
-        // Bulk edit: three users checked, the selection bar, then the editor after staging.
+        // Bulk edit: three users checked turn the preview into the selection panel.
         editing.SelectedSection = editing.Sections.Single(s => s.Key == "users");
         editing.Users.SelectedRows = editing.Users.Rows.Skip(3).Take(3).ToArray();
         Render(editing, "users-selected-light");
-        editing.Users.BulkEditCommand.Execute(null);
-        var bulk = (Tenantry.ViewModels.Editing.BulkEditorViewModel)editing.Dialog!.Content;
-        var detail = bulk.Actions.Single(a => a.Title == "Set a detail");
-        bulk.Selected = detail;
-        detail.Choice = detail.Choices.First();
-        detail.Text = "Operations";
-        bulk.StageCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        // A detail staged for all of them, and an action opened in place.
+        var panel = (Tenantry.ViewModels.Records.SelectionPanelViewModel)editing.Users.PreviewModel!;
+        var department = panel.Details!.Fields.Single(f => f.Property == "department");
+        department.EditCommand.Execute(null);
+        department.Draft = "Operations";
+        department.StageCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        panel.Bulk!.ToggleCommand.Execute(panel.Bulk.Actions.Single(a => a.Title == "Add to a group"));
+        panel.Bulk.Actions.Single(a => a.Title == "Add to a group").Picker!.Query = "sg";
         Render(editing, "bulk-edit-light");
-        editing.CloseDialog();
         editing.Pending.DiscardAllCommand.Execute(null);
         editing.Users.ClearSelectionCommand.Execute(null);
+
+        // The same panel for groups and mailboxes.
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "groups");
+        editing.Groups.ApplyView(editing.Groups.Views.First());
+        editing.Groups.SelectedRows = editing.Groups.Rows.Take(4).ToArray();
+        Render(editing, "groups-selected-light");
+        editing.Groups.ClearSelectionCommand.Execute(null);
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "users");
         editing.SelectedTab = page;
         // Demo people aren't test objects, so Test mode would (rightly) refuse the reset.
         editing.Pending.TurnOffTestModeCommand.Execute(null);

@@ -95,52 +95,73 @@ public sealed class BulkEditTests
 
     // ---- Users ------------------------------------------------------------------------------
 
-    [Fact]
-    public async Task Setting_a_list_detail_skips_people_who_already_have_it()
+    static async Task<BulkDetailsViewModel> Details(ChangePipeline pipeline, Records records, params UserSummary[] users)
     {
-        var actions = BulkActions.ForUsers([Ada, Bo, Cy], new Index(), new Records());
-        var set = Action(actions, "Set a detail");
-        set.Choice = set.Choices.Single(c => (string)c.Value == "department");
-        set.Text = "IT";
+        var details = new BulkDetailsViewModel(() => users, records, pipeline);
+        // The first read of details outside the list runs in the background; wait for it.
+        for (var i = 0; details.IsReading && i < 100; i++)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        return details;
+    }
 
-        var plan = await set.PlanAsync(Ct);
+    static MixedField Field(BulkDetailsViewModel details, string property) => details.Fields.Single(f => f.Property == property);
 
-        var change = Assert.IsType<SetUserText>(Assert.Single(plan.Changes));
+    [Fact]
+    public async Task Details_show_a_shared_value_or_mixed_and_stage_for_everyone_who_differs()
+    {
+        var pipeline = Pipeline();
+        var details = await Details(pipeline, new Records(), Ada, Bo, Cy);
+        var department = Field(details, "department");
+        Assert.Equal("Mixed", department.Value);
+        Assert.Contains("IT (2)", department.ValuesTip);
+
+        department.EditCommand.Execute(null);
+        department.Draft = "IT";
+        await department.StageCommand.ExecuteAsync(null);
+
+        var change = Assert.IsType<SetUserText>(Assert.Single(pipeline.Pending));
         Assert.Equal(("u2", "Finance", "IT"), (change.User.Id, change.Old, change.New));
-        Assert.Equal(2, plan.Skipped.Count);
+        Assert.Equal("IT", department.Value);
+        Assert.Equal("Pending for 1", department.PendingText);
+        Assert.False(department.IsEditing);
     }
 
     [Fact]
-    public async Task Other_details_are_read_live_for_a_true_before()
+    public async Task Details_outside_the_list_are_read_once_and_reused_when_staging()
     {
         var records = new Records();
-        var set = Action(BulkActions.ForUsers([Ada, Bo], new Index(), records), "Set a detail");
-        set.Choice = set.Choices.Single(c => (string)c.Value == "officeLocation");
-        set.Text = "Floor 3";
+        var pipeline = Pipeline();
+        var details = await Details(pipeline, records, Ada, Bo);
+        var office = Field(details, "officeLocation");
+        Assert.Equal("Mixed", office.Value);
+        Assert.Equal(2, records.DetailReads);
 
-        var plan = await set.PlanAsync(Ct);
+        office.EditCommand.Execute(null);
+        office.Draft = "Floor 3";
+        await office.StageCommand.ExecuteAsync(null);
 
         Assert.Equal(2, records.DetailReads);
-        Assert.Equal(["Floor 2", null], plan.Changes.Cast<SetUserText>().OrderBy(c => c.User.Id).Select(c => c.Old));
+        Assert.Equal(["Floor 2", null], pipeline.Pending.Cast<SetUserText>().OrderBy(c => c.User.Id).Select(c => c.Old));
     }
 
     [Fact]
     public async Task A_bad_usage_location_stages_nothing()
     {
-        var set = Action(BulkActions.ForUsers([Ada], new Index(), new Records()), "Set a detail");
-        set.Choice = set.Choices.Single(c => (string)c.Value == "usageLocation");
-        set.Text = "usa";
+        var pipeline = Pipeline();
+        var location = Field(await Details(pipeline, new Records(), Ada), "usageLocation");
+        location.EditCommand.Execute(null);
+        location.Draft = "usa";
 
-        var plan = await set.PlanAsync(Ct);
+        await location.StageCommand.ExecuteAsync(null);
 
-        Assert.Empty(plan.Changes);
-        Assert.Contains("country code", plan.Error);
+        Assert.Empty(pipeline.Pending);
+        Assert.Contains("country code", location.Message);
+        Assert.True(location.IsEditing);
     }
-
     [Fact]
     public async Task Licenses_are_added_only_where_missing_and_shortfalls_are_flagged()
     {
-        var add = Action(BulkActions.ForUsers([Ada, Bo, Cy], new Index(), new Records()), "Add a license");
+        var add = Action(BulkActions.ForUsers(() => [Ada, Bo, Cy], new Index(), new Records()), "Add a license");
         await add.LoadAsync(Ct);
         add.Choice = add.Choices.Single(c => ((LicenseSku)c.Value).SkuId == "sku-e3");
 
@@ -154,7 +175,7 @@ public sealed class BulkEditTests
     [Fact]
     public async Task Removing_a_license_only_offers_ones_they_hold()
     {
-        var remove = Action(BulkActions.ForUsers([Ada, Bo], new Index(), new Records()), "Remove a license");
+        var remove = Action(BulkActions.ForUsers(() => [Ada, Bo], new Index(), new Records()), "Remove a license");
         await remove.LoadAsync(Ct);
 
         Assert.Equal(["Microsoft 365 E3"], remove.Choices.Select(c => c.Label));
@@ -164,7 +185,7 @@ public sealed class BulkEditTests
     [Fact]
     public async Task Group_and_mailbox_actions_skip_people_already_there()
     {
-        var actions = BulkActions.ForUsers([Ada, Bo, Cy], new Index(), new Records());
+        var actions = BulkActions.ForUsers(() => [Ada, Bo, Cy], new Index(), new Records());
         var join = Action(actions, "Add to a group");
         join.Picker!.Query = "test";
         Assert.DoesNotContain(join.Picker.Results, r => r.Id == "g3");
@@ -184,7 +205,7 @@ public sealed class BulkEditTests
     [Fact]
     public async Task Sign_in_skips_accounts_already_that_way()
     {
-        var block = Action(BulkActions.ForUsers([Ada, Bo], new Index(), new Records()), "Block or allow sign-in");
+        var block = Action(BulkActions.ForUsers(() => [Ada, Bo], new Index(), new Records()), "Block or allow sign-in");
         block.Choice = block.Choices.Single(c => c.Label == "Block sign-in");
 
         var plan = await block.PlanAsync(Ct);
@@ -198,7 +219,7 @@ public sealed class BulkEditTests
     [Fact]
     public async Task Group_bulk_skips_mailboxes_dynamic_groups_and_last_owners()
     {
-        var actions = BulkActions.ForGroups([Team, Second, Dynamic, Shared], new Index());
+        var actions = BulkActions.ForGroups(() => [Team, Second, Dynamic, Shared], new Index());
         var addMember = Action(actions, "Add a member");
         addMember.Picked = PickOption.Of(Cy);
         var removeOwner = Action(actions, "Remove an owner");
@@ -222,7 +243,7 @@ public sealed class BulkEditTests
     {
         var pipeline = Pipeline();
         var closed = false;
-        var editor = new BulkEditorViewModel("Edit 3 users", BulkActions.ForUsers([Ada, Bo, Cy], new Index(), new Records()), pipeline, () => closed = true);
+        var editor = new BulkEditorViewModel("Edit 3 users", BulkActions.ForUsers(() => [Ada, Bo, Cy], new Index(), new Records()), pipeline, () => closed = true);
         Assert.False(editor.StageCommand.CanExecute(null));
 
         editor.Selected = Action(editor.Actions, "Sign out everywhere");
@@ -236,27 +257,69 @@ public sealed class BulkEditTests
         Assert.True(closed);
     }
 
-    [Fact]
-    public async Task Checked_rows_survive_a_filter_that_keeps_them_and_drive_the_bar()
+    static async Task<DataListViewModel> UserListWithPanel(ChangePipeline pipeline)
     {
         var list = DataListViewModel.Create(UserList.Definition(() => DateTimeOffset.UnixEpoch, _ => null!),
             _ => Task.FromResult<IReadOnlyList<UserSummary>>([Ada, Bo, Cy]), _ => { });
-        await list.LoadAsync(Ct);
-        var ran = new List<object>();
-        list.BulkAction = new ListBulkAction("users", true, "", rows => ran.AddRange(rows));
+        await list.LoadAsync(TestContext.Current.CancellationToken);
+        list.SelectionPanel = (rows, uncheck) => SelectionPanelViewModel.ForUsers(rows, uncheck, new Index(), new Records(), pipeline,
+            Tenantry.Core.Capabilities.Availability.Yes);
+        return list;
+    }
+
+    [Fact]
+    public async Task Checking_several_rows_turns_the_pane_into_a_selection_panel()
+    {
+        var list = await UserListWithPanel(Pipeline());
+        Assert.False(list.IsPaneVisible);
 
         list.SelectedRows = list.Rows.Take(2).ToArray();
 
         Assert.True(list.HasSelection);
-        Assert.Equal("Edit 2 users…", list.BulkText);
-        list.SearchText = "ada";
-        Assert.Equal([Ada], list.SelectedRows);
-        Assert.False(list.HasSelection);
-        list.SearchText = "";
+        Assert.True(list.IsPaneVisible);
+        Assert.Equal("SELECTION", list.PaneTitle);
+        var panel = Assert.IsType<SelectionPanelViewModel>(list.PreviewModel);
+        Assert.Equal("2 users selected", panel.Heading);
+        Assert.Equal("Sign-in", panel.Summary[1].Label);
+        Assert.Equal("1 allowed · 1 blocked", panel.Summary[1].Value);
+        Assert.DoesNotContain(panel.Bulk!.Actions, a => a.Title == "Set a detail");
+
+        // The same panel follows the selection (what's typed into it survives).
         list.SelectedRows = list.Rows.ToArray();
-        list.BulkEditCommand.Execute(null);
-        Assert.Equal(3, ran.Count);
+        Assert.Same(panel, list.PreviewModel);
+        Assert.Equal("3 users selected", panel.Heading);
+
+        // A chip's × unchecks that person.
+        panel.Chips[0].RemoveCommand.Execute(null);
+        Assert.Equal(2, list.SelectedRows.Count);
+
         list.ClearSelectionCommand.Execute(null);
         Assert.False(list.HasSelection);
+        Assert.IsNotType<SelectionPanelViewModel>(list.PreviewModel);
+    }
+
+    [Fact]
+    public async Task Checked_rows_survive_a_filter_that_keeps_them()
+    {
+        var list = await UserListWithPanel(Pipeline());
+        list.SelectedRows = list.Rows.Take(2).ToArray();
+
+        list.SearchText = "ada";
+
+        Assert.Equal([Ada], list.SelectedRows);
+        Assert.False(list.HasSelection);
+    }
+
+    [Fact]
+    public async Task Pasting_addresses_checks_the_matching_rows_and_names_the_rest()
+    {
+        var list = await UserListWithPanel(Pipeline());
+        list.PasteText = "zz-tenantry-test-ada@contoso.example\nBo <zz-tenantry-test-bo@contoso.example>; nobody@contoso.example";
+
+        list.SelectFromPasteCommand.Execute(null);
+
+        Assert.Equal(["u1", "u2"], list.SelectedRows.Cast<UserSummary>().Select(u => u.Id).Order());
+        Assert.Equal("Selected 2 of 3. Not found: nobody@contoso.example", list.PasteResult);
+        Assert.Equal("Select all 3 matching rows, or clear the selection", list.SelectAllTip);
     }
 }

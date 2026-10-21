@@ -144,6 +144,26 @@
                 <TextBlock Text="Compact" />
               </StackPanel>
             </Button>
+            <Button Classes="tb quiet" ToolTip.Tip="Select from a list: paste names or addresses (from Excel or an email) to check those rows">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ic:FluentIcon Icon="ClipboardPaste" FontSize="16" />
+                <TextBlock Text="Select from list" />
+              </StackPanel>
+              <Button.Flyout>
+                <Flyout Placement="BottomEdgeAlignedRight">
+                  <StackPanel Spacing="10" Width="380">
+                    <TextBlock Classes="h3" Text="Select from a list" />
+                    <TextBlock Classes="caption" TextWrapping="Wrap"
+                               Text="Paste names or email addresses, one per line or separated by commas or semicolons. Matching rows in the list (with its current filters) are checked." />
+                    <TextBox Text="{Binding PasteText}" AcceptsReturn="True" TextWrapping="Wrap" Height="140"
+                             PlaceholderText="ada@contoso.com&#10;bo@contoso.com; cy@contoso.com" />
+                    <Button Classes="accent" HorizontalAlignment="Left" Command="{Binding SelectFromPasteCommand}" Content="Check matching rows" />
+                    <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding PasteResult}"
+                               IsVisible="{Binding PasteResult, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                  </StackPanel>
+                </Flyout>
+              </Button.Flyout>
+            </Button>
             <Button Classes="tb quiet" Click="OnExport" ToolTip.Tip="Export: save the rows and columns shown as a CSV file (opens in Excel)">
               <StackPanel Orientation="Horizontal" Spacing="7">
                 <ic:FluentIcon Icon="ArrowDownload" FontSize="16" />
@@ -747,26 +767,6 @@
         <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
       </Border>
 
-      <!-- Two or more rows checked: what can be done with them all -->
-      <Border DockPanel.Dock="Top" Classes="selectionbar" Margin="0,0,0,8" IsVisible="{Binding HasSelection}">
-        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
-          <ic:FluentIcon Icon="CheckboxChecked" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
-          <TextBlock Grid.Column="1" FontWeight="SemiBold" VerticalAlignment="Center" Text="{Binding SelectionText}" />
-          <Button Grid.Column="2" Classes="ghost" Command="{Binding ClearSelectionCommand}" ToolTip.Tip="Uncheck every row">
-            <TextBlock Text="Clear selection" />
-          </Button>
-          <Button Grid.Column="3" Classes="accent" Command="{Binding BulkEditCommand}"
-                  IsVisible="{Binding BulkAction, Converter={x:Static ObjectConverters.IsNotNull}}"
-                  IsEnabled="{Binding BulkAction.IsEnabled, FallbackValue=False}"
-                  ToolTip.Tip="{Binding BulkAction.Tip}" ToolTip.ShowOnDisabled="True">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <ic:FluentIcon Icon="Edit" FontSize="14" VerticalAlignment="Center" />
-              <TextBlock Text="{Binding BulkText}" VerticalAlignment="Center" />
-            </StackPanel>
-          </Button>
-        </Grid>
-      </Border>
-
       <!-- The table -->
       <!-- No minimum height: in a very short window an open panel (and its buttons) wins over
            the table, which comes back as soon as the panel closes. -->
@@ -785,17 +785,22 @@
     </DockPanel>
 
     <!-- Preview pane: its width follows the window (see code-behind) -->
-    <Border Grid.Column="1" x:Name="PreviewPane" Classes="card" Width="420" Margin="4,16,8,12" Padding="0" IsVisible="{Binding IsPreviewOpen}">
+    <Border Grid.Column="1" x:Name="PreviewPane" Classes="card" Width="420" Margin="4,16,8,12" Padding="0" IsVisible="{Binding IsPaneVisible}">
       <DockPanel>
         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="16,12,8,8">
-          <TextBlock Classes="label" VerticalAlignment="Center" Text="PREVIEW" />
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding ExpandPreviewCommand}" IsEnabled="{Binding HasPreviewContent}" ToolTip.Tip="Open the full record in a tab">
+          <TextBlock Classes="label" VerticalAlignment="Center" Text="{Binding PaneTitle}" />
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding ExpandPreviewCommand}" IsVisible="{Binding !HasSelection}"
+                  IsEnabled="{Binding CanExpandPreview}" ToolTip.Tip="Open the full record in a tab">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowMaximize" FontSize="14" />
               <TextBlock Text="Open full record" />
             </StackPanel>
           </Button>
-          <Button Grid.Column="2" Classes="rowaction" Command="{Binding ClosePreviewCommand}" ToolTip.Tip="Close the preview">
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding ClearSelectionCommand}" IsVisible="{Binding HasSelection}"
+                  ToolTip.Tip="Uncheck every row and go back to the preview">
+            <TextBlock Text="Clear selection" />
+          </Button>
+          <Button Grid.Column="2" Classes="rowaction" Command="{Binding ClosePreviewCommand}" ToolTip.Tip="Close (clears a selection)">
             <ic:FluentIcon Icon="Dismiss" FontSize="14" />
           </Button>
         </Grid>

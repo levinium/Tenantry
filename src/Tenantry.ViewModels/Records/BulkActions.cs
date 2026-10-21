@@ -21,23 +21,19 @@ public static class BulkActions
 
     // ---- Users ------------------------------------------------------------------------------
 
-    public static IReadOnlyList<BulkAction> ForUsers(IReadOnlyList<UserSummary> users, IDirectoryIndex index, IUserRecords? records)
+    /// <param name="selected">The users checked right now (read each time, as the selection changes).</param>
+    public static IReadOnlyList<BulkAction> ForUsers(Func<IReadOnlyList<UserSummary>> selected, IDirectoryIndex index, IUserRecords? records)
     {
-        var ids = users.Select(u => u.Id).ToHashSet(StringComparer.Ordinal);
+        HashSet<string> Ids() => selected().Select(u => u.Id).ToHashSet(StringComparer.Ordinal);
         Task<IReadOnlyList<LicenseSku>>? catalog = null;
         Task<IReadOnlyList<LicenseSku>> Catalog(CancellationToken ct) => catalog ??= LoadCatalog(ct);
         async Task<IReadOnlyList<LicenseSku>> LoadCatalog(CancellationToken ct) =>
-            records is null ? [] : (await records.GetLicensingAsync(users[0].Id, ct)).Catalog;
+            records is null || selected().Count == 0 ? [] : (await records.GetLicensingAsync(selected()[0].Id, ct)).Catalog;
 
         return
         [
-            new("Set a detail", "Give everyone the same department, job title, office or other detail. Leave the value empty to clear it.", "Edit",
-                (a, ct) => SetDetailAsync(users, records, (string)a.Choice!.Value, a.Text.Trim(), ct),
-                choiceLabel: "Detail", choices: Details.Select(d => new BulkChoice(d.Label, d.Property)).ToArray(),
-                textLabel: "New value"),
-
             new("Block or allow sign-in", "Stop these accounts signing in, or let them sign in again.", "PersonProhibited",
-                (a, _) => Task.FromResult(Plan(users, u =>
+                (a, _) => Task.FromResult(Plan(selected(), u =>
                 {
                     var allow = (bool)a.Choice!.Value;
                     return u.AccountEnabled == allow ? (null, $"{u.DisplayName}: already {(allow ? "allowed" : "blocked")}")
@@ -46,14 +42,14 @@ public static class BulkActions
                 choiceLabel: "Sign-in", choices: [new BulkChoice("Block sign-in", false), new BulkChoice("Allow sign-in", true)]),
 
             new("Sign out everywhere", "End every session; their apps ask them to sign in again within about an hour.", "SignOut",
-                (_, _) => Task.FromResult(Plan(users, u => (new RevokeSessions(GroupAccess.Target(u)), null))),
+                (_, _) => Task.FromResult(Plan(selected(), u => (new RevokeSessions(GroupAccess.Target(u)), null))),
                 isCaution: true),
 
             new("Add a license", "Assign the same license to everyone who doesn't have it.", "Add",
                 async (a, ct) =>
                 {
                     var sku = (LicenseSku)a.Choice!.Value;
-                    var plan = Plan(users, u => u.Licenses.Contains(sku.Name) ? (null, $"{u.DisplayName}: already has it")
+                    var plan = Plan(selected(), u => u.Licenses.Contains(sku.Name) ? (null, $"{u.DisplayName}: already has it")
                         : (new SetLicenseAssigned(GroupAccess.Target(u), sku.SkuId, sku.Name, false, true), null));
                     return plan.Changes.Count > sku.Available
                         ? plan with { Skipped = [$"Only {sku.Available:N0} left for {plan.Changes.Count:N0} people: the rest will fail when applied.", .. plan.Skipped] }
@@ -67,54 +63,72 @@ public static class BulkActions
                 (a, _) =>
                 {
                     var sku = (LicenseSku)a.Choice!.Value;
-                    return Task.FromResult(Plan(users, u => !u.Licenses.Contains(sku.Name) ? (null, $"{u.DisplayName}: doesn't have it")
+                    return Task.FromResult(Plan(selected(), u => !u.Licenses.Contains(sku.Name) ? (null, $"{u.DisplayName}: doesn't have it")
                         : (new SetLicenseAssigned(GroupAccess.Target(u), sku.SkuId, sku.Name, true, false), null)));
                 },
                 choiceLabel: "License",
                 loadChoices: async ct =>
                 {
-                    var held = users.SelectMany(u => u.Licenses).ToHashSet(StringComparer.Ordinal);
+                    var held = selected().SelectMany(u => u.Licenses).ToHashSet(StringComparer.Ordinal);
                     return (await Catalog(ct)).Where(s => held.Contains(s.Name)).OrderBy(s => s.Name, StringComparer.CurrentCulture)
                         .Select(s => new BulkChoice(s.Name, s)).ToArray();
                 },
                 isCaution: true),
 
             new("Add to a group", "Make everyone a member of one group.", "PeopleAdd",
-                (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } g ? Membership(users, g, GroupRole.Member, true)
+                (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } g ? Membership(selected(), g, GroupRole.Member, true)
                     : BulkPlan.Invalid("That group isn't in the local copy any more.")),
                 pickPlaceholder: "Choose a group: type its name",
                 pickOptions: () => index.AllGroups.Where(g => !g.IsMailbox && !g.IsDynamic).Select(PickOption.Of)),
 
             new("Remove from a group", "Take everyone out of one group.", "PeopleRemove",
-                (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } g ? Membership(users, g, GroupRole.Member, false)
+                (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } g ? Membership(selected(), g, GroupRole.Member, false)
                     : BulkPlan.Invalid("That group isn't in the local copy any more.")),
                 pickPlaceholder: "Choose a group they're in: type its name",
-                pickOptions: () => index.AllGroups.Where(g => !g.IsMailbox && !g.IsDynamic && g.Members.Any(m => ids.Contains(m.Id))).Select(PickOption.Of),
+                pickOptions: () =>
+                {
+                    var ids = Ids();
+                    return index.AllGroups.Where(g => !g.IsMailbox && !g.IsDynamic && g.Members.Any(m => ids.Contains(m.Id))).Select(PickOption.Of);
+                },
                 isCaution: true),
 
             new("Give access to a shared mailbox", "Give everyone the same right on one shared, room or equipment mailbox.", "MailInbox",
-                (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } m ? Access(users, m, (MailboxRight)a.Choice!.Value, true)
+                (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } m ? Access(selected(), m, (MailboxRight)a.Choice!.Value, true)
                     : BulkPlan.Invalid("That mailbox isn't in the local copy any more.")),
                 pickPlaceholder: "Choose a mailbox: type its name",
                 pickOptions: () => index.AllGroups.Where(g => g.IsMailbox).Select(PickOption.Of),
                 choiceLabel: "Right", choices: Rights()),
 
             new("Remove access to a shared mailbox", "Take the same right away from everyone on one mailbox.", "MailDismiss",
-                (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } m ? Access(users, m, (MailboxRight)a.Choice!.Value, false)
+                (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } m ? Access(selected(), m, (MailboxRight)a.Choice!.Value, false)
                     : BulkPlan.Invalid("That mailbox isn't in the local copy any more.")),
                 pickPlaceholder: "Choose a mailbox they can use: type its name",
-                pickOptions: () => index.AllGroups.Where(g => g.IsMailbox && g.Members.Any(m => ids.Contains(m.Id))).Select(PickOption.Of),
+                pickOptions: () =>
+                {
+                    var ids = Ids();
+                    return index.AllGroups.Where(g => g.IsMailbox && g.Members.Any(m => ids.Contains(m.Id))).Select(PickOption.Of);
+                },
                 choiceLabel: "Right", choices: Rights(), isCaution: true),
         ];
     }
 
     static BulkChoice[] Rights() => GroupAccess.Rights.Select(r => new BulkChoice(SetMailboxAccess.RightName(r), r)).ToArray();
 
+    /// <summary>The details a bulk edit can set, in the order the selection panel shows them.</summary>
+    public static IReadOnlyList<(string Property, string Label)> DetailFields => Details;
+
+    /// <summary>Department and job title are in the list's local copy; the rest must be read live.</summary>
+    public static bool IsListDetail(string property) => property is "department" or "jobTitle";
+
+    public static string? ListValue(UserSummary u, string property) => property == "department" ? u.Department : u.JobTitle;
+
     /// <summary>
-    /// One detail for everyone. Department and job title are in the local copy; the rest are read
-    /// live a few at a time, so each change shows its true "before".
+    /// One detail for everyone. Department and job title are in the local copy; the rest come
+    /// from <paramref name="known"/> (details already read) or are read live a few at a time, so
+    /// each change shows its true "before".
     /// </summary>
-    static async Task<BulkPlan> SetDetailAsync(IReadOnlyList<UserSummary> users, IUserRecords? records, string property, string value, CancellationToken ct)
+    public static async Task<BulkPlan> SetDetailAsync(IReadOnlyList<UserSummary> users, IUserRecords? records, string property, string value, CancellationToken ct,
+        IReadOnlyDictionary<string, UserDetails>? known = null)
     {
         if (property == "usageLocation" && value.Length > 0)
         {
@@ -124,18 +138,29 @@ public static class BulkActions
         }
         var label = Details.First(d => d.Property == property).Label.Split(" (")[0];
         var current = new Dictionary<string, string?>(StringComparer.Ordinal);
-        if (property is "department" or "jobTitle")
+        if (IsListDetail(property))
         {
             foreach (var u in users)
-                current[u.Id] = property == "department" ? u.Department : u.JobTitle;
+                current[u.Id] = ListValue(u, property);
         }
-        else if (records is not null)
+        else
         {
-            var read = new System.Collections.Concurrent.ConcurrentDictionary<string, string?>(StringComparer.Ordinal);
-            await Parallel.ForEachAsync(users, new ParallelOptions { MaxDegreeOfParallelism = ReadsAtOnce, CancellationToken = ct },
-                async (u, token) => read[u.Id] = (await records.GetDetailsAsync(u.Id, token))[property]);
-            foreach (var (id, v) in read)
-                current[id] = v;
+            var missing = new List<UserSummary>();
+            foreach (var u in users)
+            {
+                if (known?.TryGetValue(u.Id, out var details) == true)
+                    current[u.Id] = details[property];
+                else
+                    missing.Add(u);
+            }
+            if (records is not null && missing.Count > 0)
+            {
+                var read = new System.Collections.Concurrent.ConcurrentDictionary<string, string?>(StringComparer.Ordinal);
+                await Parallel.ForEachAsync(missing, new ParallelOptions { MaxDegreeOfParallelism = ReadsAtOnce, CancellationToken = ct },
+                    async (u, token) => read[u.Id] = (await records.GetDetailsAsync(u.Id, token))[property]);
+                foreach (var (id, v) in read)
+                    current[id] = v;
+            }
         }
         var wanted = value.Length == 0 ? null : value;
         return Plan(users, u =>
@@ -183,13 +208,13 @@ public static class BulkActions
 
     // ---- Groups and mailboxes ---------------------------------------------------------------
 
-    public static IReadOnlyList<BulkAction> ForGroups(IReadOnlyList<GroupSummary> groups, IDirectoryIndex index)
+    /// <param name="selected">The groups and mailboxes checked right now (read each time).</param>
+    public static IReadOnlyList<BulkAction> ForGroups(Func<IReadOnlyList<GroupSummary>> selected, IDirectoryIndex index)
     {
-        var ids = groups.Select(g => g.Id).ToHashSet(StringComparer.Ordinal);
         UserSummary? Person(PickOption o) => index.User(o.Id);
 
         BulkPlan ForEachGroup(PickOption picked, Func<GroupSummary, UserSummary, (ChangeOp?, string?)> each) =>
-            Person(picked) is { } person ? Plan(groups, g => each(g, person)) : BulkPlan.Invalid("That person isn't in the local copy any more.");
+            Person(picked) is { } person ? Plan(selected(), g => each(g, person)) : BulkPlan.Invalid("That person isn't in the local copy any more.");
 
         return
         [
@@ -200,7 +225,7 @@ public static class BulkActions
             new("Remove a member", "Take one person out of every selected group.", "PersonDelete",
                 (a, _) => Task.FromResult(ForEachGroup(a.Picked!, (g, p) => Join(g, p, GroupRole.Member, false))),
                 pickPlaceholder: "Choose a member: type a name",
-                pickOptions: () => MembersOf(groups, index, g => g.Members), isCaution: true),
+                pickOptions: () => MembersOf(selected(), index, g => g.Members), isCaution: true),
 
             new("Add an owner", "Make one person an owner of every selected group.", "PersonStar",
                 (a, _) => Task.FromResult(ForEachGroup(a.Picked!, (g, p) => Join(g, p, GroupRole.Owner, true))),
@@ -209,7 +234,7 @@ public static class BulkActions
             new("Remove an owner", "Take one owner off every selected group (a group's last owner stays).", "PersonSubtract",
                 (a, _) => Task.FromResult(ForEachGroup(a.Picked!, (g, p) => Join(g, p, GroupRole.Owner, false))),
                 pickPlaceholder: "Choose an owner: type a name",
-                pickOptions: () => MembersOf(groups, index, g => g.OwnerList), isCaution: true),
+                pickOptions: () => MembersOf(selected(), index, g => g.OwnerList), isCaution: true),
 
             new("Give mailbox access", "Give one person the same right on every selected shared, room or equipment mailbox.", "MailInbox",
                 (a, _) => Task.FromResult(ForEachGroup(a.Picked!, (g, p) => Grant(g, p, (MailboxRight)a.Choice!.Value, true))),
@@ -219,7 +244,7 @@ public static class BulkActions
             new("Remove mailbox access", "Take the same right away from one person on every selected mailbox.", "MailDismiss",
                 (a, _) => Task.FromResult(ForEachGroup(a.Picked!, (g, p) => Grant(g, p, (MailboxRight)a.Choice!.Value, false))),
                 pickPlaceholder: "Choose a person with access: type a name",
-                pickOptions: () => MembersOf(groups.Where(g => g.IsMailbox).ToArray(), index, g => g.Members),
+                pickOptions: () => MembersOf(selected().Where(g => g.IsMailbox).ToArray(), index, g => g.Members),
                 choiceLabel: "Right", choices: Rights(), isCaution: true),
         ];
     }

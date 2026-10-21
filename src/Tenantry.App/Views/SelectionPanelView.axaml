@@ -1,0 +1,177 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.SelectionPanelView"
+             x:DataType="rec:SelectionPanelViewModel"
+             x:Name="Root">
+  <!-- Several rows checked: who, what they share, and changes for all of them. -->
+  <StackPanel Spacing="16">
+    <StackPanel Spacing="4">
+      <TextBlock Classes="h2" Text="{Binding Heading}" />
+      <TextBlock Classes="caption" TextWrapping="Wrap"
+                 Text="Changes made here apply to every one of them and go to Pending changes for review." />
+    </StackPanel>
+
+    <!-- Who -->
+    <StackPanel Spacing="6">
+      <ItemsControl ItemsSource="{Binding Chips}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="6" LineSpacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="rec:SelectedChip">
+            <Border Classes="chip" ToolTip.Tip="{Binding Detail}">
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" MaxWidth="220" TextTrimming="CharacterEllipsis" />
+                <Button Classes="chipx" Command="{Binding RemoveCommand}" ToolTip.Tip="Uncheck: leave them out of these changes">
+                  <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+                </Button>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Button Classes="link" Content="{Binding MoreText}" IsVisible="{Binding HasMore}" Command="{Binding ShowEveryoneCommand}" HorizontalAlignment="Left" />
+    </StackPanel>
+
+    <!-- What they have in common -->
+    <ItemsControl ItemsSource="{Binding Summary}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="6" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:SummaryLine">
+          <Grid ColumnDefinitions="96,*" ColumnSpacing="8">
+            <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </StackPanel>
+    </Border>
+
+    <!-- Details: the shared value, or "Mixed"; edit to set it for everyone -->
+    <Panel IsVisible="{Binding HasDetails}">
+    <StackPanel Spacing="8" DataContext="{Binding Details}" x:DataType="rec:BulkDetailsViewModel">
+      <Border Classes="divider" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Classes="h3" Text="Details" />
+        <TextBlock Classes="caption" Text="reading…" IsVisible="{Binding IsReading}" VerticalAlignment="Center" />
+      </StackPanel>
+      <ItemsControl ItemsSource="{Binding Fields}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="10" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="rec:MixedField">
+            <StackPanel Spacing="3">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Center" />
+                <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" />
+                <Button Grid.Column="2" Classes="rowaction" Command="{Binding EditCommand}" IsVisible="{Binding !IsEditing}"
+                        ToolTip.Tip="Set this for everyone selected (staged for review)">
+                  <ic:FluentIcon Icon="Edit" FontSize="13" />
+                </Button>
+              </Grid>
+              <TextBlock Classes="value" Classes.mixed="{Binding IsMixed}" Text="{Binding Value}" IsVisible="{Binding !IsEditing}"
+                         ToolTip.Tip="{Binding ValuesTip}" />
+              <StackPanel Spacing="6" IsVisible="{Binding IsEditing}">
+                <TextBox Text="{Binding Draft}" PlaceholderText="New value for everyone (empty clears it)" />
+                <TextBlock Classes="caption" Text="{Binding Hint}" IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="accent" Content="Stage for all" Command="{Binding StageCommand}" ToolTip.Tip="One change per person, to Pending changes" />
+                  <Button Classes="ghost" Content="Cancel" Command="{Binding CancelCommand}" />
+                </StackPanel>
+              </StackPanel>
+              <TextBlock Classes="caption" Text="{Binding Message}" IsVisible="{Binding HasMessage}" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+    </Panel>
+
+    <!-- Changes: each action opens in place -->
+    <Panel IsVisible="{Binding CanEdit}">
+    <StackPanel Spacing="8" DataContext="{Binding Bulk}" x:DataType="ed:BulkEditorViewModel">
+      <Border Classes="divider" />
+      <TextBlock Classes="h3" Text="Changes" />
+      <Border Classes="banner warning" IsVisible="{Binding IsTestMode}">
+        <TextBlock TextWrapping="Wrap" FontSize="12"
+                   Text="Test mode: only zz-tenantry-test- objects change when you apply; the rest are refused." />
+      </Border>
+      <ItemsControl ItemsSource="{Binding Actions}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ed:BulkAction">
+            <Border Classes="bulkrow" Classes.open="{Binding IsSelected}">
+              <StackPanel>
+                <Button Classes="bulkhead" Command="{Binding $parent[ItemsControl].((ed:BulkEditorViewModel)DataContext).ToggleCommand}" CommandParameter="{Binding}"
+                        ToolTip.Tip="{Binding Description}">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="16" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center" />
+                    <Panel Grid.Column="2" VerticalAlignment="Center">
+                      <ic:FluentIcon Icon="ChevronRight" FontSize="12" IsVisible="{Binding !IsSelected}" />
+                      <ic:FluentIcon Icon="ChevronDown" FontSize="12" IsVisible="{Binding IsSelected}" />
+                    </Panel>
+                  </Grid>
+                </Button>
+                <StackPanel Spacing="10" Margin="12,4,12,12" IsVisible="{Binding IsSelected}">
+                  <views:BulkActionInputsView />
+                  <StackPanel DataContext="{Binding $parent[ItemsControl].DataContext}" x:DataType="ed:BulkEditorViewModel" Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                      <Button Classes="accent" Command="{Binding StageCommand}" ToolTip.Tip="One change per selected row, to Pending changes">
+                        <TextBlock Text="{Binding StageText}" />
+                      </Button>
+                      <TextBlock Classes="muted" Text="Preparing…" IsVisible="{Binding IsWorking}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Border Classes="banner error" IsVisible="{Binding HasError}">
+                      <TextBlock Text="{Binding Error}" TextWrapping="Wrap" />
+                    </Border>
+                    <Border Classes="banner success" IsVisible="{Binding HasResult}">
+                      <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding Result}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                        <TextBlock Classes="caption" Text="{Binding SkippedHeading}"
+                                   IsVisible="{Binding SkippedHeading, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                        <ItemsControl ItemsSource="{Binding Skipped}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                              <TextBlock Classes="caption" Text="{Binding}" TextWrapping="Wrap" />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </Border>
+                  </StackPanel>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+    </Panel>
+  </StackPanel>
+</UserControl>

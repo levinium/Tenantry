@@ -68,7 +68,7 @@ public sealed partial class DataListViewModel : TabViewModel
     // ---- Rows and counts ------------------------------------------------------------------
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CountText), nameof(IsEmpty))]
+    [NotifyPropertyChangedFor(nameof(CountText), nameof(IsEmpty), nameof(SelectAllTip))]
     public partial IReadOnlyList<object> Rows { get; private set; }
 
     [ObservableProperty]
@@ -78,30 +78,102 @@ public sealed partial class DataListViewModel : TabViewModel
 
     /// <summary>Every checked row (the grid's selection); the preview follows <see cref="SelectedRow"/>.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SelectionCount), nameof(HasSelection), nameof(SelectionText), nameof(BulkText))]
+    [NotifyPropertyChangedFor(nameof(SelectionCount), nameof(HasSelection), nameof(IsPaneVisible), nameof(PaneTitle), nameof(CanExpandPreview))]
     public partial IReadOnlyList<object> SelectedRows { get; set; } = [];
 
     public int SelectionCount => SelectedRows.Count;
 
-    /// <summary>The selection bar shows once two or more rows are checked.</summary>
-    public bool HasSelection => SelectedRows.Count > 1;
+    /// <summary>Two or more rows checked: the preview pane becomes the selection panel.</summary>
+    public bool HasSelection => SelectedRows.Count > 1 && SelectionPanel is not null;
 
-    public string SelectionText => $"{SelectedRows.Count:N0} selected";
+    /// <summary>
+    /// Builds the selection panel for the checked rows (who's selected, what they share, bulk
+    /// changes). It is handed a way to uncheck a row, for its × buttons. None for lists without one.
+    /// </summary>
+    public Func<IReadOnlyList<object>, Action<object>, ISelectionPanel>? SelectionPanel { get; set; }
 
-    /// <summary>What the selection bar's main button does ("Edit 3 users…"); none for lists without one.</summary>
-    public ListBulkAction? BulkAction { get; set; }
+    partial void OnSelectedRowsChanged(IReadOnlyList<object> value) => UpdatePreview();
 
-    public string BulkText => BulkAction is { } a ? $"Edit {SelectedRows.Count:N0} {a.Noun}…" : "";
+    /// <summary>The pane shows for a preview the admin opened, and always for a multi-row selection.</summary>
+    public bool IsPaneVisible => IsPreviewOpen || HasSelection;
 
-    [RelayCommand]
-    void BulkEdit()
-    {
-        if (BulkAction is { IsEnabled: true } action && SelectedRows.Count > 0)
-            action.Run(SelectedRows);
-    }
+    public string PaneTitle => HasSelection ? "SELECTION" : "PREVIEW";
+
+    public bool CanExpandPreview => !HasSelection && HasPreviewContent;
 
     [RelayCommand]
     public void ClearSelection() => SelectedRows = SelectedRow is { } row ? [row] : [];
+
+    /// <summary>Unchecks one row (a name's × in the selection panel).</summary>
+    public void Uncheck(object row)
+    {
+        var id = _source.Id(row);
+        SelectedRows = SelectedRows.Where(r => _source.Id(r) != id).ToArray();
+    }
+
+    /// <summary>The header box's tip: it checks every row the filters match, not just those on screen.</summary>
+    public string SelectAllTip => Rows.Count == 0 ? "Nothing to select" : $"Select all {Rows.Count:N0} matching rows, or clear the selection";
+
+    // ---- Paste a list to select -----------------------------------------------------------
+
+    [ObservableProperty]
+    public partial string PasteText { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string? PasteResult { get; private set; }
+
+    /// <summary>
+    /// Checks the rows named in pasted text: addresses or names, one per line or separated by
+    /// commas or semicolons (as copied from a spreadsheet or an email's To line). Matches the
+    /// name and address shown in the list, ignoring case. Says what it couldn't find.
+    /// </summary>
+    [RelayCommand]
+    public void SelectFromPaste()
+    {
+        var wanted = PasteText.Split(['\n', '\r', ',', ';', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(Unwrap).Where(t => t.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (wanted.Length == 0)
+        {
+            PasteResult = "Paste some names or addresses first.";
+            return;
+        }
+        // One pass over the rows builds name/address → row; then each pasted entry is a lookup.
+        var byKey = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var primary = Columns.FirstOrDefault(c => c.Cell == CellKind.Primary);
+        // Only rows the current filters show, so a paste never selects anything hidden.
+        foreach (var row in Rows)
+        {
+            foreach (var key in new[] { primary?.Text(row), primary?.Subtitle(row), _source.Id(row) })
+                if (!string.IsNullOrWhiteSpace(key))
+                    byKey.TryAdd(key.Trim(), row);
+        }
+        var found = new List<object>();
+        var missing = new List<string>();
+        foreach (var entry in wanted)
+        {
+            if (byKey.TryGetValue(entry, out var row))
+                found.Add(row);
+            else
+                missing.Add(entry);
+        }
+        var ids = found.Select(_source.Id).ToHashSet(StringComparer.Ordinal);
+        SelectedRows = SelectedRows.Where(r => !ids.Contains(_source.Id(r))).Concat(found).ToArray();
+        PasteResult = missing.Count == 0
+            ? $"Selected all {found.Count:N0}."
+            : $"Selected {found.Count:N0} of {wanted.Length:N0}. Not found{(missing.Count > 8 ? " (first 8)" : "")}: {string.Join(", ", missing.Take(8))}";
+        if (missing.Count == 0)
+            PasteText = "";
+    }
+
+    /// <summary>"Ada Lovelace &lt;ada@contoso.com&gt;" → "ada@contoso.com"; quotes dropped.</summary>
+    static string Unwrap(string entry)
+    {
+        var open = entry.IndexOf('<');
+        var close = entry.LastIndexOf('>');
+        if (open >= 0 && close > open)
+            entry = entry[(open + 1)..close];
+        return entry.Trim().Trim('"', '\'').Trim();
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEmpty))]
@@ -908,7 +980,7 @@ public sealed partial class DataListViewModel : TabViewModel
     public partial object? PreviewModel { get; private set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PreviewToggleText), nameof(PreviewTip))]
+    [NotifyPropertyChangedFor(nameof(PreviewToggleText), nameof(PreviewTip), nameof(IsPaneVisible))]
     public partial bool IsPreviewOpen { get; set; }
 
     /// <summary>Stays "Preview": the button's highlighted state says whether the pane is open.</summary>
@@ -947,11 +1019,22 @@ public sealed partial class DataListViewModel : TabViewModel
     void UpdatePreview()
     {
         // Each preview is built for its row; the one it replaces lets go of anything it watched.
+        // Several rows checked: the selection panel instead, updated in place as rows come and go
+        // so what's typed into it survives.
         var previous = PreviewModel;
-        PreviewModel = IsPreviewOpen && SelectedRow is { } row ? _source.Preview(row) : null;
+        if (HasSelection)
+        {
+            if (previous is ISelectionPanel panel)
+                panel.Update(SelectedRows);
+            else
+                PreviewModel = SelectionPanel!(SelectedRows, Uncheck);
+        }
+        else
+            PreviewModel = IsPreviewOpen && SelectedRow is { } row ? _source.Preview(row) : null;
         if (!ReferenceEquals(previous, PreviewModel))
             (previous as IDisposable)?.Dispose();
         OnPropertyChanged(nameof(HasPreviewContent));
+        OnPropertyChanged(nameof(CanExpandPreview));
     }
 
     [RelayCommand]
@@ -965,8 +1048,15 @@ public sealed partial class DataListViewModel : TabViewModel
         IsPreviewOpen = true;
     }
 
+    /// <summary>Closes the preview; on a selection panel, clears the selection (which is what shows it).</summary>
     [RelayCommand]
-    public void ClosePreview() => IsPreviewOpen = false;
+    public void ClosePreview()
+    {
+        if (HasSelection)
+            ClearSelection();
+        else
+            IsPreviewOpen = false;
+    }
 
     [RelayCommand]
     public void ExpandPreview()

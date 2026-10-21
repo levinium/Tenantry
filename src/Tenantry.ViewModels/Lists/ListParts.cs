@@ -221,12 +221,11 @@ public sealed partial class SavedViewItem(SavedView view) : ObservableObject
 /// <summary>A list's main action. Disabled with <paramref name="Tip"/> as the reason until it can run.</summary>
 public sealed record ListPrimaryAction(string Label, string Icon, bool IsEnabled, string Tip, Action? Run = null);
 
-/// <summary>
-/// What the selection bar's button does with the checked rows ("Edit 3 users…"). Disabled with
-/// <paramref name="Tip"/> as the reason when the admin can't edit.
-/// </summary>
-/// <param name="Noun">The rows, plural ("users", "groups and mailboxes").</param>
-public sealed record ListBulkAction(string Noun, bool IsEnabled, string Tip, Action<IReadOnlyList<object>> Run);
+/// <summary>What the preview pane shows for several checked rows; kept as rows are checked and unchecked.</summary>
+public interface ISelectionPanel
+{
+    void Update(IReadOnlyList<object> rows);
+}
 
 public sealed record GroupOption(string? Key, string Label)
 {

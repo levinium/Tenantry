@@ -47,7 +47,7 @@ public partial class DataListView : UserControl
         Grid.SelectionChanged += (_, _) =>
         {
             UpdateSelectAll();
-            if (_vm is null || _syncingSelection)
+            if (_vm is null || _syncingSelection || !_onScreen)
                 return;
             // The view model updates the preview pane from the selection, and the selection bar
             // from every checked row.
@@ -114,6 +114,34 @@ public partial class DataListView : UserControl
 
     void OnColumnsChanged(object? sender, EventArgs e) => RebuildColumns();
 
+    /// <summary>
+    /// False while the list is off screen (another tab is showing) and until it has settled
+    /// back. The grid drops part of its selection while being detached and re-attached, and that
+    /// churn must not uncheck rows: the view model's selection is put back once it settles.
+    /// </summary>
+    bool _onScreen;
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (_vm is null)
+                return;
+            _syncingSelection = true;
+            Grid.SelectedItem = _vm.SelectedRow;
+            _syncingSelection = false;
+            ShowChecked();
+            _onScreen = true;
+        }, Avalonia.Threading.DispatcherPriority.Loaded);
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        _onScreen = false;
+        base.OnDetachedFromVisualTree(e);
+    }
+
     void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)
@@ -165,7 +193,7 @@ public partial class DataListView : UserControl
     DataGridTemplateColumn CheckColumn()
     {
         _selectAll = new CheckBox { HorizontalAlignment = HorizontalAlignment.Center, MinWidth = 0, Padding = new Thickness(0) };
-        ToolTip.SetTip(_selectAll, "Check every row in the list, or clear them all");
+        _selectAll.Bind(ToolTip.TipProperty, new Binding(nameof(DataListViewModel.SelectAllTip)) { Source = _vm });
         _selectAll.Click += (_, e) =>
         {
             if (Grid.SelectedItems.Count > 0 && Grid.SelectedItems.Count >= (_vm?.Rows.Count ?? 0))
@@ -220,6 +248,10 @@ public partial class DataListView : UserControl
     {
         if (_vm is null)
             return;
+        // New rows make the grid drop and re-raise its selection part-way through; none of that
+        // may reach the view model, or checked rows would be lost. The view model's selection is
+        // put back afterwards.
+        _syncingSelection = true;
         if (_vm.IsGrouped)
         {
             var view = new DataGridCollectionView(_vm.Rows);
@@ -228,7 +260,6 @@ public partial class DataListView : UserControl
         }
         else
             Grid.ItemsSource = _vm.Rows;
-        _syncingSelection = true;
         Grid.SelectedItem = _vm.SelectedRow;
         _syncingSelection = false;
         ShowChecked();
