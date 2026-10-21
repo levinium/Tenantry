@@ -22,6 +22,12 @@
     <DataTemplate DataType="rec:ResetPasswordViewModel">
       <views:ResetPasswordView />
     </DataTemplate>
+    <DataTemplate DataType="rec:GroupPeopleEditor">
+      <views:GroupPeopleEditorView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:GroupsAccessSection">
+      <views:GroupsAccessSectionView />
+    </DataTemplate>
   </Application.DataTemplates>
 
   <Application.Resources>

@@ -1,13 +1,44 @@
 using System.Text.Json;
 using Tenantry.Core.Cache;
+using Tenantry.Core.Changes;
 using Tenantry.Core.Directory;
+using Tenantry.Core.Exchange;
 using Tenantry.Core.Licensing;
 
 namespace Tenantry.Graph;
 
 /// <summary>Live record-page reads from Graph.</summary>
-public sealed class GraphUserRecords(GraphClient graph, IEntityStore store) : IUserRecords
+public sealed class GraphUserRecords(GraphClient graph, IEntityStore store, ICmdletRunner? exchange = null) : IUserRecords
 {
+    public async Task<IReadOnlyList<MailboxDelegate>> GetMailboxDelegatesAsync(string userId, string address, CancellationToken cancellationToken = default)
+    {
+        if (exchange is null)
+            throw new InvalidOperationException("Exchange Online isn't connected for this tenant.");
+        var access = await DirectorySync.ReadMailboxAccessAsync(exchange, userId, address, cancellationToken);
+        var mailbox = await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-Mailbox",
+            new Dictionary<string, object?> { ["Identity"] = address }, cancellationToken, ["GrantSendOnBehalfTo"]);
+
+        // Each trustee once, with everything they can do, in the order Exchange listed them.
+        var rights = new Dictionary<string, List<MailboxRight>>(StringComparer.OrdinalIgnoreCase);
+        void Add(string? trustee, MailboxRight right)
+        {
+            if (string.IsNullOrEmpty(trustee))
+                return;
+            if (!rights.TryGetValue(trustee, out var list))
+                rights[trustee] = list = [];
+            if (!list.Contains(right))
+                list.Add(right);
+        }
+        foreach (var t in access["fullAccess"]!.AsArray())
+            Add(t?.GetValue<string>(), MailboxRight.FullAccess);
+        foreach (var t in access["sendAs"]!.AsArray())
+            Add(t?.GetValue<string>(), MailboxRight.SendAs);
+        if (mailbox.Count > 0 && mailbox[0].TryGetProperty("GrantSendOnBehalfTo", out var onBehalf) && onBehalf.ValueKind == JsonValueKind.Array)
+            foreach (var t in onBehalf.EnumerateArray())
+                Add(t.GetString(), MailboxRight.SendOnBehalf);
+        return rights.Select(r => new MailboxDelegate(r.Key, r.Value)).ToArray();
+    }
+
     public async Task<UserDetails> GetDetailsAsync(string userId, CancellationToken cancellationToken = default)
     {
         var select = string.Join(',', UserDetails.Properties.Append("externalUserState").Append("externalUserStateChangeDateTime"));

@@ -203,10 +203,15 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             IsTeam: teams.Contains(id),
             Visibility: Str(g, "visibility"),
             CreatedAt: Date(g, "createdDateTime"),
-            Members: g.TryGetProperty("members", out var m) && m.ValueKind == JsonValueKind.Object
-                ? m.EnumerateObject().Select(p => new GroupMember(p.Name, p.Value.GetString() ?? "unknown")).ToArray()
-                : []);
+            Members: Relation(g, "members"),
+            Owners: Relation(g, "owners"));
     }
+
+    /// <summary>A stored relation ({id: type}) as a list; empty when the group has none (or was synced before owners were).</summary>
+    static GroupMember[] Relation(JsonElement g, string name) =>
+        g.TryGetProperty(name, out var m) && m.ValueKind == JsonValueKind.Object
+            ? m.EnumerateObject().Select(p => new GroupMember(p.Name, p.Value.GetString() ?? "unknown")).ToArray()
+            : [];
 
     /// <summary>
     /// A Get-Mailbox row as the list needs it. Forwarding to an address in one of the tenant's

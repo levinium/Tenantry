@@ -21,11 +21,16 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
     readonly IUserRecords? _records;
     readonly Action<DialogViewModel>? _openDialog;
     readonly Action? _closeDialog;
+    readonly IDirectoryIndex _index;
+    readonly Action<UserSummary> _openUser;
+    readonly Action<GroupSummary> _openGroup;
     UserRow _row;
 
     /// <param name="openDialog">Shows a popup (the preview's Manage rows, Reset password); none in tests.</param>
+    /// <param name="index">The local copy, for Groups &amp; access and the people pickers.</param>
     public UserDetailViewModel(UserSummary user, DateTimeOffset? now = null, ChangePipeline? pipeline = null, Availability? canEdit = null,
-        IUserRecords? records = null, Action<DialogViewModel>? openDialog = null, Action? closeDialog = null)
+        IUserRecords? records = null, Action<DialogViewModel>? openDialog = null, Action? closeDialog = null,
+        IDirectoryIndex? index = null, Action<UserSummary>? openUser = null, Action<GroupSummary>? openGroup = null)
     {
         _now = now ?? DateTimeOffset.Now;
         _pipeline = pipeline;
@@ -33,6 +38,10 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         _records = records;
         _openDialog = openDialog;
         _closeDialog = closeDialog;
+        _index = index ?? EmptyIndex.Instance;
+        // Opening a record from a popup closes the popup first, so the page isn't hidden behind it.
+        _openUser = u => { _closeDialog?.Invoke(); (openUser ?? (_ => { }))(u); };
+        _openGroup = g => { _closeDialog?.Invoke(); (openGroup ?? (_ => { }))(g); };
         User = user;
         _row = new UserRow(user, _now);
         Sections = BuildSections();
@@ -113,6 +122,8 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
 
     public LicensesSection LicensesTab => Sections.OfType<LicensesSection>().Single();
 
+    public GroupsAccessSection GroupsTab => Sections.OfType<GroupsAccessSection>().Single();
+
     public IReadOnlyList<RecordSection> ManageRows => Sections.Skip(1).ToArray();
 
     [ObservableProperty]
@@ -123,11 +134,9 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
     IReadOnlyList<RecordSection> BuildSections() =>
     [
         new OverviewSection(this),
-        new AccountSection(User, _records, _pipeline, _canEdit),
+        new AccountSection(User, _records, _pipeline, _canEdit, _index),
         new LicensesSection(User, _records, _pipeline, _canEdit),
-        new PlannedSection("groups", "Groups & access", "People", "the next update (4a)",
-            ["Groups and teams they belong to or own: add and remove", "Shared mailboxes they can use, and with what rights",
-             "Who can use their mailbox (Full access, Send as, Send on behalf)"]),
+        new GroupsAccessSection(User, _index, _pipeline, _canEdit, _records, _openGroup, _openUser),
         new PlannedSection("mail", "Mail", "Mail", "update 4b",
             ["Email addresses: add aliases, choose the primary", "Forwarding on or off", "Automatic replies: off, on, or between dates",
              "Address list visibility", "Limits: recipients, message size, who can send to them", "Email apps: POP, IMAP, ActiveSync, SMTP and more",

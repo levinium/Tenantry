@@ -43,6 +43,25 @@ Records serialise as-is into the change log.
 - **Still not visible:** the change is reported as *applied, not yet visible* rather than failed.
 - **Clearing:** an emptied text value is sent as `null`, which clears it.
 
+### Groups, mailbox access and manager
+
+| Change | Sent as | Read back |
+|---|---|---|
+| Member or owner of a Microsoft 365 or security group | Graph `POST …/members/$ref` / `DELETE …/members/{id}/$ref` (owners alike) | The group's member (or owner) list, into the local copy |
+| Member or owner of a distribution list or mail-enabled security group | Exchange `Add-` / `Remove-DistributionGroupMember`, `Set-DistributionGroup -ManagedBy @{Add/Remove}` | The same Graph list, which shows these groups too |
+| Full access / Send as on a mailbox | Exchange `Add-` / `Remove-MailboxPermission`, `Add-` / `Remove-RecipientPermission` | The mailbox's permissions, into the local copy |
+| Send on behalf | Exchange `Set-Mailbox -GrantSendOnBehalfTo @{Add/Remove}` | `Get-Mailbox`, into the local copy |
+| Manager | Graph `PUT` / `DELETE users/{id}/manager/$ref` | `users/{id}/manager` |
+
+- People are named to Exchange by address. Multi-valued parameters use Exchange's
+  `#Exchange.GenericHashTable` form with `Add` or `Remove`.
+- The write guard checks **both** sides of a membership or access change: the group or mailbox,
+  and the person added or removed.
+- Dynamic groups' members follow their rule and can't be edited. A Microsoft 365 or security
+  group that has owners must keep one, so the last owner can't be removed until another is added.
+- Send on behalf needs a mail recipient. Exchange refuses it for an account with no mailbox, and
+  Tenantry says so in plain words.
+
 ## Write guard and Test mode
 
 - **What it allows:** while a tenant is in Test mode, only objects whose **address** starts with
@@ -69,9 +88,9 @@ mode, because nothing in it is real.
 
 ## Delivery
 
-- **3a** (this): the pipeline, plus a user's display name, job title, department, and
-  block/allow sign-in. Editable from the preview pane and the record page; gated on User
-  Administrator.
-- **3b:** licenses; group owners and members (owners sync first; distribution lists through
-  Exchange); shared-mailbox access. All editable from the preview.
-- **3c:** bulk edit from list multi-select, and a Change log area.
+- **3a:** the pipeline, plus a user's display name, job title, department, and block/allow
+  sign-in. Editable from the preview pane and the record page; gated on User Administrator.
+- **4a:** the rest of the Account tab (password reset, sign-out everywhere, manager); licenses
+  and apps; group owners and members and mailbox access, editable from the user, the group page
+  and the group preview's Manage popup.
+- **Next:** bulk edit from list multi-select, and a Change log area.

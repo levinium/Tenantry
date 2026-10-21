@@ -129,6 +129,20 @@ public sealed class DemoTenantDirectory : ITenantDirectory
         return true;
     }
 
+    /// <summary>Changes one generated group or shared mailbox (written through by the demo's change executor).</summary>
+    public bool UpdateGroup(string groupId, Func<GroupSummary, GroupSummary> change)
+    {
+        if (_groups is null)
+            return false;
+        var groups = _groups.ToArray();
+        var index = Array.FindIndex(groups, g => g.Id == groupId);
+        if (index < 0)
+            return false;
+        groups[index] = change(groups[index]);
+        _groups = groups;
+        return true;
+    }
+
     public async Task<IReadOnlyList<GroupSummary>> GetGroupsAsync(CancellationToken cancellationToken = default)
     {
         var users = await GetUsersAsync(cancellationToken);
@@ -187,6 +201,26 @@ public sealed class DemoTenantDirectory : ITenantDirectory
                 .Select(p => new GroupMember(p.Id, "user", random.ArrayElement(rights)))
                 .ToArray();
             groups.Add(new GroupSummary(account.Id, account.DisplayName, account.Mail, null, kind, false, false, null, account.CreatedAt, people));
+        }
+
+        // Owners: one or two people from the group (or from IT when it has none). A separate
+        // sequence keeps the rest of the demo data as it was. "Old Printer Access" stays ownerless,
+        // as real tenants always have a few.
+        var ownerRandom = new Randomizer(_seed + 3);
+        var it = members.Where(u => u.Department == "IT").ToList();
+        for (var i = 0; i < groups.Count; i++)
+        {
+            var group = groups[i];
+            if (group.IsMailbox || group.DisplayName == "Old Printer Access")
+                continue;
+            var pool = group.Members.Where(m => m.Type == "user").Select(m => m.Id).ToList();
+            if (pool.Count == 0)
+                pool = it.Select(u => u.Id).ToList();
+            groups[i] = group with
+            {
+                Owners = ownerRandom.ListItems(pool, Math.Min(pool.Count, ownerRandom.Int(1, 2)))
+                    .Select(id => new GroupMember(id, "user")).ToArray(),
+            };
         }
         return groups;
     }

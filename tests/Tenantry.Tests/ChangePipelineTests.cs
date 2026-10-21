@@ -270,6 +270,14 @@ public class ChangePipelineTests
 
         public Task<UserLicensing> GetLicensingAsync(string userId, CancellationToken cancellationToken = default) =>
             Task.FromResult(new UserLicensing("GB", [], [], []));
+
+        /// <summary>Their mailbox: one colleague by address, one Exchange names only by display name.</summary>
+        public Task<IReadOnlyList<MailboxDelegate>> GetMailboxDelegatesAsync(string userId, string address, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<MailboxDelegate>>(
+            [
+                new("zz-tenantry-test-bo@contoso.example", [MailboxRight.FullAccess, MailboxRight.SendAs]),
+                new("Someone Departed", [MailboxRight.SendOnBehalf]),
+            ]);
     }
 
     [Fact]

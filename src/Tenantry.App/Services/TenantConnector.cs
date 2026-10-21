@@ -62,6 +62,7 @@ public sealed class TenantConnector : ITenantConnector
 
         var entities = OpenLocalCopy(profile.Id, folder);
         var account = tokens.Account ?? "";
+        var exchange = new RestCmdletRunner(Http, NoRedirectHttp, tokens, profile.TenantId);
         return new ConnectedTenant(profile.DisplayName, account, new CachedTenantDirectory(entities, profile.DisplayName), context,
             MissingPermissions: missing,
             UpdatePermissions: async (progress, ct) =>
@@ -73,11 +74,11 @@ public sealed class TenantConnector : ITenantConnector
                 return MissingPermissions(tokens);
             },
             ListState: new JsonListStateStore(folder),
-            Sync: new DirectorySync(graph, entities, new RestCmdletRunner(Http, NoRedirectHttp, tokens, profile.TenantId)),
+            Sync: new DirectorySync(graph, entities, exchange),
             Resources: entities,
-            Changes: new ChangePipeline(new GraphChangeExecutor(graph, entities), new ChangeLog(entities),
+            Changes: new ChangePipeline(new GraphChangeExecutor(graph, entities, exchange: exchange), new ChangeLog(entities),
                 new JsonTestModeStore(folder, TestModeByDefault), account),
-            Records: new GraphUserRecords(graph, entities));
+            Records: new GraphUserRecords(graph, entities, exchange));
     }
 
     /// <summary>Graph permissions Tenantry asks for that this sign-in's token doesn't carry.</summary>

@@ -29,7 +29,8 @@ public class DirectorySyncTests
             """)
         .On(HttpMethod.Get, "$skiptoken=gpage2", $$$"""
             {"value":[
-              {"id":"g1","members@delta":[{"@odata.type":"#microsoft.graph.group","id":"g2"}]},
+              {"id":"g1","members@delta":[{"@odata.type":"#microsoft.graph.group","id":"g2"}],
+               "owners@delta":[{"@odata.type":"#microsoft.graph.user","id":"u1"}]},
               {"id":"g2","displayName":"Old Printer Access","mailEnabled":false,"securityEnabled":true,"groupTypes":[]}],
              "@odata.deltaLink":"{{{Base}}}groups/delta?$deltatoken=gd1"}
             """)
@@ -145,18 +146,60 @@ public class DirectorySyncTests
     [Fact]
     public async Task Groups_collect_members_spread_over_pages_and_know_their_kind()
     {
+        var http = FirstRun();
         var store = new MemoryEntityStore();
-        await new DirectorySync(Graph(FirstRun()), store, now: () => Now).SyncAsync(cancellationToken: Ct);
+        await new DirectorySync(Graph(http), store, now: () => Now).SyncAsync(cancellationToken: Ct);
 
-        var groups = (await new CachedTenantDirectory(store, "Contoso").GetGroupsAsync(Ct)).ToDictionary(g => g.Id);
+        var groups =(await new CachedTenantDirectory(store, "Contoso").GetGroupsAsync(Ct)).ToDictionary(g => g.Id);
 
         var finance = groups["g1"];
         Assert.Equal(GroupKind.Microsoft365, finance.Kind);
         Assert.True(finance.IsTeam);
         Assert.Equal([("u1", "user"), ("u2", "user"), ("g2", "group")], finance.Members.Select(m => (m.Id, m.Type)).ToArray());
+        Assert.Equal([("u1", "user")], finance.OwnerList.Select(m => (m.Id, m.Type)).ToArray());
         Assert.Equal(GroupKind.Security, groups["g2"].Kind);
         Assert.False(groups["g2"].IsTeam);
         Assert.Empty(groups["g2"].Members);
+        Assert.Empty(groups["g2"].OwnerList);
+        Assert.Contains(http.Requests, r => r.PathAndQuery.Contains("members,owners", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Owner_deltas_change_owners_without_touching_members()
+    {
+        var http = FirstRun($$$"""
+            {"value":[
+              {"id":"g1","owners@delta":[
+                {"@odata.type":"#microsoft.graph.user","id":"u1","@removed":{"reason":"deleted"}},
+                {"@odata.type":"#microsoft.graph.user","id":"u3"}]}],
+             "@odata.deltaLink":"{{{Base}}}groups/delta?$deltatoken=gd2"}
+            """)
+            .On(HttpMethod.Get, "users/delta?$deltatoken=d1", $$"""{"value":[],"@odata.deltaLink":"{{Base}}users/delta?$deltatoken=d2"}""");
+        var store = new MemoryEntityStore();
+        var sync = new DirectorySync(Graph(http), store, now: () => Now);
+        await sync.SyncAsync(cancellationToken: Ct);
+
+        await sync.SyncAsync(cancellationToken: Ct);
+
+        var finance = (await new CachedTenantDirectory(store, "Contoso").GetGroupsAsync(Ct)).Single(g => g.Id == "g1");
+        Assert.Equal(["u3"], finance.OwnerList.Select(m => m.Id).ToArray());
+        Assert.Equal(["u1", "u2", "g2"], finance.Members.Select(m => m.Id).ToArray());
+    }
+
+    [Fact]
+    public async Task Groups_synced_before_owners_existed_do_one_full_pass()
+    {
+        // A delta link saved under the old key knows nothing of owners: it must be ignored.
+        var http = FirstRun();
+        var store = new MemoryEntityStore();
+        store.SetMark(DirectorySync.Groups, new SyncMark($"{Base}groups/delta?$deltatoken=gd1", Now.AddDays(-1)));
+
+        await new DirectorySync(Graph(http), store, now: () => Now).SyncAsync(cancellationToken: Ct);
+
+        Assert.Contains(http.Requests, r => r.PathAndQuery.Contains("groups/delta?$select", StringComparison.Ordinal));
+        Assert.EndsWith("$deltatoken=gd1", store.GetMark(DirectorySync.GroupsMark)!.Cursor);
+        var finance = (await new CachedTenantDirectory(store, "Contoso").GetGroupsAsync(Ct)).Single(g => g.Id == "g1");
+        Assert.Single(finance.OwnerList);
     }
 
     [Fact]

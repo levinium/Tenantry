@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.GroupsAccessSectionView"
+             x:DataType="rec:GroupsAccessSection"
+             x:Name="Root">
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="rec:ToggleRow">
+      <views:ToggleRowView />
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </StackPanel>
+    </Border>
+
+    <!-- Groups and teams: Member and Owner as checkboxes -->
+    <Border Classes="card">
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+          <ic:FluentIcon Icon="People" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Classes="h3" Text="{Binding GroupsHeading}" VerticalAlignment="Center" />
+        </Grid>
+        <views:PersonPickerView DataContext="{Binding GroupPicker}" MaxWidth="440" HorizontalAlignment="Left" IsEnabled="{Binding #Root.((rec:GroupsAccessSection)DataContext).CanEdit}" />
+        <TextBlock Classes="muted" Text="Not in any groups." IsVisible="{Binding HasNoGroups}" />
+        <ItemsControl ItemsSource="{Binding Groups}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
+    <!-- Shared mailboxes they can use -->
+    <Border Classes="card">
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+          <ic:FluentIcon Icon="MailInbox" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Classes="h3" Text="{Binding MailboxesHeading}" VerticalAlignment="Center" />
+        </Grid>
+        <views:PersonPickerView DataContext="{Binding MailboxPicker}" MaxWidth="440" HorizontalAlignment="Left" IsEnabled="{Binding #Root.((rec:GroupsAccessSection)DataContext).CanEdit}" />
+        <TextBlock Classes="muted" Text="No access to any shared mailboxes." IsVisible="{Binding HasNoMailboxes}" />
+        <ItemsControl ItemsSource="{Binding Mailboxes}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
+    <!-- Who can use their own mailbox -->
+    <Border Classes="card">
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+          <ic:FluentIcon Icon="PersonKey" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Classes="h3" Text="{Binding DelegatesHeading}" VerticalAlignment="Center" />
+        </Grid>
+        <views:PersonPickerView DataContext="{Binding DelegatePicker}" MaxWidth="440" HorizontalAlignment="Left" IsVisible="{Binding #Root.((rec:GroupsAccessSection)DataContext).IsDelegatesReady}"
+                                  IsEnabled="{Binding #Root.((rec:GroupsAccessSection)DataContext).CanEdit}" />
+        <TextBlock Classes="muted" Text="No mailbox." IsVisible="{Binding !HasMailbox}" />
+        <TextBlock Classes="muted" Text="Reading who can use their mailbox from Exchange…" IsVisible="{Binding IsLoadingDelegates}" />
+        <Border Classes="banner error" IsVisible="{Binding HasDelegatesError}">
+          <SelectableTextBlock Text="{Binding DelegatesError}" TextWrapping="Wrap" />
+        </Border>
+        <TextBlock Classes="muted" Text="Nobody else can use this mailbox." IsVisible="{Binding HasNoDelegates}" />
+        <ItemsControl ItemsSource="{Binding Delegates}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

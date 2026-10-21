@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.PersonPickerView"
+             x:DataType="ed:PersonPicker"
+             x:Name="Root">
+  <!-- Type to search; matches list below the box; choosing one stages the change and clears the box. -->
+  <StackPanel Spacing="4">
+    <TextBox Text="{Binding Query}" PlaceholderText="{Binding Placeholder}" MinWidth="280">
+      <TextBox.InnerLeftContent>
+        <ic:FluentIcon Icon="Search" FontSize="14" Margin="8,0,0,0" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
+      </TextBox.InnerLeftContent>
+    </TextBox>
+    <Border Classes="pickresults" IsVisible="{Binding HasResults}">
+      <ItemsControl ItemsSource="{Binding Results}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ed:PickOption">
+            <Button Classes="pickrow" Command="{Binding #Root.((ed:PersonPicker)DataContext).PickCommand}" CommandParameter="{Binding}"
+                    ToolTip.Tip="Add (staged for review in Pending changes)">
+              <StackPanel Spacing="1">
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+              </StackPanel>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Border>
+    <TextBlock Classes="caption" Text="No matches. Try part of a name or address." IsVisible="{Binding ShowNoMatch}" Margin="4,0,0,0" />
+  </StackPanel>
+</UserControl>

@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.ToggleRowView"
+             x:DataType="rec:ToggleRow">
+  <!-- A group or mailbox (or a person) with a checkbox per role or right. -->
+  <Border Classes="togglerow" Classes.pending="{Binding HasPending}">
+    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16">
+      <StackPanel Spacing="1" VerticalAlignment="Center">
+        <Button Classes="namelink" IsVisible="{Binding CanOpen}" Command="{Binding OpenCommand}" ToolTip.Tip="Open its record page">
+          <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+        </Button>
+        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" IsVisible="{Binding !CanOpen}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Classes="caption" Text="{Binding Note}" IsVisible="{Binding HasNote}" TextWrapping="Wrap" />
+      </StackPanel>
+      <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+      <ItemsControl Grid.Column="2" ItemsSource="{Binding Toggles}" VerticalAlignment="Center">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="14" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ed:RightToggle">
+            <CheckBox Content="{Binding Label}" IsChecked="{Binding IsOn}" IsEnabled="{Binding CanEdit}" Classes.pendingcheck="{Binding IsPending}"
+                      ToolTip.Tip="{Binding Tip}" ToolTip.ShowOnDisabled="True" MinWidth="0" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Grid>
+  </Border>
+</UserControl>

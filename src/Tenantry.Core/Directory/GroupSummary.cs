@@ -34,8 +34,18 @@ public sealed record GroupSummary(
     bool IsTeam,
     string? Visibility,
     DateTimeOffset? CreatedAt,
-    IReadOnlyList<GroupMember> Members)
+    IReadOnlyList<GroupMember> Members,
+    IReadOnlyList<GroupMember>? Owners = null)
 {
+    /// <summary>Who owns the group (manages it); shared mailboxes have none.</summary>
+    public IReadOnlyList<GroupMember> OwnerList => Owners ?? [];
+
+    /// <summary>
+    /// Microsoft 365 and security groups change through Graph; distribution lists and
+    /// mail-enabled security groups through Exchange. Dynamic groups follow their rule.
+    /// </summary>
+    public bool IsExchangeManaged => Kind is GroupKind.Distribution or GroupKind.MailEnabledSecurity;
+
     public bool IsMailbox => Kind is GroupKind.SharedMailbox or GroupKind.RoomMailbox or GroupKind.EquipmentMailbox;
 
     public static string KindName(GroupKind kind) => kind switch

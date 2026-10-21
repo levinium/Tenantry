@@ -262,6 +262,41 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         page.LicensesTab.Licenses[0].IsExpanded = true;
         Render(editing, "user-licenses-light");
         editing.Pending.DiscardAllCommand.Execute(null);
+
+        // Groups & access: their groups (one membership being removed), a group being searched for.
+        editing.Groups.LoadAsync().GetAwaiter().GetResult();
+        page.Update(page.User);
+        page.SelectedSection = page.GroupsTab;
+        page.GroupsTab.LoadAsync().GetAwaiter().GetResult();
+        if (page.GroupsTab.Groups.FirstOrDefault() is { } firstGroup)
+            firstGroup.Toggles[0].IsOn = false;
+        page.GroupsTab.GroupPicker.Query = "sg";
+        Render(editing, "user-groups-light");
+        editing.Pending.DiscardAllCommand.Execute(null);
+
+        // A group's preview → Manage: owners and members in a popup, one owner being removed, a member being searched for.
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "groups");
+        editing.Groups.PreviewRow(editing.Groups.Rows.Cast<GroupSummary>().First(g => g.DisplayName == "Finance"));
+        Render(editing, "group-preview-manage-light");
+        var finance = (GroupDetailViewModel)editing.Groups.PreviewModel!;
+        finance.ManagePeopleCommand.Execute(null);
+        finance.People.Owners[0].RemoveCommand.Execute(null);
+        finance.People.MemberPicker.Query = "a";
+        Render(editing, "group-people-light");
+        editing.CloseDialog();
+        editing.Pending.DiscardAllCommand.Execute(null);
+
+        // A shared mailbox's people with access, one right being added.
+        editing.Groups.ApplyView(editing.Groups.Views.Single(v => v.View.Id == "shared"));
+        editing.Groups.PreviewRow(editing.Groups.Rows.Cast<GroupSummary>().OrderByDescending(g => g.Members.Count).First());
+        var mailbox = (GroupDetailViewModel)editing.Groups.PreviewModel!;
+        mailbox.ManagePeopleCommand.Execute(null);
+        mailbox.People.Access[0].Toggles[2].IsOn = !mailbox.People.Access[0].Toggles[2].IsOn;
+        Render(editing, "mailbox-people-light");
+        editing.CloseDialog();
+        editing.Pending.DiscardAllCommand.Execute(null);
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "users");
+        editing.SelectedTab = page;
         // Demo people aren't test objects, so Test mode would (rightly) refuse the reset.
         editing.Pending.TurnOffTestModeCommand.Execute(null);
         editing.Pending.StartTurnOffCommand.Execute(null);

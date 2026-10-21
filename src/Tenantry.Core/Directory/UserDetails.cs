@@ -35,7 +35,16 @@ public interface IUserRecords
 
     /// <summary>The user's licenses (and where each comes from), the tenant's licenses with counts, and assigned apps.</summary>
     Task<UserLicensing> GetLicensingAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Who can use this person's mailbox, read live from Exchange (only shared mailboxes' access
+    /// is kept locally). Trustees are as Exchange names them: an address, alias or display name.
+    /// </summary>
+    Task<IReadOnlyList<MailboxDelegate>> GetMailboxDelegatesAsync(string userId, string address, CancellationToken cancellationToken = default);
 }
+
+/// <summary>Someone with rights on a mailbox, named as Exchange gave them.</summary>
+public sealed record MailboxDelegate(string Trustee, IReadOnlyList<Changes.MailboxRight> Rights);
 
 /// <summary>Countries by ISO code, for usage location (Microsoft requires it before licensing).</summary>
 public static class Countries

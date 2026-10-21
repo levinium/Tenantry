@@ -28,6 +28,9 @@ public class LicensesTests
         public Task<IReadOnlyList<string>> GetDomainsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task<UserLicensing> GetLicensingAsync(string userId, CancellationToken cancellationToken = default) => Task.FromResult(licensing);
+
+        public Task<IReadOnlyList<MailboxDelegate>> GetMailboxDelegatesAsync(string userId, string address, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     static UserSummary Ada => new("t1", "zz-tenantry-test-ada", "zz-tenantry-test-ada@contoso.example", null, null, null, true,

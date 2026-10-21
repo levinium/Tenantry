@@ -20,14 +20,19 @@ public sealed partial class AccountSection : RecordSection, IDisposable
     readonly IUserRecords? _records;
     readonly ChangePipeline? _pipeline;
     readonly Availability _canEdit;
+    readonly IDirectoryIndex _index;
     bool _loaded;
+    (string? Id, string? Name) _manager;
 
-    public AccountSection(UserSummary user, IUserRecords? records, ChangePipeline? pipeline, Availability canEdit)
+    public AccountSection(UserSummary user, IUserRecords? records, ChangePipeline? pipeline, Availability canEdit, IDirectoryIndex? index = null)
     {
         _user = user;
         _records = records;
         _pipeline = pipeline;
         _canEdit = canEdit;
+        _index = index ?? EmptyIndex.Instance;
+        ManagerPicker = new PersonPicker("Choose a manager: type a name", ManagerOptions, o =>
+            _pipeline?.Stage(new SetManager(Target, _manager.Id, _manager.Name, o.Id, o.Name)));
         Summary = user.Department is { Length: > 0 } d ? $"{user.JobTitle ?? "No title"} · {d}" : user.JobTitle ?? "Name, contact and work details";
         if (_pipeline is not null)
             _pipeline.Changed += OnPendingChanged;
@@ -53,8 +58,54 @@ public sealed partial class AccountSection : RecordSection, IDisposable
     [NotifyPropertyChangedFor(nameof(IsReady))]
     public partial IReadOnlyList<FieldGroup> Groups { get; private set; } = [];
 
-    [ObservableProperty]
-    public partial string? ManagerText { get; private set; }
+    // ---- Manager ---------------------------------------------------------------------------
+
+    ChangeTarget Target => new("user", _user.Id, _user.DisplayName, _user.UserPrincipalName);
+
+    public bool CanEdit => _pipeline is not null && _canEdit.IsAvailable;
+
+    public string EditReason => _pipeline is null ? "This tenant can't be edited" : _canEdit.Reason ?? "";
+
+    public PersonPicker ManagerPicker { get; }
+
+    SetManager? PendingManager => _pipeline?.PendingFor(_user.Id, "manager") as SetManager;
+
+    /// <summary>The manager as it will be once pending changes apply.</summary>
+    public string ManagerText => PendingManager is { } p ? p.After : _manager.Name ?? "No manager set";
+
+    public bool HasPendingManager => PendingManager is not null;
+
+    public string PendingManagerText => PendingManager is { } p ? $"Pending: was {p.Before}" : "";
+
+    public bool CanClearManager => CanEdit && !HasPendingManager && _manager.Id is not null;
+
+    public string ClearManagerTip => CanEdit ? "Remove their manager (staged for review)" : EditReason;
+
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    void ClearManager()
+    {
+        if (CanClearManager)
+            _pipeline!.Stage(new SetManager(Target, _manager.Id, _manager.Name, null, null));
+    }
+
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    void UndoManager()
+    {
+        if (PendingManager is { } p)
+            _pipeline!.Unstage(p);
+    }
+
+    /// <summary>Anyone who signs in, except the person themselves and their current manager.</summary>
+    IEnumerable<PickOption> ManagerOptions() =>
+        GroupAccess.People(_index).Where(o => o.Id != _user.Id && o.Id != _manager.Id && o.Id != PendingManager?.NewId);
+
+    void RefreshManager()
+    {
+        OnPropertyChanged(nameof(ManagerText));
+        OnPropertyChanged(nameof(HasPendingManager));
+        OnPropertyChanged(nameof(PendingManagerText));
+        OnPropertyChanged(nameof(CanClearManager));
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGuest))]
@@ -142,7 +193,8 @@ public sealed partial class AccountSection : RecordSection, IDisposable
                     hint: "The country they use Microsoft 365 in. Required before licenses can be assigned."),
             ]),
         ];
-        ManagerText = d.ManagerName is { } m ? m : "No manager set";
+        _manager = (d.ManagerId, d.ManagerName);
+        RefreshManager();
         GuestStatus = d.GuestInvitationState switch
         {
             "PendingAcceptance" => $"Invitation not accepted yet{(d.GuestInvitationChanged is { } at ? $" (sent {Display.Relative(at, DateTimeOffset.Now)})" : "")}",
@@ -177,6 +229,7 @@ public sealed partial class AccountSection : RecordSection, IDisposable
     {
         foreach (var field in Groups.SelectMany(g => g.Fields))
             field.Refresh();
+        RefreshManager();
     }
 
     public void Dispose()

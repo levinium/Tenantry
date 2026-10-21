@@ -62,8 +62,21 @@
           <ic:FluentIcon Icon="People" FontSize="18" Foreground="{DynamicResource Accent}" />
           <TextBlock Classes="h3" Text="Manager" VerticalAlignment="Center" />
         </StackPanel>
-        <TextBlock Classes="value" Text="{Binding ManagerText}" />
-        <TextBlock Classes="caption" TextWrapping="Wrap" Text="Choosing a manager arrives with the people picker in the Groups &amp; access update." />
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="1" VerticalAlignment="Center">
+            <TextBlock Classes="value" Text="{Binding ManagerText}" />
+            <TextBlock Classes="pendingtext" Text="{Binding PendingManagerText}" IsVisible="{Binding HasPendingManager}" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="rowaction" Command="{Binding ClearManagerCommand}" IsEnabled="{Binding CanClearManager}"
+                  IsVisible="{Binding !HasPendingManager}" ToolTip.Tip="{Binding ClearManagerTip}" ToolTip.ShowOnDisabled="True">
+            <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+          </Button>
+          <Button Grid.Column="1" Classes="rowaction" Command="{Binding UndoManagerCommand}" IsVisible="{Binding HasPendingManager}"
+                  ToolTip.Tip="Undo: keep their current manager">
+            <ic:FluentIcon Icon="ArrowUndo" FontSize="14" />
+          </Button>
+        </Grid>
+        <views:PersonPickerView DataContext="{Binding ManagerPicker}" IsEnabled="{Binding $parent[UserControl].((rec:AccountSection)DataContext).CanEdit}" />
       </StackPanel>
     </Border>
   </StackPanel>

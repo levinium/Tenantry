@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Tenantry.Core.Cache;
 using Tenantry.Core.Changes;
+using Tenantry.Core.Exchange;
 
 namespace Tenantry.Graph;
 
@@ -11,8 +12,15 @@ namespace Tenantry.Graph;
 /// take a few seconds to show a write on reading it back, so the read is retried briefly; a
 /// change still not visible after that is reported as applied-but-not-yet-visible, not failed.
 /// </summary>
-public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, Func<TimeSpan, CancellationToken, Task>? delay = null) : IChangeExecutor
+/// <remarks>
+/// Distribution lists, mail-enabled security groups and mailbox permissions change through
+/// Exchange (<paramref name="exchange"/>); without it, those changes fail with a reason.
+/// </remarks>
+public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, Func<TimeSpan, CancellationToken, Task>? delay = null,
+    ICmdletRunner? exchange = null) : IChangeExecutor
 {
+    const string DirectoryObjects = "https://graph.microsoft.com/v1.0/directoryObjects/";
+
     static readonly TimeSpan[] ReadBackWaits = [TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4)];
 
     readonly Func<TimeSpan, CancellationToken, Task> _delay = delay ?? Task.Delay;
@@ -36,7 +44,10 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
             [],
             licenses => licenses.FirstOrDefault(x => x.SkuId == a.SkuId) is { } x && x.Disabled.ToHashSet().SetEquals(a.NewDisabled), cancellationToken),
         RemoveAppAssignment r => await RemoveAppAssignmentAsync(r, cancellationToken),
-        _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
+        SetGroupMembership m => await SetMembershipAsync(m, cancellationToken),
+        SetMailboxAccess a => await SetMailboxAccessAsync(a, cancellationToken),
+        SetManager m => await SetManagerAsync(m, cancellationToken),
+        _ =>new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 
     /// <summary>
@@ -121,6 +132,226 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
         }
     }
 
+    // ---- Groups ---------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Adds or removes a member or owner, then reads the group's list back from Graph (which
+    /// shows distribution lists too) into the local copy.
+    /// </summary>
+    async Task<ApplyResult> SetMembershipAsync(SetGroupMembership change, CancellationToken cancellationToken)
+    {
+        var relation = change.Role == GroupRole.Owner ? "owners" : "members";
+        try
+        {
+            if (change.ExchangeManaged)
+            {
+                if (exchange is null)
+                    return NoExchange;
+                await exchange.InvokeAsync(CmdletEndpoint.Exchange, ExchangeMembershipCmdlet(change), ExchangeMembershipParameters(change), cancellationToken);
+            }
+            else if (change.New)
+                await graph.PostAsync($"groups/{change.Group.Id}/{relation}/$ref",
+                    new JsonObject { ["@odata.id"] = DirectoryObjects + change.Person.Id }, cancellationToken);
+            else
+                await graph.DeleteAsync($"groups/{change.Group.Id}/{relation}/{change.Person.Id}/$ref", cancellationToken);
+        }
+        catch (GraphException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, Describe(e));
+        }
+        catch (CmdletException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, Describe(e, change.Person));
+        }
+
+        foreach (var wait in ReadBackWaits)
+        {
+            if (wait > TimeSpan.Zero)
+                await _delay(wait, cancellationToken);
+            var list = new JsonObject();
+            await foreach (var item in graph.GetAllAsync($"groups/{change.Group.Id}/{relation}?$select=id&$top=999", cancellationToken))
+                list[item.GetProperty("id").GetString()!] = TypeName(item);
+            var present = list.ContainsKey(change.Person.Id);
+            store.Apply(DirectorySync.Groups, [new EntityChange(change.Group.Id, new JsonObject { ["id"] = change.Group.Id, [relation] = list }, OnlyIfExists: true)]);
+            if (present == change.New)
+                return new ApplyResult(ChangeOutcome.Applied);
+        }
+        return new ApplyResult(ChangeOutcome.AppliedNotYetVisible,
+            "Microsoft 365 accepted the change but the group still shows the old list; it usually appears within a minute.");
+    }
+
+    static string ExchangeMembershipCmdlet(SetGroupMembership change) => change switch
+    {
+        { Role: GroupRole.Owner } => "Set-DistributionGroup",
+        { New: true } => "Add-DistributionGroupMember",
+        _ => "Remove-DistributionGroupMember",
+    };
+
+    /// <summary>
+    /// Exchange names people by address. The manager check is bypassed because the admin is
+    /// changing the group from outside it, as the admin center does.
+    /// </summary>
+    static Dictionary<string, object?> ExchangeMembershipParameters(SetGroupMembership change)
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            ["Identity"] = change.Group.Address ?? change.Group.Id,
+            ["BypassSecurityGroupManagerCheck"] = true,
+        };
+        var person = change.Person.Address ?? change.Person.Id;
+        if (change.Role == GroupRole.Owner)
+            parameters["ManagedBy"] = AddOrRemove(change.New, person);
+        else
+        {
+            parameters["Member"] = person;
+            if (!change.New)
+                parameters["Confirm"] = false;
+        }
+        return parameters;
+    }
+
+    /// <summary>Exchange's form for adding to or removing from a multi-valued property.</summary>
+    static Dictionary<string, object?> AddOrRemove(bool add, string value) => new()
+    {
+        ["@odata.type"] = "#Exchange.GenericHashTable",
+        [add ? "Add" : "Remove"] = new[] { value },
+    };
+
+    // ---- Mailbox access -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Full access, Send as or Send on behalf, through Exchange; then the mailbox's access (or,
+    /// for Send on behalf, the mailbox itself) is read back into the local copy.
+    /// </summary>
+    async Task<ApplyResult> SetMailboxAccessAsync(SetMailboxAccess change, CancellationToken cancellationToken)
+    {
+        if (exchange is null)
+            return NoExchange;
+        var mailbox = change.Mailbox.Address ?? change.Mailbox.Id;
+        var person = change.Person.Address ?? change.Person.Id;
+        var (cmdlet, parameters) = change.Right switch
+        {
+            MailboxRight.FullAccess => (change.New ? "Add-MailboxPermission" : "Remove-MailboxPermission", new Dictionary<string, object?>
+            {
+                ["Identity"] = mailbox, ["User"] = person, ["AccessRights"] = new[] { "FullAccess" }, ["InheritanceType"] = "All",
+            }),
+            MailboxRight.SendAs => (change.New ? "Add-RecipientPermission" : "Remove-RecipientPermission", new Dictionary<string, object?>
+            {
+                ["Identity"] = mailbox, ["Trustee"] = person, ["AccessRights"] = new[] { "SendAs" }, ["Confirm"] = false,
+            }),
+            _ => ("Set-Mailbox", new Dictionary<string, object?>
+            {
+                ["Identity"] = mailbox, ["GrantSendOnBehalfTo"] = AddOrRemove(change.New, person),
+            }),
+        };
+        if (cmdlet == "Remove-MailboxPermission")
+            parameters["Confirm"] = false;
+        try
+        {
+            await exchange.InvokeAsync(CmdletEndpoint.Exchange, cmdlet, parameters, cancellationToken);
+        }
+        catch (CmdletException e) when (e.IsNotFound && change.Right == MailboxRight.SendOnBehalf)
+        {
+            return new ApplyResult(ChangeOutcome.Failed,
+                $"Exchange couldn't find {change.Person.Name} as a mail recipient. Send on behalf can only be given to someone with a mailbox or email address.");
+        }
+        catch (CmdletException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, Describe(e, change.Person));
+        }
+
+        foreach (var wait in ReadBackWaits)
+        {
+            if (wait > TimeSpan.Zero)
+                await _delay(wait, cancellationToken);
+            bool present;
+            try
+            {
+                present = await ReadAccessAsync(change, mailbox, cancellationToken);
+            }
+            catch (CmdletException)
+            {
+                continue;
+            }
+            if (present == change.New)
+                return new ApplyResult(ChangeOutcome.Applied);
+        }
+        return new ApplyResult(ChangeOutcome.AppliedNotYetVisible,
+            "Exchange accepted the change but still shows the old access; it usually appears within a minute.");
+    }
+
+    async Task<bool> ReadAccessAsync(SetMailboxAccess change, string mailbox, CancellationToken cancellationToken)
+    {
+        if (change.Right == MailboxRight.SendOnBehalf)
+        {
+            var rows = await exchange!.InvokeAsync(CmdletEndpoint.Exchange, "Get-Mailbox",
+                new Dictionary<string, object?> { ["Identity"] = mailbox }, cancellationToken, ["ExternalDirectoryObjectId", "GrantSendOnBehalfTo"]);
+            if (rows.Count == 0)
+                return false;
+            var row = JsonNode.Parse(rows[0].GetRawText())!.AsObject();
+            store.Apply(DirectorySync.Mailboxes, [new EntityChange(change.Mailbox.Id, row, OnlyIfExists: true)]);
+            return row["GrantSendOnBehalfTo"] is JsonArray delegates && delegates.Any(d => Names(d?.GetValue<string>(), change.Person));
+        }
+        var access = await DirectorySync.ReadMailboxAccessAsync(exchange!, change.Mailbox.Id, mailbox, cancellationToken);
+        store.Apply(DirectorySync.MailboxAccess, [new EntityChange(change.Mailbox.Id, access)]);
+        var list = access[change.Right == MailboxRight.FullAccess ? "fullAccess" : "sendAs"]!.AsArray();
+        return list.Any(t => Names(t?.GetValue<string>(), change.Person));
+    }
+
+    /// <summary>Exchange names a trustee by address, alias or display name, whichever it has.</summary>
+    static bool Names(string? trustee, ChangeTarget person)
+    {
+        if (string.IsNullOrEmpty(trustee))
+            return false;
+        var alias = person.Address?.Split('@')[0];
+        return new[] { person.Address, person.Name, person.Id, alias }
+            .Any(n => n is not null && string.Equals(n, trustee, StringComparison.OrdinalIgnoreCase));
+    }
+
+    static readonly ApplyResult NoExchange = new(ChangeOutcome.Failed,
+        "This change goes through Exchange Online, which isn't connected for this tenant.");
+
+    // ---- Manager --------------------------------------------------------------------------------
+
+    async Task<ApplyResult> SetManagerAsync(SetManager change, CancellationToken cancellationToken)
+    {
+        var path = $"users/{change.User.Id}/manager";
+        try
+        {
+            if (change.NewId is { } id)
+                await graph.PutAsync(path + "/$ref", new JsonObject { ["@odata.id"] = DirectoryObjects + id }, cancellationToken);
+            else
+                await graph.DeleteAsync(path + "/$ref", cancellationToken);
+        }
+        catch (GraphException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, Describe(e));
+        }
+
+        foreach (var wait in ReadBackWaits)
+        {
+            if (wait > TimeSpan.Zero)
+                await _delay(wait, cancellationToken);
+            string? actual;
+            try
+            {
+                actual = (await graph.GetAsync(path + "?$select=id", cancellationToken)).GetProperty("id").GetString();
+            }
+            catch (GraphException e) when (e.Status == System.Net.HttpStatusCode.NotFound)
+            {
+                actual = null;
+            }
+            if (actual == change.NewId)
+                return new ApplyResult(ChangeOutcome.Applied);
+        }
+        return new ApplyResult(ChangeOutcome.AppliedNotYetVisible,
+            "Microsoft 365 accepted the change but still shows the old manager; it usually appears within a minute.");
+    }
+
+    /// <summary>"#microsoft.graph.user" → "user".</summary>
+    static string TypeName(JsonElement item) =>
+        item.TryGetProperty("@odata.type", out var type) && type.GetString() is { } t ? t[(t.LastIndexOf('.') + 1)..] : "unknown";
+
     async Task<ApplyResult> RevokeSessionsAsync(RevokeSessions revoke, CancellationToken cancellationToken)
     {
         try
@@ -159,6 +390,11 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
         return new ApplyResult(ChangeOutcome.AppliedNotYetVisible,
             "Microsoft 365 accepted the change but still shows the old value; it usually appears within a minute.");
     }
+
+    /// <summary>Exchange's words without its internal prefix; a missing recipient named plainly.</summary>
+    static string Describe(CmdletException e, ChangeTarget person) => e.IsNotFound
+        ? $"Exchange couldn't find {person.Name}. They may have no mailbox or email address yet. ({e.Explanation})"
+        : e.Explanation;
 
     /// <summary>Graph's own words, minus the status-code prefix an admin doesn't need.</summary>
     static string Describe(GraphException e) =>

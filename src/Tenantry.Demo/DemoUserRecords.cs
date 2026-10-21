@@ -1,4 +1,5 @@
 using Bogus;
+using Tenantry.Core.Changes;
 using Tenantry.Core.Directory;
 
 namespace Tenantry.Demo;
@@ -11,6 +12,47 @@ namespace Tenantry.Demo;
 public sealed class DemoUserRecords(DemoTenantDirectory directory) : IUserRecords
 {
     readonly Dictionary<string, Dictionary<string, string?>> _edited = new(StringComparer.Ordinal);
+    readonly Dictionary<string, string?> _managers = new(StringComparer.Ordinal);
+
+    readonly Dictionary<string, Dictionary<string, List<MailboxRight>>> _delegates = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Who can use a person's mailbox. About one in four people starts with a colleague from their
+    /// department holding Full access; changes made in the demo are kept.
+    /// </summary>
+    public async Task<IReadOnlyList<MailboxDelegate>> GetMailboxDelegatesAsync(string userId, string address, CancellationToken cancellationToken = default)
+    {
+        var delegates = await DelegatesAsync(userId, cancellationToken);
+        return delegates.Where(d => d.Value.Count > 0).Select(d => new MailboxDelegate(d.Key, d.Value.ToArray())).ToArray();
+    }
+
+    /// <summary>Gives or takes a right on a person's mailbox (the demo's change executor writes through this).</summary>
+    public async Task RememberDelegateAsync(string userId, string trustee, MailboxRight right, bool allowed)
+    {
+        var delegates = await DelegatesAsync(userId, CancellationToken.None);
+        if (!delegates.TryGetValue(trustee, out var rights))
+            delegates[trustee] = rights = [];
+        rights.Remove(right);
+        if (allowed)
+            rights.Add(right);
+    }
+
+    async Task<Dictionary<string, List<MailboxRight>>> DelegatesAsync(string userId, CancellationToken cancellationToken)
+    {
+        if (_delegates.TryGetValue(userId, out var known))
+            return known;
+        var users = await directory.GetUsersAsync(cancellationToken);
+        var user = users.First(u => u.Id == userId);
+        known = new Dictionary<string, List<MailboxRight>>(StringComparer.OrdinalIgnoreCase);
+        if (StableSeed(userId) % 4 == 0
+            && users.FirstOrDefault(u => u.Department == user.Department && u.Id != userId && u.Kind == UserKind.Member) is { } colleague)
+            known[colleague.UserPrincipalName] = [MailboxRight.FullAccess];
+        _delegates[userId] = known;
+        return known;
+    }
+
+    /// <summary>A manager set (or cleared, with null) through the demo's change executor.</summary>
+    public void RememberManager(string userId, string? managerId) => _managers[userId] = managerId;
 
     public async Task<UserDetails> GetDetailsAsync(string userId, CancellationToken cancellationToken = default)
     {
@@ -43,7 +85,9 @@ public sealed class DemoUserRecords(DemoTenantDirectory directory) : IUserRecord
             foreach (var (property, value) in edits)
                 text[property] = value;
         }
-        var manager = users.FirstOrDefault(u => u.Department == user.Department && u.Id != user.Id && u.Kind == UserKind.Member);
+        var manager = _managers.TryGetValue(userId, out var chosen)
+            ? users.FirstOrDefault(u => u.Id == chosen)
+            : users.FirstOrDefault(u => u.Department == user.Department && u.Id != user.Id && u.Kind == UserKind.Member);
         return new UserDetails(userId, text, manager?.Id, manager?.DisplayName,
             user.Kind == UserKind.Guest ? (faker.Random.Bool(0.7f) ? "Accepted" : "PendingAcceptance") : null,
             user.Kind == UserKind.Guest ? user.CreatedAt.AddDays(2) : null);

@@ -53,6 +53,9 @@ public sealed class GraphClient
     public Task<JsonElement> PatchAsync(string path, JsonNode body, CancellationToken cancellationToken = default) =>
         SendAsync(HttpMethod.Patch, path, body, cancellationToken);
 
+    public Task<JsonElement> PutAsync(string path, JsonNode body, CancellationToken cancellationToken = default) =>
+        SendAsync(HttpMethod.Put, path, body, cancellationToken);
+
     public Task<JsonElement> DeleteAsync(string path, CancellationToken cancellationToken = default) =>
         SendAsync(HttpMethod.Delete, path, null, cancellationToken);
 

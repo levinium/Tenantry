@@ -38,7 +38,13 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
     /// <summary>Licenses with counts and their apps, for the license picker and per-app switches.</summary>
     public const string SkuSelect = "skuId,skuPartNumber,prepaidUnits,consumedUnits,servicePlans,appliesTo,capabilityStatus";
 
-    const string GroupSelect ="id,displayName,mail,mailEnabled,securityEnabled,groupTypes,description,visibility,createdDateTime,members";
+    const string GroupSelect = "id,displayName,mail,mailEnabled,securityEnabled,groupTypes,description,visibility,createdDateTime,members,owners";
+
+    /// <summary>
+    /// Where the groups' delta link is kept. Bumped when the selected properties grow (owners,
+    /// 2026-10-21), so the next sync does one full pass instead of waiting for every group to change.
+    /// </summary>
+    public const string GroupsMark = "group.v2";
 
     /// <summary>The few Get-Mailbox properties the lists use, of the 300-odd it returns.</summary>
     static readonly string[] MailboxSelect =
@@ -73,8 +79,8 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         {
             var notes = new List<string>();
             var changed = await ReadWholeAsync(Skus, $"subscribedSkus?$select={SkuSelect}", "skuId", cancellationToken);
-            changed += await SyncDeltaAsync(Users, $"users/delta?$select={UserSelect}", "users", scope, _ => item => new EntityChange(Id(item), ToObject(item)), progress, cancellationToken);
-            changed += await SyncDeltaAsync(Groups, $"groups/delta?$select={GroupSelect}", "groups", scope, GroupMapper, progress, cancellationToken);
+            changed += await SyncDeltaAsync(Users, Users, $"users/delta?$select={UserSelect}", "users", scope, _ => item => new EntityChange(Id(item), ToObject(item)), progress, cancellationToken);
+            changed += await SyncDeltaAsync(Groups, GroupsMark, $"groups/delta?$select={GroupSelect}", "groups", scope, GroupMapper, progress, cancellationToken);
 
             if (Due(Domains, scope))
                 changed += await ReadWholeAsync(Domains, "domains?$select=id,isVerified", "id", cancellationToken);
@@ -113,25 +119,25 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         return changed;
     }
 
-    async Task<int> SyncDeltaAsync(string kind, string firstUrl, string noun, SyncScope scope,
+    async Task<int> SyncDeltaAsync(string kind, string markKey, string firstUrl, string noun, SyncScope scope,
         Func<bool, Func<JsonElement, EntityChange>> mapper, IProgress<string>? progress, CancellationToken cancellationToken)
     {
-        var cursor = scope == SyncScope.StartOver ? null : store.GetMark(kind)?.Cursor;
+        var cursor = scope == SyncScope.StartOver ? null : store.GetMark(markKey)?.Cursor;
         if (cursor is not null)
         {
             try
             {
-                return await PullAsync(kind, cursor, noun, sweep: false, mapper(false), progress, cancellationToken);
+                return await PullAsync(kind, markKey, cursor, noun, sweep: false, mapper(false), progress, cancellationToken);
             }
             catch (GraphException e) when (IsExpired(e))
             {
                 // The service forgot the delta state (they expire after a while): start over.
             }
         }
-        return await PullAsync(kind, firstUrl, noun, sweep: true, mapper(true), progress, cancellationToken);
+        return await PullAsync(kind, markKey, firstUrl, noun, sweep: true, mapper(true), progress, cancellationToken);
     }
 
-    async Task<int> PullAsync(string kind, string url, string noun, bool sweep, Func<JsonElement, EntityChange> map,
+    async Task<int> PullAsync(string kind, string markKey, string url, string noun, bool sweep, Func<JsonElement, EntityChange> map,
         IProgress<string>? progress, CancellationToken cancellationToken)
     {
         var seen = sweep ? new HashSet<string>(StringComparer.Ordinal) : null;
@@ -168,48 +174,54 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         if (seen is not null)
             changed += store.RemoveExcept(kind, seen);
         // Saved only once every page is in: an interrupted sync starts that pass again.
-        store.SetMark(kind, new SyncMark(deltaLink, _now()));
+        store.SetMark(markKey, new SyncMark(deltaLink, _now()));
         return changed;
     }
 
+    /// <summary>The group relations that arrive as <c>{relation}@delta</c> lists.</summary>
+    static readonly string[] Relations = ["members", "owners"];
+
     /// <summary>
-    /// Groups carry their members as <c>members@delta</c>: on a full pass, the complete list
-    /// (a large group arrives spread over several pages); afterwards, only who joined and who
-    /// left. Members are stored as a <c>members</c> map of id → type, built up across pages.
+    /// Groups carry their members and owners as <c>members@delta</c> / <c>owners@delta</c>: on a
+    /// full pass, the complete lists (a large group arrives spread over several pages);
+    /// afterwards, only who joined and who left. Each is stored as a map of id → type, built up
+    /// across pages.
     /// </summary>
     Func<JsonElement, EntityChange> GroupMapper(bool sweep)
     {
-        var members = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
+        var lists = new Dictionary<(string Group, string Relation), JsonObject>();
         return item =>
         {
             var id = Id(item);
             var properties = ToObject(item);
-            if (sweep && !members.ContainsKey(id))
+            foreach (var relation in Relations)
             {
-                // A full pass lists every member, so a group with none sends no members@delta.
-                members[id] = [];
-                properties["members"] = new JsonObject();
-            }
-            if (item.TryGetProperty("members@delta", out var delta))
-            {
-                if (!members.TryGetValue(id, out var current))
-                    members[id] = current = StoredMembers(id);
-                foreach (var member in delta.EnumerateArray())
+                if (sweep && !lists.ContainsKey((id, relation)))
                 {
-                    var memberId = Id(member);
-                    if (member.TryGetProperty("@removed", out _))
-                        current.Remove(memberId);
-                    else
-                        current[memberId] = TypeName(member);
+                    // A full pass lists everyone, so a group with no owners sends no owners@delta.
+                    lists[(id, relation)] = [];
+                    properties[relation] = new JsonObject();
                 }
-                properties["members"] = current.DeepClone();
+                if (!item.TryGetProperty($"{relation}@delta", out var delta))
+                    continue;
+                if (!lists.TryGetValue((id, relation), out var current))
+                    lists[(id, relation)] = current = Stored(id, relation);
+                foreach (var entry in delta.EnumerateArray())
+                {
+                    var entryId = Id(entry);
+                    if (entry.TryGetProperty("@removed", out _))
+                        current.Remove(entryId);
+                    else
+                        current[entryId] = TypeName(entry);
+                }
+                properties[relation] = current.DeepClone();
             }
             return new EntityChange(id, properties);
         };
     }
 
-    JsonObject StoredMembers(string groupId) =>
-        store.Get(Groups, groupId) is { } json && JsonNode.Parse(json)?["members"] is JsonObject stored
+    JsonObject Stored(string groupId, string relation) =>
+        store.Get(Groups, groupId) is { } json && JsonNode.Parse(json)?[relation] is JsonObject stored
             ? stored.DeepClone().AsObject()
             : [];
 
@@ -300,17 +312,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
             {
                 try
                 {
-                    var identity = new Dictionary<string, object?> { ["Identity"] = mailbox.Address };
-                    var full = await exchange!.InvokeAsync(CmdletEndpoint.Exchange, "Get-MailboxPermission", identity, ct,
-                        ["User", "AccessRights", "IsInherited", "Deny"]);
-                    var sendAs = await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-RecipientPermission", identity, ct,
-                        ["Trustee", "AccessRights", "IsInherited", "AccessControlType"]);
-                    access[mailbox.Id] = new JsonObject
-                    {
-                        ["id"] = mailbox.Id,
-                        ["fullAccess"] = Trustees(full, "User", "FullAccess"),
-                        ["sendAs"] = Trustees(sendAs, "Trustee", "SendAs"),
-                    };
+                    access[mailbox.Id] = await ReadMailboxAccessAsync(exchange!, mailbox.Id, mailbox.Address, ct);
                 }
                 catch (CmdletException)
                 {
@@ -323,6 +325,22 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         var changes = access.Select(a => new EntityChange(a.Key, a.Value)).ToArray();
         return store.Apply(MailboxAccess, changes)
             + store.RemoveExcept(MailboxAccess, mailboxes.Select(m => m.Id).ToHashSet(StringComparer.Ordinal));
+    }
+
+    /// <summary>One mailbox's Full access and Send as trustees, as stored under <see cref="MailboxAccess"/>.</summary>
+    internal static async Task<JsonObject> ReadMailboxAccessAsync(ICmdletRunner exchange, string id, string address, CancellationToken cancellationToken)
+    {
+        var identity = new Dictionary<string, object?> { ["Identity"] = address };
+        var full = await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-MailboxPermission", identity, cancellationToken,
+            ["User", "AccessRights", "IsInherited", "Deny"]);
+        var sendAs = await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-RecipientPermission", identity, cancellationToken,
+            ["Trustee", "AccessRights", "IsInherited", "AccessControlType"]);
+        return new JsonObject
+        {
+            ["id"] = id,
+            ["fullAccess"] = Trustees(full, "User", "FullAccess"),
+            ["sendAs"] = Trustees(sendAs, "Trustee", "SendAs"),
+        };
     }
 
     static JsonArray Trustees(IReadOnlyList<JsonElement> entries, string trusteeProperty, string right)

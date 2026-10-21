@@ -304,7 +304,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>A user's record (page or preview), editable when the tenant and the admin's role allow.</summary>
     UserDetailViewModel NewUserPage(UserSummary user) =>
-        new(user, _now(), _tenant.Changes, Evaluate(Capabilities.EditUsers), _tenant.Records, ShowDialog, CloseDialog);
+        new(user, _now(), _tenant.Changes, Evaluate(Capabilities.EditUsers), _tenant.Records, ShowDialog, CloseDialog, _index, OpenUser, OpenGroup);
 
     // ---- Permissions ----------------------------------------------------------------------
 
@@ -381,6 +381,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (_index.User(page.User.Id) is { } updated)
                 page.Update(updated);
         }
+        foreach (var page in Tabs.OfType<GroupDetailViewModel>())
+        {
+            if (_index.Group(page.Group.Id) is { } updated)
+                page.Update(updated);
+        }
+        // The previews follow the same way.
+        if (Users.PreviewModel is UserDetailViewModel userPreview && _index.User(userPreview.User.Id) is { } u)
+            userPreview.Update(u);
+        if (Groups.PreviewModel is GroupDetailViewModel groupPreview && _index.Group(groupPreview.Group.Id) is { } g)
+            groupPreview.Update(g);
     }
 
     /// <summary>Opens a group's record page, or switches to it if it is already open.</summary>
@@ -395,7 +405,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SelectedTab = existing;
     }
 
-    GroupDetailViewModel NewGroupPage(GroupSummary group) => new(group, _index, OpenUser, OpenGroup);
+    GroupDetailViewModel NewGroupPage(GroupSummary group) =>
+        new(group, _index, OpenUser, OpenGroup, _tenant.Changes, Evaluate(Capabilities.EditUsers), ShowDialog, CloseDialog);
 
     // ---- Ctrl+K ---------------------------------------------------------------------------
 

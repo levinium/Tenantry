@@ -72,35 +72,11 @@
         </Border>
       </Grid>
 
-      <!-- Members: people and groups open their own record pages -->
+      <!-- Owners and members, or people with access: editable in place; people and groups open their pages -->
       <Border Classes="card">
-        <StackPanel Spacing="14">
-          <StackPanel Orientation="Horizontal" Spacing="10">
-            <ic:FluentIcon Icon="People" FontSize="20" Foreground="{DynamicResource Accent}" />
-            <TextBlock Classes="h3" Text="{Binding MembersHeading}" VerticalAlignment="Center" />
-          </StackPanel>
-          <TextBlock Classes="muted" Text="{Binding MembersSummary}" />
-          <ItemsControl ItemsSource="{Binding Members}" IsVisible="{Binding HasMembers}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:MemberRow">
-                <Border Classes="valuerow">
-                  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-                    <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" Text="{Binding Access}" IsVisible="{Binding HasAccess}" />
-                    <StackPanel Spacing="1" VerticalAlignment="Center">
-                      <Button Classes="namelink" HorizontalAlignment="Left" IsVisible="{Binding CanOpen}"
-                              ToolTip.Tip="Open this member's record page"
-                              Command="{Binding #Root.((vm:GroupDetailViewModel)DataContext).OpenMemberCommand}" CommandParameter="{Binding}">
-                        <TextBlock Text="{Binding Name}" />
-                      </Button>
-                      <TextBlock Text="{Binding Name}" IsVisible="{Binding !CanOpen}" />
-                      <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
-                    <c:Badge Grid.Column="2" Text="{Binding TypeText}" Kind="{Binding TypeKind}" VerticalAlignment="Center" />
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+        <StackPanel Spacing="12">
+          <TextBlock Classes="muted" Text="{Binding MembersSummary}" TextWrapping="Wrap" />
+          <ContentControl Content="{Binding People}" />
         </StackPanel>
       </Border>
     </StackPanel>

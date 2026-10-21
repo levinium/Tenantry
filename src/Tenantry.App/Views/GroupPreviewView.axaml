@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
              xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.GroupPreviewView"
              x:DataType="vm:GroupDetailViewModel">
   <!-- The group record, stacked to fit the preview pane; the full member list is on its page. -->
@@ -40,7 +41,16 @@
 
     <Border Classes="divider" />
     <StackPanel Spacing="10">
-      <TextBlock Classes="h3" Text="{Binding MembersHeading}" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBlock Classes="h3" Text="{Binding MembersHeading}" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Classes="accent" Command="{Binding ManagePeopleCommand}" ToolTip.Tip="{Binding ManageTip}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Edit" FontSize="14" VerticalAlignment="Center" />
+            <TextBlock Text="Manage" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </Grid>
+      <TextBlock Classes="caption" Text="{Binding OwnersText}" IsVisible="{Binding ShowMembership}" />
       <TextBlock Classes="muted" Text="{Binding MembersSummary}" TextWrapping="Wrap" />
       <ItemsControl ItemsSource="{Binding FirstMembers}">
         <ItemsControl.ItemsPanel>

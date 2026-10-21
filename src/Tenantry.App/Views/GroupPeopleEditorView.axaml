@@ -1,0 +1,99 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.GroupPeopleEditorView"
+             x:DataType="rec:GroupPeopleEditor">
+  <UserControl.DataTemplates>
+    <!-- An owner or member: open their page, remove (or undo) on the right. -->
+    <DataTemplate DataType="rec:PersonRow">
+      <Border Classes="valuerow">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="12">
+          <StackPanel Spacing="1" VerticalAlignment="Center">
+            <Button Classes="namelink" IsVisible="{Binding CanOpen}" Command="{Binding OpenCommand}" ToolTip.Tip="Open their record page">
+              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+            </Button>
+            <TextBlock Text="{Binding Name}" IsVisible="{Binding !CanOpen}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+          <c:Badge Grid.Column="2" Text="{Binding TypeText}" Kind="{Binding TypeKind}" VerticalAlignment="Center" />
+          <Button Grid.Column="3" Classes="rowaction" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}"
+                  ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
+            <Panel>
+              <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !HasPending}" />
+              <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding HasPending}" />
+            </Panel>
+          </Button>
+        </Grid>
+      </Border>
+    </DataTemplate>
+    <DataTemplate DataType="rec:ToggleRow">
+      <views:ToggleRowView />
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <StackPanel Spacing="16" MinWidth="560">
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </StackPanel>
+    </Border>
+
+    <!-- Groups: owners, then members -->
+    <StackPanel Spacing="10" IsVisible="{Binding IsGroup}">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+        <ic:FluentIcon Icon="PersonStar" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Classes="h3" Text="{Binding OwnersHeading}" VerticalAlignment="Center" />
+        </Grid>
+        <views:PersonPickerView DataContext="{Binding OwnerPicker}" MaxWidth="440" HorizontalAlignment="Left"
+                                IsEnabled="{Binding $parent[UserControl].((rec:GroupPeopleEditor)DataContext).CanEdit}" />
+      <Border Classes="banner warning" IsVisible="{Binding HasNoOwners}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding NoOwnersText}" />
+      </Border>
+      <ItemsControl ItemsSource="{Binding Owners}" />
+    </StackPanel>
+
+    <Border Classes="divider" IsVisible="{Binding IsGroup}" />
+
+    <StackPanel Spacing="10" IsVisible="{Binding IsGroup}">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+        <ic:FluentIcon Icon="People" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Classes="h3" Text="{Binding MembersHeading}" VerticalAlignment="Center" />
+        </Grid>
+        <views:PersonPickerView DataContext="{Binding MemberPicker}" MaxWidth="440" HorizontalAlignment="Left"
+                                IsEnabled="{Binding $parent[UserControl].((rec:GroupPeopleEditor)DataContext).CanAddMembers}" />
+      <Border Classes="banner neutral" IsVisible="{Binding HasMembersLock}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding MembersLockedReason}" />
+      </Border>
+      <TextBox Text="{Binding MemberFilter}" PlaceholderText="Find a member" IsVisible="{Binding ShowFilter}" MaxWidth="340" HorizontalAlignment="Left" />
+      <TextBlock Classes="muted" Text="No members." IsVisible="{Binding HasNoMembers}" />
+      <ItemsControl ItemsSource="{Binding Members}" />
+      <TextBlock Classes="caption" Text="{Binding MoreMembersText}"
+                 IsVisible="{Binding MoreMembersText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+
+    <!-- Mailboxes: people with access, a checkbox per right -->
+    <StackPanel Spacing="10" IsVisible="{Binding IsMailbox}">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+        <ic:FluentIcon Icon="MailInbox" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Classes="h3" Text="{Binding AccessHeading}" VerticalAlignment="Center" />
+        </Grid>
+        <views:PersonPickerView DataContext="{Binding AccessPicker}" MaxWidth="440" HorizontalAlignment="Left"
+                                IsEnabled="{Binding $parent[UserControl].((rec:GroupPeopleEditor)DataContext).CanEdit}" />
+      <TextBlock Classes="caption" TextWrapping="Wrap"
+                 Text="Full access opens the mailbox in Outlook. Send as sends as the mailbox; Send on behalf sends marked &quot;on behalf of&quot;. New people start with Full access." />
+      <TextBlock Classes="muted" Text="Nobody has been given access." IsVisible="{Binding HasNoAccess}" />
+      <ItemsControl ItemsSource="{Binding Access}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

@@ -22,6 +22,9 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetLicenseAssigned), "setLicense")]
 [JsonDerivedType(typeof(SetLicenseApps), "setLicenseApps")]
 [JsonDerivedType(typeof(RemoveAppAssignment), "removeAppAssignment")]
+[JsonDerivedType(typeof(SetGroupMembership), "setGroupMembership")]
+[JsonDerivedType(typeof(SetMailboxAccess), "setMailboxAccess")]
+[JsonDerivedType(typeof(SetManager), "setManager")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -158,6 +161,68 @@ public sealed record RevokeSessions(ChangeTarget User) : ChangeOp
     public override bool IsCaution => true;
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+public enum GroupRole { Member, Owner }
+
+/// <summary>
+/// Adds someone to a group, or removes them, as a member or an owner. Microsoft 365 and security
+/// groups change through Graph; distribution lists and mail-enabled security groups through
+/// Exchange (<see cref="ExchangeManaged"/>). The write guard checks both the group and the person.
+/// </summary>
+/// <param name="PersonType">Graph's type for the person ("user", "group", "device", …).</param>
+public sealed record SetGroupMembership(ChangeTarget Group, ChangeTarget Person, string PersonType, GroupRole Role, bool ExchangeManaged,
+    bool Old, bool New) : ChangeOp
+{
+    public override ChangeTarget Target => Group;
+    public override string Key => $"{Role}:{Person.Id}";
+    public override string Label => Role == GroupRole.Owner ? $"Owner {Person.Name}" : $"Member {Person.Name}";
+    public override string Before => Old ? Role.ToString() : $"Not {Article} {Role.ToString().ToLowerInvariant()}";
+    public override string After => New ? Role.ToString() : "Removed";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override IReadOnlyList<ChangeTarget> Guarded => [Group, Person];
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetGroupMembership e ? this with { Old = e.Old } : this;
+
+    string Article => Role == GroupRole.Owner ? "an" : "a";
+}
+
+public enum MailboxRight { FullAccess, SendAs, SendOnBehalf }
+
+/// <summary>
+/// Gives someone a right on a mailbox (usually a shared one), or takes it away: Full access
+/// (open it), Send as (send as the mailbox) or Send on behalf. Changed through Exchange.
+/// </summary>
+public sealed record SetMailboxAccess(ChangeTarget Mailbox, ChangeTarget Person, MailboxRight Right, bool Old, bool New) : ChangeOp
+{
+    public override ChangeTarget Target => Mailbox;
+    public override string Key => $"{Right}:{Person.Id}";
+    public override string Label => $"{RightName(Right)}: {Person.Name}";
+    public override string Before => Old ? "Allowed" : "Not allowed";
+    public override string After => New ? "Allowed" : "Removed";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override IReadOnlyList<ChangeTarget> Guarded => [Mailbox, Person];
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetMailboxAccess e ? this with { Old = e.Old } : this;
+
+    public static string RightName(MailboxRight right) => right switch
+    {
+        MailboxRight.FullAccess => "Full access",
+        MailboxRight.SendAs => "Send as",
+        _ => "Send on behalf",
+    };
+}
+
+/// <summary>Sets or clears a user's manager. Only the user changes, so only they are guarded.</summary>
+public sealed record SetManager(ChangeTarget User, string? OldId, string? OldName, string? NewId, string? NewName) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "manager";
+    public override string Label => "Manager";
+    public override string Before => OldId is null ? "(none)" : Show(OldName);
+    public override string After => NewId is null ? "(none)" : Show(NewName);
+    public override bool IsNoChange => string.Equals(OldId, NewId, StringComparison.Ordinal);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetManager e ? this with { OldId = e.OldId, OldName = e.OldName } : this;
 }
 
 /// <summary>Blocks or allows a user's sign-in (Graph accountEnabled).</summary>
