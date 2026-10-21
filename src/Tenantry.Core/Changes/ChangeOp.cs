@@ -244,7 +244,7 @@ public sealed record SetMailAlias(ChangeTarget User, string Address, bool Old, b
     public override ChangeTarget Target => User;
     public override string Key => "alias:" + Address.ToLowerInvariant();
     public override string Label => $"Email address {Address}";
-    public override string Before => Old ? "Receives mail" : "Not an address";
+    public override string Before => Old ? "One of their addresses" : "Not one of their addresses";
     public override string After => New ? "Added" : "Removed";
     public override bool IsCaution => Old && !New;
     public override bool IsNoChange => Old == New;

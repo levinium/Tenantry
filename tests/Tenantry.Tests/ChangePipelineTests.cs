@@ -197,6 +197,21 @@ public class ChangePipelineTests
     }
 
     [Fact]
+    public async Task Leaving_a_field_untouched_just_closes_it()
+    {
+        var (pipeline, _, _) = Pipeline(testMode: true);
+        var page = new UserDetailViewModel(User(), pipeline: pipeline, canEdit: Availability.Yes);
+        var department = await Field(page, "department");
+
+        department.EditCommand.Execute(null);
+        department.StageCommand.Execute(null);
+        department.StageCommand.Execute(null);
+
+        Assert.False(department.IsEditing);
+        Assert.Empty(pipeline.Pending);
+    }
+
+    [Fact]
     public async Task Editing_a_field_stages_it_and_shows_it_pending_in_place()
     {
         var (pipeline, _, _) = Pipeline(testMode: true);

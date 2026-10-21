@@ -14,22 +14,8 @@ public partial class EditableFieldView : UserControl
     public EditableFieldView()
     {
         InitializeComponent();
-        // Enter stages, Esc cancels.
-        Editor.AddHandler(KeyDownEvent, (_, e) =>
-        {
-            if (_field is null)
-                return;
-            if (e.Key == Key.Enter)
-            {
-                _field.StageCommand.Execute(null);
-                e.Handled = true;
-            }
-            else if (e.Key == Key.Escape)
-            {
-                _field.CancelEditCommand.Execute(null);
-                e.Handled = true;
-            }
-        }, RoutingStrategies.Tunnel);
+        // A choice goes to Pending changes when the list closes; closing it untouched ends the edit.
+        ChoiceEditor.DropDownClosed += (_, _) => _field?.StageCommand.Execute(null);
 
         DataContextChanged += (_, _) =>
         {
@@ -47,6 +33,13 @@ public partial class EditableFieldView : UserControl
         if (e.PropertyName == nameof(EditableField.IsEditing) && _field?.IsEditing == true)
             Dispatcher.UIThread.Post(() =>
             {
+                if (_field?.HasChoices == true)
+                {
+                    // The list opens straight away: one click to choose.
+                    ChoiceEditor.Focus();
+                    ChoiceEditor.IsDropDownOpen = true;
+                    return;
+                }
                 Editor.Focus();
                 Editor.SelectAll();
             }, DispatcherPriority.Input);

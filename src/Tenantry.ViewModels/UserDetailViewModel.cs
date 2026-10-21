@@ -194,8 +194,8 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
 
     public string SignInActionTip => !CanEdit ? EditReason
         : HasPendingSignIn ? "Take the sign-in change out of Pending changes"
-        : User.AccountEnabled ? "Stop this account signing in (staged for review in Pending changes)"
-        : "Let this account sign in again (staged for review in Pending changes)";
+        : User.AccountEnabled ? "Stop this account signing in (added to Pending changes)"
+        : "Let this account sign in again (added to Pending changes)";
 
     [RelayCommand]
     void ToggleSignIn()

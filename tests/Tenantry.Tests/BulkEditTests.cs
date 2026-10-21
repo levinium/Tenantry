@@ -130,6 +130,24 @@ public sealed class BulkEditTests
     }
 
     [Fact]
+    public async Task Leaving_a_mixed_detail_untouched_never_clears_it_but_clear_for_everyone_does()
+    {
+        var pipeline = Pipeline();
+        var details = await Details(pipeline, new Records(), Ada, Bo, Cy);
+        var department = Field(details, "department");
+
+        department.EditCommand.Execute(null);
+        await department.StageCommand.ExecuteAsync(null);
+        Assert.Empty(pipeline.Pending);
+        Assert.False(department.IsEditing);
+
+        Assert.True(department.CanClear);
+        await department.ClearForEveryoneCommand.ExecuteAsync(null);
+        Assert.Equal(3, pipeline.Pending.Count);
+        Assert.All(pipeline.Pending.Cast<SetUserText>(), c => Assert.Null(c.New));
+    }
+
+    [Fact]
     public async Task Details_outside_the_list_are_read_once_and_reused_when_staging()
     {
         var records = new Records();
@@ -251,11 +269,11 @@ public sealed class BulkEditTests
 
         editor.Selected = Action(editor.Actions, "Sign out everywhere");
         Assert.True(Action(editor.Actions, "Sign out everywhere").IsSelected);
-        Assert.Equal("Stage (takes something away)", editor.StageText);
+        Assert.Equal("Add to Pending changes (takes something away)", editor.StageText);
         await editor.StageCommand.ExecuteAsync(null);
 
         Assert.Equal(3, pipeline.Pending.Count);
-        Assert.StartsWith("Staged 3 changes", editor.Result);
+        Assert.StartsWith("Added 3 changes", editor.Result);
         editor.DoneCommand.Execute(null);
         Assert.True(closed);
     }

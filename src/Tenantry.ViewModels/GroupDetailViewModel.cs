@@ -95,7 +95,7 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
 
     public string ManageTip => Group.IsMailbox
         ? "Give or remove Full access, Send as and Send on behalf"
-        : "Add or remove owners and members (changes are staged for review)";
+        : "Add or remove owners and members (changes go to Pending changes first)";
 
     /// <summary>Opens the people editor in a popup (the preview pane's Manage button).</summary>
     [RelayCommand]

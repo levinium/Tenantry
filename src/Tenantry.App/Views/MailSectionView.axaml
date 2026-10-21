@@ -23,6 +23,8 @@
     </Border>
 
     <StackPanel Spacing="12" IsVisible="{Binding IsReady}">
+      <TextBlock Classes="caption" TextWrapping="Wrap" IsVisible="{Binding CanEdit}"
+                 Text="Changes go to Pending changes as you make them (text when you click away or press Enter). Nothing changes in Microsoft 365 until you apply them." />
       <!-- Storage -->
       <Border Classes="card">
         <StackPanel Spacing="10">
@@ -55,7 +57,7 @@
                     <c:Badge Grid.Column="1" Text="Primary" Kind="Success" IsVisible="{Binding IsPrimary}" VerticalAlignment="Center" />
                     <c:Badge Grid.Column="2" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
                     <Button Grid.Column="3" Classes="ghost" Content="Make primary" Command="{Binding MakePrimaryCommand}" IsVisible="{Binding CanMakePrimary}"
-                            ToolTip.Tip="Make this the address people see (staged for review); the current primary stays as an alias" />
+                            ToolTip.Tip="Make this the address people see (added to Pending changes); the current primary stays as an alias" />
                     <Button Grid.Column="4" Classes="rowaction" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}" IsVisible="{Binding !IsPrimary}"
                             ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
                       <Panel>
@@ -72,7 +74,7 @@
             <TextBox Text="{Binding NewAliasName}" Width="200" PlaceholderText="New address" />
             <TextBlock Text="@" VerticalAlignment="Center" />
             <ComboBox ItemsSource="{Binding Domains}" SelectedItem="{Binding NewAliasDomain}" MinWidth="220" />
-            <Button Classes="accent" Content="Add address" Command="{Binding AddAliasCommand}" ToolTip.Tip="Add this address (staged for review)" />
+            <Button Classes="accent" Content="Add address" Command="{Binding AddAliasCommand}" ToolTip.Tip="Add this address (added to Pending changes)" />
           </StackPanel>
           <TextBlock Classes="error" Text="{Binding AliasError}" IsVisible="{Binding HasAliasError}" TextWrapping="Wrap" />
         </StackPanel>
@@ -92,15 +94,13 @@
             <StackPanel Spacing="8" IsEnabled="{Binding CanEdit}">
               <ToggleSwitch IsChecked="{Binding ForwardOn}" OnContent="Forward their mail" OffContent="Don't forward" />
               <StackPanel Spacing="8" IsVisible="{Binding ForwardOn}">
-                <TextBox Text="{Binding ForwardTo}" PlaceholderText="Forward to (email address)" />
+                <TextBox Text="{Binding ForwardTo, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" PlaceholderText="Forward to (email address)" />
                 <CheckBox IsChecked="{Binding KeepCopy}" Content="Keep a copy in this mailbox" />
                 <Border Classes="banner warning" IsVisible="{Binding ForwardDraftOutside}">
                   <TextBlock TextWrapping="Wrap" FontSize="12"
                              Text="This address is outside the organization. Forwarding outside is how compromised accounts leak mail, and your outbound policy may block it." />
                 </Border>
               </StackPanel>
-              <Button Classes="accent" HorizontalAlignment="Left" Content="Stage forwarding" Command="{Binding StageForwardingCommand}"
-                      ToolTip.Tip="Stage this forwarding setting for review" />
               <TextBlock Classes="error" Text="{Binding ForwardError}" IsVisible="{Binding HasForwardError}" TextWrapping="Wrap" />
             </StackPanel>
           </StackPanel>
@@ -116,7 +116,7 @@
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="Whether this mailbox appears when people look someone up in Outlook or Teams. Hiding it doesn't stop mail arriving." />
             <ToggleSwitch IsChecked="{Binding ShowInAddressList}" IsEnabled="{Binding CanEdit}" OnContent="Shown in the address list" OffContent="Hidden from the address list"
-                          ToolTip.Tip="Switching stages the change for review" />
+                          ToolTip.Tip="Switching adds the change to Pending changes" />
             <TextBlock Classes="pendingtext" Text="{Binding AddressListPendingText}" IsVisible="{Binding HasAddressListPending}" />
           </StackPanel>
         </Border>
@@ -150,7 +150,7 @@
             <StackPanel Spacing="10" IsVisible="{Binding ShowReplyMessages}">
               <StackPanel Spacing="4">
                 <TextBlock Classes="label" Text="REPLY TO PEOPLE IN THE ORGANIZATION" />
-                <TextBox Text="{Binding InternalMessage}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" PlaceholderText="I'm out of the office until…" />
+                <TextBox Text="{Binding InternalMessage, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" PlaceholderText="I'm out of the office until…" />
               </StackPanel>
               <StackPanel Spacing="4">
                 <TextBlock Classes="label" Text="PEOPLE OUTSIDE THE ORGANIZATION" />
@@ -162,13 +162,12 @@
                   </ComboBox.ItemTemplate>
                 </ComboBox>
                 <CheckBox IsChecked="{Binding SameOutside}" Content="Send them the same reply" />
-                <TextBox Text="{Binding ExternalMessage}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" IsVisible="{Binding ShowExternalMessage}"
+                <TextBox Text="{Binding ExternalMessage, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" IsVisible="{Binding ShowExternalMessage}"
                          PlaceholderText="Reply for people outside the organization" />
               </StackPanel>
             </StackPanel>
-            <Button Classes="accent" HorizontalAlignment="Left" Content="Stage automatic replies" Command="{Binding StageAutoReplyCommand}"
-                    ToolTip.Tip="Stage these automatic replies for review" />
             <TextBlock Classes="error" Text="{Binding ReplyError}" IsVisible="{Binding HasReplyError}" TextWrapping="Wrap" />
+            <TextBlock Classes="caption" Text="Write the reply; it goes to Pending changes when you click away." IsVisible="{Binding NeedsReplyText}" TextWrapping="Wrap" />
           </StackPanel>
         </StackPanel>
       </Border>
@@ -187,14 +186,12 @@
               <TextBlock Classes="pendingtext" Text="{Binding LimitsPendingText}" IsVisible="{Binding HasLimitsPending}" TextWrapping="Wrap" />
               <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="8" IsEnabled="{Binding CanEdit}">
                 <TextBlock Text="Recipients per message" VerticalAlignment="Center" />
-                <TextBox Grid.Column="1" Text="{Binding RecipientLimitDraft}" Width="110" ToolTip.Tip="1 to 1,000 (or Unlimited)" />
+                <TextBox Grid.Column="1" Text="{Binding RecipientLimitDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" Width="110" ToolTip.Tip="1 to 1,000 (or Unlimited)" />
                 <TextBlock Grid.Row="1" Text="Largest message they can send (MB)" VerticalAlignment="Center" />
-                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MaxSendDraft}" Width="110" ToolTip.Tip="1 to 150 MB" />
+                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MaxSendDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" Width="110" ToolTip.Tip="1 to 150 MB" />
                 <TextBlock Grid.Row="2" Text="Largest message they can receive (MB)" VerticalAlignment="Center" />
-                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding MaxReceiveDraft}" Width="110" ToolTip.Tip="1 to 150 MB" />
+                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding MaxReceiveDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" Width="110" ToolTip.Tip="1 to 150 MB" />
               </Grid>
-              <Button Classes="accent" HorizontalAlignment="Left" Content="Stage limits" Command="{Binding StageLimitsCommand}" IsEnabled="{Binding CanEdit}"
-                      ToolTip.Tip="Stage these limits for review" />
               <TextBlock Classes="error" Text="{Binding LimitsError}" IsVisible="{Binding HasLimitsError}" TextWrapping="Wrap" />
             </StackPanel>
           </Border>
@@ -208,7 +205,7 @@
               </StackPanel>
               <TextBlock Classes="value" Text="{Binding ArchiveText}" TextWrapping="Wrap" />
               <ToggleSwitch IsChecked="{Binding ArchiveOn}" IsEnabled="{Binding CanEdit}" OnContent="Archive on" OffContent="Archive off"
-                            ToolTip.Tip="Switching stages the change for review. Turning it off deletes the archive's contents after 30 days." />
+                            ToolTip.Tip="Switching adds the change to Pending changes. Turning it off deletes the archive's contents after 30 days." />
               <Button Classes="ghost" HorizontalAlignment="Left" Content="Let the archive grow automatically…" Command="{Binding EnableAutoExpandingCommand}"
                       IsVisible="{Binding CanEnableAutoExpanding}"
                       ToolTip.Tip="Auto-expanding archiving adds space as the archive fills, up to 1.5 TB. Microsoft offers no way to turn it off again." />
@@ -226,7 +223,7 @@
             </StackPanel>
             <ToggleSwitch IsChecked="{Binding OnlyInternal}" IsEnabled="{Binding CanEdit}"
                           OnContent="Only people in the organization" OffContent="Anyone, including people outside the organization"
-                          ToolTip.Tip="Switching stages the change for review" />
+                          ToolTip.Tip="Switching adds the change to Pending changes" />
             <TextBlock Classes="pendingtext" Text="{Binding SendersPendingText}" IsVisible="{Binding HasSendersPending}" />
             <TextBlock Classes="caption" Text="{Binding SendersText}" TextWrapping="Wrap" />
             <ItemsControl ItemsSource="{Binding AllowedSenders}">
@@ -265,7 +262,7 @@
               <TextBlock Classes="h3" Text="Email apps" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Classes="caption" TextWrapping="Wrap"
-                       Text="The ways their mail can be reached. Turning one off stops apps and devices that use it; each switch stages a change for review." />
+                       Text="The ways their mail can be reached. Turning one off stops apps and devices that use it; each switch adds a change to Pending changes." />
             <ItemsControl ItemsSource="{Binding AppRows}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="rec:EmailAppRow">
@@ -303,13 +300,11 @@
                 <StackPanel Spacing="8" IsVisible="{Binding HoldOnDraft}">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <TextBlock Text="Keep items for" VerticalAlignment="Center" />
-                    <TextBox Text="{Binding HoldDaysDraft}" Width="90" PlaceholderText="Always" />
+                    <TextBox Text="{Binding HoldDaysDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" Width="90" PlaceholderText="Always" />
                     <TextBlock Text="days" VerticalAlignment="Center" />
                   </StackPanel>
-                  <TextBox Text="{Binding HoldNoteDraft}" PlaceholderText="Note for the person (optional), e.g. the matter it's for" />
+                  <TextBox Text="{Binding HoldNoteDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" PlaceholderText="Note for the person (optional), e.g. the matter it's for" />
                 </StackPanel>
-                <Button Classes="accent" HorizontalAlignment="Left" Content="Stage litigation hold" Command="{Binding StageHoldCommand}"
-                        ToolTip.Tip="Stage this hold setting for review. Holds are legal matters: it asks for a second confirmation." />
                 <TextBlock Classes="error" Text="{Binding HoldError}" IsVisible="{Binding HasHoldError}" TextWrapping="Wrap" />
               </StackPanel>
             </StackPanel>
@@ -323,7 +318,7 @@
                 <TextBlock Classes="h3" Text="Retention policy" VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock Classes="caption" TextWrapping="Wrap"
-                         Text="Exchange's rules for moving old mail to the archive and deleting it. Choosing one stages the change for review." />
+                         Text="Exchange's rules for moving old mail to the archive and deleting it. Choosing one adds the change to Pending changes." />
               <ComboBox ItemsSource="{Binding RetentionPolicies}" SelectedItem="{Binding RetentionPolicy}" IsEnabled="{Binding CanEdit}"
                         HorizontalAlignment="Stretch" PlaceholderText="No policy" />
               <TextBlock Classes="pendingtext" Text="{Binding RetentionPendingText}" IsVisible="{Binding HasRetentionPending}" TextWrapping="Wrap" />

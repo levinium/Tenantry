@@ -249,15 +249,49 @@ public sealed partial class MixedField : ObservableObject
     void Edit()
     {
         Draft = IsMixed ? "" : Value == BulkDetailsViewModel.NotSet ? "" : Value;
+        _startDraft = Draft;
         Message = null;
         IsEditing = true;
     }
 
+    string _startDraft = "";
+
     [RelayCommand]
     void Cancel() => IsEditing = false;
 
+    /// <summary>
+    /// Ends the edit (Enter or leaving the box): an untouched value just closes, so opening a
+    /// mixed field and clicking away never clears it for everyone.
+    /// </summary>
     [RelayCommand]
-    Task Stage() => _stage(this);
+    Task Stage()
+    {
+        if (!IsEditing)
+            return Task.CompletedTask;
+        if (Draft.Trim() == _startDraft.Trim())
+        {
+            IsEditing = false;
+            return Task.CompletedTask;
+        }
+        return _stage(this);
+    }
+
+    /// <summary>Someone selected has a value, and no edit is open.</summary>
+    public bool CanClear => !IsEditing && (IsMixed || (Value.Length > 0 && Value != BulkDetailsViewModel.NotSet));
+
+    partial void OnIsEditingChanged(bool value) => OnPropertyChanged(nameof(CanClear));
+    partial void OnIsMixedChanged(bool value) => OnPropertyChanged(nameof(CanClear));
+    partial void OnValueChanged(string value) => OnPropertyChanged(nameof(CanClear));
+
+    /// <summary>Clears the detail for everyone selected (an empty box alone is left as it was).</summary>
+    [RelayCommand]
+    Task ClearForEveryone()
+    {
+        Draft = "";
+        _startDraft = "\u0000";
+        IsEditing = true;
+        return Stage();
+    }
 }
 
 /// <summary>The selection panel's details: one <see cref="MixedField"/> per detail a bulk edit can set.</summary>

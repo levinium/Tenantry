@@ -80,7 +80,7 @@ public sealed partial class LicenseRow : ObservableObject
     /// <summary>Why this license can't be changed here (it comes from a group), or null.</summary>
     public string? LockedReason { get; }
 
-    public string RemoveTip => LockedReason ?? (IsPendingAdd || IsPendingRemove ? "Undo this pending change" : "Remove this license (staged for review)");
+    public string RemoveTip => LockedReason ?? (IsPendingAdd || IsPendingRemove ? "Undo this pending change" : "Remove this license (added to Pending changes)");
 
     public bool CanRemove => CanEdit && LockedReason is null;
 
@@ -119,7 +119,7 @@ public sealed partial class AppAssignmentRow(AppAssignment app, bool isPendingRe
 
     public bool CanEdit => canEdit;
 
-    public string RemoveTip => isPendingRemove ? "Undo: keep this app" : "Remove their access to this app (staged for review)";
+    public string RemoveTip => isPendingRemove ? "Undo: keep this app" : "Remove their access to this app (added to Pending changes)";
 
     [RelayCommand]
     void Remove() => toggle();

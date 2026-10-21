@@ -82,23 +82,26 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="rec:MixedField">
             <StackPanel Spacing="3">
-              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+              <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
                 <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Center" />
                 <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" />
-                <Button Grid.Column="2" Classes="rowaction" Command="{Binding EditCommand}" IsVisible="{Binding !IsEditing}"
-                        ToolTip.Tip="Set this for everyone selected (staged for review)">
+                <Button Grid.Column="2" Classes="rowaction" Command="{Binding ClearForEveryoneCommand}" IsVisible="{Binding CanClear}"
+                        ToolTip.Tip="Clear this for everyone selected (added to Pending changes)">
+                  <ic:FluentIcon Icon="Eraser" FontSize="13" />
+                </Button>
+                <Button Grid.Column="3" Classes="rowaction" Command="{Binding EditCommand}" IsVisible="{Binding !IsEditing}"
+                        ToolTip.Tip="Set this for everyone selected (added to Pending changes)">
                   <ic:FluentIcon Icon="Edit" FontSize="13" />
                 </Button>
               </Grid>
               <TextBlock Classes="value" Classes.mixed="{Binding IsMixed}" Text="{Binding Value}" IsVisible="{Binding !IsEditing}"
                          ToolTip.Tip="{Binding ValuesTip}" />
               <StackPanel Spacing="6" IsVisible="{Binding IsEditing}">
-                <TextBox Text="{Binding Draft}" PlaceholderText="New value for everyone (empty clears it)" />
+                <TextBox x:Name="DetailEditor" Text="{Binding Draft}" PlaceholderText="New value for everyone"
+                         c:EditCommit.Commit="{Binding StageCommand}" c:EditCommit.Cancel="{Binding CancelCommand}" />
                 <TextBlock Classes="caption" Text="{Binding Hint}" IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button Classes="accent" Content="Stage for all" Command="{Binding StageCommand}" ToolTip.Tip="One change per person, to Pending changes" />
-                  <Button Classes="ghost" Content="Cancel" Command="{Binding CancelCommand}" />
-                </StackPanel>
+                <TextBlock Classes="caption" TextWrapping="Wrap"
+                           Text="Enter or click away adds one change per person to Pending changes. Esc cancels." />
               </StackPanel>
               <TextBlock Classes="caption" Text="{Binding Message}" IsVisible="{Binding HasMessage}" TextWrapping="Wrap" />
             </StackPanel>

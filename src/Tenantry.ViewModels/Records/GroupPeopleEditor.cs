@@ -159,7 +159,7 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
             // Undoing a staged removal is always allowed; a new removal can't leave the group ownerless.
             var locked = pending is null ? GroupAccess.LockedReason(_group, role) ?? lastOwner : null;
             var tip = !CanEdit ? EditReason
-                : locked ?? (pending is not null ? "Undo: keep them" : $"Remove this {role.ToString().ToLowerInvariant()} (staged for review)");
+                : locked ?? (pending is not null ? "Undo: keep them" : $"Remove this {role.ToString().ToLowerInvariant()} (added to Pending changes)");
             rows.Add((row, new PersonRow(row, pending is not null ? "Removing" : null, CanEdit && locked is null, tip,
                 () => Toggle(pending, () => new SetGroupMembership(GroupAccess.Target(_group), target, member.Type, role, _group.IsExchangeManaged, true, false)),
                 Opener(row))));

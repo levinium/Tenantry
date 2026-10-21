@@ -37,7 +37,7 @@ public sealed partial class SenderRow(string name, string? detail, string? pendi
     public string? PendingText => pendingText;
     public bool HasPending => pendingText is not null;
     public bool CanEdit => canEdit;
-    public string RemoveTip => HasPending ? "Undo this pending change" : "Take them off the list (staged for review)";
+    public string RemoveTip => HasPending ? "Undo this pending change" : "Take them off the list (added to Pending changes)";
 
     [RelayCommand]
     void Remove() => remove();
@@ -45,7 +45,7 @@ public sealed partial class SenderRow(string name, string? detail, string? pendi
 
 /// <summary>
 /// The Mail tab's settings (4b-2): limits, who can send to the mailbox, email apps, the online
-/// archive, litigation hold and the retention policy. Switches stage at once; forms with their button.
+/// archive, litigation hold and the retention policy. Every edit goes to Pending changes as it's made.
 /// </summary>
 public sealed partial class MailSection
 {
@@ -117,13 +117,16 @@ public sealed partial class MailSection
     [ObservableProperty]
     public partial string MaxReceiveDraft { get; set; } = "";
 
+    partial void OnRecipientLimitDraftChanged(string value) => AutoStage(StageLimits);
+    partial void OnMaxSendDraftChanged(string value) => AutoStage(StageLimits);
+    partial void OnMaxReceiveDraftChanged(string value) => AutoStage(StageLimits);
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasLimitsError))]
     public partial string? LimitsError { get; private set; }
 
     public bool HasLimitsError => LimitsError is not null;
 
-    [RelayCommand]
     void StageLimits()
     {
         if (!CanEdit || Settings is not { } s)
@@ -324,7 +327,10 @@ public sealed partial class MailSection
 
     public bool HasHoldError => HoldError is not null;
 
-    [RelayCommand]
+    partial void OnHoldOnDraftChanged(bool value) => AutoStage(StageHold);
+    partial void OnHoldDaysDraftChanged(string value) => AutoStage(StageHold);
+    partial void OnHoldNoteDraftChanged(string value) => AutoStage(StageHold);
+
     void StageHold()
     {
         if (!CanEdit || Settings is not { } s)

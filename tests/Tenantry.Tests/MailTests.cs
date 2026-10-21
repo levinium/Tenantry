@@ -167,9 +167,10 @@ public sealed class MailTests
         var (tab, pipeline) = await Tab();
 
         tab.ForwardOn = true;
+        Assert.Empty(pipeline.Pending);
+        Assert.Null(tab.ForwardError);
         tab.ForwardTo = "someone@gmail.example";
         Assert.True(tab.ForwardDraftOutside);
-        tab.StageForwardingCommand.Execute(null);
 
         var change = Assert.IsType<SetForwarding>(pipeline.Pending.Single());
         Assert.True(change.IsCaution);
@@ -177,24 +178,24 @@ public sealed class MailTests
     }
 
     [Fact]
-    public async Task Scheduled_replies_need_an_end_after_the_start_and_a_message()
+    public async Task Replies_stage_as_they_are_edited_once_they_have_a_message_and_a_sensible_schedule()
     {
         var (tab, pipeline) = await Tab();
         tab.ReplyScheduled = true;
+        Assert.True(tab.NeedsReplyText);
+        Assert.Null(tab.ReplyError);
+        Assert.Empty(pipeline.Pending);
+
+        tab.InternalMessage = "Away";
+        Assert.Single(pipeline.Pending);
+
         tab.StartDate = new DateTime(2026, 11, 2);
         tab.EndDate = new DateTime(2026, 11, 1);
-        tab.InternalMessage = "Away";
-
-        tab.StageAutoReplyCommand.Execute(null);
         Assert.Contains("stop after", tab.ReplyError);
 
         tab.EndDate = new DateTime(2026, 11, 6);
-        tab.InternalMessage = "";
-        tab.StageAutoReplyCommand.Execute(null);
-        Assert.Contains("Write the reply", tab.ReplyError);
-
         tab.InternalMessage = "Away until the 6th";
-        tab.StageAutoReplyCommand.Execute(null);
+        Assert.Null(tab.ReplyError);
         var reply = Assert.IsType<SetAutoReply>(pipeline.Pending.Single()).New;
         Assert.Equal((AutoReplyState.Scheduled, "Away until the 6th", "Away until the 6th"), (reply.State, reply.Internal, reply.External));
     }
@@ -239,6 +240,20 @@ public sealed class MailTests
         var change = Assert.IsType<SetAutoReply>(plan.Changes.Single());
         Assert.Equal((AutoReplyState.On, "Closed for the holiday"), (change.New.State, change.New.External));
         Assert.Equal(["zz-tenantry-test-c: no mailbox"], plan.Skipped);
+    }
+
+    [Fact]
+    public async Task Discarding_in_the_tray_resets_the_forms()
+    {
+        var (tab, pipeline) = await Tab();
+        tab.ForwardOn = true;
+        tab.ForwardTo = "ada@contoso.example";
+        Assert.Single(pipeline.Pending);
+
+        pipeline.Clear();
+
+        Assert.False(tab.ForwardOn);
+        Assert.Equal("", tab.ForwardTo);
     }
 
     [Fact]

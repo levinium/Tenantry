@@ -169,13 +169,13 @@ public sealed partial class BulkEditorViewModel : ObservableObject
         _ = value?.LoadAsync();
     }
 
-    public string StageText => Selected?.IsCaution == true ? "Stage (takes something away)" : "Stage for review";
+    public string StageText => Selected?.IsCaution == true ? "Add to Pending changes (takes something away)" : "Add to Pending changes";
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StageCommand))]
     public partial bool IsWorking { get; private set; }
 
-    /// <summary>"Staged 12 changes. Review them in Pending changes."</summary>
+    /// <summary>"Added 12 changes. Review them in Pending changes."</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasResult))]
     public partial string? Result { get; private set; }
@@ -216,9 +216,9 @@ public sealed partial class BulkEditorViewModel : ObservableObject
             _pipeline.StageAll(plan.Changes);
             Result = plan.Changes.Count switch
             {
-                0 => "Nothing to stage: every selected row is already that way.",
-                1 => "Staged 1 change. Review it in Pending changes at the bottom of the window.",
-                var n => $"Staged {n:N0} changes. Review them in Pending changes at the bottom of the window.",
+                0 => "Nothing to change: every selected row is already that way.",
+                1 => "Added 1 change. Review it in Pending changes at the bottom of the window.",
+                var n => $"Added {n:N0} changes. Review them in Pending changes at the bottom of the window.",
             };
             if (plan.Skipped.Count > 0)
             {

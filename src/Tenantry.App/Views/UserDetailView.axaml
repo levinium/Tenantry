@@ -57,7 +57,7 @@
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedRight">
                 <MenuItem Header="{Binding SignOutText}" Command="{Binding SignOutEverywhereCommand}"
-                          ToolTip.Tip="End every session and app sign-in; they sign in again (staged for review)">
+                          ToolTip.Tip="End every session and app sign-in; they sign in again (added to Pending changes)">
                   <MenuItem.Icon>
                     <ic:FluentIcon Icon="SignOut" FontSize="16" />
                   </MenuItem.Icon>

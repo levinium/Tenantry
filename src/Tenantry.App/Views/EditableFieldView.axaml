@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ed="using:Tenantry.ViewModels.Editing"
              xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:c="using:Tenantry.App.Controls"
              x:Class="Tenantry.App.Views.EditableFieldView"
              x:DataType="ed:EditableField">
   <!-- A value with an Edit button; a staged change shows under it as pending, with an undo. -->
@@ -26,17 +27,14 @@
     </Border>
 
     <StackPanel IsVisible="{Binding IsEditing}" Spacing="6" Margin="0,4,0,0">
-      <TextBox x:Name="Editor" Text="{Binding Draft}" IsVisible="{Binding IsTyped}" />
-      <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" IsVisible="{Binding HasChoices}"
+      <TextBox x:Name="Editor" Text="{Binding Draft}" IsVisible="{Binding IsTyped}"
+               c:EditCommit.Commit="{Binding StageCommand}" c:EditCommit.Cancel="{Binding CancelEditCommand}" />
+      <ComboBox x:Name="ChoiceEditor" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" IsVisible="{Binding HasChoices}"
                 HorizontalAlignment="Stretch" MaxDropDownHeight="320" />
       <TextBlock Classes="caption" Text="{Binding Hint}" TextWrapping="Wrap" IsVisible="{Binding HasHint}" />
       <TextBlock Classes="error" Text="{Binding Problem}" TextWrapping="Wrap"
                  IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button Classes="accent" Content="Stage change" Command="{Binding StageCommand}"
-                ToolTip.Tip="Add this change to Pending changes, to review and apply" />
-        <Button Content="Cancel" Command="{Binding CancelEditCommand}" />
-      </StackPanel>
+      <TextBlock Classes="caption" Text="Enter or click away to add it to Pending changes. Esc cancels." IsVisible="{Binding IsTyped}" />
     </StackPanel>
   </StackPanel>
 </UserControl>

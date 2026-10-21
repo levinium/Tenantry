@@ -19,7 +19,7 @@ public sealed partial class AddressRow(string address, bool isPrimary, string? p
     public bool CanRemove => canEdit && canRemove;
     public bool CanMakePrimary => canEdit && canMakePrimary;
     public string RemoveTip => isPrimary ? "The primary address can't be removed: make another one primary first"
-        : HasPending ? "Undo this pending change" : "Remove this address (staged for review)";
+        : HasPending ? "Undo this pending change" : "Remove this address (added to Pending changes)";
 
     [RelayCommand]
     void Remove() => remove();
@@ -31,7 +31,8 @@ public sealed partial class AddressRow(string address, bool isPrimary, string? p
 /// <summary>
 /// The Mail tab: storage against the quota, email addresses (aliases and the primary),
 /// forwarding, automatic replies and address-list visibility. Read live from Exchange when first
-/// shown. Simple switches stage at once; forms (forwarding, replies) stage with their button.
+/// shown. Every edit goes to Pending changes as it's made: switches and choices at once, text
+/// when the box is left. Changes made elsewhere (the tray's Discard) reset the forms.
 /// </summary>
 public sealed partial class MailSection : RecordSection, IDisposable
 {
@@ -136,9 +137,44 @@ public sealed partial class MailSection : RecordSection, IDisposable
 
     void OnPendingChanged(object? sender, EventArgs e)
     {
-        if (_data is not null)
-            Rebuild();
+        if (_data is null)
+            return;
+        if (!_staging)
+            ResetDrafts();
+        Rebuild();
     }
+
+    bool _resetting;
+    bool _staging;
+
+    /// <summary>Stages a form after one of its fields changed (not while the forms are being reset).</summary>
+    void AutoStage(Action stage)
+    {
+        if (_resetting || _data is null || !CanEdit)
+            return;
+        _staging = true;
+        try
+        {
+            stage();
+        }
+        finally
+        {
+            _staging = false;
+        }
+    }
+
+    partial void OnForwardOnChanged(bool value) => AutoStage(StageForwarding);
+    partial void OnForwardToChanged(string value) => AutoStage(StageForwarding);
+    partial void OnKeepCopyChanged(bool value) => AutoStage(StageForwarding);
+    partial void OnReplyStateChanged(AutoReplyState value) => AutoStage(StageAutoReply);
+    partial void OnStartDateChanged(DateTime? value) => AutoStage(StageAutoReply);
+    partial void OnStartTimeChanged(TimeSpan? value) => AutoStage(StageAutoReply);
+    partial void OnEndDateChanged(DateTime? value) => AutoStage(StageAutoReply);
+    partial void OnEndTimeChanged(TimeSpan? value) => AutoStage(StageAutoReply);
+    partial void OnInternalMessageChanged(string value) => AutoStage(StageAutoReply);
+    partial void OnSameOutsideChanged(bool value) => AutoStage(StageAutoReply);
+    partial void OnExternalMessageChanged(string value) => AutoStage(StageAutoReply);
+    partial void OnAudienceChanged(AutoReplyAudience value) => AutoStage(StageAutoReply);
 
     void Rebuild()
     {
@@ -303,7 +339,6 @@ public sealed partial class MailSection : RecordSection, IDisposable
         return Domains.Any(d => string.Equals(domain, d, StringComparison.OrdinalIgnoreCase) || domain.EndsWith("." + d, StringComparison.OrdinalIgnoreCase));
     }
 
-    [RelayCommand]
     void StageForwarding()
     {
         if (!CanEdit || _data is null)
@@ -312,6 +347,14 @@ public sealed partial class MailSection : RecordSection, IDisposable
         if (ForwardOn)
         {
             to = ForwardTo.Trim();
+            if (to.Length == 0)
+            {
+                // Waiting for the address: nothing to stage yet.
+                ForwardError = null;
+                if (PendingForwarding is { } waiting)
+                    _pipeline!.Unstage(waiting);
+                return;
+            }
             var at = to.IndexOf('@');
             if (at <= 0 || at != to.LastIndexOf('@') || at == to.Length - 1 || to.Contains(' '))
             {
@@ -381,7 +424,10 @@ public sealed partial class MailSection : RecordSection, IDisposable
 
     public bool HasReplyError => ReplyError is not null;
 
-    [RelayCommand]
+    /// <summary>Replies are being turned on but have no message yet: shown as a prompt, not an error.</summary>
+    [ObservableProperty]
+    public partial bool NeedsReplyText { get; private set; }
+
     void StageAutoReply()
     {
         if (!CanEdit || _data is null)
@@ -402,9 +448,12 @@ public sealed partial class MailSection : RecordSection, IDisposable
                 return;
             }
         }
-        if (ReplyState != AutoReplyState.Off && string.IsNullOrWhiteSpace(InternalMessage))
+        NeedsReplyText = ReplyState != AutoReplyState.Off && string.IsNullOrWhiteSpace(InternalMessage);
+        if (NeedsReplyText)
         {
-            ReplyError = "Write the reply people will get.";
+            ReplyError = null;
+            if (PendingAutoReply is { } waiting)
+                _pipeline!.Unstage(waiting);
             return;
         }
         ReplyError = null;
@@ -442,6 +491,21 @@ public sealed partial class MailSection : RecordSection, IDisposable
     {
         if (_data is not { } data)
             return;
+        _resetting = true;
+        try
+        {
+            ResetFormDrafts(data);
+        }
+        finally
+        {
+            _resetting = false;
+        }
+        ForwardError = ReplyError = LimitsError = HoldError = null;
+        NeedsReplyText = false;
+    }
+
+    void ResetFormDrafts(MailDetails data)
+    {
         var forwarding = PendingForwarding;
         ForwardOn = (forwarding is null ? data.ForwardingTo : forwarding.NewTo) is not null;
         ForwardTo = (forwarding is null ? data.ForwardingTo : forwarding.NewTo) ?? "";

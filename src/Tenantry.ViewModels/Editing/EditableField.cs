@@ -116,16 +116,29 @@ public sealed partial class EditableField : ObservableObject
         if (!CanEdit)
             return;
         Draft = Pending is { } p ? p.New ?? "" : Current ?? "";
+        _startDraft = Draft;
         OnPropertyChanged(nameof(SelectedChoice));
         Problem = null;
         IsEditing = true;
     }
 
-    /// <summary>Puts the edit in the Pending changes tray (or takes it out, if it's back to the original).</summary>
+    string _startDraft = "";
+
+    /// <summary>
+    /// Ends the edit (Enter, leaving the box, or closing the choice list): an untouched value just
+    /// closes; a changed one goes to the Pending changes tray (or leaves it, if back to the original).
+    /// </summary>
     [RelayCommand]
     void Stage()
     {
+        if (!IsEditing)
+            return;
         var value = Draft.Trim();
+        if (value == _startDraft.Trim())
+        {
+            CancelEdit();
+            return;
+        }
         if (_required && value.Length == 0)
         {
             Problem = $"{Label} can't be empty.";

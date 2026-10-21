@@ -38,7 +38,7 @@
               </ComboBox.ItemTemplate>
             </ComboBox>
             <Button Classes="accent" Command="{Binding AddLicenseCommand}" Content="Add license"
-                    ToolTip.Tip="Stage this license for review in Pending changes" />
+                    ToolTip.Tip="Add this license (it goes to Pending changes)" />
           </StackPanel>
         </Grid>
 
@@ -86,7 +86,7 @@
                       <DataTemplate x:DataType="rec:AppSwitch">
                         <ToggleSwitch Width="280" IsChecked="{Binding IsOn}" IsEnabled="{Binding CanEdit}"
                                       OnContent="{Binding Name}" OffContent="{Binding Name}"
-                                      ToolTip.Tip="Turning an app off is staged for review in Pending changes" />
+                                      ToolTip.Tip="Turning an app off goes to Pending changes" />
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>

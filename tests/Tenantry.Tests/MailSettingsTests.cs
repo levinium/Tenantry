@@ -142,12 +142,11 @@ public sealed class MailSettingsTests
         Assert.Equal(("500", "35", "36"), (tab.RecipientLimitDraft, tab.MaxSendDraft, tab.MaxReceiveDraft));
 
         tab.MaxSendDraft = "200";
-        tab.StageLimitsCommand.Execute(null);
         Assert.Contains("150", tab.LimitsError);
         Assert.Empty(pipeline.Pending);
 
         tab.MaxSendDraft = "25";
-        tab.StageLimitsCommand.Execute(null);
+        Assert.Null(tab.LimitsError);
 
         var change = Assert.IsType<SetMailboxValue>(pipeline.Pending.Single());
         Assert.Equal(("MaxSendSize", "35 MB", "25 MB"), (change.Parameter, change.Before, change.After));
@@ -193,13 +192,13 @@ public sealed class MailSettingsTests
         Assert.True(tab.CanEnableAutoExpanding);
 
         tab.HoldOnDraft = true;
+        Assert.IsType<SetLitigationHold>(pipeline.Pending.Single());
         tab.HoldDaysDraft = "0";
-        tab.StageHoldCommand.Execute(null);
         Assert.NotNull(tab.HoldError);
 
         tab.HoldDaysDraft = "";
         tab.HoldNoteDraft = "Matter 12";
-        tab.StageHoldCommand.Execute(null);
+        Assert.Null(tab.HoldError);
         var hold = Assert.IsType<SetLitigationHold>(pipeline.Pending.Single());
         Assert.Equal((true, (int?)null, "Matter 12"), (hold.NewOn, hold.NewDays, hold.NewNote));
 
