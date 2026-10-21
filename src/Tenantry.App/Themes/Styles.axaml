@@ -770,6 +770,11 @@
   </Style>
 
   <!-- Status pills -->
+  <!-- Main tabs: hidden while the area's list is the only page open -->
+  <Style Selector="TabControl.liststrip /template/ ItemsPresenter#PART_ItemsPresenter">
+    <Setter Property="IsVisible" Value="False" />
+  </Style>
+
   <!-- Search everything: the sidebar button that looks like a search box, and the Ctrl+K palette -->
   <Style Selector="Button.searchall">
     <Setter Property="HorizontalAlignment" Value="Stretch" />

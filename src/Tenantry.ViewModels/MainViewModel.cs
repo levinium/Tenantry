@@ -47,8 +47,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             new NavSection("devices", "Devices", Later),
             new NavSection("security", "Security & compliance", Later),
         ];
-        Tabs.Add(Users);
-        SelectedTab = Users;
+        Tabs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasRecordTabs));
         SelectedSection = Sections[0];
     }
 
@@ -260,28 +259,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _tenant.Resources?.Dispose();
     }
 
-    /// <summary>A sidebar entry opens its list as a tab (once) and shows it.</summary>
+    /// <summary>
+    /// The sidebar picks the area; the first tab is always that area's list, so the two never
+    /// show the same thing twice. Record tabs after it stay open across areas.
+    /// </summary>
     partial void OnSelectedSectionChanged(NavSection? value)
     {
         foreach (var (section, list) in AreaLists)
         {
             if (value?.Key != section)
                 continue;
-            if (!Tabs.Contains(list))
-                Tabs.Insert(Tabs.Count(t => t is DataListViewModel), list);
+            if (Tabs.Count == 0)
+                Tabs.Add(list);
+            else if (Tabs[0] != list)
+                Tabs[0] = list;
             SelectedTab = list;
         }
     }
 
-    /// <summary>Choosing a list's tab highlights its sidebar entry, so the two never disagree.</summary>
-    partial void OnSelectedTabChanged(TabViewModel? value)
-    {
-        foreach (var (section, list) in AreaLists)
-        {
-            if (value == list)
-                SelectedSection = Sections.First(s => s.Key == section);
-        }
-    }
+    /// <summary>The tab strip only appears once a record is open beside the list.</summary>
+    public bool HasRecordTabs => Tabs.Count > 1;
 
     /// <summary>Opens a user's record page, or switches to it if it is already open.</summary>
     public void OpenUser(UserSummary user)

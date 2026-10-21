@@ -136,8 +136,10 @@
         </StackPanel>
       </Border>
 
-      <!-- Console-style tabs: list pages plus any number of open records side by side. -->
-      <TabControl x:Name="Tabs" Margin="12,4,12,0" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}" Padding="0">
+      <!-- The first tab is the sidebar area's list; open records follow it. With no record open
+           there is nothing to switch between, so the strip hides. -->
+      <TabControl x:Name="Tabs" Margin="12,4,12,0" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}" Padding="0"
+                  Classes.liststrip="{Binding !HasRecordTabs}">
         <TabControl.ItemTemplate>
           <DataTemplate x:DataType="vm:TabViewModel">
             <StackPanel Orientation="Horizontal" Spacing="6">

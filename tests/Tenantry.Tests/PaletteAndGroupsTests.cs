@@ -97,16 +97,21 @@ public class PaletteAndGroupsTests
     }
 
     [Fact]
-    public async Task The_sidebar_and_the_list_tabs_stay_in_step()
+    public async Task The_first_tab_is_the_sidebar_areas_list_and_records_stay_open()
     {
         var vm = await Loaded();
-        Assert.DoesNotContain(vm.Groups, vm.Tabs);
+        Assert.Equal([vm.Users], vm.Tabs);
+        Assert.False(vm.HasRecordTabs);
 
+        vm.OpenUser(vm.Users.Rows.Cast<UserSummary>().First());
+        Assert.True(vm.HasRecordTabs);
+
+        // Another area replaces the list tab; the open record stays.
         vm.SelectedSection = vm.Sections.Single(s => s.Key == "groups");
         Assert.Same(vm.Groups, vm.SelectedTab);
-        Assert.Equal([vm.Users, vm.Groups], vm.Tabs.Take(2));
-
-        vm.SelectedTab = vm.Users;
-        Assert.Equal("users", vm.SelectedSection?.Key);
+        Assert.Equal(2, vm.Tabs.Count);
+        Assert.Same(vm.Groups, vm.Tabs[0]);
+        Assert.IsType<UserDetailViewModel>(vm.Tabs[1]);
+        Assert.DoesNotContain(vm.Users, vm.Tabs);
     }
 }

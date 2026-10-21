@@ -119,13 +119,16 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     switching.SelectedSection = switching.Sections.Single(s => s.Key == "users");
     Render(switching, $"tabs-switch-{suffix}", during: _ =>
     {
-        switching.SelectedTab = switching.Groups;
+        NavSection Area(string key) => switching.Sections.Single(s => s.Key == key);
+        switching.OpenUser(switching.Users.Rows.OfType<UserSummary>().First());
         Settle();
-        switching.SelectedTab = switching.Users;
+        switching.SelectedSection = Area("groups");
+        Settle();
+        switching.SelectedSection = Area("users");
         Settle();
         switching.Users.ResetColumnsCommand.Execute(null);
         Settle();
-        switching.SelectedTab = switching.Groups;
+        switching.SelectedSection = Area("groups");
     });
 
     // --spacer-check: a canary for the DataGrid bug behind the 2026-10-21 crash. The first run
