@@ -111,6 +111,63 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(compact, "users-compact-light");
     }
 
+    // Switching between list tabs in one window (each list must keep its own view).
+    var switching = Main();
+    // Grouped rows add a hidden spacer column to the grid; rebuilding columns then crashed.
+    switching.Users.SelectedGroup = switching.Users.GroupOptions.Single(g => g.Key == UserFields.Department);
+    switching.SelectedSection = switching.Sections.Single(s => s.Key == "groups");
+    switching.SelectedSection = switching.Sections.Single(s => s.Key == "users");
+    Render(switching, $"tabs-switch-{suffix}", during: _ =>
+    {
+        switching.SelectedTab = switching.Groups;
+        Settle();
+        switching.SelectedTab = switching.Users;
+        Settle();
+        switching.Users.ResetColumnsCommand.Execute(null);
+        Settle();
+        switching.SelectedTab = switching.Groups;
+    });
+
+    // --spacer-check: a canary for the DataGrid bug behind the 2026-10-21 crash. The first run
+    // shows Columns.Clear() + Add still throws on a grouped grid (if it stops throwing, the
+    // workaround in DataListView.RebuildColumns can go); the second shows our rebuild doesn't.
+    if (args.Contains("--spacer-check"))
+    {
+        var grouped2 = Main();
+        grouped2.Users.SelectedGroup = grouped2.Users.GroupOptions.Single(g => g.Key == UserFields.Department);
+        Render(grouped2, "spacer-check", during: w =>
+        {
+            var grid = w.GetVisualDescendants().OfType<DataGrid>().First();
+            var internals = typeof(DataGrid).GetProperty("ColumnsInternal", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(grid)!;
+            var spacer = internals.GetType().GetProperty("RowGroupSpacerColumn", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(internals)!;
+            bool Represented() => (bool)spacer.GetType().GetProperty("IsRepresented", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)!.GetValue(spacer)!;
+            Console.WriteLine($"    spacer represented while grouped: {Represented()}");
+            var saved = grid.Columns.ToList();
+            try
+            {
+                grid.Columns.Clear();
+                grid.Columns.Add(new DataGridTextColumn { Header = "x" });
+                Console.WriteLine("    Clear + Add: no error");
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                Console.WriteLine("    Clear + Add: ArgumentOutOfRangeException (the crash)");
+            }
+        });
+
+        var grouped3 = Main();
+        grouped3.Users.SelectedGroup = grouped3.Users.GroupOptions.Single(g => g.Key == UserFields.Department);
+        Render(grouped3, "spacer-check-fixed", during: w =>
+        {
+            // The view's own rebuild path, while grouped: must not throw.
+            foreach (var c in grouped3.Users.Columns.Where(c => c.Key == UserFields.Created))
+                c.IsVisible = true;
+            grouped3.Users.ResetColumnsCommand.Execute(null);
+            Console.WriteLine("    view rebuild while grouped: no error");
+        });
+        return 0;
+    }
+
     // Groups: the list with its preview, and a group's record page.
     var groupsPage = Main();
     groupsPage.SelectedSection = groupsPage.Sections.Single(s => s.Key == "groups");

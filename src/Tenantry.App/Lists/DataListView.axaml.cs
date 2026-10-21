@@ -157,7 +157,12 @@ public partial class DataListView : UserControl
     {
         if (_vm is null)
             return;
-        Grid.Columns.Clear();
+        // Not Columns.Clear(): with grouped rows the grid keeps a hidden spacer column, and
+        // Clear() drops it while leaving it flagged as present, so the next Add inserts one past
+        // the end and throws (DataGridColumnCollection.ClearItems vs InsertItem, DataGrid 12.1).
+        // Removing one at a time goes through the path that accounts for the spacer.
+        for (var i = Grid.Columns.Count - 1; i >= 0; i--)
+            Grid.Columns.RemoveAt(i);
         _columnKeys.Clear();
         Grid.Columns.Add(ActionsColumn());
         foreach (var c in _vm.Columns.Where(c => c.IsVisible))

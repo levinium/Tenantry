@@ -152,9 +152,7 @@
           </DataTemplate>
         </TabControl.ItemTemplate>
         <TabControl.DataTemplates>
-          <DataTemplate DataType="lists:DataListViewModel">
-            <listviews:DataListView />
-          </DataTemplate>
+          <listviews:ListViewCache />
           <DataTemplate DataType="vm:UserDetailViewModel">
             <views:UserDetailView />
           </DataTemplate>
