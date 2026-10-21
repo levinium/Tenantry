@@ -97,6 +97,28 @@ public class PaletteAndGroupsTests
     }
 
     [Fact]
+    public async Task The_preview_pane_stays_open_across_areas_and_is_remembered_next_launch()
+    {
+        var preferences = new Tenantry.Core.Tenancy.MemoryAppPreferencesStore();
+        var tenant = Tenantry.Tests.Fakes.FakeConnector.Tenant();
+        var vm = new MainViewModel(tenant, preferences: preferences);
+        await vm.InitializeAsync(TestContext.Current.CancellationToken);
+
+        vm.Users.TogglePreview();
+        vm.SelectedSection = vm.Sections.Single(s => s.Key == "groups");
+
+        Assert.True(vm.Groups.IsPreviewOpen);
+        Assert.True(preferences.Load().PreviewOpen);
+
+        // Next launch starts with it open; closing it anywhere closes it everywhere.
+        var next = new MainViewModel(tenant, preferences: preferences);
+        Assert.True(next.Users.IsPreviewOpen);
+        next.Groups.ClosePreview();
+        Assert.False(next.Users.IsPreviewOpen);
+        Assert.False(preferences.Load().PreviewOpen);
+    }
+
+    [Fact]
     public void A_built_in_view_added_after_pins_were_saved_gets_its_default_pin()
     {
         // Saved by an older version that had no "shared" view, with "security" unpinned.

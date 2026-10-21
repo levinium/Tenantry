@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Tenantry.Core.Capabilities;
 using Tenantry.Core.Directory;
+using Tenantry.Core.Tenancy;
 using Tenantry.ViewModels.Lists;
 
 namespace Tenantry.ViewModels;
@@ -22,7 +23,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     readonly DirectoryIndex _index = new();
 
     /// <param name="syncInterval">How often to check for changes while open; null checks only on open and on Refresh.</param>
-    public MainViewModel(ConnectedTenant tenant, Action? switchTenant = null, Func<DateTimeOffset>? now = null, TimeSpan? syncInterval = null)
+    /// <param name="preferences">App-wide choices such as whether the preview pane is open; kept in memory when null.</param>
+    public MainViewModel(ConnectedTenant tenant, Action? switchTenant = null, Func<DateTimeOffset>? now = null, TimeSpan? syncInterval = null,
+        IAppPreferencesStore? preferences = null)
     {
         _tenant = tenant;
         _switchTenant = switchTenant ?? (() => { });
@@ -36,6 +39,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             createUsers.IsAvailable ? "Creating users arrives with the change pipeline (Phase 3)" : createUsers.Reason!);
         Groups = DataListViewModel.Create(GroupList.Definition(g => NewGroupPage(g)), LoadGroupsAsync, OpenGroup, tenant.ListState, _now);
         Groups.PrimaryAction = new ListPrimaryAction("New group", "PeopleAdd", false, "Creating groups arrives with the change pipeline (Phase 3)");
+        var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
+        Users.FollowSharedPreferences(shared);
+        Groups.FollowSharedPreferences(shared);
 
         var readUsers = Evaluate(Capabilities.ReadUsers);
         Sections =

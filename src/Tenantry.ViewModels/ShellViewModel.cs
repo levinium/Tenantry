@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Tenantry.Core.Tenancy;
 
 namespace Tenantry.ViewModels;
 
@@ -9,10 +10,13 @@ namespace Tenantry.ViewModels;
 public sealed partial class ShellViewModel : ObservableObject
 {
     readonly ITenantConnector _connector;
+    readonly IAppPreferencesStore _preferences;
 
-    public ShellViewModel(ITenantConnector connector)
+    /// <param name="preferences">Where app-wide choices are remembered; in memory when null (tests, snapshots).</param>
+    public ShellViewModel(ITenantConnector connector, IAppPreferencesStore? preferences = null)
     {
         _connector = connector;
+        _preferences = preferences ?? new MemoryAppPreferencesStore();
         CurrentPage = NewWelcome();
     }
 
@@ -65,7 +69,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
     void Open(ConnectedTenant tenant)
     {
-        var main = new MainViewModel(tenant, ShowWelcome, syncInterval: MainViewModel.DefaultSyncInterval);
+        var main = new MainViewModel(tenant, ShowWelcome, syncInterval: MainViewModel.DefaultSyncInterval, preferences: _preferences);
         CurrentPage = main;
         _ = main.InitializeAsync();
     }

@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Tenantry.App.Services;
+using Tenantry.Core.Tenancy;
 using Tenantry.ViewModels;
 
 namespace Tenantry.App;
@@ -14,7 +15,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var shell = new ShellViewModel(new TenantConnector());
+            var shell = new ShellViewModel(new TenantConnector(), new JsonAppPreferencesStore());
             // Before the window shows, so an auto-opening tenant never flashes the home page.
             shell.PrepareStartup();
             var window = new MainWindow { DataContext = shell };

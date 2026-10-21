@@ -887,7 +887,31 @@ public sealed partial class DataListViewModel : TabViewModel
 
     public bool HasPreviewContent => PreviewModel is not null;
 
-    partial void OnIsPreviewOpenChanged(bool value) => UpdatePreview();
+    partial void OnIsPreviewOpenChanged(bool value)
+    {
+        UpdatePreview();
+        // A list without a preview can't open it, and mustn't close it for the others either.
+        if (_shared is not null && HasPreview)
+            _shared.IsPreviewOpen = value;
+    }
+
+    SharedListPreferences? _shared;
+
+    /// <summary>
+    /// Makes the preview pane's open/closed state shared with every other list following the same
+    /// preferences (and remembered between launches) instead of belonging to this list alone.
+    /// </summary>
+    public void FollowSharedPreferences(SharedListPreferences shared)
+    {
+        _shared = shared;
+        if (HasPreview)
+            IsPreviewOpen = shared.IsPreviewOpen;
+        shared.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SharedListPreferences.IsPreviewOpen) && HasPreview)
+                IsPreviewOpen = shared.IsPreviewOpen;
+        };
+    }
 
     partial void OnSelectedRowChanged(object? value) => UpdatePreview();
 
