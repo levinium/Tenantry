@@ -6,7 +6,13 @@ public enum SyncScope
     /// <summary>Fetch changes; slow full reads (mailboxes, sign-in times) only when they're due. The timer's sync.</summary>
     Changes,
 
-    /// <summary>Fetch changes and redo every slow full read now. The Refresh button's sync.</summary>
+    /// <summary>
+    /// Fetch changes and redo the slow full reads (mailboxes, sign-in times) now; the background
+    /// per-mailbox reads (sizes, replies) only if they're due. The Refresh button's sync.
+    /// </summary>
+    Refresh,
+
+    /// <summary>Everything Refresh does, plus the background per-mailbox reads now. Settings' "Check everything now".</summary>
     Everything,
 
     /// <summary>Forget the delta links and download everything again.</summary>

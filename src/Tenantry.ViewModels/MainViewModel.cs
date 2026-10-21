@@ -313,7 +313,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     [RelayCommand(CanExecute = nameof(CanRefresh))]
     async Task Refresh()
     {
-        if (await SyncAsync(null, SyncScope.Everything, _lifetime.Token) > 0)
+        if (await SyncAsync(null, SyncScope.Refresh, _lifetime.Token) > 0)
             await ReloadListsAsync(_lifetime.Token);
     }
 

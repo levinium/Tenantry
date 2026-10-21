@@ -268,7 +268,7 @@ public class DirectorySyncTests
         });
         var store = new MemoryEntityStore();
         var settings = new MemorySyncSettingsStore();
-        var sync = new DirectorySync(Graph(FirstRun().On(HttpMethod.Get, "users/delta?$deltatoken=d1",
+        var sync = new DirectorySync(Graph(FirstRun().On(HttpMethod.Get, "groups/delta?$deltatoken=gd2", $$"""{"value":[],"@odata.deltaLink":"{{Base}}groups/delta?$deltatoken=gd2"}""").On(HttpMethod.Get, "users/delta?$deltatoken=d1",
             $$"""{"value":[],"@odata.deltaLink":"{{Base}}users/delta?$deltatoken=d1"}""")), store, exchange, () => Now, settings.Load);
         var updated = 0;
         sync.BackgroundUpdated += (_, _) => Interlocked.Increment(ref updated);
@@ -283,14 +283,25 @@ public class DirectorySyncTests
         Assert.False(users["u2"].Mailbox!.IsNearlyFull);
         Assert.Equal(UserFields.NearlyFull, UserFields.All.Single(f => f.Key == UserFields.Storage).Text!(users["u1"]));
         Assert.Equal(UserFields.Hidden, UserFields.All.Single(f => f.Key == UserFields.AddressList).Text!(users["u1"]));
-        Assert.Contains(sync.Areas, a => a.Name == "Mailbox size and automatic replies" && a.LastSyncedAt == Now && a.Every == "Every hour");
+        Assert.Contains(sync.Areas, a => a.Name == "Automatic replies" && a.LastSyncedAt == Now && a.Every == "Every hour");
+        Assert.Contains(sync.Areas, a => a.Name == "Mailbox sizes" && a.LastSyncedAt == Now && a.Every == "Every 4 hours");
+
+        // Refresh re-reads mailboxes but leaves sizes and replies to their schedule (not due yet);
+        // Settings' Check everything now reads them at once.
+        var afterFirst = exchange.Calls.Count(c => c.Cmdlet == "Get-MailboxStatistics");
+        await sync.SyncAsync(scope: SyncScope.Refresh, cancellationToken: Ct);
+        await sync.BackgroundWork;
+        Assert.Equal(afterFirst, exchange.Calls.Count(c => c.Cmdlet == "Get-MailboxStatistics"));
+        await sync.SyncAsync(scope: SyncScope.Everything, cancellationToken: Ct);
+        await sync.BackgroundWork;
+        Assert.True(exchange.Calls.Count(c => c.Cmdlet == "Get-MailboxStatistics") > afterFirst);
 
         // Turned off in Settings: an Everything sync no longer reads them.
-        settings.Save(settings.Load() with { MailboxDetailsMinutes = 0 });
+        settings.Save(settings.Load() with { MailboxDetailsMinutes = 0, MailboxSizesMinutes = 0 });
         var before = exchange.Calls.Count(c => c.Cmdlet == "Get-MailboxStatistics");
         await sync.SyncAsync(scope: SyncScope.Everything, cancellationToken: Ct);
         Assert.Equal(before, exchange.Calls.Count(c => c.Cmdlet == "Get-MailboxStatistics"));
-        Assert.Equal("Off", sync.Areas.Single(a => a.Name == "Mailbox size and automatic replies").Every);
+        Assert.Equal("Off", sync.Areas.Single(a => a.Name == "Mailbox sizes").Every);
     }
 
     [Fact]

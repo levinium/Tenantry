@@ -131,6 +131,8 @@ public sealed class RestCmdletRunner : ICmdletRunner
 
             if (HttpRetry.IsTransient(response.StatusCode) && attempt < HttpRetry.MaxAttempts)
             {
+                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                    Interlocked.Increment(ref _throttled);
                 await _delay(HttpRetry.DelayFor(response, attempt), cancellationToken);
                 continue;
             }
@@ -140,7 +142,12 @@ public sealed class RestCmdletRunner : ICmdletRunner
     }
 
     /// <summary>Calls per $batch request: the size CIPP uses.</summary>
-    const int BatchSize = 10;
+    public int BatchSize { get; init; } = 10;
+
+    int _throttled;
+
+    /// <summary>How many times Exchange said to slow down (429) and was retried, for tuning.</summary>
+    public int Throttled => _throttled;
 
     /// <summary>
     /// Sends single-object cmdlets ten to a <c>$batch</c> request (one round trip instead of ten;
@@ -192,6 +199,7 @@ public sealed class RestCmdletRunner : ICmdletRunner
                             ? rows.EnumerateArray().Select(r => r.Clone()).ToArray() : [], null);
                     else if (status == 429 && attempt < HttpRetry.MaxAttempts)
                     {
+                        Interlocked.Increment(ref _throttled);
                         throttled.Add(i);
                         var retryAfter = response.TryGetProperty("headers", out var h) && h.TryGetProperty("Retry-After", out var ra)
                             && int.TryParse(ra.GetString(), out var seconds) ? TimeSpan.FromSeconds(seconds) : TimeSpan.FromSeconds(2 * attempt);

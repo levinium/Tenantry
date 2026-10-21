@@ -40,6 +40,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public static IReadOnlyList<IntervalOption> MailboxDetailsOptions { get; } =
         [new(60, "Every hour"), new(240, "Every 4 hours"), new(1440, "Once a day"), new(0, "Off")];
 
+    public static IReadOnlyList<IntervalOption> MailboxSizesOptions { get; } =
+        [new(60, "Every hour"), new(240, "Every 4 hours"), new(720, "Every 12 hours"), new(1440, "Once a day"), new(0, "Off")];
+
     /// <param name="syncNow">Runs a sync (Everything or StartOver) and updates the lists.</param>
     /// <param name="changed">Called after a setting is saved (the app restarts its timer).</param>
     /// <param name="status">The sync as it happens (the sidebar's), so Settings shows a sync already running.</param>
@@ -60,6 +63,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Changes = Pick(ChangesOptions, s.ChangesMinutes);
         Details = Pick(DetailsOptions, s.DetailsMinutes);
         MailboxDetails = Pick(MailboxDetailsOptions, s.MailboxDetailsMinutes);
+        MailboxSizes = Pick(MailboxSizesOptions, s.MailboxSizesMinutes);
         _loading = false;
         RefreshAreas();
     }
@@ -79,15 +83,19 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial IntervalOption MailboxDetails { get; set; }
 
+    [ObservableProperty]
+    public partial IntervalOption MailboxSizes { get; set; }
+
     partial void OnChangesChanged(IntervalOption value) => Save();
     partial void OnDetailsChanged(IntervalOption value) => Save();
     partial void OnMailboxDetailsChanged(IntervalOption value) => Save();
+    partial void OnMailboxSizesChanged(IntervalOption value) => Save();
 
     void Save()
     {
         if (_loading)
             return;
-        _store.Save(new SyncSettings(Changes.Minutes, Details.Minutes, MailboxDetails.Minutes));
+        _store.Save(new SyncSettings(Changes.Minutes, Details.Minutes, MailboxDetails.Minutes, MailboxSizes.Minutes));
         _changed();
         RefreshAreas();
     }

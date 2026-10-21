@@ -527,7 +527,8 @@ sealed class SnapshotSync : ITenantSync
         new("Last sign-in times", "When each person last signed in", DateTimeOffset.Now.AddMinutes(-34), "Every hour"),
         new("Domains and Teams", "The tenant's domains, and which groups are Teams", DateTimeOffset.Now.AddMinutes(-34), "Every hour"),
         new("Mailboxes", "Mailbox types, addresses, forwarding, address list; who can use shared mailboxes", DateTimeOffset.Now.AddMinutes(-34), "Every hour"),
-        new("Mailbox size and automatic replies", "Two reads per mailbox, in the background", DateTimeOffset.Now.AddMinutes(-31), "Every hour"),
+        new("Automatic replies", "Whether each mailbox is replying; one read per mailbox, in the background", DateTimeOffset.Now.AddMinutes(-31), "Every hour"),
+        new("Mailbox sizes", "Storage used against the quota; one read per mailbox, in the background", DateTimeOffset.Now.AddMinutes(-91), "Every 4 hours"),
     ];
 }
 

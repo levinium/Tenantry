@@ -46,7 +46,7 @@ public sealed partial class SettingsTests
         settings.Changes = SettingsViewModel.ChangesOptions.Single(o => o.Minutes == 0);
         settings.MailboxDetails = SettingsViewModel.MailboxDetailsOptions.Single(o => o.Label == "Off");
 
-        Assert.Equal(new SyncSettings(0, 60, 0), store.Load());
+        Assert.Equal(new SyncSettings(0, 60, 0, 240), store.Load());
         Assert.Equal(2, changed);
     }
 

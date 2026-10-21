@@ -9,13 +9,17 @@ namespace Tenantry.Core.Directory;
 /// open; 0 checks only on opening it and on Refresh.</param>
 /// <param name="DetailsMinutes">Re-read mailboxes, mailbox access, last sign-in times, domains
 /// and Teams (each a full read).</param>
-/// <param name="MailboxDetailsMinutes">Read every mailbox's size and automatic replies (two
-/// Exchange calls per mailbox); 0 turns it off.</param>
-public sealed record SyncSettings(int ChangesMinutes = 10, int DetailsMinutes = 60, int MailboxDetailsMinutes = 60)
+/// <param name="MailboxDetailsMinutes">Read every mailbox's automatic-reply state (one Exchange
+/// call per mailbox, in the background); 0 turns it off. (Named before sizes had their own setting.)</param>
+/// <param name="MailboxSizesMinutes">Read every mailbox's size (one call per mailbox, in the
+/// background); 0 turns it off. Sizes change slowly, so less often than replies by default.</param>
+public sealed record SyncSettings(int ChangesMinutes = 10, int DetailsMinutes = 60, int MailboxDetailsMinutes = 60, int MailboxSizesMinutes = 240)
 {
     public static readonly SyncSettings Default = new();
 
-    public bool MailboxDetailsOn => MailboxDetailsMinutes > 0;
+    public bool RepliesOn => MailboxDetailsMinutes > 0;
+
+    public bool SizesOn => MailboxSizesMinutes > 0;
 }
 
 public interface ISyncSettingsStore

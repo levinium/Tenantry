@@ -41,7 +41,7 @@
       </StackPanel>
       <TextBlock Classes="caption" TextWrapping="Wrap"
                  Text="Lists and searches read an encrypted copy of this tenant kept on this computer, so they're instant. These choices are for this tenant only and are saved as you change them." />
-      <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="12">
+      <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="12">
         <StackPanel Spacing="2" VerticalAlignment="Center">
           <TextBlock Text="Check for changes" FontWeight="SemiBold" TextWrapping="Wrap" />
           <TextBlock Classes="caption" TextWrapping="Wrap" Text="Users, groups and licenses: only what changed, so it's quick." />
@@ -55,10 +55,16 @@
         <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{x:Static vm:SettingsViewModel.DetailsOptions}" SelectedItem="{Binding Details}" MinWidth="320" VerticalAlignment="Center" />
 
         <StackPanel Grid.Row="2" Spacing="2" VerticalAlignment="Center">
-          <TextBlock Text="Read mailbox sizes and automatic replies" FontWeight="SemiBold" TextWrapping="Wrap" />
-          <TextBlock Classes="caption" TextWrapping="Wrap" Text="For the Mailbox nearly full and Automatic reply on views. Two reads per mailbox, done in the background; a few minutes for a large tenant." />
+          <TextBlock Text="Read automatic replies" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="For the Automatic reply on view. One read per mailbox, in the background." />
         </StackPanel>
         <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{x:Static vm:SettingsViewModel.MailboxDetailsOptions}" SelectedItem="{Binding MailboxDetails}" MinWidth="320" VerticalAlignment="Center" />
+
+        <StackPanel Grid.Row="3" Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="Read mailbox sizes" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="For the Mailbox nearly full view. Sizes change slowly, so less often is fine. One read per mailbox, in the background." />
+        </StackPanel>
+        <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{x:Static vm:SettingsViewModel.MailboxSizesOptions}" SelectedItem="{Binding MailboxSizes}" MinWidth="320" VerticalAlignment="Center" />
       </Grid>
     </StackPanel>
 
