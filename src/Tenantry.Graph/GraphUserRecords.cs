@@ -145,4 +145,83 @@ public sealed class GraphUserRecords(GraphClient graph, IEntityStore store, ICmd
             .OrderBy(d => d.EndsWith(".onmicrosoft.com", StringComparison.OrdinalIgnoreCase))
             .ThenBy(d => d, StringComparer.OrdinalIgnoreCase)
             .ToArray());
+
+    /// <summary>
+    /// Three Exchange reads, side by side: the mailbox (addresses, forwarding, address list,
+    /// quota), its automatic replies, and its size. A size that can't be read (a brand-new
+    /// mailbox) leaves storage unknown rather than failing the tab.
+    /// </summary>
+    public async Task<MailDetails> GetMailAsync(string userId, string address, CancellationToken cancellationToken = default)
+    {
+        if (exchange is null)
+            throw new InvalidOperationException("Exchange Online isn't connected for this tenant.");
+        var identity = new Dictionary<string, object?> { ["Identity"] = address };
+        var mailboxTask = exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-Mailbox", identity, cancellationToken,
+            [.. DirectorySync.MailboxSelect, "ProhibitSendReceiveQuota", "IssueWarningQuota"]);
+        var replyTask = exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-MailboxAutoReplyConfiguration", identity, cancellationToken,
+            ["AutoReplyState", "StartTime", "EndTime", "InternalMessage", "ExternalMessage", "ExternalAudience"]);
+        var statsTask = ReadStatisticsAsync(identity, cancellationToken);
+        var mailbox = (await mailboxTask).FirstOrDefault();
+        if (mailbox.ValueKind != JsonValueKind.Object)
+            throw new InvalidOperationException("Exchange didn't return this mailbox.");
+        var reply = (await replyTask).FirstOrDefault();
+        var stats = await statsTask;
+
+        // The same reading of addresses and forwarding as the list uses.
+        var domains = await GetDomainsAsync(cancellationToken);
+        var info = CachedTenantDirectory.ToMailbox(mailbox, domains.ToHashSet(StringComparer.OrdinalIgnoreCase));
+        string? Text(JsonElement e, string name) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var v) ? v.ValueKind == JsonValueKind.String ? v.GetString() : v.ToString() : null;
+        var smtpForward = Text(mailbox, "ForwardingSmtpAddress") is { Length: > 0 };
+
+        return new MailDetails(
+            PrimaryAddress: info.PrimaryAddress ?? address,
+            Aliases: info.Aliases,
+            ForwardingTo: info.ForwardingTo,
+            ForwardingIsRecipient: info.ForwardingTo is not null && !smtpForward,
+            KeepCopy: info.KeepsCopyWhenForwarding,
+            HiddenFromAddressList: info.HiddenFromAddressList,
+            AutoReply: ToAutoReply(reply),
+            UsedBytes: MailDetails.ParseBytes(Text(stats, "TotalItemSize")),
+            QuotaBytes: MailDetails.ParseBytes(Text(mailbox, "ProhibitSendReceiveQuota")),
+            WarningBytes: MailDetails.ParseBytes(Text(mailbox, "IssueWarningQuota")),
+            Items: long.TryParse(Text(stats, "ItemCount"), out var items) ? items : null,
+            Domains: domains);
+    }
+
+    async Task<JsonElement> ReadStatisticsAsync(Dictionary<string, object?> identity, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return (await exchange!.InvokeAsync(CmdletEndpoint.Exchange, "Get-MailboxStatistics", identity, cancellationToken,
+                ["TotalItemSize", "ItemCount"])).FirstOrDefault();
+        }
+        catch (CmdletException)
+        {
+            return default;
+        }
+    }
+
+    /// <summary>Get-MailboxAutoReplyConfiguration as an <see cref="AutoReply"/> (messages as plain text).</summary>
+    internal static AutoReply ToAutoReply(JsonElement reply)
+    {
+        if (reply.ValueKind != JsonValueKind.Object)
+            return AutoReply.Off;
+        string? Text(string name) => reply.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+        DateTimeOffset? When(string name) => DateTimeOffset.TryParse(Text(name), System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AssumeUniversal, out var at) ? at : null;
+        var state = Text("AutoReplyState") switch
+        {
+            "Enabled" => AutoReplyState.On,
+            "Scheduled" => AutoReplyState.Scheduled,
+            _ => AutoReplyState.Off,
+        };
+        var audience = Text("ExternalAudience") switch
+        {
+            "None" => AutoReplyAudience.None,
+            "Known" => AutoReplyAudience.Known,
+            _ => AutoReplyAudience.All,
+        };
+        return new AutoReply(state, state == AutoReplyState.Scheduled ? When("StartTime") : null, state == AutoReplyState.Scheduled ? When("EndTime") : null,
+            AutoReply.PlainText(Text("InternalMessage")), AutoReply.PlainText(Text("ExternalMessage")), audience);
+    }
 }

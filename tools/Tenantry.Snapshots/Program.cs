@@ -262,6 +262,18 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "user-licenses-light");
         editing.Pending.DiscardAllCommand.Execute(null);
 
+        // Mail: storage, addresses (one being added), forwarding outside typed, a scheduled reply.
+        page.SelectedSection = page.MailTab;
+        page.MailTab.LoadAsync().GetAwaiter().GetResult();
+        page.MailTab.NewAliasName = "abigayle.a";
+        page.MailTab.AddAliasCommand.Execute(null);
+        page.MailTab.ForwardOn = true;
+        page.MailTab.ForwardTo = "abigayle@gmail.example";
+        page.MailTab.ReplyScheduled = true;
+        page.MailTab.InternalMessage = "I'm away until Monday. For anything urgent, contact the front desk.";
+        Render(editing, "user-mail-light", height: 1400);
+        editing.Pending.DiscardAllCommand.Execute(null);
+
         // Groups & access: their groups (one membership being removed), a group being searched for.
         editing.Groups.LoadAsync().GetAwaiter().GetResult();
         page.Update(page.User);

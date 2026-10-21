@@ -171,6 +171,14 @@
   <Style Selector="Border.banner.neutral">
     <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
   </Style>
+  <Style Selector="ProgressBar.storage">
+    <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+    <Setter Property="CornerRadius" Value="4" />
+  </Style>
+  <Style Selector="ProgressBar.storage.full">
+    <Setter Property="Foreground" Value="{DynamicResource BadgeDangerFg}" />
+  </Style>
   <Style Selector="Border.banner.success">
     <Setter Property="Background" Value="{DynamicResource BadgeSuccessBg}" />
   </Style>

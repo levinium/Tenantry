@@ -47,7 +47,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
     public const string GroupsMark = "group.v2";
 
     /// <summary>The few Get-Mailbox properties the lists use, of the 300-odd it returns.</summary>
-    static readonly string[] MailboxSelect =
+    internal static readonly string[] MailboxSelect =
     [
         "ExternalDirectoryObjectId", "RecipientTypeDetails", "PrimarySmtpAddress", "EmailAddresses", "ForwardingSmtpAddress",
         "ForwardingAddress", "DeliverToMailboxAndForward", "LitigationHoldEnabled", "ArchiveStatus", "HiddenFromAddressListsEnabled",

@@ -278,6 +278,9 @@ public class ChangePipelineTests
                 new("zz-tenantry-test-bo@contoso.example", [MailboxRight.FullAccess, MailboxRight.SendAs]),
                 new("Someone Departed", [MailboxRight.SendOnBehalf]),
             ]);
+
+        public Task<MailDetails> GetMailAsync(string userId, string address, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     [Fact]

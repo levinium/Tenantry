@@ -25,6 +25,9 @@
     <DataTemplate DataType="rec:GroupPeopleEditor">
       <views:GroupPeopleEditorView />
     </DataTemplate>
+    <DataTemplate DataType="rec:MailSection">
+      <views:MailSectionView />
+    </DataTemplate>
     <DataTemplate DataType="rec:SelectionPanelViewModel">
       <views:SelectionPanelView />
     </DataTemplate>

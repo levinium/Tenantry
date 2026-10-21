@@ -59,6 +59,23 @@ Records serialise as-is into the change log.
   and the person added or removed.
 - Dynamic groups' members follow their rule and can't be edited. A Microsoft 365 or security
   group that has owners must keep one, so the last owner can't be removed until another is added.
+### Mail (4b-1)
+
+| Change | Sent as | Read back |
+|---|---|---|
+| Add or remove an address (alias) | `Set-Mailbox -EmailAddresses @{Add/Remove='smtp:…'}` | `Get-Mailbox` (list properties) into the local copy |
+| Primary address | `Set-Mailbox -WindowsEmailAddress` (the old primary stays as an alias) | `PrimarySmtpAddress` |
+| Forwarding on or off | `Set-Mailbox -ForwardingSmtpAddress -ForwardingAddress $null -DeliverToMailboxAndForward` | `ForwardingSmtpAddress` |
+| Address list | `Set-Mailbox -HiddenFromAddressListsEnabled` | the same property |
+| Automatic replies | `Set-MailboxAutoReplyConfiguration` (messages as HTML, scheduled times in UTC) | state, and the internal message's text |
+
+- Forwarding to an address outside the tenant's domains is a caution change, and the form warns
+  before it's staged.
+- Exchange stores reply messages as HTML with its own source line breaks. The tab shows only the
+  text (`AutoReply.PlainText`).
+- Exchange is eventually consistent: a read straight after a confirmed change can come from a
+  server that hasn't caught up yet (seen live). The executor stores the row it confirmed.
+
 - Send on behalf needs a mail recipient. Exchange refuses it for an account with no mailbox, and
   Tenantry says so in plain words.
 

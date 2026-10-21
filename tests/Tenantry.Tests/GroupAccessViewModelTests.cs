@@ -201,6 +201,9 @@ public sealed class GroupAccessViewModelTests
                 new("zz-tenantry-test-bo", [MailboxRight.FullAccess, MailboxRight.SendAs]),
                 new("Someone Departed", [MailboxRight.SendOnBehalf]),
             ]);
+
+        public Task<MailDetails> GetMailAsync(string userId, string address, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     static UserDetailViewModel Page(UserSummary user, ChangePipeline pipeline) =>

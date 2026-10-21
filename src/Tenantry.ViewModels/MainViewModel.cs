@@ -305,6 +305,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (existing is null)
         {
             existing = NewUserPage(user);
+            existing.LoadMailInBackground();
             Tabs.Add(existing);
         }
         SelectedTab = existing;

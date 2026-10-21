@@ -25,6 +25,11 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetGroupMembership), "setGroupMembership")]
 [JsonDerivedType(typeof(SetMailboxAccess), "setMailboxAccess")]
 [JsonDerivedType(typeof(SetManager), "setManager")]
+[JsonDerivedType(typeof(SetMailAlias), "setMailAlias")]
+[JsonDerivedType(typeof(SetPrimaryAddress), "setPrimaryAddress")]
+[JsonDerivedType(typeof(SetForwarding), "setForwarding")]
+[JsonDerivedType(typeof(SetAutoReply), "setAutoReply")]
+[JsonDerivedType(typeof(SetHiddenFromAddressList), "setHiddenFromAddressList")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -223,6 +228,77 @@ public sealed record SetManager(ChangeTarget User, string? OldId, string? OldNam
     public override string After => NewId is null ? "(none)" : Show(NewName);
     public override bool IsNoChange => string.Equals(OldId, NewId, StringComparison.Ordinal);
     public override ChangeOp Since(ChangeOp earlier) => earlier is SetManager e ? this with { OldId = e.OldId, OldName = e.OldName } : this;
+}
+
+// ---- Mail (changed through Exchange; the target is the mailbox's account) -----------------
+
+/// <summary>Adds or removes one of a mailbox's extra email addresses (an alias).</summary>
+public sealed record SetMailAlias(ChangeTarget User, string Address, bool Old, bool New) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "alias:" + Address.ToLowerInvariant();
+    public override string Label => $"Email address {Address}";
+    public override string Before => Old ? "Receives mail" : "Not an address";
+    public override string After => New ? "Added" : "Removed";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetMailAlias e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>Makes another address the primary one (what people see in replies); the old one stays as an alias.</summary>
+public sealed record SetPrimaryAddress(ChangeTarget User, string Old, string New) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "primary";
+    public override string Label => "Primary email address";
+    public override string Before => Old;
+    public override string After => New;
+    public override bool IsCaution => true;
+    public override bool IsNoChange => string.Equals(Old, New, StringComparison.OrdinalIgnoreCase);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetPrimaryAddress e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>
+/// Turns mail forwarding on (to an address, keeping a copy or not) or off. Forwarding outside the
+/// organization is a caution change: it's how compromised accounts leak mail.
+/// </summary>
+/// <param name="NewIsExternal">The new address is outside the tenant's domains.</param>
+public sealed record SetForwarding(ChangeTarget User, string? OldTo, bool OldKeepCopy, string? NewTo, bool NewKeepCopy, bool NewIsExternal) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "forwarding";
+    public override string Label => "Forwarding";
+    public override string Before => Describe(OldTo, OldKeepCopy);
+    public override string After => Describe(NewTo, NewKeepCopy) + (NewTo is not null && NewIsExternal ? " (outside the organization)" : "");
+    public override bool IsCaution => NewTo is not null && NewIsExternal;
+    public override bool IsNoChange => string.Equals(OldTo ?? "", NewTo ?? "", StringComparison.OrdinalIgnoreCase) && (NewTo is null || OldKeepCopy == NewKeepCopy);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetForwarding e ? this with { OldTo = e.OldTo, OldKeepCopy = e.OldKeepCopy } : this;
+
+    static string Describe(string? to, bool keep) => to is null ? "Off" : $"To {to}{(keep ? ", keeping a copy" : ", no copy kept")}";
+}
+
+/// <summary>Sets a mailbox's automatic replies: off, on, or between two times, with the messages.</summary>
+public sealed record SetAutoReply(ChangeTarget User, Directory.AutoReply Old, Directory.AutoReply New) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "autoreply";
+    public override string Label => "Automatic replies";
+    public override string Before => Old.Describe();
+    public override string After => New.Describe() + (New.State != Directory.AutoReplyState.Off && New.Internal != Old.Internal ? " (new message)" : "");
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetAutoReply e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>Hides a mailbox from the address list (Outlook's directory), or shows it again.</summary>
+public sealed record SetHiddenFromAddressList(ChangeTarget User, bool Old, bool New) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "gal";
+    public override string Label => "Address list";
+    public override string Before => Old ? "Hidden" : "Shown";
+    public override string After => New ? "Hidden" : "Shown";
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetHiddenFromAddressList e ? this with { Old = e.Old } : this;
 }
 
 /// <summary>Blocks or allows a user's sign-in (Graph accountEnabled).</summary>

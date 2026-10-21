@@ -75,6 +75,26 @@ public static class BulkActions
                 },
                 isCaution: true),
 
+            new("Automatic replies", "Turn automatic replies on with one message for everyone (inside and outside), or turn them off.", "MailArrowUp",
+                (a, ct) => AutoRepliesAsync(selected(), records, (bool)a.Choice!.Value, a.Text.Trim(), ct),
+                choiceLabel: "Replies", choices: [new BulkChoice("Turn on", true), new BulkChoice("Turn off", false)],
+                textLabel: "Reply (needed when turning on)"),
+
+            new("Turn forwarding off", "Stop forwarding mail for everyone selected who forwards it.", "MailArrowForward",
+                (_, _) => Task.FromResult(Plan(selected(), u => u.Mailbox is not { } m ? (null, $"{u.DisplayName}: no mailbox")
+                    : m.ForwardingTo is null ? (null, $"{u.DisplayName}: not forwarding")
+                    : (new SetForwarding(GroupAccess.Target(u), m.ForwardingTo, m.KeepsCopyWhenForwarding, null, false, false), null)))),
+
+            new("Address list", "Hide everyone from the address list (Outlook's directory), or show them again.", "BookContacts",
+                (a, _) =>
+                {
+                    var hide = (bool)a.Choice!.Value;
+                    return Task.FromResult(Plan(selected(), u => u.Mailbox is not { } m ? (null, $"{u.DisplayName}: no mailbox")
+                        : m.HiddenFromAddressList == hide ? (null, $"{u.DisplayName}: already {(hide ? "hidden" : "shown")}")
+                        : (new SetHiddenFromAddressList(GroupAccess.Target(u), m.HiddenFromAddressList, hide), null)));
+                },
+                choiceLabel: "Address list", choices: [new BulkChoice("Hide from the address list", true), new BulkChoice("Show in the address list", false)]),
+
             new("Add to a group", "Make everyone a member of one group.", "PeopleAdd",
                 (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } g ? Membership(selected(), g, GroupRole.Member, true)
                     : BulkPlan.Invalid("That group isn't in the local copy any more.")),
@@ -169,6 +189,42 @@ public static class BulkActions
             return string.Equals(old ?? "", wanted ?? "", StringComparison.Ordinal)
                 ? (null, $"{u.DisplayName}: already {(wanted is null ? "empty" : $"\"{wanted}\"")}")
                 : (new SetUserText(GroupAccess.Target(u), property, label, old, wanted), null);
+        });
+    }
+
+    /// <summary>
+    /// Replies on (one message, inside and outside) or off for everyone with a mailbox. Each
+    /// mailbox's current replies are read live, a few at a time, so the review shows the real "before".
+    /// </summary>
+    static async Task<BulkPlan> AutoRepliesAsync(IReadOnlyList<UserSummary> users, IUserRecords? records, bool on, string message, CancellationToken ct)
+    {
+        if (on && message.Length == 0)
+            return BulkPlan.Invalid("Write the reply people will get.");
+        if (records is null)
+            return BulkPlan.Invalid("Mailboxes can't be read here.");
+        var withMailbox = users.Where(u => u.Mailbox is not null).ToArray();
+        var current = new System.Collections.Concurrent.ConcurrentDictionary<string, AutoReply>(StringComparer.Ordinal);
+        var failed = new System.Collections.Concurrent.ConcurrentBag<string>();
+        await Parallel.ForEachAsync(withMailbox, new ParallelOptions { MaxDegreeOfParallelism = ReadsAtOnce, CancellationToken = ct }, async (u, token) =>
+        {
+            try
+            {
+                current[u.Id] = (await records.GetMailAsync(u.Id, u.Mailbox!.PrimaryAddress ?? u.UserPrincipalName, token)).AutoReply;
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                failed.Add(u.Id);
+            }
+        });
+        return Plan(users, u =>
+        {
+            if (u.Mailbox is null)
+                return (null, $"{u.DisplayName}: no mailbox");
+            if (!current.TryGetValue(u.Id, out var old))
+                return (null, $"{u.DisplayName}: couldn't read their mailbox");
+            var wanted = on ? new AutoReply(AutoReplyState.On, null, null, message, message, AutoReplyAudience.All) : old with { State = AutoReplyState.Off, Start = null, End = null };
+            return old == wanted ? (null, $"{u.DisplayName}: already {(on ? "on with that reply" : "off")}")
+                : (new SetAutoReply(GroupAccess.Target(u), old, wanted), null);
         });
     }
 

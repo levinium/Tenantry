@@ -39,10 +39,31 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
                 ? g with { Owners = Toggle(g.OwnerList, m.Person.Id, m.PersonType, null, m.New) }
                 : g with { Members = Toggle(g.Members, m.Person.Id, m.PersonType, null, m.New) })),
             SetMailboxAccess a => Done(directory.UpdateGroup(a.Mailbox.Id, g => g with { Members = Grant(g.Members, a) })),
+            SetMailAlias a => Mailbox(a.User.Id, m => m with
+            {
+                Aliases = a.New ? m.Aliases.Append(a.Address).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+                    : m.Aliases.Where(x => !string.Equals(x, a.Address, StringComparison.OrdinalIgnoreCase)).ToArray(),
+            }),
+            SetPrimaryAddress p => Mailbox(p.User.Id, m => m with
+            {
+                PrimaryAddress = p.New,
+                Aliases = m.Aliases.Where(x => !string.Equals(x, p.New, StringComparison.OrdinalIgnoreCase)).Append(p.Old).ToArray(),
+            }),
+            SetForwarding f => Mailbox(f.User.Id, m => m with
+            {
+                ForwardingTo = f.NewTo,
+                KeepsCopyWhenForwarding = f.NewTo is not null && f.NewKeepCopy,
+                Forwarding = f.NewTo is null ? ForwardingKind.None : f.NewIsExternal ? ForwardingKind.External : ForwardingKind.Internal,
+            }),
+            SetHiddenFromAddressList h => Mailbox(h.User.Id, m => m with { HiddenFromAddressList = h.New }),
+            SetAutoReply r => Remember(() => records?.RememberAutoReply(r.User.Id, r.New)),
             _ => null,
         };
         return result ?? new ApplyResult(ChangeOutcome.Failed, $"The demo can't apply \"{change.Label}\" changes.");
     }
+
+    ApplyResult? Mailbox(string userId, Func<MailboxInfo, MailboxInfo> change) =>
+        Done(directory.Update(userId, u => u.Mailbox is { } m ? u with { Mailbox = change(m) } : u));
 
     static GroupMember[] Toggle(IReadOnlyList<GroupMember> list, string id, string type, string? access, bool present) =>
         present

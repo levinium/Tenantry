@@ -46,6 +46,14 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         _row = new UserRow(user, _now);
         Sections = BuildSections();
         SelectedSection = Sections[0];
+        MailTab.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(MailSection.IsReady))
+            {
+                OnPropertyChanged(nameof(Health));
+                OnPropertyChanged(nameof(HasHealth));
+            }
+        };
         if (_pipeline is not null)
             _pipeline.Changed += OnPendingChanged;
     }
@@ -107,6 +115,11 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
                 chips.Add(new("Licensed mailbox account", BadgeKind.Info, "Shared, room and equipment mailboxes usually need no license (up to 50 GB)."));
             if (User.Mailbox?.LitigationHold == true)
                 chips.Add(new("Litigation hold", BadgeKind.Info, "Mailbox content is preserved, even if deleted."));
+            // From the mailbox itself, once the Mail tab has read it.
+            if (MailTab.IsReady && MailTab.IsNearlyFull)
+                chips.Add(new("Mailbox nearly full", BadgeKind.Warning, $"{MailTab.UsedText}. Mail stops arriving when it's full."));
+            if (MailTab.IsReady && MailTab.IsAutoReplying)
+                chips.Add(new("Automatic reply on", BadgeKind.Info, MailTab.AutoReplyText));
             return chips;
         }
     }
@@ -124,6 +137,11 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
 
     public GroupsAccessSection GroupsTab => Sections.OfType<GroupsAccessSection>().Single();
 
+    public MailSection MailTab => Sections.OfType<MailSection>().Single();
+
+    /// <summary>A record page reads the mailbox straight away, so its health chips (nearly full, auto-reply) show on Overview.</summary>
+    public void LoadMailInBackground() => _ = MailTab.LoadAsync();
+
     public IReadOnlyList<RecordSection> ManageRows => Sections.Skip(1).ToArray();
 
     [ObservableProperty]
@@ -137,11 +155,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         new AccountSection(User, _records, _pipeline, _canEdit, _index),
         new LicensesSection(User, _records, _pipeline, _canEdit),
         new GroupsAccessSection(User, _index, _pipeline, _canEdit, _records, _openGroup, _openUser),
-        new PlannedSection("mail", "Mail", "Mail", "update 4b",
-            ["Email addresses: add aliases, choose the primary", "Forwarding on or off", "Automatic replies: off, on, or between dates",
-             "Address list visibility", "Limits: recipients, message size, who can send to them", "Email apps: POP, IMAP, ActiveSync, SMTP and more",
-             "Storage used against the quota", "Archive and auto-expanding archive", "Litigation hold and retention", "Recover deleted items",
-             "Inbox rules, calendar and folder permissions, mobile devices", "Convert to a shared mailbox"]),
+        new MailSection(User, _records, _pipeline, _canEdit),
         new PlannedSection("onedrive", "OneDrive", "Cloud", "update 4d",
             ["Storage used against the quota", "Open their OneDrive", "Give someone (a manager) access"]),
         new PlannedSection("security", "Security & sign-in", "ShieldLock", "update 4c",

@@ -55,6 +55,9 @@ public sealed class BulkEditTests
 
         public Task<IReadOnlyList<MailboxDelegate>> GetMailboxDelegatesAsync(string userId, string address, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<MailboxDelegate>>([]);
+
+        public Task<MailDetails> GetMailAsync(string userId, string address, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     sealed class Noop : IChangeExecutor

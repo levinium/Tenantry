@@ -51,6 +51,33 @@ public sealed class DemoUserRecords(DemoTenantDirectory directory) : IUserRecord
         return known;
     }
 
+    readonly Dictionary<string, AutoReply> _autoReplies = new(StringComparer.Ordinal);
+
+    /// <summary>Automatic replies set through the demo's change executor.</summary>
+    public void RememberAutoReply(string userId, AutoReply reply) => _autoReplies[userId] = reply;
+
+    /// <summary>
+    /// Mail settings from the generated mailbox, plus storage that looks lived-in: most mailboxes
+    /// are a few GB into 50 GB, about one in ten is nearly full. One in eight has a reply on.
+    /// </summary>
+    public async Task<MailDetails> GetMailAsync(string userId, string address, CancellationToken cancellationToken = default)
+    {
+        var user = (await directory.GetUsersAsync(cancellationToken)).First(u => u.Id == userId);
+        var mailbox = user.Mailbox ?? throw new InvalidOperationException("This person has no mailbox.");
+        var seed = StableSeed(userId);
+        var random = new Random(seed);
+        const long quota = 50L << 30;
+        var used = seed % 10 == 0 ? (long)(quota * (0.9 + random.NextDouble() * 0.08)) : (long)(quota * random.NextDouble() * 0.35);
+        if (!_autoReplies.TryGetValue(userId, out var reply))
+            reply = seed % 8 == 0
+                ? new AutoReply(AutoReplyState.On, null, null, "I'm away this week with limited access to email. For anything urgent, contact the front desk.",
+                    "Thanks for your message. I'm out of the office this week and will reply when I'm back.", AutoReplyAudience.All)
+                : AutoReply.Off;
+        return new MailDetails(mailbox.PrimaryAddress ?? address, mailbox.Aliases, mailbox.ForwardingTo, false, mailbox.KeepsCopyWhenForwarding,
+            mailbox.HiddenFromAddressList, reply, used, quota, (long)(quota * 0.98), 1_000 + random.Next(60_000),
+            [DemoTenantDirectory.Domain, "northgate.onmicrosoft.example"]);
+    }
+
     /// <summary>A manager set (or cleared, with null) through the demo's change executor.</summary>
     public void RememberManager(string userId, string? managerId) => _managers[userId] = managerId;
 

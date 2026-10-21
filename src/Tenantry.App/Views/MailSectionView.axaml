@@ -1,0 +1,179 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:dir="using:Tenantry.Core.Directory"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.MailSectionView"
+             x:DataType="rec:MailSection"
+             x:Name="Root">
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <TextBlock Classes="muted" Text="This account has no mailbox. A license with Exchange Online gives it one." IsVisible="{Binding !HasMailbox}" TextWrapping="Wrap" />
+    <TextBlock Classes="muted" Text="Reading their mailbox from Exchange…" IsVisible="{Binding IsLoading}" />
+    <Border Classes="banner error" IsVisible="{Binding HasError}">
+      <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
+    </Border>
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </StackPanel>
+    </Border>
+
+    <StackPanel Spacing="12" IsVisible="{Binding IsReady}">
+      <!-- Storage -->
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+            <ic:FluentIcon Icon="Storage" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="h3" Text="Storage" VerticalAlignment="Center" />
+            <c:Badge Grid.Column="2" Text="Nearly full" Kind="Danger" IsVisible="{Binding IsNearlyFull}" />
+          </Grid>
+          <TextBlock Classes="value" Text="{Binding UsedText}" />
+          <ProgressBar Classes="storage" Classes.full="{Binding IsNearlyFull}" Value="{Binding UsedPercent}" Maximum="100" Height="8" IsVisible="{Binding HasStorage}" />
+          <TextBlock Classes="caption" Text="{Binding ItemsText}" />
+        </StackPanel>
+      </Border>
+
+      <!-- Email addresses -->
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="MailMultiple" FontSize="18" Foreground="{DynamicResource Accent}" />
+            <TextBlock Classes="h3" Text="Email addresses" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="Mail sent to any of these arrives in this mailbox. The primary address is the one people see when they reply." />
+          <ItemsControl ItemsSource="{Binding Addresses}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="rec:AddressRow">
+                <Border Classes="valuerow">
+                  <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="10">
+                    <SelectableTextBlock Text="{Binding Address}" VerticalAlignment="Center" />
+                    <c:Badge Grid.Column="1" Text="Primary" Kind="Success" IsVisible="{Binding IsPrimary}" VerticalAlignment="Center" />
+                    <c:Badge Grid.Column="2" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+                    <Button Grid.Column="3" Classes="ghost" Content="Make primary" Command="{Binding MakePrimaryCommand}" IsVisible="{Binding CanMakePrimary}"
+                            ToolTip.Tip="Make this the address people see (staged for review); the current primary stays as an alias" />
+                    <Button Grid.Column="4" Classes="rowaction" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}" IsVisible="{Binding !IsPrimary}"
+                            ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
+                      <Panel>
+                        <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !HasPending}" />
+                        <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding HasPending}" />
+                      </Panel>
+                    </Button>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel Orientation="Horizontal" Spacing="6" IsEnabled="{Binding CanEdit}">
+            <TextBox Text="{Binding NewAliasName}" Width="200" PlaceholderText="New address" />
+            <TextBlock Text="@" VerticalAlignment="Center" />
+            <ComboBox ItemsSource="{Binding Domains}" SelectedItem="{Binding NewAliasDomain}" MinWidth="220" />
+            <Button Classes="accent" Content="Add address" Command="{Binding AddAliasCommand}" ToolTip.Tip="Add this address (staged for review)" />
+          </StackPanel>
+          <TextBlock Classes="error" Text="{Binding AliasError}" IsVisible="{Binding HasAliasError}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <!-- Forwarding -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="MailArrowForward" FontSize="18" Foreground="{DynamicResource Accent}" />
+              <TextBlock Classes="h3" Text="Forwarding" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock Classes="value" Text="{Binding ForwardingText}" TextWrapping="Wrap" />
+            <c:Badge Text="Forwarding outside the organization" Kind="Danger" IsVisible="{Binding IsForwardingOutside}" HorizontalAlignment="Left" />
+            <TextBlock Classes="pendingtext" Text="{Binding ForwardingPendingText}" IsVisible="{Binding HasForwardingPending}" TextWrapping="Wrap" />
+            <StackPanel Spacing="8" IsEnabled="{Binding CanEdit}">
+              <ToggleSwitch IsChecked="{Binding ForwardOn}" OnContent="Forward their mail" OffContent="Don't forward" />
+              <StackPanel Spacing="8" IsVisible="{Binding ForwardOn}">
+                <TextBox Text="{Binding ForwardTo}" PlaceholderText="Forward to (email address)" />
+                <CheckBox IsChecked="{Binding KeepCopy}" Content="Keep a copy in this mailbox" />
+                <Border Classes="banner warning" IsVisible="{Binding ForwardDraftOutside}">
+                  <TextBlock TextWrapping="Wrap" FontSize="12"
+                             Text="This address is outside the organization. Forwarding outside is how compromised accounts leak mail, and your outbound policy may block it." />
+                </Border>
+              </StackPanel>
+              <Button Classes="accent" HorizontalAlignment="Left" Content="Stage forwarding" Command="{Binding StageForwardingCommand}"
+                      ToolTip.Tip="Stage this forwarding setting for review" />
+              <TextBlock Classes="error" Text="{Binding ForwardError}" IsVisible="{Binding HasForwardError}" TextWrapping="Wrap" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- Address list -->
+        <Border Grid.Column="1" Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="BookContacts" FontSize="18" Foreground="{DynamicResource Accent}" />
+              <TextBlock Classes="h3" Text="Address list" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock Classes="caption" TextWrapping="Wrap"
+                       Text="Whether this mailbox appears when people look someone up in Outlook or Teams. Hiding it doesn't stop mail arriving." />
+            <ToggleSwitch IsChecked="{Binding ShowInAddressList}" IsEnabled="{Binding CanEdit}" OnContent="Shown in the address list" OffContent="Hidden from the address list"
+                          ToolTip.Tip="Switching stages the change for review" />
+            <TextBlock Classes="pendingtext" Text="{Binding AddressListPendingText}" IsVisible="{Binding HasAddressListPending}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Automatic replies -->
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="MailArrowUp" FontSize="18" Foreground="{DynamicResource Accent}" />
+            <TextBlock Classes="h3" Text="Automatic replies" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Classes="value" Text="{Binding AutoReplyText}" />
+          <TextBlock Classes="pendingtext" Text="{Binding AutoReplyPendingText}" IsVisible="{Binding HasAutoReplyPending}" />
+          <StackPanel Spacing="10" IsEnabled="{Binding CanEdit}">
+            <StackPanel Orientation="Horizontal" Spacing="16">
+              <RadioButton GroupName="reply" Content="Off" IsChecked="{Binding ReplyOff}" />
+              <RadioButton GroupName="reply" Content="On" IsChecked="{Binding ReplyOn}" />
+              <RadioButton GroupName="reply" Content="Only between these times" IsChecked="{Binding ReplyScheduled}" />
+            </StackPanel>
+            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8" IsVisible="{Binding ReplyScheduled}">
+              <TextBlock Text="From" VerticalAlignment="Center" />
+              <CalendarDatePicker Grid.Column="1" SelectedDate="{Binding StartDate}" Width="150" />
+              <TimePicker Grid.Column="2" SelectedTime="{Binding StartTime}" MinuteIncrement="15" />
+              <TextBlock Grid.Column="3" Text="until" VerticalAlignment="Center" Margin="8,0,0,0" />
+              <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8">
+                <CalendarDatePicker SelectedDate="{Binding EndDate}" Width="150" />
+                <TimePicker SelectedTime="{Binding EndTime}" MinuteIncrement="15" />
+              </StackPanel>
+            </Grid>
+            <StackPanel Spacing="10" IsVisible="{Binding ShowReplyMessages}">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="label" Text="REPLY TO PEOPLE IN THE ORGANIZATION" />
+                <TextBox Text="{Binding InternalMessage}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" PlaceholderText="I'm out of the office until…" />
+              </StackPanel>
+              <StackPanel Spacing="4">
+                <TextBlock Classes="label" Text="PEOPLE OUTSIDE THE ORGANIZATION" />
+                <ComboBox ItemsSource="{x:Static rec:MailSection.Audiences}" SelectedItem="{Binding Audience}" MinWidth="300">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="dir:AutoReplyAudience">
+                      <TextBlock Text="{Binding Converter={x:Static conv:AudienceName.Instance}}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <CheckBox IsChecked="{Binding SameOutside}" Content="Send them the same reply" />
+                <TextBox Text="{Binding ExternalMessage}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" IsVisible="{Binding ShowExternalMessage}"
+                         PlaceholderText="Reply for people outside the organization" />
+              </StackPanel>
+            </StackPanel>
+            <Button Classes="accent" HorizontalAlignment="Left" Content="Stage automatic replies" Command="{Binding StageAutoReplyCommand}"
+                    ToolTip.Tip="Stage these automatic replies for review" />
+            <TextBlock Classes="error" Text="{Binding ReplyError}" IsVisible="{Binding HasReplyError}" TextWrapping="Wrap" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <TextBlock Classes="caption" TextWrapping="Wrap"
+                 Text="Coming next to this tab: limits and who can send to them, email apps (POP, IMAP, ActiveSync…), archive, litigation hold (4b-2); recover deleted items, inbox rules, folder permissions, mobile devices, message trace, convert to shared (4b-3)." />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

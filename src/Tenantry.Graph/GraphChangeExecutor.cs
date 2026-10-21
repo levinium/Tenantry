@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Tenantry.Core.Cache;
 using Tenantry.Core.Changes;
+using Tenantry.Core.Directory;
 using Tenantry.Core.Exchange;
 
 namespace Tenantry.Graph;
@@ -47,6 +48,22 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
         SetGroupMembership m => await SetMembershipAsync(m, cancellationToken),
         SetMailboxAccess a => await SetMailboxAccessAsync(a, cancellationToken),
         SetManager m => await SetManagerAsync(m, cancellationToken),
+        SetMailAlias a => await SetMailboxAsync(a.User, new() { ["EmailAddresses"] = AddOrRemove(a.New, "smtp:" + a.Address) },
+            row => Addresses(row).Contains(a.Address, StringComparer.OrdinalIgnoreCase) == a.New, cancellationToken),
+        SetPrimaryAddress p => await SetMailboxAsync(p.User, new() { ["WindowsEmailAddress"] = p.New },
+            row => string.Equals(Text(row, "PrimarySmtpAddress"), p.New, StringComparison.OrdinalIgnoreCase), cancellationToken),
+        // Forwarding is one address at a time: an SMTP address replaces any directory recipient.
+        SetForwarding f => await SetMailboxAsync(f.User, new()
+            {
+                ["ForwardingSmtpAddress"] = f.NewTo is null ? null : "smtp:" + f.NewTo,
+                ["ForwardingAddress"] = null,
+                ["DeliverToMailboxAndForward"] = f.NewTo is not null && f.NewKeepCopy,
+            },
+            row => string.Equals(StripSmtp(Text(row, "ForwardingSmtpAddress")) ?? "", f.NewTo ?? "", StringComparison.OrdinalIgnoreCase)
+                   && string.IsNullOrEmpty(Text(row, "ForwardingAddress")), cancellationToken),
+        SetHiddenFromAddressList h => await SetMailboxAsync(h.User, new() { ["HiddenFromAddressListsEnabled"] = h.New },
+            row => row.TryGetPropertyValue("HiddenFromAddressListsEnabled", out var v) && v?.GetValueKind() == JsonValueKind.True == h.New, cancellationToken),
+        SetAutoReply r => await SetAutoReplyAsync(r, cancellationToken),
         _ =>new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 
@@ -310,6 +327,111 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
 
     static readonly ApplyResult NoExchange = new(ChangeOutcome.Failed,
         "This change goes through Exchange Online, which isn't connected for this tenant.");
+
+    // ---- Mail -----------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Set-Mailbox with the given parameters, then reads the mailbox back (the list's properties)
+    /// into the local copy until <paramref name="done"/> holds.
+    /// </summary>
+    async Task<ApplyResult> SetMailboxAsync(ChangeTarget user, Dictionary<string, object?> parameters, Func<JsonObject, bool> done, CancellationToken cancellationToken)
+    {
+        if (exchange is null)
+            return NoExchange;
+        var identity = user.Address ?? user.Id;
+        parameters["Identity"] = identity;
+        try
+        {
+            await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Set-Mailbox", parameters, cancellationToken);
+        }
+        catch (CmdletException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, e.Explanation);
+        }
+
+        foreach (var wait in ReadBackWaits)
+        {
+            if (wait > TimeSpan.Zero)
+                await _delay(wait, cancellationToken);
+            var rows = await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-Mailbox",
+                new Dictionary<string, object?> { ["Identity"] = identity }, cancellationToken, DirectorySync.MailboxSelect);
+            if (rows.Count == 0)
+                continue;
+            var row = JsonNode.Parse(rows[0].GetRawText())!.AsObject();
+            store.Apply(DirectorySync.Mailboxes, [new EntityChange(user.Id, row, OnlyIfExists: true)]);
+            if (done(row))
+                return new ApplyResult(ChangeOutcome.Applied);
+        }
+        return new ApplyResult(ChangeOutcome.AppliedNotYetVisible,
+            "Exchange accepted the change but still shows the old setting; it usually appears within a minute.");
+    }
+
+    /// <summary>
+    /// Set-MailboxAutoReplyConfiguration. Messages go as HTML (line breaks kept); scheduled times
+    /// as UTC. Read back by state and, when on, by the internal message's text.
+    /// </summary>
+    async Task<ApplyResult> SetAutoReplyAsync(SetAutoReply change, CancellationToken cancellationToken)
+    {
+        if (exchange is null)
+            return NoExchange;
+        var identity = change.User.Address ?? change.User.Id;
+        var reply = change.New;
+        var parameters = new Dictionary<string, object?>
+        {
+            ["Identity"] = identity,
+            ["AutoReplyState"] = reply.State switch { AutoReplyState.On => "Enabled", AutoReplyState.Scheduled => "Scheduled", _ => "Disabled" },
+            ["InternalMessage"] = Html(reply.Internal),
+            ["ExternalMessage"] = Html(reply.External),
+            ["ExternalAudience"] = reply.Audience.ToString(),
+        };
+        if (reply.State == AutoReplyState.Scheduled)
+        {
+            parameters["StartTime"] = reply.Start?.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture);
+            parameters["EndTime"] = reply.End?.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture);
+        }
+        try
+        {
+            await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Set-MailboxAutoReplyConfiguration", parameters, cancellationToken);
+        }
+        catch (CmdletException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, e.Explanation);
+        }
+
+        foreach (var wait in ReadBackWaits)
+        {
+            if (wait > TimeSpan.Zero)
+                await _delay(wait, cancellationToken);
+            var rows = await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-MailboxAutoReplyConfiguration",
+                new Dictionary<string, object?> { ["Identity"] = identity }, cancellationToken,
+                ["AutoReplyState", "StartTime", "EndTime", "InternalMessage", "ExternalMessage", "ExternalAudience"]);
+            if (rows.Count == 0)
+                continue;
+            var actual = GraphUserRecords.ToAutoReply(rows[0]);
+            if (actual.State == reply.State && (reply.State == AutoReplyState.Off || Same(actual.Internal, reply.Internal)))
+                return new ApplyResult(ChangeOutcome.Applied);
+        }
+        return new ApplyResult(ChangeOutcome.AppliedNotYetVisible,
+            "Exchange accepted the change but still shows the old automatic replies; it usually appears within a minute.");
+    }
+
+    /// <summary>Typed text as the HTML Exchange stores: escaped, with line breaks kept.</summary>
+    static string Html(string text) => System.Net.WebUtility.HtmlEncode(text.Trim()).Replace("\r\n", "\n").Replace("\n", "<br>");
+
+    static bool Same(string a, string b) =>
+        string.Equals(string.Join(' ', a.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)),
+            string.Join(' ', b.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)), StringComparison.Ordinal);
+
+    static string? Text(JsonObject row, string name) => row[name] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+
+    static string? StripSmtp(string? address) =>
+        string.IsNullOrEmpty(address) ? null : address.StartsWith("smtp:", StringComparison.OrdinalIgnoreCase) ? address[5..] : address;
+
+    /// <summary>Every SMTP address on the mailbox, primary included, without the "smtp:" prefix.</summary>
+    static IEnumerable<string> Addresses(JsonObject row) =>
+        row["EmailAddresses"] is JsonArray list
+            ? list.Select(a => a?.GetValue<string>() ?? "").Where(a => a.StartsWith("smtp:", StringComparison.OrdinalIgnoreCase)).Select(a => a[5..])
+            : [];
 
     // ---- Manager --------------------------------------------------------------------------------
 

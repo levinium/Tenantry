@@ -41,6 +41,9 @@ public interface IUserRecords
     /// is kept locally). Trustees are as Exchange names them: an address, alias or display name.
     /// </summary>
     Task<IReadOnlyList<MailboxDelegate>> GetMailboxDelegatesAsync(string userId, string address, CancellationToken cancellationToken = default);
+
+    /// <summary>The Mail tab's settings for a mailbox, read live from Exchange.</summary>
+    Task<MailDetails> GetMailAsync(string userId, string address, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Someone with rights on a mailbox, named as Exchange gave them.</summary>
