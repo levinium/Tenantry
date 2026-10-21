@@ -117,12 +117,14 @@ public sealed partial class EditableField : ObservableObject
             return;
         Draft = Pending is { } p ? p.New ?? "" : Current ?? "";
         _startDraft = Draft;
+        _pendingAtStart = Pending;
         OnPropertyChanged(nameof(SelectedChoice));
         Problem = null;
         IsEditing = true;
     }
 
     string _startDraft = "";
+    SetUserText? _pendingAtStart;
 
     /// <summary>
     /// Ends the edit (Enter, leaving the box, or closing the choice list): an untouched value just
@@ -133,33 +135,59 @@ public sealed partial class EditableField : ObservableObject
     {
         if (!IsEditing)
             return;
-        var value = Draft.Trim();
-        if (value == _startDraft.Trim())
+        if (Draft.Trim() == _startDraft.Trim())
         {
             CancelEdit();
             return;
         }
+        if (TryStage())
+            IsEditing = false;
+    }
+
+    /// <summary>A pause in typing: what's typed goes to Pending changes and the box stays open.</summary>
+    [RelayCommand]
+    void StageDraft()
+    {
+        if (!IsEditing)
+            return;
+        if (Draft.Trim() == _startDraft.Trim())
+        {
+            RestoreStart();
+            Problem = null;
+            return;
+        }
+        TryStage();
+    }
+
+    bool TryStage()
+    {
+        var value = Draft.Trim();
         if (_required && value.Length == 0)
         {
             Problem = $"{Label} can't be empty.";
-            return;
+            return false;
         }
         if (value.Length > 0 && _validate?.Invoke(value) is { } problem)
         {
             Problem = problem;
-            return;
+            return false;
         }
         _pipeline!.Stage(new SetUserText(_target, Property, Label, Current, value.Length == 0 ? null : value));
+        Problem = null;
+        return true;
+    }
+
+    /// <summary>Esc: the field goes back to how it was before editing, even if a pause staged something.</summary>
+    [RelayCommand]
+    void CancelEdit()
+    {
+        if (IsEditing)
+            RestoreStart();
         IsEditing = false;
         Problem = null;
     }
 
-    [RelayCommand]
-    void CancelEdit()
-    {
-        IsEditing = false;
-        Problem = null;
-    }
+    void RestoreStart() => _pipeline?.Restore([(_target.Id, Property, _pendingAtStart)]);
 
     [RelayCommand]
     void Unstage()

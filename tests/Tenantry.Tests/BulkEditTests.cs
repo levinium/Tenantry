@@ -148,6 +148,27 @@ public sealed class BulkEditTests
     }
 
     [Fact]
+    public async Task A_pause_stages_a_detail_for_everyone_and_esc_puts_them_back()
+    {
+        var pipeline = Pipeline();
+        var details = await Details(pipeline, new Records(), Ada, Bo, Cy);
+        var department = Field(details, "department");
+
+        department.EditCommand.Execute(null);
+        department.Draft = "Sales";
+        await department.StageDraftCommand.ExecuteAsync(null);
+        Assert.True(department.IsEditing);
+        Assert.Equal(3, pipeline.Pending.Count);
+
+        department.Draft = "IT";
+        await department.StageDraftCommand.ExecuteAsync(null);
+        Assert.Equal("u2", Assert.Single(pipeline.Pending).Target.Id);
+
+        department.CancelCommand.Execute(null);
+        Assert.Empty(pipeline.Pending);
+    }
+
+    [Fact]
     public async Task Details_outside_the_list_are_read_once_and_reused_when_staging()
     {
         var records = new Records();

@@ -30,6 +30,33 @@ AppBuilder.Configure<App>()
     .WithInterFont()
     .SetupWithoutStarting();
 
+if (args.Contains("--behavior-check"))
+{
+    // Typing then pausing pushes a focus-bound box's text to the view model, without Enter or leaving.
+    var probe = new IdleProbe();
+    var box = new TextBox { DataContext = probe };
+    box.Bind(TextBox.TextProperty, new Avalonia.Data.Binding(nameof(IdleProbe.Text)) { UpdateSourceTrigger = Avalonia.Data.UpdateSourceTrigger.LostFocus, Mode = Avalonia.Data.BindingMode.TwoWay });
+    Tenantry.App.Controls.EditCommit.SetIdle(box, true);
+    var probeWindow = new Window { Content = new StackPanel { Children = { box, new Button() } } };
+    probeWindow.Show();
+    box.Focus();
+    Settle();
+    probeWindow.KeyTextInput("25");
+    Settle();
+    var beforePause = probe.Text;
+    var waited = System.Diagnostics.Stopwatch.StartNew();
+    // Timers only run inside a real dispatcher loop, not when jobs are pumped by hand.
+    using (var stop = new CancellationTokenSource(TimeSpan.FromSeconds(3)))
+    {
+        probe.PropertyChanged += (_, _) => stop.Cancel();
+        Dispatcher.UIThread.MainLoop(stop.Token);
+    }
+    Console.WriteLine($"box text '{box.Text}'; focused {box.IsFocused}; before pause '{beforePause}'; after {waited.ElapsedMilliseconds} ms '{probe.Text}'");
+    var passed = beforePause == "" && probe.Text == "25";
+    Console.WriteLine(passed ? "IDLE CHECK PASSED" : "IDLE CHECK FAILED");
+    return passed ? 0 : 1;
+}
+
 var connector = new SnapshotConnector(new TenantConnector().ConnectDemo());
 
 foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
@@ -587,4 +614,11 @@ sealed class SnapshotConnector(ConnectedTenant demo) : ITenantConnector
 
     public Task<TenantProfile> AddManualAsync(string tenantId, string clientId, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException();
+}
+
+/// <summary>A view model with one text value, for the behavior check.</summary>
+sealed partial class IdleProbe : CommunityToolkit.Mvvm.ComponentModel.ObservableObject
+{
+    [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty]
+    public partial string Text { get; set; } = "";
 }

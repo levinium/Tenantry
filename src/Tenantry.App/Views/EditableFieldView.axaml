@@ -28,13 +28,14 @@
 
     <StackPanel IsVisible="{Binding IsEditing}" Spacing="6" Margin="0,4,0,0">
       <TextBox x:Name="Editor" Text="{Binding Draft}" IsVisible="{Binding IsTyped}"
-               c:EditCommit.Commit="{Binding StageCommand}" c:EditCommit.Cancel="{Binding CancelEditCommand}" />
+               c:EditCommit.Commit="{Binding StageCommand}" c:EditCommit.Cancel="{Binding CancelEditCommand}"
+               c:EditCommit.Idle="True" c:EditCommit.IdleCommit="{Binding StageDraftCommand}" />
       <ComboBox x:Name="ChoiceEditor" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" IsVisible="{Binding HasChoices}"
                 HorizontalAlignment="Stretch" MaxDropDownHeight="320" />
       <TextBlock Classes="caption" Text="{Binding Hint}" TextWrapping="Wrap" IsVisible="{Binding HasHint}" />
       <TextBlock Classes="error" Text="{Binding Problem}" TextWrapping="Wrap"
                  IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock Classes="caption" Text="Enter or click away to add it to Pending changes. Esc cancels." IsVisible="{Binding IsTyped}" />
+      <TextBlock Classes="caption" Text="Goes to Pending changes as you type. Enter or click away to finish; Esc undoes it." IsVisible="{Binding IsTyped}" />
     </StackPanel>
   </StackPanel>
 </UserControl>

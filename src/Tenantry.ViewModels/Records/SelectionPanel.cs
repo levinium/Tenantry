@@ -202,16 +202,29 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
 /// A detail for the whole selection: the value they share, or "Mixed" (the tooltip lists the
 /// values). Editing it stages the same value for everyone; "Pending for 3" shows what's staged.
 /// </summary>
+/// <summary>What a <see cref="MixedField"/> needs from the panel that owns it.</summary>
+public interface IMixedFieldHost
+{
+    /// <summary>One change per person who differs; <paramref name="close"/> ends the edit when it worked.</summary>
+    Task StageAsync(MixedField field, bool close);
+
+    /// <summary>Remembers each person's pending change for this detail as the edit starts.</summary>
+    void Begin(MixedField field);
+
+    /// <summary>Puts everyone's pending change for this detail back as it was when the edit started.</summary>
+    void Restore(MixedField field);
+}
+
 public sealed partial class MixedField : ObservableObject
 {
-    readonly Func<MixedField, Task> _stage;
+    readonly IMixedFieldHost _host;
 
-    public MixedField(string property, string label, string? hint, Func<MixedField, Task> stage)
+    public MixedField(string property, string label, string? hint, IMixedFieldHost host)
     {
         Property = property;
         Label = label;
         Hint = hint;
-        _stage = stage;
+        _host = host;
     }
 
     public string Property { get; }
@@ -251,13 +264,21 @@ public sealed partial class MixedField : ObservableObject
         Draft = IsMixed ? "" : Value == BulkDetailsViewModel.NotSet ? "" : Value;
         _startDraft = Draft;
         Message = null;
+        _host.Begin(this);
         IsEditing = true;
     }
 
     string _startDraft = "";
 
+    /// <summary>Esc: everyone goes back to how they were before editing, even if a pause staged changes.</summary>
     [RelayCommand]
-    void Cancel() => IsEditing = false;
+    void Cancel()
+    {
+        if (IsEditing)
+            _host.Restore(this);
+        IsEditing = false;
+        Message = null;
+    }
 
     /// <summary>
     /// Ends the edit (Enter or leaving the box): an untouched value just closes, so opening a
@@ -270,10 +291,24 @@ public sealed partial class MixedField : ObservableObject
             return Task.CompletedTask;
         if (Draft.Trim() == _startDraft.Trim())
         {
-            IsEditing = false;
+            Cancel();
             return Task.CompletedTask;
         }
-        return _stage(this);
+        return _host.StageAsync(this, close: true);
+    }
+
+    /// <summary>A pause in typing: one change per person goes to Pending changes; the box stays open.</summary>
+    [RelayCommand]
+    Task StageDraft()
+    {
+        if (!IsEditing)
+            return Task.CompletedTask;
+        if (Draft.Trim() == _startDraft.Trim())
+        {
+            _host.Restore(this);
+            return Task.CompletedTask;
+        }
+        return _host.StageAsync(this, close: false);
     }
 
     /// <summary>Someone selected has a value, and no edit is open.</summary>
@@ -288,14 +323,15 @@ public sealed partial class MixedField : ObservableObject
     Task ClearForEveryone()
     {
         Draft = "";
+        _host.Begin(this);
         _startDraft = "\u0000";
         IsEditing = true;
-        return Stage();
+        return _host.StageAsync(this, close: true);
     }
 }
 
 /// <summary>The selection panel's details: one <see cref="MixedField"/> per detail a bulk edit can set.</summary>
-public sealed partial class BulkDetailsViewModel : ObservableObject, IDisposable
+public sealed partial class BulkDetailsViewModel : ObservableObject, IMixedFieldHost, IDisposable
 {
     public const string NotSet = "Not set";
 
@@ -318,7 +354,7 @@ public sealed partial class BulkDetailsViewModel : ObservableObject, IDisposable
         Fields = BulkActions.DetailFields.Select(d =>
         {
             var parts = d.Label.Split(" (");
-            return new MixedField(d.Property, parts[0], parts.Length > 1 ? parts[1].TrimEnd(')') : null, StageAsync);
+            return new MixedField(d.Property, parts[0], parts.Length > 1 ? parts[1].TrimEnd(')') : null, this);
         }).ToArray();
         _pipeline.Changed += OnPendingChanged;
         Refresh();
@@ -400,7 +436,19 @@ public sealed partial class BulkDetailsViewModel : ObservableObject, IDisposable
 
     void OnPendingChanged(object? sender, EventArgs e) => Show();
 
-    async Task StageAsync(MixedField field)
+    /// <summary>Each selected person's pending change for a detail when its edit started, by detail.</summary>
+    readonly Dictionary<string, (string Id, ChangeOp? Pending)[]> _atStart = new(StringComparer.Ordinal);
+
+    void IMixedFieldHost.Begin(MixedField field) =>
+        _atStart[field.Property] = _selected().Select(u => (u.Id, _pipeline.PendingFor(u.Id, field.Property))).ToArray();
+
+    void IMixedFieldHost.Restore(MixedField field)
+    {
+        if (_atStart.TryGetValue(field.Property, out var start))
+            _pipeline.Restore(start.Select(s => (s.Id, field.Property, s.Pending)));
+    }
+
+    async Task IMixedFieldHost.StageAsync(MixedField field, bool close)
     {
         var plan = await BulkActions.SetDetailAsync(_selected(), _records, field.Property, field.Draft.Trim(), CancellationToken.None, _known);
         if (plan.Error is { } error)
@@ -408,9 +456,15 @@ public sealed partial class BulkDetailsViewModel : ObservableObject, IDisposable
             field.Message = error;
             return;
         }
+        // Typing on after a pause: start again from how things were, so a shorter value replaces the longer one cleanly.
+        ((IMixedFieldHost)this).Restore(field);
         _pipeline.StageAll(plan.Changes);
-        field.IsEditing = false;
         field.Message = plan.Changes.Count == 0 ? "Everyone already has that." : null;
+        if (close)
+        {
+            field.IsEditing = false;
+            _atStart.Remove(field.Property);
+        }
     }
 
     public void Dispose() => _pipeline.Changed -= OnPendingChanged;

@@ -105,6 +105,31 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Puts slots back as they were (an edit cancelled after a pause had staged it): each slot's
+    /// earlier change is restored, or its change removed when there wasn't one. Tells listeners once.
+    /// </summary>
+    public void Restore(IEnumerable<(string TargetId, string Key, ChangeOp? Earlier)> slots)
+    {
+        var changed = false;
+        foreach (var (targetId, key, earlier) in slots)
+        {
+            var now = _bySlot.GetValueOrDefault((targetId, key));
+            if (ReferenceEquals(now, earlier))
+                continue;
+            changed = true;
+            if (now is not null)
+            {
+                _pending.Remove(now);
+                _bySlot.Remove((targetId, key));
+            }
+            if (earlier is not null)
+                Put(earlier);
+        }
+        if (changed)
+            Changed?.Invoke(this, EventArgs.Empty);
+    }
+
     public void Clear()
     {
         _pending.Clear();

@@ -24,7 +24,7 @@
 
     <StackPanel Spacing="12" IsVisible="{Binding IsReady}">
       <TextBlock Classes="caption" TextWrapping="Wrap" IsVisible="{Binding CanEdit}"
-                 Text="Changes go to Pending changes as you make them (text when you click away or press Enter). Nothing changes in Microsoft 365 until you apply them." />
+                 Text="Changes go to Pending changes as you make them (text when you pause typing, press Enter or click away). Nothing changes in Microsoft 365 until you apply them." />
       <!-- Storage -->
       <Border Classes="card">
         <StackPanel Spacing="10">
@@ -94,7 +94,7 @@
             <StackPanel Spacing="8" IsEnabled="{Binding CanEdit}">
               <ToggleSwitch IsChecked="{Binding ForwardOn}" OnContent="Forward their mail" OffContent="Don't forward" />
               <StackPanel Spacing="8" IsVisible="{Binding ForwardOn}">
-                <TextBox Text="{Binding ForwardTo, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" PlaceholderText="Forward to (email address)" />
+                <TextBox Text="{Binding ForwardTo, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" PlaceholderText="Forward to (email address)" />
                 <CheckBox IsChecked="{Binding KeepCopy}" Content="Keep a copy in this mailbox" />
                 <Border Classes="banner warning" IsVisible="{Binding ForwardDraftOutside}">
                   <TextBlock TextWrapping="Wrap" FontSize="12"
@@ -150,7 +150,7 @@
             <StackPanel Spacing="10" IsVisible="{Binding ShowReplyMessages}">
               <StackPanel Spacing="4">
                 <TextBlock Classes="label" Text="REPLY TO PEOPLE IN THE ORGANIZATION" />
-                <TextBox Text="{Binding InternalMessage, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" PlaceholderText="I'm out of the office until…" />
+                <TextBox Text="{Binding InternalMessage, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" PlaceholderText="I'm out of the office until…" />
               </StackPanel>
               <StackPanel Spacing="4">
                 <TextBlock Classes="label" Text="PEOPLE OUTSIDE THE ORGANIZATION" />
@@ -162,12 +162,12 @@
                   </ComboBox.ItemTemplate>
                 </ComboBox>
                 <CheckBox IsChecked="{Binding SameOutside}" Content="Send them the same reply" />
-                <TextBox Text="{Binding ExternalMessage, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" IsVisible="{Binding ShowExternalMessage}"
+                <TextBox Text="{Binding ExternalMessage, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" IsVisible="{Binding ShowExternalMessage}"
                          PlaceholderText="Reply for people outside the organization" />
               </StackPanel>
             </StackPanel>
             <TextBlock Classes="error" Text="{Binding ReplyError}" IsVisible="{Binding HasReplyError}" TextWrapping="Wrap" />
-            <TextBlock Classes="caption" Text="Write the reply; it goes to Pending changes when you click away." IsVisible="{Binding NeedsReplyText}" TextWrapping="Wrap" />
+            <TextBlock Classes="caption" Text="Write the reply; it goes to Pending changes when you pause typing." IsVisible="{Binding NeedsReplyText}" TextWrapping="Wrap" />
           </StackPanel>
         </StackPanel>
       </Border>
@@ -186,11 +186,11 @@
               <TextBlock Classes="pendingtext" Text="{Binding LimitsPendingText}" IsVisible="{Binding HasLimitsPending}" TextWrapping="Wrap" />
               <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="8" IsEnabled="{Binding CanEdit}">
                 <TextBlock Text="Recipients per message" VerticalAlignment="Center" />
-                <TextBox Grid.Column="1" Text="{Binding RecipientLimitDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" Width="110" ToolTip.Tip="1 to 1,000 (or Unlimited)" />
+                <TextBox Grid.Column="1" Text="{Binding RecipientLimitDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" Width="110" ToolTip.Tip="1 to 1,000 (or Unlimited)" />
                 <TextBlock Grid.Row="1" Text="Largest message they can send (MB)" VerticalAlignment="Center" />
-                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MaxSendDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" Width="110" ToolTip.Tip="1 to 150 MB" />
+                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MaxSendDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" Width="110" ToolTip.Tip="1 to 150 MB" />
                 <TextBlock Grid.Row="2" Text="Largest message they can receive (MB)" VerticalAlignment="Center" />
-                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding MaxReceiveDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" Width="110" ToolTip.Tip="1 to 150 MB" />
+                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding MaxReceiveDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" Width="110" ToolTip.Tip="1 to 150 MB" />
               </Grid>
               <TextBlock Classes="error" Text="{Binding LimitsError}" IsVisible="{Binding HasLimitsError}" TextWrapping="Wrap" />
             </StackPanel>
@@ -300,10 +300,10 @@
                 <StackPanel Spacing="8" IsVisible="{Binding HoldOnDraft}">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <TextBlock Text="Keep items for" VerticalAlignment="Center" />
-                    <TextBox Text="{Binding HoldDaysDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" Width="90" PlaceholderText="Always" />
+                    <TextBox Text="{Binding HoldDaysDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" Width="90" PlaceholderText="Always" />
                     <TextBlock Text="days" VerticalAlignment="Center" />
                   </StackPanel>
-                  <TextBox Text="{Binding HoldNoteDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" PlaceholderText="Note for the person (optional), e.g. the matter it's for" />
+                  <TextBox Text="{Binding HoldNoteDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" PlaceholderText="Note for the person (optional), e.g. the matter it's for" />
                 </StackPanel>
                 <TextBlock Classes="error" Text="{Binding HoldError}" IsVisible="{Binding HasHoldError}" TextWrapping="Wrap" />
               </StackPanel>

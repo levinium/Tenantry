@@ -98,10 +98,11 @@
                          ToolTip.Tip="{Binding ValuesTip}" />
               <StackPanel Spacing="6" IsVisible="{Binding IsEditing}">
                 <TextBox x:Name="DetailEditor" Text="{Binding Draft}" PlaceholderText="New value for everyone"
-                         c:EditCommit.Commit="{Binding StageCommand}" c:EditCommit.Cancel="{Binding CancelCommand}" />
+                         c:EditCommit.Commit="{Binding StageCommand}" c:EditCommit.Cancel="{Binding CancelCommand}"
+                         c:EditCommit.Idle="True" c:EditCommit.IdleCommit="{Binding StageDraftCommand}" />
                 <TextBlock Classes="caption" Text="{Binding Hint}" IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 <TextBlock Classes="caption" TextWrapping="Wrap"
-                           Text="Enter or click away adds one change per person to Pending changes. Esc cancels." />
+                           Text="One change per person goes to Pending changes as you type. Enter or click away to finish; Esc undoes it." />
               </StackPanel>
               <TextBlock Classes="caption" Text="{Binding Message}" IsVisible="{Binding HasMessage}" TextWrapping="Wrap" />
             </StackPanel>
