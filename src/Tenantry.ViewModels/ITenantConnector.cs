@@ -8,6 +8,7 @@ namespace Tenantry.ViewModels;
 /// <summary>A tenant after sign-in: what the main window needs to run.</summary>
 /// <param name="Sync">Keeps the local copy current; null for the demo, which has nothing to sync.</param>
 /// <param name="Resources">Released when the tenant is closed (the local database's connection).</param>
+/// <param name="Changes">Stages, guards, applies and logs edits; null where editing isn't possible.</param>
 public sealed record ConnectedTenant(
     string TenantName,
     string Account,
@@ -16,7 +17,8 @@ public sealed record ConnectedTenant(
     bool IsDemo = false,
     IListStateStore? ListState = null,
     ITenantSync? Sync = null,
-    IDisposable? Resources = null);
+    IDisposable? Resources = null,
+    Tenantry.Core.Changes.ChangePipeline? Changes = null);
 
 /// <summary>The outcome of the automatic setup.</summary>
 public sealed record SetupOutcome(TenantProfile Profile, bool Reused, IReadOnlyList<string> Unresolved);

@@ -917,7 +917,11 @@ public sealed partial class DataListViewModel : TabViewModel
 
     void UpdatePreview()
     {
+        // Each preview is built for its row; the one it replaces lets go of anything it watched.
+        var previous = PreviewModel;
         PreviewModel = IsPreviewOpen && SelectedRow is { } row ? _source.Preview(row) : null;
+        if (!ReferenceEquals(previous, PreviewModel))
+            (previous as IDisposable)?.Dispose();
         OnPropertyChanged(nameof(HasPreviewContent));
     }
 

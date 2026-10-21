@@ -117,6 +117,18 @@ public sealed class DemoTenantDirectory : ITenantDirectory
         }).ToArray();
     }
 
+    /// <summary>Changes one generated person (the demo's change executor writes through this).</summary>
+    public bool Update(string userId, Func<UserSummary, UserSummary> change)
+    {
+        var users = (_users ??= Generate()).ToArray();
+        var index = Array.FindIndex(users, u => u.Id == userId);
+        if (index < 0)
+            return false;
+        users[index] = change(users[index]);
+        _users = users;
+        return true;
+    }
+
     public async Task<IReadOnlyList<GroupSummary>> GetGroupsAsync(CancellationToken cancellationToken = default)
     {
         var users = await GetUsersAsync(cancellationToken);

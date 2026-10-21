@@ -2,6 +2,7 @@ using Tenantry.Auth;
 using Tenantry.Cache;
 using Tenantry.Core.Cache;
 using Tenantry.Core.Capabilities;
+using Tenantry.Core.Changes;
 using Tenantry.Core.Lists;
 using Tenantry.Core.Permissions;
 using Tenantry.Core.Tenancy;
@@ -51,11 +52,24 @@ public sealed class TenantConnector : ITenantConnector
         _store.MarkUsed(profile.Id, tokens.Account, DateTimeOffset.UtcNow);
 
         var entities = OpenLocalCopy(profile.Id, folder);
-        return new ConnectedTenant(profile.DisplayName, tokens.Account ?? "", new CachedTenantDirectory(entities, profile.DisplayName), context,
+        var account = tokens.Account ?? "";
+        return new ConnectedTenant(profile.DisplayName, account, new CachedTenantDirectory(entities, profile.DisplayName), context,
             ListState: new JsonListStateStore(folder),
             Sync: new DirectorySync(graph, entities, new RestCmdletRunner(Http, NoRedirectHttp, tokens, profile.TenantId)),
-            Resources: entities);
+            Resources: entities,
+            Changes: new ChangePipeline(new GraphChangeExecutor(graph, entities), new ChangeLog(entities),
+                new JsonTestModeStore(folder, TestModeByDefault), account));
     }
+
+    /// <summary>
+    /// Development builds start every tenant in Test mode (only zz-tenantry-test- objects can
+    /// change); only the person using the app can turn it off, per tenant.
+    /// </summary>
+#if DEBUG
+    const bool TestModeByDefault = true;
+#else
+    const bool TestModeByDefault = false;
+#endif
 
     /// <summary>
     /// The tenant's encrypted database, or an in-memory copy when the OS offers no secret store
@@ -70,15 +84,23 @@ public sealed class TenantConnector : ITenantConnector
     /// The demo signs in as a User and Exchange Administrator in a tenant without Entra ID P1,
     /// so it shows both kinds of gated feature (missing role, missing license) out of the box.
     /// </summary>
-    public ConnectedTenant ConnectDemo() => new(
-        "Northgate (demo)",
-        $"admin@{DemoTenantDirectory.Domain}",
-        new DemoTenantDirectory(),
-        new TenantContext(
-            new HashSet<string>([DirectoryRoles.UserAdministrator, DirectoryRoles.ExchangeAdministrator]),
-            new HashSet<string>(["EXCHANGE_S_STANDARD"]),
-            OperatingSystem.IsWindows()),
-        IsDemo: true);
+    public ConnectedTenant ConnectDemo()
+    {
+        var directory = new DemoTenantDirectory();
+        var account = $"admin@{DemoTenantDirectory.Domain}";
+        return new ConnectedTenant(
+            "Northgate (demo)",
+            account,
+            directory,
+            new TenantContext(
+                new HashSet<string>([DirectoryRoles.UserAdministrator, DirectoryRoles.ExchangeAdministrator]),
+                new HashSet<string>(["EXCHANGE_S_STANDARD"]),
+                OperatingSystem.IsWindows()),
+            IsDemo: true,
+            // Demo edits change the generated people in memory; nothing real, so no Test mode.
+            Changes: new ChangePipeline(new DemoChangeExecutor(directory), new ChangeLog(new MemoryEntityStore()),
+                new MemoryTestModeStore(false), account));
+    }
 
     public async Task<SetupOutcome> SetUpAutomaticallyAsync(IProgress<string> progress, CancellationToken cancellationToken = default)
     {

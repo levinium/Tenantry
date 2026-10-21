@@ -3,6 +3,8 @@
              xmlns:vm="using:Tenantry.ViewModels"
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
              x:Class="Tenantry.App.Views.UserDetailView"
              x:DataType="vm:UserDetailViewModel">
   <ScrollViewer>
@@ -43,6 +45,14 @@
               <TextBlock Classes="label" Text="ACCOUNT CREATED" />
               <TextBlock Classes="value" Text="{Binding CreatedText}" />
             </StackPanel>
+            <StackPanel Spacing="6">
+              <Button Classes="danger-outline" HorizontalAlignment="Left" Command="{Binding ToggleSignInCommand}"
+                      IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding SignInActionTip}" ToolTip.ShowOnDisabled="True"
+                      Classes.undo="{Binding HasPendingSignIn}">
+                <TextBlock Text="{Binding SignInActionText}" />
+              </Button>
+              <TextBlock Classes="caption pendingtext" Text="{Binding PendingSignInText}" IsVisible="{Binding HasPendingSignIn}" />
+            </StackPanel>
           </StackPanel>
         </Border>
 
@@ -50,16 +60,20 @@
           <StackPanel Spacing="16">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="Building" FontSize="20" Foreground="{DynamicResource Accent}" />
-              <TextBlock Classes="h3" Text="Organization" VerticalAlignment="Center" />
+              <TextBlock Classes="h3" Text="Profile" VerticalAlignment="Center" />
             </StackPanel>
-            <StackPanel Spacing="2">
-              <TextBlock Classes="label" Text="JOB TITLE" />
-              <TextBlock Classes="value" Text="{Binding JobTitle}" />
-            </StackPanel>
-            <StackPanel Spacing="2">
-              <TextBlock Classes="label" Text="DEPARTMENT" />
-              <TextBlock Classes="value" Text="{Binding Department}" />
-            </StackPanel>
+            <ItemsControl ItemsSource="{Binding Fields}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="14" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ed:EditableField">
+                  <views:EditableFieldView />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
             <StackPanel Spacing="2">
               <TextBlock Classes="label" Text="EMAIL" />
               <SelectableTextBlock Classes="value" Text="{Binding Email}" />

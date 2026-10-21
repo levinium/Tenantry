@@ -7,6 +7,7 @@
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:conv="using:Tenantry.App.Converters"
              xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
              x:Class="Tenantry.App.Views.MainView"
              x:DataType="vm:MainViewModel">
 
@@ -90,6 +91,19 @@
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
+                  <StackPanel Spacing="10" DataContext="{Binding Pending}" x:DataType="ed:PendingChangesViewModel"
+                              IsVisible="{Binding ShowTestModeBanner, FallbackValue=False}">
+                    <Border Classes="divider" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                      <StackPanel Spacing="1">
+                        <TextBlock Text="Test mode" />
+                        <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding TestModeStateText}" />
+                      </StackPanel>
+                      <Button Grid.Column="1" VerticalAlignment="Top" IsVisible="{Binding !IsTestMode}"
+                              Command="{Binding TurnOnTestModeCommand}" Content="Turn on"
+                              ToolTip.Tip="Only objects starting zz-tenantry-test- can be changed again" />
+                    </Grid>
+                  </StackPanel>
                 </StackPanel>
               </Flyout>
             </Button.Flyout>
@@ -134,6 +148,92 @@
           <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
                      Text="Demo tenant: generated people on example domains. Nothing here is real, and nothing is sent anywhere." />
         </StackPanel>
+      </Border>
+
+      <!-- Test mode: only zz-tenantry-test- objects can change. Turning it off means typing the tenant's name. -->
+      <Border DockPanel.Dock="Top" Classes="banner warning" Margin="20,12,20,0"
+              DataContext="{Binding Pending}" x:DataType="ed:PendingChangesViewModel"
+              IsVisible="{Binding ShowBanner, FallbackValue=False}">
+        <StackPanel Spacing="10">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+            <ic:FluentIcon Icon="Beaker" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding TestModeText}" />
+            <Button Grid.Column="2" Classes="ghost" VerticalAlignment="Center" IsVisible="{Binding !IsTurningOff}"
+                    Command="{Binding StartTurnOffCommand}" Content="Allow real changes…"
+                    ToolTip.Tip="Turn Test mode off for this tenant, so real users and groups can be changed" />
+          </Grid>
+          <StackPanel IsVisible="{Binding IsTurningOff}" Spacing="8">
+            <TextBlock TextWrapping="Wrap" Text="{Binding TurnOffPrompt}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox Width="280" Text="{Binding TurnOffText}" PlaceholderText="Tenant name" />
+              <Button Classes="danger" Command="{Binding TurnOffTestModeCommand}" Content="Turn off Test mode" />
+              <Button Command="{Binding CancelTurnOffCommand}" Content="Cancel" />
+            </StackPanel>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Pending changes: everything staged, before → after, applied together. -->
+      <Border DockPanel.Dock="Bottom" Classes="tray" Margin="12,0,12,12"
+              DataContext="{Binding Pending}" x:DataType="ed:PendingChangesViewModel"
+              IsVisible="{Binding IsVisible, FallbackValue=False}">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+            <Button Classes="ghost" Command="{Binding ToggleOpenCommand}" ToolTip.Tip="Show or hide the pending changes">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Classes="h3" Text="{Binding HeaderText}" VerticalAlignment="Center" />
+                <ic:FluentIcon Icon="ChevronUp" FontSize="12" VerticalAlignment="Center" IsVisible="{Binding !IsOpen}" />
+                <ic:FluentIcon Icon="ChevronDown" FontSize="12" VerticalAlignment="Center" IsVisible="{Binding IsOpen}" />
+              </StackPanel>
+            </Button>
+            <Border Grid.Column="1" Classes="banner neutral" Padding="10,6" VerticalAlignment="Center" HorizontalAlignment="Left"
+                    IsVisible="{Binding HasResult}">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{Binding Result}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                <Button Classes="rowaction" Padding="3" Command="{Binding DismissResultCommand}" ToolTip.Tip="Dismiss">
+                  <ic:FluentIcon Icon="Dismiss" FontSize="12" />
+                </Button>
+              </StackPanel>
+            </Border>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasChanges}">
+              <Button Classes="ghost" Command="{Binding DiscardAllCommand}" Content="Discard all"
+                      ToolTip.Tip="Remove every pending change; nothing is sent" />
+              <Button Command="{Binding CancelConfirmCommand}" Content="Cancel" IsVisible="{Binding ApplyIsDanger}" />
+              <Button Classes="accent" Classes.danger="{Binding ApplyIsDanger}" Command="{Binding ApplyCommand}"
+                      ToolTip.Tip="Send these changes to Microsoft 365, then read each one back to confirm it">
+                <TextBlock Text="{Binding ApplyText}" />
+              </Button>
+            </StackPanel>
+          </Grid>
+          <ScrollViewer IsVisible="{Binding IsOpen}" MaxHeight="260" Margin="0,10,0,0">
+            <ItemsControl ItemsSource="{Binding Rows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ed:PendingRow">
+                  <Border Classes="valuerow">
+                    <Grid ColumnDefinitions="16,220,*,Auto" ColumnSpacing="12">
+                      <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}"
+                                     VerticalAlignment="Center" IsVisible="{Binding IsCaution}"
+                                     ToolTip.Tip="This change takes something away; you'll be asked to confirm" />
+                      <TextBlock Grid.Column="1" Text="{Binding TargetName}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                      <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <TextBlock Classes="muted" Text="{Binding LabelText}" />
+                          <TextBlock Text="{Binding Before}" Classes="before" />
+                          <TextBlock Classes="muted" Text="→" />
+                          <TextBlock Text="{Binding After}" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <TextBlock Classes="error" Text="{Binding Problem}" TextWrapping="Wrap" IsVisible="{Binding HasProblem}" />
+                      </StackPanel>
+                      <Button Grid.Column="3" Classes="rowaction" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this change; nothing is sent">
+                        <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+                      </Button>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
       </Border>
 
       <!-- The first tab is the sidebar area's list; open records follow it. With no record open

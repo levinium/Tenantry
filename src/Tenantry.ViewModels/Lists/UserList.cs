@@ -52,7 +52,8 @@ public static class UserList
         _ => null,
     };
 
-    public static ListDefinition<UserSummary> Definition(Func<DateTimeOffset> now) => new()
+    /// <param name="preview">Builds the preview pane's view model; a read-only record page when null.</param>
+    public static ListDefinition<UserSummary> Definition(Func<DateTimeOffset> now, Func<UserSummary, object>? preview = null) => new()
     {
         Key = "users",
         Title = "Users",
@@ -61,7 +62,7 @@ public static class UserList
         Id = u => u.Id,
         Views = Views,
         SearchHint = "Search names, addresses, departments, titles, licenses… or try dept:finance -status:blocked",
-        Preview = u => new UserDetailViewModel(u, now()),
+        Preview = preview ?? (u => new UserDetailViewModel(u, now())),
         Actions =
         [
             new RowAction<UserSummary>("Open in Entra admin center", "Globe",

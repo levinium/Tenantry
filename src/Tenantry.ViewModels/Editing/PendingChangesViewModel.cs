@@ -1,0 +1,226 @@
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Tenantry.Core.Changes;
+
+namespace Tenantry.ViewModels.Editing;
+
+/// <summary>One staged change in the tray, and (after a failed apply) why it didn't go through.</summary>
+public sealed partial class PendingRow(ChangeOp change, Action<ChangeOp> remove) : ObservableObject
+{
+    public ChangeOp Change { get; } = change;
+
+    public string TargetName => Change.Target.Name;
+
+    public string Label => Change.Label;
+
+    public string LabelText => Change.Label + ":";
+
+    public string Before => Change.Before;
+
+    public string After => Change.After;
+
+    public bool IsCaution => Change.IsCaution;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProblem))]
+    public partial string? Problem { get; set; }
+
+    public bool HasProblem => Problem is not null;
+
+    [RelayCommand]
+    void Remove() => remove(Change);
+}
+
+/// <summary>
+/// The Pending changes tray at the bottom of the window, and the tenant's Test mode banner.
+/// Changes are reviewed as before → after and applied together; ones that take something away
+/// (blocking sign-in) need a second, in-place confirmation. Test mode can only be switched off by
+/// typing the tenant's name.
+/// </summary>
+public sealed partial class PendingChangesViewModel : ObservableObject
+{
+    readonly ChangePipeline _pipeline;
+    readonly string _tenantName;
+    readonly Func<Task> _afterApply;
+    readonly Dictionary<ChangeOp, string> _problems = [];
+
+    /// <param name="afterApply">Runs after changes apply (reload the lists, refresh open records).</param>
+    public PendingChangesViewModel(ChangePipeline pipeline, string tenantName, bool showTestMode, Func<Task> afterApply)
+    {
+        _pipeline = pipeline;
+        _tenantName = tenantName;
+        _afterApply = afterApply;
+        ShowTestModeBanner = showTestMode;
+        TurnOffText = "";
+        _pipeline.Changed += (_, _) => Rebuild();
+        Rebuild();
+    }
+
+    public ObservableCollection<PendingRow> Rows { get; } = [];
+
+    public int Count => Rows.Count;
+
+    public bool HasChanges => Count > 0;
+
+    public bool HasResult => Result is not null;
+
+    /// <summary>The tray shows while there are changes, or a result to read.</summary>
+    public bool IsVisible => HasChanges || HasResult;
+
+    public string HeaderText => Count == 0 ? "Pending changes" : $"Pending changes ({Count})";
+
+    int CautionCount => Rows.Count(r => r.IsCaution);
+
+    [ObservableProperty]
+    public partial bool IsOpen { get; set; }
+
+    [RelayCommand]
+    void ToggleOpen() => IsOpen = !IsOpen;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ApplyText), nameof(ApplyIsDanger))]
+    public partial bool IsConfirming { get; private set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCommand), nameof(DiscardAllCommand))]
+    public partial bool IsApplying { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasResult), nameof(IsVisible))]
+    public partial string? Result { get; private set; }
+
+    public string ApplyText =>
+        IsConfirming ? $"Confirm: {CautionCount} {(CautionCount == 1 ? "change takes" : "changes take")} something away"
+        : Count == 1 ? "Apply 1 change"
+        : $"Apply {Count} changes";
+
+    public bool ApplyIsDanger => IsConfirming;
+
+    bool CanApply => HasChanges && !IsApplying;
+
+    /// <summary>Applies everything; with changes that take something away, the first click asks to confirm.</summary>
+    [RelayCommand(CanExecute = nameof(CanApply))]
+    async Task Apply()
+    {
+        if (CautionCount > 0 && !IsConfirming)
+        {
+            IsConfirming = true;
+            return;
+        }
+        IsConfirming = false;
+        IsApplying = true;
+        Result = null;
+        try
+        {
+            var results = await _pipeline.ApplyAsync();
+            _problems.Clear();
+            foreach (var (change, result) in results.Where(r => !r.Result.Succeeded))
+                _problems[change] = result.Detail ?? result.Outcome.ToString();
+            var applied = results.Count(r => r.Result.Succeeded);
+            var lagging = results.Count(r => r.Result.Outcome == ChangeOutcome.AppliedNotYetVisible);
+            var failed = results.Count - applied;
+            Result = (applied, failed) switch
+            {
+                (_, 0) => $"{Plural(applied, "change")} applied." + (lagging > 0 ? $" {lagging} not visible yet; Microsoft 365 usually shows it within a minute." : ""),
+                (0, _) => $"{Plural(failed, "change")} didn't go through; the reasons are below.",
+                _ => $"{Plural(applied, "change")} applied; {failed} didn't go through (reasons below).",
+            };
+            Rebuild();
+            if (applied > 0)
+                await _afterApply();
+        }
+        finally
+        {
+            IsApplying = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanApply))]
+    void DiscardAll()
+    {
+        _problems.Clear();
+        Result = null;
+        _pipeline.Clear();
+    }
+
+    [RelayCommand]
+    void CancelConfirm() => IsConfirming = false;
+
+    [RelayCommand]
+    void DismissResult() => Result = null;
+
+    void Rebuild()
+    {
+        Rows.Clear();
+        foreach (var change in _pipeline.Pending)
+            Rows.Add(new PendingRow(change, c => _pipeline.Unstage(c)) { Problem = _problems.GetValueOrDefault(change) });
+        if (Rows.Count == 0)
+            IsOpen = false;
+        else if (!IsApplying && Result is null)
+            IsOpen = true;
+        IsConfirming = false;
+        OnPropertyChanged(nameof(Count));
+        OnPropertyChanged(nameof(HasChanges));
+        OnPropertyChanged(nameof(IsVisible));
+        OnPropertyChanged(nameof(HeaderText));
+        OnPropertyChanged(nameof(ApplyText));
+        OnPropertyChanged(nameof(IsTestMode));
+        OnPropertyChanged(nameof(ShowBanner));
+        OnPropertyChanged(nameof(TestModeStateText));
+        ApplyCommand.NotifyCanExecuteChanged();
+        DiscardAllCommand.NotifyCanExecuteChanged();
+    }
+
+    static string Plural(int n, string noun) => n == 1 ? $"1 {noun}" : $"{n} {noun}s";
+
+    // ---- Test mode ------------------------------------------------------------------------
+
+    public bool ShowTestModeBanner { get; }
+
+    public bool IsTestMode => _pipeline.IsTestMode;
+
+    public bool ShowBanner => ShowTestModeBanner && IsTestMode;
+
+    public string TestModeStateText => IsTestMode
+        ? $"On: only objects starting {WriteGuard.Marker} can be changed. Turn it off from the banner above the list."
+        : "Off: real users and groups can be changed in this tenant.";
+
+    public string TestModeText => $"Test mode: only objects whose sign-in name or address starts with {WriteGuard.Marker} can be changed in {_tenantName}.";
+
+    public string TurnOffPrompt => $"To allow changes to real users and groups in this tenant, type {_tenantName} and confirm.";
+
+    [ObservableProperty]
+    public partial bool IsTurningOff { get; private set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(TurnOffTestModeCommand))]
+    public partial string TurnOffText { get; set; }
+
+    bool NameMatches => string.Equals(TurnOffText.Trim(), _tenantName, StringComparison.CurrentCultureIgnoreCase);
+
+    [RelayCommand]
+    void StartTurnOff()
+    {
+        TurnOffText = "";
+        IsTurningOff = true;
+    }
+
+    [RelayCommand]
+    void CancelTurnOff() => IsTurningOff = false;
+
+    [RelayCommand(CanExecute = nameof(NameMatches))]
+    void TurnOffTestMode()
+    {
+        _pipeline.SetTestMode(false, _tenantName);
+        IsTurningOff = false;
+        Rebuild();
+    }
+
+    [RelayCommand]
+    void TurnOnTestMode()
+    {
+        _pipeline.SetTestMode(true, _tenantName);
+        Rebuild();
+    }
+}

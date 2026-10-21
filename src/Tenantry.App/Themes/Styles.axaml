@@ -162,6 +162,52 @@
   <Style Selector="Border.banner.info">
     <Setter Property="Background" Value="{DynamicResource BannerInfoBg}" />
   </Style>
+  <Style Selector="Border.banner.warning">
+    <Setter Property="Background" Value="{DynamicResource BadgeWarningBg}" />
+  </Style>
+  <Style Selector="Border.banner.warning > StackPanel > Grid > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource BadgeWarningFg}" />
+  </Style>
+  <Style Selector="Border.banner.neutral">
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+  </Style>
+
+  <!-- Editing: the Pending changes tray, pending values in place, and sign-in actions -->
+  <Style Selector="Border.tray">
+    <Setter Property="Background" Value="{DynamicResource CardBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="12,8" />
+    <Setter Property="BoxShadow" Value="{DynamicResource DragShadow}" />
+  </Style>
+  <Style Selector="Border.pending">
+    <Setter Property="Background" Value="{DynamicResource DropSlotBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="TextBlock.error">
+    <Setter Property="Foreground" Value="{DynamicResource BadgeDangerFg}" />
+  </Style>
+  <Style Selector="TextBlock.pendingtext">
+    <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+  </Style>
+  <Style Selector="TextBlock.before">
+    <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+    <Setter Property="TextDecorations" Value="Strikethrough" />
+  </Style>
+  <Style Selector="Button.danger-outline">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BadgeDangerFg}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource BadgeDangerFg}" />
+  </Style>
+  <Style Selector="Button.danger-outline.undo">
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+  </Style>
 
   <Style Selector="Border.divider">
     <Setter Property="Height" Value="1" />

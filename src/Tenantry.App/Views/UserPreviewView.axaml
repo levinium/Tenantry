@@ -2,6 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
              xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
              x:Class="Tenantry.App.Views.UserPreviewView"
              x:DataType="vm:UserDetailViewModel">
   <!-- The user record, stacked to fit the preview pane. -->
@@ -23,6 +25,14 @@
     <Border Classes="divider" />
     <StackPanel Spacing="12">
       <TextBlock Classes="h3" Text="Sign-in" />
+      <StackPanel Spacing="6">
+        <Button Classes="danger-outline" HorizontalAlignment="Left" Command="{Binding ToggleSignInCommand}"
+                IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding SignInActionTip}" ToolTip.ShowOnDisabled="True"
+                Classes.undo="{Binding HasPendingSignIn}">
+          <TextBlock Text="{Binding SignInActionText}" />
+        </Button>
+        <TextBlock Classes="caption pendingtext" Text="{Binding PendingSignInText}" IsVisible="{Binding HasPendingSignIn}" />
+      </StackPanel>
       <StackPanel Spacing="2">
         <TextBlock Classes="label" Text="LAST SIGN-IN" />
         <TextBlock Classes="value" Text="{Binding LastSignInText}" />
@@ -36,15 +46,19 @@
 
     <Border Classes="divider" />
     <StackPanel Spacing="12">
-      <TextBlock Classes="h3" Text="Organization" />
-      <StackPanel Spacing="2">
-        <TextBlock Classes="label" Text="JOB TITLE" />
-        <TextBlock Classes="value" Text="{Binding JobTitle}" TextWrapping="Wrap" />
-      </StackPanel>
-      <StackPanel Spacing="2">
-        <TextBlock Classes="label" Text="DEPARTMENT" />
-        <TextBlock Classes="value" Text="{Binding Department}" />
-      </StackPanel>
+      <TextBlock Classes="h3" Text="Profile" />
+      <ItemsControl ItemsSource="{Binding Fields}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ed:EditableField">
+            <views:EditableFieldView />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
       <StackPanel Spacing="2">
         <TextBlock Classes="label" Text="EMAIL" />
         <SelectableTextBlock Classes="value" Text="{Binding Email}" TextWrapping="Wrap" />

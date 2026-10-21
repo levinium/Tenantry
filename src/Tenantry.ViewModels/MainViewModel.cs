@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Tenantry.Core.Capabilities;
 using Tenantry.Core.Directory;
 using Tenantry.Core.Tenancy;
+using Tenantry.ViewModels.Editing;
 using Tenantry.ViewModels.Lists;
 
 namespace Tenantry.ViewModels;
@@ -34,7 +35,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         LastSyncedAt = tenant.Sync?.LastSyncedAt;
 
         var createUsers = Evaluate(Capabilities.EditUsers);
-        Users = DataListViewModel.Create(UserList.Definition(_now), LoadUsersAsync, OpenUser, tenant.ListState, _now);
+        Users = DataListViewModel.Create(UserList.Definition(_now, u => NewUserPage(u)), LoadUsersAsync, OpenUser, tenant.ListState, _now);
         Users.PrimaryAction = new ListPrimaryAction("New user", "PersonAdd", false,
             createUsers.IsAvailable ? "Creating users arrives with the change pipeline (Phase 3)" : createUsers.Reason!);
         Groups = DataListViewModel.Create(GroupList.Definition(g => NewGroupPage(g)), LoadGroupsAsync, OpenGroup, tenant.ListState, _now);
@@ -42,6 +43,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);
+        if (tenant.Changes is { } changes)
+            Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync);
 
         var readUsers = Evaluate(Capabilities.ReadUsers);
         Sections =
@@ -292,10 +295,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var existing = Tabs.OfType<UserDetailViewModel>().FirstOrDefault(t => t.User.Id == user.Id);
         if (existing is null)
         {
-            existing = new UserDetailViewModel(user, _now());
+            existing = NewUserPage(user);
             Tabs.Add(existing);
         }
         SelectedTab = existing;
+    }
+
+    /// <summary>A user's record (page or preview), editable when the tenant and the admin's role allow.</summary>
+    UserDetailViewModel NewUserPage(UserSummary user) => new(user, _now(), _tenant.Changes, Evaluate(Capabilities.EditUsers));
+
+    // ---- Changes --------------------------------------------------------------------------
+
+    /// <summary>The Pending changes tray and Test mode banner; null where the tenant can't be edited.</summary>
+    public PendingChangesViewModel? Pending { get; }
+
+    /// <summary>After changes apply: lists re-read the local copy (already updated by read-back), open records follow.</summary>
+    async Task AfterChangesAppliedAsync()
+    {
+        await ReloadListsAsync(_lifetime.Token);
+        foreach (var page in Tabs.OfType<UserDetailViewModel>())
+        {
+            if (_index.User(page.User.Id) is { } updated)
+                page.Update(updated);
+        }
     }
 
     /// <summary>Opens a group's record page, or switches to it if it is already open.</summary>
@@ -390,6 +412,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (index < 0)
             return;
         Tabs.RemoveAt(index);
+        (tab as IDisposable)?.Dispose();
         if (SelectedTab == tab || SelectedTab is null)
             SelectedTab = Tabs[Math.Min(index, Tabs.Count - 1)];
     }

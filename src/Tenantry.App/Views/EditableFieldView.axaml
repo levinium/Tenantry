@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.EditableFieldView"
+             x:DataType="ed:EditableField">
+  <!-- A value with an Edit button; a staged change shows under it as pending, with an undo. -->
+  <StackPanel Spacing="2">
+    <Grid ColumnDefinitions="*,Auto">
+      <TextBlock Classes="label" Text="{Binding Caption}" VerticalAlignment="Center" />
+      <Button Grid.Column="1" Classes="rowaction" Padding="4" IsVisible="{Binding ShowEditButton}" IsEnabled="{Binding CanEdit}"
+              Command="{Binding EditCommand}" ToolTip.Tip="{Binding EditTip}" ToolTip.ShowOnDisabled="True">
+        <ic:FluentIcon Icon="Edit" FontSize="14" />
+      </Button>
+    </Grid>
+    <TextBlock Classes="value" Text="{Binding Value}" TextWrapping="Wrap" IsVisible="{Binding !IsEditing}" />
+
+    <Border Classes="pending" IsVisible="{Binding HasPending}" HorizontalAlignment="Left" Margin="0,4,0,0">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="{Binding PendingText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <TextBlock Classes="caption" Text="pending" VerticalAlignment="Center" />
+        <Button Classes="rowaction" Padding="3" Command="{Binding UnstageCommand}" ToolTip.Tip="Take this change out of Pending changes">
+          <ic:FluentIcon Icon="ArrowUndo" FontSize="12" />
+        </Button>
+      </StackPanel>
+    </Border>
+
+    <StackPanel IsVisible="{Binding IsEditing}" Spacing="6" Margin="0,4,0,0">
+      <TextBox x:Name="Editor" Text="{Binding Draft}" />
+      <TextBlock Classes="error" Text="{Binding Problem}" TextWrapping="Wrap"
+                 IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Classes="accent" Content="Stage change" Command="{Binding StageCommand}"
+                ToolTip.Tip="Add this change to Pending changes, to review and apply" />
+        <Button Content="Cancel" Command="{Binding CancelEditCommand}" />
+      </StackPanel>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

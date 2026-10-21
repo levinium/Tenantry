@@ -213,6 +213,31 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(search, "palette-dark");
     }
 
+    // Editing: Test mode on, two changes staged from the preview (one still being edited), tray open.
+    if (full)
+    {
+        var demo = connector.ConnectDemo();
+        var editing = new MainViewModel(demo with
+        {
+            IsDemo = false,
+            ListState = new Tenantry.Core.Lists.MemoryListStateStore(),
+            Changes = new Tenantry.Core.Changes.ChangePipeline(new NoopExecutor(), new Tenantry.Core.Changes.ChangeLog(new Tenantry.Core.Cache.MemoryEntityStore()),
+                new Tenantry.Core.Changes.MemoryTestModeStore(true), demo.Account),
+        }, () => { });
+        editing.Users.LoadAsync().GetAwaiter().GetResult();
+        editing.Users.PreviewRow(editing.Users.Rows[1]);
+        var person = (UserDetailViewModel)editing.Users.PreviewModel!;
+        var department = person.Fields.Single(f => f.Property == "department");
+        department.EditCommand.Execute(null);
+        department.Draft = "Operations";
+        department.StageCommand.Execute(null);
+        person.ToggleSignInCommand.Execute(null);
+        var title = person.Fields.Single(f => f.Property == "jobTitle");
+        title.EditCommand.Execute(null);
+        title.Draft = "Senior Planner";
+        Render(editing, "editing-light");
+    }
+
     // A synced tenant: the sidebar shows when the local copy was last brought up to date.
     var synced = new MainViewModel(connector.ConnectDemo() with { ListState = new Tenantry.Core.Lists.MemoryListStateStore(), Sync = new SnapshotSync() }, () => { });
     synced.Users.LoadAsync().GetAwaiter().GetResult();
@@ -295,6 +320,13 @@ static void Settle()
         Dispatcher.UIThread.RunJobs();
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
     }
+}
+
+/// <summary>Accepts every change and does nothing (snapshots never apply).</summary>
+sealed class NoopExecutor : Tenantry.Core.Changes.IChangeExecutor
+{
+    public Task<Tenantry.Core.Changes.ApplyResult> ApplyAsync(Tenantry.Core.Changes.ChangeOp change, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new Tenantry.Core.Changes.ApplyResult(Tenantry.Core.Changes.ChangeOutcome.Applied));
 }
 
 /// <summary>A sync that last ran a few minutes ago and never runs again (nothing to fetch in a snapshot).</summary>
