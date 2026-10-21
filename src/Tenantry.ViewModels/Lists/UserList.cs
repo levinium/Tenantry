@@ -24,7 +24,8 @@ public static class UserList
         View("members", "Members", Is(F.Type, F.Member)),
         View("guests", "Guests", Is(F.Type, F.Guest)),
         View("blocked", "Sign-in blocked", Is(F.Status, F.Blocked)),
-        View("inactive", "Inactive 90+ days", Is(F.Status, F.Active),
+        // People only: shared, room and equipment mailbox accounts never sign in by design.
+        View("inactive", "Inactive 90+ days", Is(F.Status, F.Active), new ChoiceCondition(F.Type, [F.Member, F.Guest], []),
             ConditionGroup.Any(new DateCondition(F.LastSignIn, DateOp.OlderThanDays, 90), new DateCondition(F.LastSignIn, DateOp.Never))),
         View("licensed-blocked", "Licensed but blocked", Is(F.Status, F.Blocked), IsNot(F.Licenses, F.Unlicensed)),
         View("unlicensed", "Unlicensed members", Is(F.Type, F.Member), Is(F.Status, F.Active), Is(F.Licenses, F.Unlicensed)),
@@ -33,6 +34,14 @@ public static class UserList
         View("forwarding-external", "Forwarding outside the organization", Is(F.Forwarding, F.ForwardsExternally)),
         View("licensed-shared", "Licensed shared mailboxes", Is(F.Mailbox, F.SharedMailbox), IsNot(F.Licenses, F.Unlicensed)),
     ];
+
+    /// <summary>Member, Guest, or (from Exchange) Shared mailbox, Room or Equipment.</summary>
+    public static (string Text, BadgeKind Kind) TypeBadge(UserSummary u) => F.TypeOf(u) switch
+    {
+        F.Guest => (F.Guest, BadgeKind.Info),
+        F.Member => (F.Member, BadgeKind.Neutral),
+        var mailbox => (mailbox, BadgeKind.Success),
+    };
 
     /// <summary>Last sign-in reads amber after 90 days or never, red after 180.</summary>
     public static BadgeKind? SignInTone(TimeSpan? age) => age switch
@@ -69,7 +78,7 @@ public static class UserList
             new() { Key = F.Status, Header = "Status", Cell = CellKind.Badge, MinWidth = 110, DefaultWidth = 120,
                 Badge = u => u.AccountEnabled ? (F.Active, BadgeKind.Success) : (F.Blocked, BadgeKind.Danger) },
             new() { Key = F.Type, Header = "Type", Cell = CellKind.Badge, MinWidth = 110, DefaultWidth = 120,
-                Badge = u => u.Kind == UserKind.Guest ? (F.Guest, BadgeKind.Info) : (F.Member, BadgeKind.Neutral) },
+                Badge = TypeBadge },
             new() { Key = F.Licenses, Header = "Licenses", Cell = CellKind.Badges, MinWidth = 180, DefaultWidth = 250,
                 Badges = u => u.Licenses, EmptyText = F.Unlicensed },
             new() { Key = F.LastSignIn, Header = "Last sign-in", Cell = CellKind.Date, MinWidth = 140, DefaultWidth = 150,

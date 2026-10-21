@@ -62,8 +62,113 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
                 using var group = JsonDocument.Parse(json);
                 groups.Add(ToGroup(group.RootElement, teams));
             }
+            groups.AddRange(SharedMailboxes(groups, cancellationToken));
             return groups;
         }, cancellationToken);
+
+    /// <summary>
+    /// Shared, room and equipment mailboxes as rows beside the groups: named after their
+    /// account, with the people who can use them as members. Trustees are addresses, matched to
+    /// users (sign-in name, email, mailbox addresses) or mail-enabled groups; Send on behalf is
+    /// matched by address or display name. Anything unmatched is shown as it was given.
+    /// </summary>
+    List<GroupSummary> SharedMailboxes(IReadOnlyList<GroupSummary> groups, CancellationToken cancellationToken)
+    {
+        var mailboxes = new Dictionary<string, (GroupKind Kind, string? Primary, string[] Aliases, string[] OnBehalf)>(StringComparer.Ordinal);
+        foreach (var json in store.All(DirectorySync.Mailboxes))
+        {
+            using var m = JsonDocument.Parse(json);
+            var info = ToMailbox(m.RootElement, new HashSet<string>());
+            if (Str(m.RootElement, "ExternalDirectoryObjectId") is { } owner && GroupSummary.MailboxKind(info.Type) is { } kind)
+                mailboxes[owner] = (kind, info.PrimaryAddress, info.Aliases.ToArray(), Strings(m.RootElement, "GrantSendOnBehalfTo"));
+        }
+        if (mailboxes.Count == 0)
+            return [];
+
+        // Who an address or name belongs to: users first, then mail-enabled groups.
+        var byAddress = new Dictionary<string, (string Id, string Type)>(StringComparer.OrdinalIgnoreCase);
+        var byName = new Dictionary<string, (string Id, string Type)>(StringComparer.CurrentCultureIgnoreCase);
+        var accounts = new Dictionary<string, (string Name, DateTimeOffset? Created)>(StringComparer.Ordinal);
+        foreach (var json in store.All(DirectorySync.Users))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var u = JsonDocument.Parse(json);
+            var id = u.RootElement.GetProperty("id").GetString()!;
+            foreach (var address in new[] { Str(u.RootElement, "userPrincipalName"), Str(u.RootElement, "mail") })
+                if (address is { Length: > 0 })
+                    byAddress.TryAdd(address, (id, "user"));
+            if (Str(u.RootElement, "displayName") is { Length: > 0 } name)
+            {
+                byName.TryAdd(name, (id, "user"));
+                if (mailboxes.ContainsKey(id))
+                    accounts[id] = (name, Date(u.RootElement, "createdDateTime"));
+            }
+        }
+        foreach (var (owner, mailbox) in mailboxes)
+            foreach (var address in mailbox.Aliases.Prepend(mailbox.Primary ?? ""))
+                if (address.Length > 0)
+                    byAddress.TryAdd(address, (owner, "user"));
+        foreach (var g in groups)
+        {
+            if (g.Mail is { Length: > 0 } mail)
+                byAddress.TryAdd(mail, (g.Id, "group"));
+            byName.TryAdd(g.DisplayName, (g.Id, "group"));
+        }
+
+        var access = new Dictionary<string, (string[] Full, string[] SendAs)>(StringComparer.Ordinal);
+        foreach (var json in store.All(DirectorySync.MailboxAccess))
+        {
+            using var a = JsonDocument.Parse(json);
+            if (Str(a.RootElement, "id") is { } id)
+                access[id] = (Strings(a.RootElement, "fullAccess"), Strings(a.RootElement, "sendAs"));
+        }
+
+        var rows = new List<GroupSummary>(mailboxes.Count);
+        foreach (var (owner, mailbox) in mailboxes)
+        {
+            // Each person once, with everything they can do.
+            var rights = new Dictionary<string, (GroupMember Who, List<string> Can)>(StringComparer.OrdinalIgnoreCase);
+            void Grant(string trustee, string right, bool byDisplayName)
+            {
+                var found = byAddress.TryGetValue(trustee, out var hit) || (byDisplayName && byName.TryGetValue(trustee, out hit));
+                var member = found ? new GroupMember(hit.Id, hit.Type) : new GroupMember(trustee, "unresolved", Name: trustee);
+                if (member.Id == owner)
+                    return;
+                if (!rights.TryGetValue(member.Id, out var entry))
+                    rights[member.Id] = entry = (member, []);
+                if (!entry.Can.Contains(right))
+                    entry.Can.Add(right);
+            }
+            if (access.TryGetValue(owner, out var a))
+            {
+                foreach (var t in a.Full)
+                    Grant(t, "Full access", byDisplayName: false);
+                foreach (var t in a.SendAs)
+                    Grant(t, "Send as", byDisplayName: false);
+            }
+            foreach (var t in mailbox.OnBehalf)
+                Grant(t, "Send on behalf", byDisplayName: true);
+
+            var account = accounts.GetValueOrDefault(owner);
+            rows.Add(new GroupSummary(
+                Id: owner,
+                DisplayName: account.Name ?? mailbox.Primary ?? owner,
+                Mail: mailbox.Primary,
+                Description: null,
+                Kind: mailbox.Kind,
+                IsDynamic: false,
+                IsTeam: false,
+                Visibility: null,
+                CreatedAt: account.Created,
+                Members: rights.Values.Select(r => r.Who with { Access = string.Join(", ", r.Can) }).ToArray()));
+        }
+        return rows;
+    }
+
+    static string[] Strings(JsonElement e, string name) =>
+        e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Array
+            ? v.EnumerateArray().Select(x => x.GetString()).OfType<string>().Where(s => s.Length > 0).ToArray()
+            : [];
 
     HashSet<string> Ids(string kind)
     {

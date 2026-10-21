@@ -1038,7 +1038,8 @@ public sealed partial class DataListViewModel : TabViewModel
             return;
         _store.Save(_source.Key, new ListState(StoredQuery(), CurrentLayout(), Density,
             Views.Where(v => !v.IsBuiltIn).Select(v => v.View).ToArray(), CurrentView?.View.Id,
-            Views.Where(v => v.IsPinned).Select(v => v.View.Id).ToArray()));
+            Views.Where(v => v.IsPinned).Select(v => v.View.Id).ToArray(),
+            Views.Select(v => v.View.Id).ToArray()));
     }
 
     void Restore()
@@ -1061,8 +1062,16 @@ public sealed partial class DataListViewModel : TabViewModel
             if (state.PinnedViews is { } pinned)
             {
                 var ids = pinned.ToHashSet();
+                // A built-in view the saved state never knew keeps its default pin. Files from
+                // before KnownViews was saved count only their pinned views as known: a newer
+                // default-pinned view then appears pinned (at worst re-pinning one the user had
+                // unpinned, once).
+                var known = state.KnownViews?.ToHashSet() ?? ids;
                 foreach (var v in Views)
-                    v.IsPinned = ids.Contains(v.View.Id);
+                {
+                    if (!v.IsBuiltIn || known.Contains(v.View.Id))
+                        v.IsPinned = ids.Contains(v.View.Id);
+                }
             }
             _conditions.AddRange(state.Query.Where.Items);
             _sort = [.. state.Query.Sort];

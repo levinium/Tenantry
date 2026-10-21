@@ -97,6 +97,20 @@ public class PaletteAndGroupsTests
     }
 
     [Fact]
+    public void A_built_in_view_added_after_pins_were_saved_gets_its_default_pin()
+    {
+        // Saved by an older version that had no "shared" view, with "security" unpinned.
+        var store = new Tenantry.Core.Lists.MemoryListStateStore();
+        store.Save("groups", new Tenantry.Core.Lists.ListState(Tenantry.Core.Lists.ListQuery.Empty, [], default, [], "all",
+            PinnedViews: ["all", "m365", "distribution"], KnownViews: ["all", "m365", "security", "distribution", "teams"]));
+        var tenant = Tenantry.Tests.Fakes.FakeConnector.Tenant() with { ListState = store };
+
+        var vm = new MainViewModel(tenant);
+
+        Assert.Equal(["all", "m365", "distribution", "shared"], vm.Groups.ChipViews.Select(v => v.View.Id));
+    }
+
+    [Fact]
     public async Task The_first_tab_is_the_sidebar_areas_list_and_records_stay_open()
     {
         var vm = await Loaded();

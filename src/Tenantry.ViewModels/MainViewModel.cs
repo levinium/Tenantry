@@ -41,7 +41,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Sections =
         [
             new NavSection("users", "Users", readUsers.Reason),
-            new NavSection("groups", "Groups & teams", readUsers.Reason),
+            new NavSection("groups", GroupList.AreaTitle, readUsers.Reason),
             new NavSection("mail", "Mail & security", Later),
             new NavSection("sharepoint", "SharePoint & OneDrive", Later),
             new NavSection("devices", "Devices", Later),
@@ -337,7 +337,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         foreach (var g in _index.AllGroups)
         {
             var searchText = string.Join(' ', g.DisplayName, g.Mail, g.Description, GroupSummary.KindName(g.Kind)).ToLowerInvariant();
-            entries.Add(new PaletteEntry("Group", g.DisplayName, g.Mail ?? GroupSummary.KindName(g.Kind), "People", searchText, () => OpenGroup(g)));
+            entries.Add(g.IsMailbox
+                ? new PaletteEntry("Mailbox", g.DisplayName, $"{g.Mail} · {GroupSummary.KindName(g.Kind)}", "Mail", searchText, () => OpenGroup(g))
+                : new PaletteEntry("Group", g.DisplayName, g.Mail ?? GroupSummary.KindName(g.Kind), "People", searchText, () => OpenGroup(g)));
         }
         foreach (var (section, list) in AreaLists)
         {

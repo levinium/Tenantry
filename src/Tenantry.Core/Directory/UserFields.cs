@@ -35,6 +35,21 @@ public static class UserFields
     public const string ForwardsExternally = "Outside the organization";
     public const string On = "On";
     public const string Off = "Off";
+    public const string SharedMailboxType = "Shared mailbox";
+    public const string RoomType = "Room";
+    public const string EquipmentType = "Equipment";
+
+    /// <summary>
+    /// What kind of account this is. Entra only says Member or Guest; Exchange knows a shared,
+    /// room or equipment mailbox's account isn't a person, and that is what an admin needs to see.
+    /// </summary>
+    public static string TypeOf(UserSummary u) => u.Mailbox?.Type switch
+    {
+        "Shared" => SharedMailboxType,
+        "Room" => RoomType,
+        "Equipment" => EquipmentType,
+        _ => u.Kind == UserKind.Guest ? Guest : Member,
+    };
 
     static string? OnOff(UserSummary u, Func<MailboxInfo, bool> flag) => u.Mailbox is { } m ? (flag(m) ? On : Off) : null;
 
@@ -53,7 +68,7 @@ public static class UserFields
         new()
         {
             Key = Type, Label = "Type", Kind = FieldKind.Choice, Aliases = ["usertype", "kind"],
-            ChoiceOrder = [Member, Guest], Text = u => u.Kind == UserKind.Guest ? Guest : Member,
+            ChoiceOrder = [Member, Guest, SharedMailboxType, RoomType, EquipmentType], Text = TypeOf,
         },
         new()
         {

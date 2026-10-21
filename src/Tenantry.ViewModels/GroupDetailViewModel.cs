@@ -5,9 +5,12 @@ using Tenantry.ViewModels.Lists;
 namespace Tenantry.ViewModels;
 
 /// <summary>A group member as the record page shows it, with the name looked up locally.</summary>
-public sealed record MemberRow(string Name, string? Detail, string TypeText, BadgeKind TypeKind, UserSummary? User, GroupSummary? Group)
+/// <param name="Access">For a mailbox: what this person can do ("Full access, Send as").</param>
+public sealed record MemberRow(string Name, string? Detail, string TypeText, BadgeKind TypeKind, UserSummary? User, GroupSummary? Group, string? Access = null)
 {
     public bool CanOpen => User is not null || Group is not null;
+
+    public bool HasAccess => !string.IsNullOrEmpty(Access);
 }
 
 /// <summary>Looks up a directory object by id in the local copy, for naming group members.</summary>
@@ -30,8 +33,9 @@ public sealed partial class GroupDetailViewModel : TabViewModel
         Group = group;
         _openUser = openUser ?? (_ => { });
         _openGroup = openGroup ?? (_ => { });
+        Account = group.IsMailbox ? index.User(group.Id) : null;
         Members = group.Members
-            .Select(m => Row(m, index))
+            .Select(m => Row(m, index) with { Access = m.Access })
             // People first, then nested groups, then devices, contacts and apps.
             .OrderBy(r => r.TypeText switch { "User" => 0, "Group" => 1, _ => 2 })
             .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase)
@@ -48,7 +52,23 @@ public sealed partial class GroupDetailViewModel : TabViewModel
     public BadgeKind TypeKind => GroupList.TypeBadge(Group.Kind).Kind;
 
     public string MembershipText => Group.IsDynamic ? "Dynamic membership" : "Assigned membership";
+    public bool ShowMembership => !Group.IsMailbox;
     public bool IsTeam => Group.IsTeam;
+    public bool IsMailbox => Group.IsMailbox;
+
+    /// <summary>A mailbox's own account (a user object), for its sign-in and license settings.</summary>
+    public UserSummary? Account { get; }
+
+    public bool HasAccount => Account is not null;
+
+    public string MembersHeading => Group.IsMailbox ? "People with access" : "Members";
+
+    [RelayCommand]
+    void OpenAccount()
+    {
+        if (Account is { } account)
+            _openUser(account);
+    }
 
     public string Email => Group.Mail ?? "No email address";
     public string Description => string.IsNullOrWhiteSpace(Group.Description) ? "No description" : Group.Description;
@@ -70,7 +90,11 @@ public sealed partial class GroupDetailViewModel : TabViewModel
         get
         {
             if (Members.Count == 0)
-                return Group.IsDynamic ? "No members match the rule yet." : "No members.";
+                return Group.IsMailbox ? "Nobody has been given access."
+                    : Group.IsDynamic ? "No members match the rule yet."
+                    : "No members.";
+            if (Group.IsMailbox)
+                return $"{Members.Count:N0} {(Members.Count == 1 ? "has" : "have")} access. Full access opens the mailbox; Send as and Send on behalf send from it.";
             var parts = Members.GroupBy(m => m.TypeText)
                 .OrderByDescending(g => g.Count())
                 .Select(g => $"{g.Count():N0} {Plural(g.Key, g.Count())}");
@@ -95,6 +119,9 @@ public sealed partial class GroupDetailViewModel : TabViewModel
             new(u.DisplayName, u.Kind == UserKind.Guest && u.Mail is { Length: > 0 } m ? m : u.UserPrincipalName, "User", BadgeKind.Neutral, u, null),
         "group" when index.Group(member.Id) is { } g =>
             new(g.DisplayName, g.Mail ?? GroupSummary.KindName(g.Kind), "Group", BadgeKind.Info, null, g),
+        // An address or name Exchange gave that the local copy can't match (a contact, a
+        // deleted account): shown as given.
+        "unresolved" => new(member.Name ?? member.Id, "Not found in the directory", "Other", BadgeKind.Neutral, null, null),
         _ => new(Unnamed(member.Type), member.Id, TypeLabel(member.Type), BadgeKind.Neutral, null, null),
     };
 

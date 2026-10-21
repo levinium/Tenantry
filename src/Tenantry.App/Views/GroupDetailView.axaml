@@ -20,9 +20,14 @@
             <SelectableTextBlock Classes="muted" Text="{Binding Email}" />
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
               <c:Badge Text="{Binding TypeText}" Kind="{Binding TypeKind}" />
-              <c:Badge Text="{Binding MembershipText}" Kind="Neutral" />
+              <c:Badge Text="{Binding MembershipText}" Kind="Neutral" IsVisible="{Binding ShowMembership}" />
               <c:Badge Text="Team" Kind="Success" IsVisible="{Binding IsTeam}" />
             </StackPanel>
+            <Button Classes="namelink" HorizontalAlignment="Left" Margin="0,6,0,0" IsVisible="{Binding HasAccount}"
+                    Command="{Binding OpenAccountCommand}"
+                    ToolTip.Tip="Open the mailbox's account in Users: sign-in, licenses and other account settings">
+              <TextBlock Text="Open the account (sign-in and licenses)" />
+            </Button>
           </StackPanel>
         </Grid>
       </Border>
@@ -34,11 +39,11 @@
               <ic:FluentIcon Icon="Info" FontSize="20" Foreground="{DynamicResource Accent}" />
               <TextBlock Classes="h3" Text="About" VerticalAlignment="Center" />
             </StackPanel>
-            <StackPanel Spacing="2">
+            <StackPanel Spacing="2" IsVisible="{Binding ShowMembership}">
               <TextBlock Classes="label" Text="DESCRIPTION" />
               <TextBlock Classes="value" Text="{Binding Description}" TextWrapping="Wrap" />
             </StackPanel>
-            <StackPanel Spacing="2">
+            <StackPanel Spacing="2" IsVisible="{Binding ShowMembership}">
               <TextBlock Classes="label" Text="VISIBILITY" />
               <TextBlock Classes="value" Text="{Binding Visibility}" />
             </StackPanel>
@@ -72,14 +77,15 @@
         <StackPanel Spacing="14">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="People" FontSize="20" Foreground="{DynamicResource Accent}" />
-            <TextBlock Classes="h3" Text="Members" VerticalAlignment="Center" />
+            <TextBlock Classes="h3" Text="{Binding MembersHeading}" VerticalAlignment="Center" />
           </StackPanel>
           <TextBlock Classes="muted" Text="{Binding MembersSummary}" />
           <ItemsControl ItemsSource="{Binding Members}" IsVisible="{Binding HasMembers}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:MemberRow">
                 <Border Classes="valuerow">
-                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                    <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" Text="{Binding Access}" IsVisible="{Binding HasAccess}" />
                     <StackPanel Spacing="1" VerticalAlignment="Center">
                       <Button Classes="namelink" HorizontalAlignment="Left" IsVisible="{Binding CanOpen}"
                               ToolTip.Tip="Open this member's record page"
@@ -89,7 +95,7 @@
                       <TextBlock Text="{Binding Name}" IsVisible="{Binding !CanOpen}" />
                       <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
-                    <c:Badge Grid.Column="1" Text="{Binding TypeText}" Kind="{Binding TypeKind}" VerticalAlignment="Center" />
+                    <c:Badge Grid.Column="2" Text="{Binding TypeText}" Kind="{Binding TypeKind}" VerticalAlignment="Center" />
                   </Grid>
                 </Border>
               </DataTemplate>

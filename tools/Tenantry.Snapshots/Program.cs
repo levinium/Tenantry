@@ -181,6 +181,14 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         groupsPage.OpenGroup(groupsPage.Groups.Rows.Cast<GroupSummary>().First(g => g.DisplayName == "Announcements"));
         Render(groupsPage, "group-detail-light");
 
+        // Shared mailboxes beside the groups, and one mailbox's page (people with access).
+        var mailboxes = Main();
+        mailboxes.SelectedSection = mailboxes.Sections.Single(s => s.Key == "groups");
+        mailboxes.Groups.ApplyView(mailboxes.Groups.Views.Single(v => v.View.Id == "shared"));
+        Render(mailboxes, "groups-shared-light");
+        mailboxes.OpenGroup(mailboxes.Groups.Rows.Cast<GroupSummary>().OrderByDescending(g => g.Members.Count).First());
+        Render(mailboxes, "mailbox-detail-light");
+
         // Mailbox columns and the external-forwarding view.
         var mail = Main();
         foreach (var c in mail.Users.Columns.Where(c => c.Key is UserFields.Mailbox or UserFields.Forwarding or UserFields.ForwardingTo))

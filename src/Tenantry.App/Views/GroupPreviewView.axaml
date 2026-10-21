@@ -16,7 +16,7 @@
       </StackPanel>
       <WrapPanel ItemSpacing="8" LineSpacing="8">
         <c:Badge Text="{Binding TypeText}" Kind="{Binding TypeKind}" />
-        <c:Badge Text="{Binding MembershipText}" Kind="Neutral" />
+        <c:Badge Text="{Binding MembershipText}" Kind="Neutral" IsVisible="{Binding ShowMembership}" />
         <c:Badge Text="Team" Kind="Success" IsVisible="{Binding IsTeam}" />
       </WrapPanel>
     </StackPanel>
@@ -24,11 +24,11 @@
     <Border Classes="divider" />
     <StackPanel Spacing="12">
       <TextBlock Classes="h3" Text="About" />
-      <StackPanel Spacing="2">
+      <StackPanel Spacing="2" IsVisible="{Binding ShowMembership}">
         <TextBlock Classes="label" Text="DESCRIPTION" />
         <TextBlock Classes="value" Text="{Binding Description}" TextWrapping="Wrap" />
       </StackPanel>
-      <StackPanel Spacing="2">
+      <StackPanel Spacing="2" IsVisible="{Binding ShowMembership}">
         <TextBlock Classes="label" Text="VISIBILITY" />
         <TextBlock Classes="value" Text="{Binding Visibility}" />
       </StackPanel>
@@ -40,7 +40,7 @@
 
     <Border Classes="divider" />
     <StackPanel Spacing="10">
-      <TextBlock Classes="h3" Text="Members" />
+      <TextBlock Classes="h3" Text="{Binding MembersHeading}" />
       <TextBlock Classes="muted" Text="{Binding MembersSummary}" TextWrapping="Wrap" />
       <ItemsControl ItemsSource="{Binding FirstMembers}">
         <ItemsControl.ItemsPanel>
@@ -53,6 +53,7 @@
             <StackPanel Spacing="1">
               <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
               <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+              <TextBlock Classes="caption" Text="{Binding Access}" IsVisible="{Binding HasAccess}" Foreground="{DynamicResource Accent}" />
             </StackPanel>
           </DataTemplate>
         </ItemsControl.ItemTemplate>

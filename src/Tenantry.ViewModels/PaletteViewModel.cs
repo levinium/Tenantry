@@ -82,7 +82,7 @@ public sealed partial class PaletteViewModel(Func<IReadOnlyList<PaletteEntry>> e
     static int KindOrder(string kind) => kind switch
     {
         "User" => 0,
-        "Group" => 1,
+        "Group" or "Mailbox" => 1,
         _ => 2,
     };
 

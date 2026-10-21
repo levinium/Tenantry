@@ -184,20 +184,74 @@ public class DirectorySyncTests
 
     // ---- Mailboxes ----------------------------------------------------------------------------
 
-    sealed class FakeExchange(Func<IReadOnlyList<System.Text.Json.JsonElement>> answer) : Tenantry.Core.Exchange.ICmdletRunner
+    /// <summary>Answers each cmdlet from a table; permission cmdlets get no rows unless given.</summary>
+    sealed class FakeExchange(Func<string, IReadOnlyDictionary<string, object?>?, IReadOnlyList<System.Text.Json.JsonElement>> answer) : Tenantry.Core.Exchange.ICmdletRunner
     {
-        public List<(string Cmdlet, IReadOnlyList<string>? Select)> Calls { get; } = [];
+        public System.Collections.Concurrent.ConcurrentQueue<(string Cmdlet, IReadOnlyList<string>? Select)> Calls { get; } = [];
+
+        public FakeExchange(Func<IReadOnlyList<System.Text.Json.JsonElement>> mailboxes)
+            : this((cmdlet, _) => cmdlet == "Get-Mailbox" ? mailboxes() : [])
+        {
+        }
 
         public Task<IReadOnlyList<System.Text.Json.JsonElement>> InvokeAsync(Tenantry.Core.Exchange.CmdletEndpoint endpoint, string cmdlet,
             IReadOnlyDictionary<string, object?>? parameters = null, CancellationToken cancellationToken = default, IReadOnlyList<string>? select = null)
         {
-            Calls.Add((cmdlet, select));
-            return Task.FromResult(answer());
+            Calls.Enqueue((cmdlet, select));
+            return Task.FromResult(answer(cmdlet, parameters));
         }
     }
 
     static IReadOnlyList<System.Text.Json.JsonElement> Rows(string json) =>
         System.Text.Json.JsonDocument.Parse(json).RootElement.EnumerateArray().Select(e => e.Clone()).ToArray();
+
+    [Fact]
+    public async Task Shared_mailboxes_list_who_can_use_them_beside_the_groups()
+    {
+        // u2 is a shared mailbox: Ada has Full access and Send as; Cy sends on behalf (given by
+        // name); an address nobody in the directory has stays as given; SELF and inherited
+        // entries are not people with access.
+        var exchange = new FakeExchange((cmdlet, parameters) => cmdlet switch
+        {
+            "Get-Mailbox" => Rows("""
+                [
+                  {"ExternalDirectoryObjectId":"u1","RecipientTypeDetails":"UserMailbox","PrimarySmtpAddress":"ada@contoso.example"},
+                  {"ExternalDirectoryObjectId":"u2","RecipientTypeDetails":"SharedMailbox","PrimarySmtpAddress":"bo@contoso.example","GrantSendOnBehalfTo":["Cy"]}
+                ]
+                """),
+            "Get-MailboxPermission" => Rows("""
+                [
+                  {"User":"NT AUTHORITY\\SELF","AccessRights":["FullAccess","ReadPermission"],"IsInherited":false,"Deny":false},
+                  {"User":"ADA@contoso.example","AccessRights":["FullAccess"],"IsInherited":false,"Deny":false},
+                  {"User":"admin@contoso.example","AccessRights":["FullAccess"],"IsInherited":true,"Deny":false},
+                  {"User":"gone@contoso.example","AccessRights":["FullAccess"],"IsInherited":false,"Deny":false}
+                ]
+                """),
+            "Get-RecipientPermission" => Rows("""
+                [
+                  {"Trustee":"NT AUTHORITY\\SELF","AccessRights":["SendAs"],"IsInherited":false,"AccessControlType":"Allow"},
+                  {"Trustee":"ada@contoso.example","AccessRights":["SendAs"],"IsInherited":false,"AccessControlType":"Allow"}
+                ]
+                """),
+            _ => [],
+        });
+        var store = new MemoryEntityStore();
+        await new DirectorySync(Graph(FirstRun()), store, exchange, () => Now).SyncAsync(cancellationToken: Ct);
+        var directory = new CachedTenantDirectory(store, "Contoso");
+
+        var mailbox = (await directory.GetGroupsAsync(Ct)).Single(g => g.IsMailbox);
+
+        Assert.Equal(("u2", "Bo", GroupKind.SharedMailbox), (mailbox.Id, mailbox.DisplayName, mailbox.Kind));
+        var access = mailbox.Members.ToDictionary(m => m.Name ?? m.Id, m => (m.Type, m.Access));
+        Assert.Equal(("user", "Full access, Send as"), access["u1"]);
+        Assert.Equal(("user", "Send on behalf"), access["u3"]);
+        Assert.Equal(("unresolved", "Full access"), access["gone@contoso.example"]);
+        Assert.Equal(3, mailbox.Members.Count);
+        // Permissions are asked for the shared mailbox only, never for a person's own.
+        Assert.Equal(2, exchange.Calls.Count(c => c.Cmdlet is "Get-MailboxPermission" or "Get-RecipientPermission"));
+        // And the account says what it is in the Users list.
+        Assert.Equal(UserFields.SharedMailboxType, UserFields.TypeOf((await directory.GetUsersAsync(Ct)).Single(u => u.Id == "u2")));
+    }
 
     [Fact]
     public async Task Mailboxes_join_their_users_and_forwarding_is_judged_against_the_tenants_domains()
@@ -230,7 +284,7 @@ public class DirectorySyncTests
         Assert.True(bo.LitigationHold);
         Assert.Null(users["u3"].Mailbox);
         // Only the properties the lists use are asked for, not all 300-odd.
-        Assert.Contains("ExternalDirectoryObjectId", exchange.Calls.Single().Select!);
+        Assert.Contains("ExternalDirectoryObjectId", exchange.Calls.Single(c => c.Cmdlet == "Get-Mailbox").Select!);
     }
 
     [Fact]

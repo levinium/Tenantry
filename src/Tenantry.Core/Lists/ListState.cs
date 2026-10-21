@@ -21,13 +21,17 @@ public sealed record SavedView(string Id, string Name, ListQuery Query, IReadOnl
 
 /// <summary>Everything about a list worth remembering between sessions.</summary>
 /// <param name="PinnedViews">The views the user has pinned, by ID; null means the defaults.</param>
+/// <param name="KnownViews">Every view ID that existed when the pins were saved. A built-in view
+/// added by a later version isn't in it, so it gets its default pin instead of looking
+/// deliberately unpinned. Null (older files) means "all current views were known".</param>
 public sealed record ListState(
     ListQuery Query,
     IReadOnlyList<ColumnLayout> Columns,
     ListDensity Density,
     IReadOnlyList<SavedView> Views,
     string? CurrentViewId,
-    IReadOnlyList<string>? PinnedViews = null);
+    IReadOnlyList<string>? PinnedViews = null,
+    IReadOnlyList<string>? KnownViews = null);
 
 public interface IListStateStore
 {

@@ -4,11 +4,16 @@ using F = Tenantry.Core.Directory.GroupFields;
 
 namespace Tenantry.ViewModels.Lists;
 
-/// <summary>The Groups list: Microsoft 365 groups, security groups and distribution lists together.</summary>
+/// <summary>
+/// Groups &amp; shared mailboxes: Microsoft 365 groups, security groups, distribution lists, and
+/// the shared, room and equipment mailboxes managed the same way (by who can use them).
+/// </summary>
 public static class GroupList
 {
+    public const string AreaTitle = "Groups & shared mailboxes";
+
     static readonly ListQuery ByName = ListQuery.Empty with { Sort = [new SortLevel(F.Name)] };
-    static readonly HashSet<string> PinnedByDefault = ["all", "m365", "security", "distribution"];
+    static readonly HashSet<string> PinnedByDefault = ["all", "m365", "security", "distribution", "shared"];
 
     static SavedView View(string id, string name, params Condition[] where) =>
         new(id, name, ByName with { Where = ConditionGroup.All(where) }, BuiltIn: true, Pinned: PinnedByDefault.Contains(id));
@@ -17,15 +22,21 @@ public static class GroupList
 
     static string Kind(GroupKind kind) => GroupSummary.KindName(kind);
 
+    static readonly string[] GroupKinds = [Kind(GroupKind.Microsoft365), Kind(GroupKind.Security), Kind(GroupKind.MailEnabledSecurity), Kind(GroupKind.Distribution)];
+
     public static IReadOnlyList<SavedView> Views { get; } =
     [
-        View("all", "All groups"),
+        View("all", "All"),
         View("m365", "Microsoft 365", Is(F.Type, Kind(GroupKind.Microsoft365))),
         View("security", "Security", new ChoiceCondition(F.Type, [Kind(GroupKind.Security), Kind(GroupKind.MailEnabledSecurity)], [])),
         View("distribution", "Distribution lists", Is(F.Type, Kind(GroupKind.Distribution))),
+        View("shared", "Shared mailboxes", Is(F.Type, Kind(GroupKind.SharedMailbox))),
+        View("rooms", "Rooms & equipment", new ChoiceCondition(F.Type, [Kind(GroupKind.RoomMailbox), Kind(GroupKind.EquipmentMailbox)], [])),
+        View("groups", "Groups only", new ChoiceCondition(F.Type, GroupKinds, [])),
         View("teams", "Teams", Is(F.Team, F.Yes)),
         View("dynamic", "Dynamic membership", Is(F.Membership, F.Dynamic)),
-        View("empty", "Empty groups", new NumberCondition(F.Members, null, 0)),
+        View("empty", "Empty groups", new ChoiceCondition(F.Type, GroupKinds, []), new NumberCondition(F.Members, null, 0)),
+        View("nobody", "Shared mailboxes nobody can use", Is(F.Type, Kind(GroupKind.SharedMailbox)), new NumberCondition(F.Members, null, 0)),
         View("public", "Public Microsoft 365 groups", Is(F.Type, Kind(GroupKind.Microsoft365)), Is(F.Visibility, "Public")),
     ];
 
@@ -33,23 +44,27 @@ public static class GroupList
     {
         GroupKind.Microsoft365 => (Kind(kind), BadgeKind.Info),
         GroupKind.Distribution => (Kind(kind), BadgeKind.Warning),
+        GroupKind.SharedMailbox or GroupKind.RoomMailbox or GroupKind.EquipmentMailbox => (Kind(kind), BadgeKind.Success),
         _ => (Kind(kind), BadgeKind.Neutral),
     };
 
     public static ListDefinition<GroupSummary> Definition(Func<GroupSummary, object> preview) => new()
     {
         Key = "groups",
-        Title = "Groups",
-        Noun = "groups",
+        Title = AreaTitle,
+        Noun = "groups and mailboxes",
         Fields = F.All,
         Id = g => g.Id,
         Views = Views,
-        SearchHint = "Search names, addresses, descriptions… or try type:security members:0",
+        SearchHint = "Search names, addresses, descriptions… or try type:\"shared mailbox\" members:0",
         Preview = preview,
         Actions =
         [
-            new RowAction<GroupSummary>("Open in Entra admin center", "Globe",
-                g => Platform.OpenUrl($"https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/{g.Id}")),
+            // Mailboxes: the Exchange admin center's mailbox list (it has no stable link to one mailbox).
+            new RowAction<GroupSummary>("Open in admin center", "Globe",
+                g => Platform.OpenUrl(g.IsMailbox
+                    ? "https://admin.exchange.microsoft.com/#/mailboxes"
+                    : $"https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/{g.Id}")),
         ],
         Columns =
         [

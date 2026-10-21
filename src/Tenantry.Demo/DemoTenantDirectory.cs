@@ -102,8 +102,9 @@ public sealed class DemoTenantDirectory : ITenantDirectory
             if (u.Kind == UserKind.Guest)
                 return u;
             var alias = u.Mail![..u.Mail!.IndexOf('@')];
-            // Unlicensed members stand in for shared mailboxes, which need no license.
-            var type = u.Licenses.Count == 0 ? "Shared" : "User";
+            // Unlicensed members stand in for shared, room and equipment mailboxes, which need no license.
+            var kindRoll = random.Double();
+            var type = u.Licenses.Count > 0 ? "User" : kindRoll < 0.2 ? "Room" : kindRoll < 0.3 ? "Equipment" : "Shared";
             var roll = random.Double();
             var (forwarding, to) = roll < 0.03 ? (ForwardingKind.External, $"{alias}@personal.example")
                 : roll < 0.06 ? (ForwardingKind.Internal, $"assistant@{Domain}")
@@ -162,6 +163,19 @@ public sealed class DemoTenantDirectory : ITenantDirectory
         groups.Add(new GroupSummary(Id(), "Front Desk Devices", null, "Kiosk tablets in reception.",
             GroupKind.Security, false, false, null, created.AddDays(200),
             Enumerable.Range(0, 3).Select(_ => new GroupMember(random.Guid().ToString(), "device")).ToArray()));
+
+        // Shared, room and equipment mailboxes, with the people who can use them. Rooms are
+        // mostly booked rather than opened, so they get fewer delegates.
+        string[] rights = ["Full access", "Full access, Send as", "Send as", "Send on behalf"];
+        foreach (var account in users.Where(u => GroupSummary.MailboxKind(u.Mailbox?.Type) is not null))
+        {
+            var kind = GroupSummary.MailboxKind(account.Mailbox!.Type)!.Value;
+            var count = kind == GroupKind.SharedMailbox ? random.Int(0, 5) : random.Int(0, 2);
+            var people = random.ListItems(members.Where(m => m.Id != account.Id).ToList(), count)
+                .Select(p => new GroupMember(p.Id, "user", random.ArrayElement(rights)))
+                .ToArray();
+            groups.Add(new GroupSummary(account.Id, account.DisplayName, account.Mail, null, kind, false, false, null, account.CreatedAt, people));
+        }
         return groups;
     }
 

@@ -6,12 +6,24 @@ public enum GroupKind
     Security,
     MailEnabledSecurity,
     Distribution,
+    SharedMailbox,
+    RoomMailbox,
+    EquipmentMailbox,
 }
 
-/// <summary>A direct member of a group. <see cref="Type"/> is Graph's: user, group, device, orgContact, servicePrincipal.</summary>
-public sealed record GroupMember(string Id, string Type);
+/// <summary>
+/// A direct member of a group, or someone with access to a shared mailbox. <see cref="Type"/> is
+/// Graph's (user, group, device, orgContact, servicePrincipal), or "unresolved" for an address
+/// the local copy can't match, with the address in <see cref="Name"/>.
+/// </summary>
+/// <param name="Access">For mailboxes: what the person can do ("Full access, Send as").</param>
+public sealed record GroupMember(string Id, string Type, string? Access = null, string? Name = null);
 
-/// <summary>The fields a group list row needs, plus its direct members.</summary>
+/// <summary>
+/// A row in Groups &amp; shared mailboxes: a group with its direct members, or a shared, room or
+/// equipment mailbox with the people who have access. A mailbox's <see cref="Id"/> is its
+/// account's user id.
+/// </summary>
 public sealed record GroupSummary(
     string Id,
     string DisplayName,
@@ -24,11 +36,25 @@ public sealed record GroupSummary(
     DateTimeOffset? CreatedAt,
     IReadOnlyList<GroupMember> Members)
 {
+    public bool IsMailbox => Kind is GroupKind.SharedMailbox or GroupKind.RoomMailbox or GroupKind.EquipmentMailbox;
+
     public static string KindName(GroupKind kind) => kind switch
     {
         GroupKind.Microsoft365 => "Microsoft 365",
         GroupKind.Security => "Security",
         GroupKind.MailEnabledSecurity => "Mail-enabled security",
-        _ => "Distribution list",
+        GroupKind.Distribution => "Distribution list",
+        GroupKind.SharedMailbox => UserFields.SharedMailboxType,
+        GroupKind.RoomMailbox => UserFields.RoomType,
+        _ => UserFields.EquipmentType,
+    };
+
+    /// <summary>The kind for an Exchange mailbox type ("Shared", "Room", "Equipment"), or null for a person's mailbox.</summary>
+    public static GroupKind? MailboxKind(string? mailboxType) => mailboxType switch
+    {
+        "Shared" => GroupKind.SharedMailbox,
+        "Room" => GroupKind.RoomMailbox,
+        "Equipment" => GroupKind.EquipmentMailbox,
+        _ => null,
     };
 }

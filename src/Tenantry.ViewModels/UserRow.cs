@@ -25,8 +25,8 @@ public sealed class UserRow(UserSummary user, DateTimeOffset now)
     public string StatusText => User.AccountEnabled ? "Active" : "Blocked";
     public BadgeKind StatusKind => User.AccountEnabled ? BadgeKind.Success : BadgeKind.Danger;
 
-    public string KindText => User.Kind == UserKind.Guest ? "Guest" : "Member";
-    public BadgeKind KindKind => User.Kind == UserKind.Guest ? BadgeKind.Info : BadgeKind.Neutral;
+    public string KindText => Lists.UserList.TypeBadge(User).Text;
+    public BadgeKind KindKind => Lists.UserList.TypeBadge(User).Kind;
 
     public string LastSignInText { get; } = Display.Relative(user.LastSignIn, now);
     public string LastSignInExact { get; } = Display.Exact(user.LastSignIn);

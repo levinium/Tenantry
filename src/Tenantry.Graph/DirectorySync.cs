@@ -31,6 +31,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
     public const string Domains = "domain";
     public const string Teams = "team";
     public const string Mailboxes = "mailbox";
+    public const string MailboxAccess = "mailboxaccess";
     public const string SignIns = "signin";
 
     const string UserSelect = "id,displayName,userPrincipalName,mail,department,jobTitle,accountEnabled,userType,createdDateTime,assignedLicenses";
@@ -41,7 +42,13 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
     [
         "ExternalDirectoryObjectId", "RecipientTypeDetails", "PrimarySmtpAddress", "EmailAddresses", "ForwardingSmtpAddress",
         "ForwardingAddress", "DeliverToMailboxAndForward", "LitigationHoldEnabled", "ArchiveStatus", "HiddenFromAddressListsEnabled",
+        "GrantSendOnBehalfTo",
     ];
+
+    /// <summary>Mailboxes whose access lists are read: the ones shared between people.</summary>
+    static readonly HashSet<string> SharedTypes = ["SharedMailbox", "RoomMailbox", "EquipmentMailbox"];
+
+    const int AccessReadsAtOnce = 4;
 
     static readonly TimeSpan SlowInterval = TimeSpan.FromHours(1);
 
@@ -246,6 +253,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
                 new Dictionary<string, object?> { ["ResultSize"] = "Unlimited" }, cancellationToken, MailboxSelect);
             var changes = new List<EntityChange>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
+            var shared = new List<(string Id, string Address)>();
             foreach (var row in rows)
             {
                 // Keyed by the mailbox's Entra object, so it joins its user.
@@ -253,8 +261,12 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
                     continue;
                 seen.Add(id);
                 changes.Add(new EntityChange(id, ToObject(row)));
+                if (row.TryGetProperty("RecipientTypeDetails", out var type) && SharedTypes.Contains(type.GetString() ?? "")
+                    && row.TryGetProperty("PrimarySmtpAddress", out var address) && address.GetString() is { Length: > 0 } a)
+                    shared.Add((id, a));
             }
             changed = store.Apply(Mailboxes, changes) + store.RemoveExcept(Mailboxes, seen);
+            changed += await SyncMailboxAccessAsync(shared, notes, progress, cancellationToken);
         }
         catch (CmdletException e)
         {
@@ -263,6 +275,71 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         }
         store.SetMark(Mailboxes, new SyncMark(null, _now()));
         return changed;
+    }
+
+    /// <summary>
+    /// Who can use each shared, room and equipment mailbox: Full access (Get-MailboxPermission)
+    /// and Send as (Get-RecipientPermission). Exchange has no tenant-wide or delta form of these
+    /// that maps cleanly to mailboxes, so it is two calls per mailbox, a few at a time. Trustees
+    /// come back as addresses; the mailbox's own SELF entry and inherited or deny entries are
+    /// dropped. Send on behalf comes from Get-Mailbox itself.
+    /// </summary>
+    async Task<int> SyncMailboxAccessAsync(List<(string Id, string Address)> mailboxes, List<string> notes,
+        IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        if (mailboxes.Count == 0)
+            return store.RemoveExcept(MailboxAccess, new HashSet<string>());
+        progress?.Report($"Reading who can use {mailboxes.Count:N0} shared mailboxes…");
+        var access = new System.Collections.Concurrent.ConcurrentDictionary<string, JsonObject>(StringComparer.Ordinal);
+        var failed = 0;
+        await Parallel.ForEachAsync(mailboxes, new ParallelOptions { MaxDegreeOfParallelism = AccessReadsAtOnce, CancellationToken = cancellationToken },
+            async (mailbox, ct) =>
+            {
+                try
+                {
+                    var identity = new Dictionary<string, object?> { ["Identity"] = mailbox.Address };
+                    var full = await exchange!.InvokeAsync(CmdletEndpoint.Exchange, "Get-MailboxPermission", identity, ct,
+                        ["User", "AccessRights", "IsInherited", "Deny"]);
+                    var sendAs = await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-RecipientPermission", identity, ct,
+                        ["Trustee", "AccessRights", "IsInherited", "AccessControlType"]);
+                    access[mailbox.Id] = new JsonObject
+                    {
+                        ["id"] = mailbox.Id,
+                        ["fullAccess"] = Trustees(full, "User", "FullAccess"),
+                        ["sendAs"] = Trustees(sendAs, "Trustee", "SendAs"),
+                    };
+                }
+                catch (CmdletException)
+                {
+                    // Typically a mailbox removed between the two reads. Keep what was stored.
+                    Interlocked.Increment(ref failed);
+                }
+            });
+        if (failed > 0)
+            notes.Add($"Access for {failed:N0} shared mailboxes couldn't be read; their previous access is shown.");
+        var changes = access.Select(a => new EntityChange(a.Key, a.Value)).ToArray();
+        return store.Apply(MailboxAccess, changes)
+            + store.RemoveExcept(MailboxAccess, mailboxes.Select(m => m.Id).ToHashSet(StringComparer.Ordinal));
+    }
+
+    static JsonArray Trustees(IReadOnlyList<JsonElement> entries, string trusteeProperty, string right)
+    {
+        var trustees = new JsonArray();
+        foreach (var e in entries)
+        {
+            var who = e.TryGetProperty(trusteeProperty, out var t) ? t.GetString() : null;
+            if (who is null || who.StartsWith("NT AUTHORITY", StringComparison.OrdinalIgnoreCase) || who.StartsWith("S-1-", StringComparison.Ordinal))
+                continue;
+            if (e.TryGetProperty("IsInherited", out var inherited) && inherited.ValueKind == JsonValueKind.True)
+                continue;
+            if ((e.TryGetProperty("Deny", out var deny) && deny.ValueKind == JsonValueKind.True)
+                || (e.TryGetProperty("AccessControlType", out var control) && string.Equals(control.GetString(), "Deny", StringComparison.OrdinalIgnoreCase)))
+                continue;
+            if (e.TryGetProperty("AccessRights", out var rights) && rights.ValueKind == JsonValueKind.Array
+                && rights.EnumerateArray().Any(r => string.Equals(r.GetString(), right, StringComparison.OrdinalIgnoreCase)))
+                trustees.Add(who);
+        }
+        return trustees;
     }
 
     static bool IsExpired(GraphException e) =>
