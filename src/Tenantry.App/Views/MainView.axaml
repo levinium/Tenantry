@@ -52,7 +52,13 @@
               <ic:FluentIcon Icon="CloudSync" FontSize="16" Foreground="{DynamicResource Accent}" IsVisible="{Binding IsSyncing}" />
               <ic:FluentIcon Icon="Warning" FontSize="16" Foreground="{DynamicResource BadgeWarningFg}" IsVisible="{Binding HasSyncError}" />
             </Panel>
-            <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Text="{Binding SyncText}" />
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+              <TextBlock Classes="caption" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" Text="{Binding SyncText}" />
+              <!-- The background read (mailbox sizes and replies) under it, while it runs -->
+              <TextBlock Classes="caption" Foreground="{DynamicResource TextMuted}" FontSize="11" TextTrimming="CharacterEllipsis"
+                         Text="{Binding BackgroundText}" IsVisible="{Binding HasBackgroundText}"
+                         ToolTip.Tip="Reading every mailbox's size and automatic replies in the background; the lists update when it's done" />
+            </StackPanel>
             <Button Grid.Column="2" Classes="rowaction" Command="{Binding RefreshCommand}"
                     ToolTip.Tip="Refresh: check Microsoft 365 for changes now">
               <ic:FluentIcon Icon="ArrowSync" FontSize="16" />

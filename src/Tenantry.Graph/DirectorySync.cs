@@ -83,14 +83,24 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         try
         {
             var notes = new List<string>();
+            // Each step says what it's doing, so a long Refresh never looks stuck.
+            progress?.Report("Reading licenses…");
             var changed = await ReadWholeAsync(Skus, $"subscribedSkus?$select={SkuSelect}", "skuId", cancellationToken);
+            progress?.Report("Checking users for changes…");
             changed += await SyncDeltaAsync(Users, Users, $"users/delta?$select={UserSelect}", "users", scope, _ => item => new EntityChange(Id(item), ToObject(item)), progress, cancellationToken);
+            progress?.Report("Checking groups for changes…");
             changed += await SyncDeltaAsync(Groups, GroupsMark, $"groups/delta?$select={GroupSelect}", "groups", scope, GroupMapper, progress, cancellationToken);
 
             if (Due(Domains, scope))
+            {
+                progress?.Report("Reading domains…");
                 changed += await ReadWholeAsync(Domains, "domains?$select=id,isVerified", "id", cancellationToken);
+            }
             if (Due(Teams, scope))
+            {
+                progress?.Report("Reading which groups are Teams…");
                 changed += await ReadWholeAsync(Teams, "groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&$select=id&$top=999", "id", cancellationToken);
+            }
             if (Due(SignIns, scope))
                 changed += await SyncSignInsAsync(progress, cancellationToken);
             if (exchange is not null && Due(Mailboxes, scope))
@@ -273,7 +283,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         var changed = 0;
         try
         {
-            progress?.Report("Reading last sign-in times…");
+            progress?.Report("Reading sign-in times…");
             var changes = new List<EntityChange>();
             await foreach (var item in graph.GetAllAsync("users?$select=id,signInActivity&$top=999", cancellationToken))
             {
@@ -343,9 +353,10 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
     {
         if (mailboxes.Count == 0)
             return store.RemoveExcept(MailboxAccess, new HashSet<string>());
-        progress?.Report($"Reading who can use {mailboxes.Count:N0} shared mailboxes…");
+        progress?.Report($"Shared mailbox access: 0 of {mailboxes.Count:N0}…");
         var access = new System.Collections.Concurrent.ConcurrentDictionary<string, JsonObject>(StringComparer.Ordinal);
         var failed = 0;
+        var done = 0;
         await Parallel.ForEachAsync(mailboxes, new ParallelOptions { MaxDegreeOfParallelism = AccessReadsAtOnce, CancellationToken = cancellationToken },
             async (mailbox, ct) =>
             {
@@ -358,6 +369,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
                     // Typically a mailbox removed between the two reads. Keep what was stored.
                     Interlocked.Increment(ref failed);
                 }
+                progress?.Report($"Shared mailbox access: {Interlocked.Increment(ref done):N0} of {mailboxes.Count:N0}…");
             });
         if (failed > 0)
             notes.Add($"Access for {failed:N0} shared mailboxes couldn't be read; their previous access is shown.");
@@ -383,8 +395,21 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
     /// <summary>The background read now running, if any (tests await it).</summary>
     public Task BackgroundWork => _details ?? Task.CompletedTask;
 
-    /// <summary>"Reading… 120 of 604", while the background read runs; null otherwise.</summary>
-    public string? BackgroundStatus { get; private set; }
+    /// <summary>"Mailbox sizes: 120 of 604", while the background read runs; null otherwise.</summary>
+    public string? BackgroundStatus
+    {
+        get => _backgroundStatus;
+        private set
+        {
+            _backgroundStatus = value;
+            BackgroundStatusChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    string? _backgroundStatus;
+
+    /// <summary>Raised (on a worker thread) as the background read moves on, and when it ends.</summary>
+    public event EventHandler? BackgroundStatusChanged;
 
     void StartMailboxDetails()
     {
@@ -436,7 +461,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         var details = new System.Collections.Concurrent.ConcurrentBag<EntityChange>();
         var failed = 0;
         var done = 0;
-        BackgroundStatus = $"Reading… 0 of {mailboxes.Count:N0}";
+        BackgroundStatus = $"Mailbox sizes: 0 of {mailboxes.Count:N0}";
         await Parallel.ForEachAsync(mailboxes.Chunk(MailboxesPerBatch), new ParallelOptions { MaxDegreeOfParallelism = BatchesAtOnce, CancellationToken = cancellationToken },
             async (chunk, ct) =>
             {
@@ -472,7 +497,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
                     details.Add(new EntityChange(chunk[i].Id, row));
                 }
                 var now = Interlocked.Add(ref done, chunk.Length);
-                BackgroundStatus = $"Reading… {now:N0} of {mailboxes.Count:N0}";
+                BackgroundStatus = $"Mailbox sizes: {now:N0} of {mailboxes.Count:N0}";
             });
         if (failed > 0)
             notes.Add($"The size or automatic replies of {failed:N0} mailboxes couldn't be read; their previous values are shown.");

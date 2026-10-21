@@ -5,6 +5,23 @@
              x:Class="Tenantry.App.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
   <StackPanel Spacing="18" Width="760">
+    <!-- A sync running now (from here, the sidebar or the timer), and the background read -->
+    <Border Classes="banner info" IsVisible="{Binding HasLiveText}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="CloudSync" FontSize="16" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+        <TextBlock Text="{Binding LiveText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+    <Border Classes="banner neutral" IsVisible="{Binding HasBackgroundText}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="Storage" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap">
+          <Run Text="In the background: " FontWeight="SemiBold" />
+          <Run Text="{Binding BackgroundText}" />
+        </TextBlock>
+      </StackPanel>
+    </Border>
+
     <!-- How often -->
     <StackPanel Spacing="12">
       <StackPanel Orientation="Horizontal" Spacing="10">

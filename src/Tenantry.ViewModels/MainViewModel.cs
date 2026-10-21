@@ -9,7 +9,7 @@ using Tenantry.ViewModels.Lists;
 
 namespace Tenantry.ViewModels;
 
-public sealed partial class MainViewModel : ObservableObject, IDisposable
+public sealed partial class MainViewModel : ObservableObject, IDisposable, ISyncStatus
 {
     const string Later = "Coming in a later release";
 
@@ -152,6 +152,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             else
                 ui.Post(_ => _ = AfterBackgroundUpdateAsync(), null);
         };
+        sync.BackgroundStatusChanged += (_, _) =>
+        {
+            if (ui is null)
+                BackgroundText = sync.BackgroundStatus;
+            else
+                ui.Post(_ => BackgroundText = sync.BackgroundStatus, null);
+        };
 
         if (sync.LastSyncedAt is null)
         {
@@ -225,7 +232,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (_tenant.SyncSettings is not { } store)
             return;
         ShowDialog(new Records.DialogViewModel("Settings", TenantName,
-            new SettingsViewModel(TenantName, store, _tenant.Sync, SyncNowAsync, StartChecking, _now), Footnote: null));
+            new SettingsViewModel(TenantName, store, _tenant.Sync, SyncNowAsync, StartChecking, _now, this), Footnote: null));
     }
 
     /// <summary>Settings' "Check everything now" and "Download everything again".</summary>
@@ -253,13 +260,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(SyncText), nameof(SyncTip))]
     public partial DateTimeOffset? LastSyncedAt { get; private set; }
 
+    /// <summary>What the running sync is doing now; null between syncs.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SyncText))]
+    public partial string? SyncStep { get; private set; }
+
+    /// <summary>The background read's progress ("Mailbox sizes: 120 of 604"), shown under the status line.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBackgroundText))]
+    public partial string? BackgroundText { get; private set; }
+
+    public bool HasBackgroundText => BackgroundText is not null;
+
     public bool HasSyncError => SyncError is not null && !IsSyncing;
 
     public bool IsSyncOk => SyncError is null && !IsSyncing;
 
     /// <summary>The status line: a clock time rather than "5 min ago", which would go stale on screen.</summary>
     public string SyncText =>
-        IsSyncing ? "Checking for changes…"
+        IsSyncing ? SyncStep ?? "Checking for changes…"
         : SyncError is not null ? "Couldn't update"
         : LastSyncedAt is { } at ? $"Updated {Display.Clock(at, _now())}"
         : "Not downloaded yet";
@@ -298,10 +317,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (_tenant.Sync is not { } sync)
             return 0;
         IsSyncing = true;
+        // Every sync's steps reach the status line (and Settings), not only a first download's.
+        var steps = new Progress<string>(step => SyncStep = step);
+        IProgress<string> report = progress is null ? steps : new BothProgress(progress, steps);
         try
         {
             // Off the UI thread: a first download parses and writes thousands of objects.
-            var changed = await Task.Run(() => sync.SyncAsync(progress, scope, cancellationToken), cancellationToken);
+            var changed = await Task.Run(() => sync.SyncAsync(report, scope, cancellationToken), cancellationToken);
             SyncError = null;
             return changed;
         }
@@ -314,6 +336,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             LastSyncedAt = sync.LastSyncedAt;
             IsSyncing = false;
+            SyncStep = null;
+        }
+    }
+
+    sealed class BothProgress(IProgress<string> first, IProgress<string> second) : IProgress<string>
+    {
+        public void Report(string value)
+        {
+            first.Report(value);
+            second.Report(value);
         }
     }
 
@@ -437,6 +469,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool HasDialog => Dialog is not null;
 
     public void ShowDialog(Records.DialogViewModel dialog) => Dialog = dialog;
+
+    /// <summary>Settings watches the sync while open; it lets go when its popup closes.</summary>
+    partial void OnDialogChanged(Records.DialogViewModel? oldValue, Records.DialogViewModel? newValue) =>
+        (oldValue?.Content as SettingsViewModel)?.Dispose();
 
     [RelayCommand]
     public void CloseDialog() => Dialog = null;

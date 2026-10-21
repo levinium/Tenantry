@@ -18,13 +18,14 @@ public sealed record SyncAreaRow(string Name, string Holds, string Last, string 
 /// when each was last read, and the buttons to check everything now or download it all again.
 /// Changes save at once (per tenant) and take effect on the next check.
 /// </summary>
-public sealed partial class SettingsViewModel : ObservableObject
+public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 {
     readonly ISyncSettingsStore _store;
     readonly ITenantSync? _sync;
     readonly Func<DateTimeOffset> _now;
     readonly Func<SyncScope, Task> _syncNow;
     readonly Action _changed;
+    readonly ISyncStatus? _status;
     bool _loading;
 
     public static IReadOnlyList<IntervalOption> ChangesOptions { get; } =
@@ -41,8 +42,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     /// <param name="syncNow">Runs a sync (Everything or StartOver) and updates the lists.</param>
     /// <param name="changed">Called after a setting is saved (the app restarts its timer).</param>
+    /// <param name="status">The sync as it happens (the sidebar's), so Settings shows a sync already running.</param>
     public SettingsViewModel(string tenantName, ISyncSettingsStore store, ITenantSync? sync, Func<SyncScope, Task> syncNow, Action changed,
-        Func<DateTimeOffset>? now = null)
+        Func<DateTimeOffset>? now = null, ISyncStatus? status = null)
     {
         TenantName = tenantName;
         _store = store;
@@ -50,6 +52,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         _syncNow = syncNow;
         _changed = changed;
         _now = now ?? (() => DateTimeOffset.Now);
+        _status = status;
+        if (_status is not null)
+            _status.PropertyChanged += OnStatusChanged;
         _loading = true;
         var s = store.Load();
         Changes = Pick(ChangesOptions, s.ChangesMinutes);
@@ -99,10 +104,45 @@ public sealed partial class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(HasAreas));
     }
 
+    // ---- Live status --------------------------------------------------------------------------
+
+    /// <summary>"Updating now: Reading mailboxes…" while any sync runs (started here or not).</summary>
+    public string? LiveText => _status is { IsSyncing: true } s ? $"Updating now: {s.SyncStep ?? "checking for changes…"}" : IsSyncing ? Status : null;
+
+    public bool HasLiveText => LiveText is not null;
+
+    /// <summary>The background read's progress ("Mailbox sizes: 120 of 604").</summary>
+    public string? BackgroundText => _status?.BackgroundText;
+
+    public bool HasBackgroundText => BackgroundText is not null;
+
+    bool AnySyncRunning => IsSyncing || _status?.IsSyncing == true;
+
+    void OnStatusChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(LiveText));
+        OnPropertyChanged(nameof(HasLiveText));
+        OnPropertyChanged(nameof(BackgroundText));
+        OnPropertyChanged(nameof(HasBackgroundText));
+        SyncEverythingCommand.NotifyCanExecuteChanged();
+        StartOverCommand.NotifyCanExecuteChanged();
+        // A sync or background read just ended: show the new "last read" times.
+        if (e.PropertyName is nameof(ISyncStatus.IsSyncing) && _status?.IsSyncing == false
+            || e.PropertyName is nameof(ISyncStatus.BackgroundText))
+            RefreshAreas();
+    }
+
+    public void Dispose()
+    {
+        if (_status is not null)
+            _status.PropertyChanged -= OnStatusChanged;
+    }
+
     // ---- Sync now -----------------------------------------------------------------------------
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SyncEverythingCommand), nameof(StartOverCommand))]
+    [NotifyPropertyChangedFor(nameof(LiveText), nameof(HasLiveText))]
     public partial bool IsSyncing { get; private set; }
 
     [ObservableProperty]
@@ -112,7 +152,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsConfirmingStartOver { get; private set; }
 
-    bool CanSync => !IsSyncing && _sync is not null;
+    /// <summary>One sync at a time: the buttons wait while any sync is running.</summary>
+    bool CanSync => !AnySyncRunning && _sync is not null;
 
     [RelayCommand(CanExecute = nameof(CanSync))]
     Task SyncEverything() => RunAsync(SyncScope.Everything, "Checking everything…");

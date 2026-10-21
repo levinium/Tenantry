@@ -40,6 +40,12 @@ public interface ITenantSync
     /// </summary>
     event EventHandler? BackgroundUpdated { add { } remove { } }
 
+    /// <summary>What the background work is doing ("Mailbox sizes: 120 of 604"), or null when idle.</summary>
+    string? BackgroundStatus => null;
+
+    /// <summary>Raised, possibly on a worker thread, whenever <see cref="BackgroundStatus"/> changes.</summary>
+    event EventHandler? BackgroundStatusChanged { add { } remove { } }
+
     /// <summary>Brings the local copy up to date; returns how many objects changed.</summary>
     Task<int> SyncAsync(IProgress<string>? progress = null, SyncScope scope = SyncScope.Changes, CancellationToken cancellationToken = default);
 }
