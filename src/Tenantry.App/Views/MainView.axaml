@@ -150,6 +150,20 @@
         </StackPanel>
       </Border>
 
+      <!-- Permissions a newer Tenantry needs that the tenant hasn't granted: one step to grant them. -->
+      <Border DockPanel.Dock="Top" Classes="banner neutral" Margin="20,12,20,0" IsVisible="{Binding HasMissingPermissions}">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+          <ic:FluentIcon Icon="ShieldLock" FontSize="16" VerticalAlignment="Center" />
+          <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+            <TextBlock TextWrapping="Wrap" Text="{Binding PermissionsText}" ToolTip.Tip="{Binding PermissionsList}" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding PermissionsStatus}"
+                       IsVisible="{Binding PermissionsStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </StackPanel>
+          <Button Grid.Column="2" Classes="accent" VerticalAlignment="Center" Command="{Binding GrantPermissionsCommand}"
+                  Content="Grant permissions…" ToolTip.Tip="{Binding PermissionsList}" />
+        </Grid>
+      </Border>
+
       <!-- Test mode: only zz-tenantry-test- objects can change. Turning it off means typing the tenant's name. -->
       <Border DockPanel.Dock="Top" Classes="banner warning" Margin="20,12,20,0"
               DataContext="{Binding Pending}" x:DataType="ed:PendingChangesViewModel"
@@ -205,6 +219,34 @@
               </Button>
             </StackPanel>
           </Grid>
+          <!-- Temporary passwords: shown once, never stored; copy, pass on, dismiss. -->
+          <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Reveals}" Margin="0,10,0,0" IsVisible="{Binding HasReveals}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ed:RevealRow">
+                <Border Classes="pending" Margin="0,0,0,6" Padding="12,8">
+                  <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+                    <ic:FluentIcon Icon="Password" FontSize="16" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Spacing="2">
+                      <TextBlock Text="{Binding Label}" />
+                      <SelectableTextBlock Classes="code" FontSize="16" Text="{Binding Secret}" />
+                      <TextBlock Classes="caption" Text="Shown once and never stored. Copy it now and pass it on securely." TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Column="2" VerticalAlignment="Center" Command="{Binding CopyCommand}" ToolTip.Tip="Copy the password">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ic:FluentIcon Icon="Copy" FontSize="14" />
+                        <TextBlock Text="Copy" IsVisible="{Binding !Copied}" />
+                        <TextBlock Text="Copied" IsVisible="{Binding Copied}" />
+                      </StackPanel>
+                    </Button>
+                    <Button Grid.Column="3" Classes="rowaction" VerticalAlignment="Center" Command="{Binding DismissCommand}"
+                            ToolTip.Tip="Done: remove the password from the screen">
+                      <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+                    </Button>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
           <ScrollViewer IsVisible="{Binding IsOpen}" MaxHeight="260" Margin="0,10,0,0">
             <ItemsControl ItemsSource="{Binding Rows}">
               <ItemsControl.ItemTemplate>
@@ -264,6 +306,31 @@
         </TabControl.DataTemplates>
       </TabControl>
     </DockPanel>
+
+    <!-- Popups: a record area from the preview pane, Reset password, … Close with ✕, Esc or a click outside. -->
+    <Panel Grid.ColumnSpan="2" IsVisible="{Binding HasDialog}">
+      <Border x:Name="DialogBackdrop" Classes="backdrop" />
+      <Border Classes="palette" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24" MaxWidth="1120" MinWidth="420">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="22,16,14,12">
+            <StackPanel Spacing="1">
+              <TextBlock Classes="h2" Text="{Binding Dialog.Title, FallbackValue=''}" />
+              <TextBlock Classes="muted" Text="{Binding Dialog.Subtitle, FallbackValue=''}" />
+            </StackPanel>
+            <Button Grid.Column="1" Classes="rowaction" VerticalAlignment="Top" Command="{Binding CloseDialogCommand}" ToolTip.Tip="Close (Esc)">
+              <ic:FluentIcon Icon="Dismiss" FontSize="16" />
+            </Button>
+          </Grid>
+          <Border DockPanel.Dock="Top" Classes="divider" />
+          <TextBlock DockPanel.Dock="Bottom" Classes="caption" Margin="22,8,22,12" TextWrapping="Wrap"
+                     Text="Changes go to Pending changes at the bottom of the window; nothing is sent until you apply them." />
+          <Border DockPanel.Dock="Bottom" Classes="divider" />
+          <ScrollViewer x:Name="DialogScroller" Padding="22,16">
+            <ContentControl Content="{Binding Dialog.Content, FallbackValue={x:Null}}" />
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+    </Panel>
 
     <!-- Ctrl+K: a box over everything. Click outside or press Esc to close. -->
     <Panel Grid.ColumnSpan="2" IsVisible="{Binding IsPaletteOpen}">

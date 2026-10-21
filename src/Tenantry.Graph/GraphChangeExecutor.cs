@@ -19,11 +19,55 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
 
     public async Task<ApplyResult> ApplyAsync(ChangeOp change, CancellationToken cancellationToken = default) => change switch
     {
+        // Phones are a list in Graph: the edited number becomes the only entry (or none).
+        SetUserText { Property: "businessPhones" } t => await PatchUserAsync(t.User.Id, t.Property,
+            string.IsNullOrWhiteSpace(t.New) ? new JsonArray() : new JsonArray(t.New.Trim()), cancellationToken),
         // An emptied text property is cleared (null), not set to "".
         SetUserText t => await PatchUserAsync(t.User.Id, t.Property, string.IsNullOrWhiteSpace(t.New) ? null : JsonValue.Create(t.New.Trim()), cancellationToken),
         SetSignInAllowed s => await PatchUserAsync(s.User.Id, "accountEnabled", JsonValue.Create(s.New), cancellationToken),
+        ResetPassword r => await ResetPasswordAsync(r, cancellationToken),
+        RevokeSessions r => await RevokeSessionsAsync(r, cancellationToken),
         _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
+
+    /// <summary>
+    /// Sets a generated temporary password and hands it back once (<see cref="ApplyResult.Reveal"/>)
+    /// for the admin to pass on. It is never stored. There is nothing to read back: Graph never
+    /// returns passwords.
+    /// </summary>
+    async Task<ApplyResult> ResetPasswordAsync(ResetPassword reset, CancellationToken cancellationToken)
+    {
+        var password = TemporaryPassword.Create();
+        try
+        {
+            await graph.PatchAsync($"users/{reset.User.Id}", new JsonObject
+            {
+                ["passwordProfile"] = new JsonObject
+                {
+                    ["password"] = password,
+                    ["forceChangePasswordNextSignIn"] = reset.MustChangeAtNextSignIn,
+                },
+            }, cancellationToken);
+            return new ApplyResult(ChangeOutcome.Applied, Reveal: password);
+        }
+        catch (GraphException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, Describe(e));
+        }
+    }
+
+    async Task<ApplyResult> RevokeSessionsAsync(RevokeSessions revoke, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await graph.PostAsync($"users/{revoke.User.Id}/revokeSignInSessions", new JsonObject(), cancellationToken);
+            return new ApplyResult(ChangeOutcome.Applied, "Signed out of every session; apps ask them to sign in again within about an hour.");
+        }
+        catch (GraphException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, Describe(e));
+        }
+    }
 
     async Task<ApplyResult> PatchUserAsync(string id, string property, JsonNode? value, CancellationToken cancellationToken)
     {
@@ -36,15 +80,15 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
             return new ApplyResult(ChangeOutcome.Failed, Describe(e));
         }
 
-        var expected = value?.ToJsonString() ?? "null";
         foreach (var wait in ReadBackWaits)
         {
             if (wait > TimeSpan.Zero)
                 await _delay(wait, cancellationToken);
             var user = await graph.GetAsync($"users/{id}?$select=id,{property}", cancellationToken);
             store.Apply(DirectorySync.Users, [new EntityChange(id, JsonNode.Parse(user.GetRawText())!.AsObject(), OnlyIfExists: true)]);
-            var actual = user.TryGetProperty(property, out var v) ? v.GetRawText() : "null";
-            if (actual == expected)
+            // Compared as values, not text: "+1 555" and "+1 555" are the same number.
+            var actual = user.TryGetProperty(property, out var v) ? JsonNode.Parse(v.GetRawText()) : null;
+            if (JsonNode.DeepEquals(actual, value))
                 return new ApplyResult(ChangeOutcome.Applied);
         }
         return new ApplyResult(ChangeOutcome.AppliedNotYetVisible,

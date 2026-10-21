@@ -33,6 +33,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _now = now ?? (() => DateTimeOffset.Now);
         _syncInterval = syncInterval;
         LastSyncedAt = tenant.Sync?.LastSyncedAt;
+        MissingPermissions = tenant.MissingPermissions ?? [];
 
         var createUsers = Evaluate(Capabilities.EditUsers);
         Users = DataListViewModel.Create(UserList.Definition(_now, u => NewUserPage(u)), LoadUsersAsync, OpenUser, tenant.ListState, _now);
@@ -302,7 +303,69 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>A user's record (page or preview), editable when the tenant and the admin's role allow.</summary>
-    UserDetailViewModel NewUserPage(UserSummary user) => new(user, _now(), _tenant.Changes, Evaluate(Capabilities.EditUsers));
+    UserDetailViewModel NewUserPage(UserSummary user) =>
+        new(user, _now(), _tenant.Changes, Evaluate(Capabilities.EditUsers), _tenant.Records, ShowDialog, CloseDialog);
+
+    // ---- Permissions ----------------------------------------------------------------------
+
+    /// <summary>Permissions this version needs that the tenant hasn't granted yet (empty when all is well).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMissingPermissions), nameof(PermissionsText), nameof(PermissionsList))]
+    public partial IReadOnlyList<string> MissingPermissions { get; private set; } = [];
+
+    public bool HasMissingPermissions => MissingPermissions.Count > 0 && _tenant.UpdatePermissions is not null;
+
+    public string PermissionsText =>
+        $"Some features need {(MissingPermissions.Count == 1 ? "a permission" : $"{MissingPermissions.Count} permissions")} {TenantName} hasn't granted Tenantry yet " +
+        "(for example, resetting passwords). A Global Administrator or Cloud Application Administrator can grant them in one step; you'll sign in to approve.";
+
+    public string PermissionsList => "Missing: " + string.Join(", ", MissingPermissions);
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(GrantPermissionsCommand))]
+    public partial bool IsGrantingPermissions { get; private set; }
+
+    [ObservableProperty]
+    public partial string? PermissionsStatus { get; private set; }
+
+    bool CanGrantPermissions => !IsGrantingPermissions;
+
+    /// <summary>Runs the one-step setup again for this tenant, which grants whatever is missing.</summary>
+    [RelayCommand(CanExecute = nameof(CanGrantPermissions))]
+    async Task GrantPermissions()
+    {
+        if (_tenant.UpdatePermissions is not { } update)
+            return;
+        IsGrantingPermissions = true;
+        PermissionsStatus = "Sign in as an administrator in your browser to approve…";
+        try
+        {
+            MissingPermissions = await update(new Progress<string>(s => PermissionsStatus = s), _lifetime.Token);
+            PermissionsStatus = MissingPermissions.Count == 0 ? null : $"Still missing after setup: {string.Join(", ", MissingPermissions)}.";
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            PermissionsStatus = $"Couldn't grant the permissions: {Friendly.Message(e)}";
+        }
+        finally
+        {
+            IsGrantingPermissions = false;
+        }
+    }
+
+    // ---- Popups ---------------------------------------------------------------------------
+
+    /// <summary>The popup over the window (a record tab from the preview, Reset password, …), or null.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDialog))]
+    public partial Records.DialogViewModel? Dialog { get; private set; }
+
+    public bool HasDialog => Dialog is not null;
+
+    public void ShowDialog(Records.DialogViewModel dialog) => Dialog = dialog;
+
+    [RelayCommand]
+    public void CloseDialog() => Dialog = null;
 
     // ---- Changes --------------------------------------------------------------------------
 

@@ -18,7 +18,10 @@ public sealed record ConnectedTenant(
     IListStateStore? ListState = null,
     ITenantSync? Sync = null,
     IDisposable? Resources = null,
-    Tenantry.Core.Changes.ChangePipeline? Changes = null);
+    Tenantry.Core.Changes.ChangePipeline? Changes = null,
+    IUserRecords? Records = null,
+    IReadOnlyList<string>? MissingPermissions = null,
+    Func<IProgress<string>, CancellationToken, Task<IReadOnlyList<string>>>? UpdatePermissions = null);
 
 /// <summary>The outcome of the automatic setup.</summary>
 public sealed record SetupOutcome(TenantProfile Profile, bool Reused, IReadOnlyList<string> Unresolved);

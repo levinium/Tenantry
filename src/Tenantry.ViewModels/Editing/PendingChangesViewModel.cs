@@ -33,6 +33,30 @@ public sealed partial class PendingRow(ChangeOp change, Action<ChangeOp> remove)
 }
 
 /// <summary>
+/// Something to show the admin once after applying (a temporary password): with a Copy button,
+/// kept only until dismissed, never stored or logged.
+/// </summary>
+public sealed partial class RevealRow(string label, string secret, Action<RevealRow> dismiss) : ObservableObject
+{
+    public string Label { get; } = label;
+
+    public string Secret { get; } = secret;
+
+    [ObservableProperty]
+    public partial bool Copied { get; private set; }
+
+    [RelayCommand]
+    void Copy()
+    {
+        Platform.CopyText(Secret);
+        Copied = true;
+    }
+
+    [RelayCommand]
+    void Dismiss() => dismiss(this);
+}
+
+/// <summary>
 /// The Pending changes tray at the bottom of the window, and the tenant's Test mode banner.
 /// Changes are reviewed as before → after and applied together; ones that take something away
 /// (blocking sign-in) need a second, in-place confirmation. Test mode can only be switched off by
@@ -59,14 +83,26 @@ public sealed partial class PendingChangesViewModel : ObservableObject
 
     public ObservableCollection<PendingRow> Rows { get; } = [];
 
+    /// <summary>Temporary passwords from the last apply, shown once until dismissed.</summary>
+    public ObservableCollection<RevealRow> Reveals { get; } = [];
+
+    public bool HasReveals => Reveals.Count > 0;
+
     public int Count => Rows.Count;
 
     public bool HasChanges => Count > 0;
 
     public bool HasResult => Result is not null;
 
-    /// <summary>The tray shows while there are changes, or a result to read.</summary>
-    public bool IsVisible => HasChanges || HasResult;
+    /// <summary>The tray shows while there are changes, a result to read, or a password to pass on.</summary>
+    public bool IsVisible => HasChanges || HasResult || HasReveals;
+
+    void DismissReveal(RevealRow row)
+    {
+        Reveals.Remove(row);
+        OnPropertyChanged(nameof(HasReveals));
+        OnPropertyChanged(nameof(IsVisible));
+    }
 
     public string HeaderText => Count == 0 ? "Pending changes" : $"Pending changes ({Count})";
 
@@ -114,6 +150,10 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         try
         {
             var results = await _pipeline.ApplyAsync();
+            foreach (var (change, result) in results.Where(r => r.Result.Reveal is not null))
+                Reveals.Add(new RevealRow($"Temporary password for {change.Target.Name}", result.Reveal!, DismissReveal));
+            OnPropertyChanged(nameof(HasReveals));
+            OnPropertyChanged(nameof(IsVisible));
             _problems.Clear();
             foreach (var (change, result) in results.Where(r => !r.Result.Succeeded))
                 _problems[change] = result.Detail ?? result.Outcome.ToString();

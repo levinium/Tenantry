@@ -227,15 +227,39 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         editing.Users.LoadAsync().GetAwaiter().GetResult();
         editing.Users.PreviewRow(editing.Users.Rows[1]);
         var person = (UserDetailViewModel)editing.Users.PreviewModel!;
-        var department = person.Fields.Single(f => f.Property == "department");
-        department.EditCommand.Execute(null);
-        department.Draft = "Operations";
-        department.StageCommand.Execute(null);
+        // The preview: summary, health, quick actions and a Manage row per area.
+        Render(editing, "preview-manage-light");
+
+        // Manage → Account opens the tab in a popup; one change staged, another being typed.
+        person.ManageCommand.Execute(person.Account);
+        person.Account.LoadAsync().GetAwaiter().GetResult();
+        var fields = person.Account.Groups.SelectMany(g => g.Fields).ToDictionary(f => f.Property);
+        fields["department"].EditCommand.Execute(null);
+        fields["department"].Draft = "Operations";
+        fields["department"].StageCommand.Execute(null);
         person.ToggleSignInCommand.Execute(null);
-        var title = person.Fields.Single(f => f.Property == "jobTitle");
-        title.EditCommand.Execute(null);
-        title.Draft = "Senior Planner";
+        fields["jobTitle"].EditCommand.Execute(null);
+        fields["jobTitle"].Draft = "Senior Planner";
         Render(editing, "editing-light");
+
+        // The record page on its Account tab, and a temporary password shown once after a reset.
+        editing.CloseDialog();
+        editing.OpenUser((UserSummary)editing.Users.Rows[2]);
+        var page = (UserDetailViewModel)editing.SelectedTab!;
+        page.SelectedSection = page.Account;
+        page.Account.LoadAsync().GetAwaiter().GetResult();
+        editing.Pending!.DiscardAllCommand.Execute(null);
+        Render(editing, "user-account-light");
+        // Demo people aren't test objects, so Test mode would (rightly) refuse the reset.
+        editing.Pending.TurnOffTestModeCommand.Execute(null);
+        editing.Pending.StartTurnOffCommand.Execute(null);
+        editing.Pending.TurnOffText = editing.TenantName;
+        editing.Pending.TurnOffTestModeCommand.Execute(null);
+        page.ResetPasswordCommand.Execute(null);
+        ((Tenantry.ViewModels.Records.ResetPasswordViewModel)editing.Dialog!.Content).StageCommand.Execute(null);
+        editing.Pending.ApplyCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        editing.Pending.ApplyCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        Render(editing, "password-reveal-light");
     }
 
     // A synced tenant: the sidebar shows when the local copy was last brought up to date.
@@ -326,7 +350,8 @@ static void Settle()
 sealed class NoopExecutor : Tenantry.Core.Changes.IChangeExecutor
 {
     public Task<Tenantry.Core.Changes.ApplyResult> ApplyAsync(Tenantry.Core.Changes.ChangeOp change, CancellationToken cancellationToken = default) =>
-        Task.FromResult(new Tenantry.Core.Changes.ApplyResult(Tenantry.Core.Changes.ChangeOutcome.Applied));
+        Task.FromResult(new Tenantry.Core.Changes.ApplyResult(Tenantry.Core.Changes.ChangeOutcome.Applied,
+            Reveal: change is Tenantry.Core.Changes.ResetPassword ? "Kp7r-Xw3n-Bq9t-Hm4s" : null));
 }
 
 /// <summary>A sync that last ran a few minutes ago and never runs again (nothing to fetch in a snapshot).</summary>

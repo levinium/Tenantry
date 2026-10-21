@@ -26,7 +26,10 @@
     </Border>
 
     <StackPanel IsVisible="{Binding IsEditing}" Spacing="6" Margin="0,4,0,0">
-      <TextBox x:Name="Editor" Text="{Binding Draft}" />
+      <TextBox x:Name="Editor" Text="{Binding Draft}" IsVisible="{Binding IsTyped}" />
+      <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" IsVisible="{Binding HasChoices}"
+                HorizontalAlignment="Stretch" MaxDropDownHeight="320" />
+      <TextBlock Classes="caption" Text="{Binding Hint}" TextWrapping="Wrap" IsVisible="{Binding HasHint}" />
       <TextBlock Classes="error" Text="{Binding Problem}" TextWrapping="Wrap"
                  IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       <StackPanel Orientation="Horizontal" Spacing="8">

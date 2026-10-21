@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input.Platform;
 using Avalonia.Markup.Xaml;
 using Tenantry.App.Services;
 using Tenantry.Core.Tenancy;
@@ -20,11 +21,21 @@ public partial class App : Application
             shell.PrepareStartup();
             var window = new MainWindow { DataContext = shell };
             Platform.OpenUrl = url => _ = window.Launcher.LaunchUriAsync(new Uri(url));
+            Platform.CopyText = text => _ = CopyAsync(window, text);
             desktop.MainWindow = window;
             // Once the window is up (so a browser sign-in has something to return to).
             window.Opened += async (_, _) => await shell.StartAsync();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    static async Task CopyAsync(MainWindow window, string text)
+    {
+        if (window.Clipboard is not { } clipboard)
+            return;
+        await clipboard.SetTextAsync(text);
+        // Hand it to the OS now: an unflushed clipboard on Windows blocks other apps' paste.
+        await clipboard.FlushAsync();
     }
 }

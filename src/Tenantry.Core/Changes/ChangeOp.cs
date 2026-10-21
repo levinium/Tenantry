@@ -17,6 +17,8 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetUserText), "setUserText")]
 [JsonDerivedType(typeof(SetSignInAllowed), "setSignIn")]
 [JsonDerivedType(typeof(SetTestModeChange), "setTestMode")]
+[JsonDerivedType(typeof(ResetPassword), "resetPassword")]
+[JsonDerivedType(typeof(RevokeSessions), "revokeSessions")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -59,7 +61,10 @@ public abstract record ChangeOp
     protected static string Show(string? value) => string.IsNullOrEmpty(value) ? "(empty)" : value;
 }
 
-/// <summary>Sets one of a user's text properties (Graph property name in <see cref="Property"/>).</summary>
+/// <summary>
+/// Sets one of a user's text properties (Graph property name in <see cref="Property"/>).
+/// <c>businessPhones</c> is a list in Graph; Tenantry edits its first entry.
+/// </summary>
 public sealed record SetUserText(ChangeTarget User, string Property, string PropertyLabel, string? Old, string? New) : ChangeOp
 {
     public override ChangeTarget Target => User;
@@ -68,7 +73,40 @@ public sealed record SetUserText(ChangeTarget User, string Property, string Prop
     public override string Before => Show(Old);
     public override string After => Show(New);
     public override bool IsNoChange => string.Equals(Old ?? "", New ?? "", StringComparison.Ordinal);
+
+    /// <summary>Changing a sign-in name changes how the person signs in: worth a second look.</summary>
+    public override bool IsCaution => Property == "userPrincipalName";
+
     public override ChangeOp Since(ChangeOp earlier) => earlier is SetUserText e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>
+/// Gives the user a new temporary password. The password itself is shown once to the admin
+/// after applying and is never stored (not in the tray, the change log, or the local copy).
+/// </summary>
+public sealed record ResetPassword(ChangeTarget User, bool MustChangeAtNextSignIn) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "password";
+    public override string Label => "Password";
+    public override string Before => "Current password";
+    public override string After => MustChangeAtNextSignIn ? "New temporary password (must change at next sign-in)" : "New password";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Signs the user out of every session and app (revokes refresh tokens).</summary>
+public sealed record RevokeSessions(ChangeTarget User) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "sessions";
+    public override string Label => "Sessions";
+    public override string Before => "Signed in where they are";
+    public override string After => "Signed out everywhere";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
 }
 
 /// <summary>Blocks or allows a user's sign-in (Graph accountEnabled).</summary>

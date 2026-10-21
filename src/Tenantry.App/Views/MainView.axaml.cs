@@ -54,6 +54,17 @@ public partial class MainView : UserControl
             if (_vm is not null)
                 _vm.IsPaletteOpen = false;
         };
+
+        // Popups close on a click outside or Esc.
+        DialogBackdrop.PointerPressed += (_, _) => _vm?.CloseDialog();
+        AddHandler(KeyDownEvent, (_, e) =>
+        {
+            if (e.Key == Key.Escape && _vm?.HasDialog == true && !_vm.IsPaletteOpen)
+            {
+                _vm.CloseDialog();
+                e.Handled = true;
+            }
+        }, RoutingStrategies.Tunnel);
     }
 
     void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)

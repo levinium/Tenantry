@@ -1,8 +1,26 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
              x:Class="Tenantry.App.App"
              Name="Tenantry"
              RequestedThemeVariant="Default">
+  <!-- Record sections and editors, wherever they appear: a record page's tabs or a popup. -->
+  <Application.DataTemplates>
+    <DataTemplate DataType="rec:OverviewSection">
+      <views:UserOverviewView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:AccountSection">
+      <views:AccountSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:PlannedSection">
+      <views:PlannedSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:ResetPasswordViewModel">
+      <views:ResetPasswordView />
+    </DataTemplate>
+  </Application.DataTemplates>
+
   <Application.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>

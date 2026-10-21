@@ -132,6 +132,24 @@ public sealed class MsalTokenSource : ITokenSource
         }
     }
 
+    /// <summary>
+    /// Gets a fresh token rather than the cached one, so newly granted permissions show up
+    /// without waiting for the cached token to expire.
+    /// </summary>
+    public async Task RefreshAsync(IReadOnlyList<string> scopes, CancellationToken cancellationToken = default)
+    {
+        if ((_account ?? await FindAccountAsync()) is not { } account)
+            return;
+        try
+        {
+            Remember(await _app.AcquireTokenSilent(scopes, account).WithForceRefresh(true).ExecuteAsync(cancellationToken));
+        }
+        catch (MsalUiRequiredException)
+        {
+            // The next ordinary call signs in again; nothing to refresh silently.
+        }
+    }
+
     /// <summary>Signs the account out of this app on this machine and clears its cached tokens.</summary>
     public async Task SignOutAsync()
     {
@@ -152,6 +170,23 @@ public sealed class MsalTokenSource : ITokenSource
         _account = result.Account;
         _loginHint = result.Account.Username;
         TenantId = result.TenantId;
+        foreach (var scope in result.Scopes)
+        {
+            var slash = scope.LastIndexOf('/');
+            var audience = slash > 0 ? scope[..slash] : "";
+            var set = _granted.GetOrAdd(audience, _ => new System.Collections.Concurrent.ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase));
+            set[scope[(slash + 1)..]] = 0;
+        }
         return result.AccessToken;
     }
+
+    readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentDictionary<string, byte>> _granted =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The permissions the last token for an API actually carries (what the tenant consented),
+    /// by name ("User.ReadWrite.All"). Empty until a token for that audience has been issued.
+    /// </summary>
+    public IReadOnlySet<string> GrantedScopes(string audience) =>
+        _granted.TryGetValue(audience.TrimEnd('/'), out var set) ? set.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase) : new HashSet<string>();
 }

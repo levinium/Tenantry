@@ -136,6 +136,41 @@ public class ChangePipelineTests
     }
 
     [Fact]
+    public async Task A_phone_number_with_a_plus_is_read_back_as_applied()
+    {
+        // System.Text.Json writes "+" as +; Graph returns it plain. Both are the same value.
+        var http = new FakeHttp()
+            .On(HttpMethod.Patch, "/users/t1", _ => new HttpResponseMessage(HttpStatusCode.NoContent))
+            .On(HttpMethod.Get, "/users/t1?$select=id,businessPhones", """{"id":"t1","businessPhones":["+1 555 0100"]}""");
+        var executor = new GraphChangeExecutor(new GraphClient(http.Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore(), NoDelay.Instance);
+
+        var result = await executor.ApplyAsync(new SetUserText(Test, "businessPhones", "Work phone", null, "+1 555 0100"), Ct);
+
+        Assert.Equal(ChangeOutcome.Applied, result.Outcome);
+        Assert.Contains("\"businessPhones\":[", http.Requests.Single(r => r.Method == HttpMethod.Patch).Body);
+    }
+
+    [Fact]
+    public async Task Missing_permissions_show_a_one_step_grant_that_clears_when_done()
+    {
+        var calls = 0;
+        var tenant = FakeConnector.Tenant() with
+        {
+            MissingPermissions = ["User-PasswordProfile.ReadWrite.All"],
+            UpdatePermissions = (_, _) => { calls++; return Task.FromResult<IReadOnlyList<string>>([]); },
+        };
+        var vm = new MainViewModel(tenant);
+        Assert.True(vm.HasMissingPermissions);
+        Assert.Contains("User-PasswordProfile.ReadWrite.All", vm.PermissionsList);
+
+        await vm.GrantPermissionsCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, calls);
+        Assert.False(vm.HasMissingPermissions);
+        Assert.Null(vm.PermissionsStatus);
+    }
+
+    [Fact]
     public async Task Clearing_a_value_sends_null_and_a_refusal_comes_back_in_plain_words()
     {
         var http = new FakeHttp()
@@ -154,12 +189,19 @@ public class ChangePipelineTests
     static UserSummary User(string id = "t1", string upn = "zz-tenantry-test-ada@contoso.example") =>
         new(id, "zz-tenantry-test-ada", upn, null, "Finance", null, true, UserKind.Member, DateTimeOffset.UnixEpoch, null, []);
 
+    /// <summary>A field on the Account tab, once the tab has loaded.</summary>
+    static async Task<EditableField> Field(UserDetailViewModel page, string property)
+    {
+        await page.Account.LoadAsync(Ct);
+        return page.Account.Groups.SelectMany(g => g.Fields).Single(f => f.Property == property);
+    }
+
     [Fact]
-    public void Editing_a_field_stages_it_and_shows_it_pending_in_place()
+    public async Task Editing_a_field_stages_it_and_shows_it_pending_in_place()
     {
         var (pipeline, _, _) = Pipeline(testMode: true);
         var page = new UserDetailViewModel(User(), pipeline: pipeline, canEdit: Availability.Yes);
-        var department = page.Fields.Single(f => f.Property == "department");
+        var department = await Field(page, "department");
 
         department.EditCommand.Execute(null);
         Assert.Equal("Finance", department.Draft);
@@ -176,19 +218,135 @@ public class ChangePipelineTests
     }
 
     [Fact]
-    public void A_name_cant_be_emptied_and_without_the_role_fields_say_why_they_cant_change()
+    public async Task A_name_cant_be_emptied_and_without_the_role_fields_say_why_they_cant_change()
     {
         var (pipeline, _, _) = Pipeline(testMode: true);
         var page = new UserDetailViewModel(User(), pipeline: pipeline, canEdit: Availability.Yes);
-        page.NameField.EditCommand.Execute(null);
-        page.NameField.Draft = " ";
-        page.NameField.StageCommand.Execute(null);
-        Assert.Equal("Display name can't be empty.", page.NameField.Problem);
+        var name = await Field(page, "displayName");
+        name.EditCommand.Execute(null);
+        name.Draft = " ";
+        name.StageCommand.Execute(null);
+        Assert.Equal("Display name can't be empty.", name.Problem);
         Assert.Empty(pipeline.Pending);
 
         var readOnly = new UserDetailViewModel(User(), pipeline: pipeline, canEdit: Availability.No("Requires the User Administrator role"));
-        Assert.False(readOnly.NameField.CanEdit);
-        Assert.Equal("Requires the User Administrator role", readOnly.NameField.EditTip);
+        var locked = await Field(readOnly, "displayName");
+        Assert.False(locked.CanEdit);
+        Assert.Equal("Requires the User Administrator role", locked.EditTip);
+    }
+
+    [Fact]
+    public void Sign_in_names_must_be_on_one_of_the_tenants_domains()
+    {
+        string[] domains = ["contoso.example", "contoso.onmicrosoft.example"];
+
+        Assert.Null(Tenantry.ViewModels.Records.AccountSection.ValidateSignInName("ada@contoso.example", domains));
+        Assert.Contains("isn't one of this tenant's domains", Tenantry.ViewModels.Records.AccountSection.ValidateSignInName("ada@gmail.example", domains));
+        Assert.Contains("name@domain", Tenantry.ViewModels.Records.AccountSection.ValidateSignInName("ada lovelace", domains));
+        // A sign-in name change is a caution change: it changes how they sign in.
+        Assert.True(new SetUserText(Test, "userPrincipalName", "Sign-in name", "a@contoso.example", "b@contoso.example").IsCaution);
+    }
+
+    /// <summary>Details as the record page reads them live.</summary>
+    sealed class FakeRecords : IUserRecords
+    {
+        public int Reads;
+
+        public Task<UserDetails> GetDetailsAsync(string userId, CancellationToken cancellationToken = default)
+        {
+            Reads++;
+            return Task.FromResult(new UserDetails(userId, new Dictionary<string, string?>
+            {
+                ["givenName"] = "Ada",
+                ["surname"] = "Lovelace",
+                ["displayName"] = "zz-tenantry-test-ada",
+                ["usageLocation"] = "GB",
+                ["businessPhones"] = "+44 20 0000 0000",
+            }, "m1", "Charles Babbage", "PendingAcceptance", DateTimeOffset.Now.AddDays(-3)));
+        }
+
+        public Task<IReadOnlyList<string>> GetDomainsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<string>>(["contoso.example"]);
+    }
+
+    [Fact]
+    public async Task The_account_tab_reads_details_live_once_and_shows_choices_by_name()
+    {
+        var (pipeline, _, _) = Pipeline(testMode: true);
+        var records = new FakeRecords();
+        var page = new UserDetailViewModel(User(), pipeline: pipeline, canEdit: Availability.Yes, records: records);
+
+        page.SelectedSection = page.Account;
+        await page.Account.LoadAsync(Ct);
+        await page.Account.LoadAsync(Ct);
+
+        Assert.Equal(1, records.Reads);
+        var fields = page.Account.Groups.SelectMany(g => g.Fields).ToDictionary(f => f.Property);
+        Assert.Equal("Ada", fields["givenName"].Value);
+        Assert.Equal("+44 20 0000 0000", fields["businessPhones"].Value);
+        Assert.StartsWith("United Kingdom", fields["usageLocation"].Value);
+        Assert.Equal("Charles Babbage", page.Account.ManagerText);
+        Assert.StartsWith("Invitation not accepted yet", page.Account.GuestStatus);
+
+        fields["usageLocation"].EditCommand.Execute(null);
+        fields["usageLocation"].SelectedChoice = fields["usageLocation"].Choices!.Single(c => c.Value == "US");
+        fields["usageLocation"].StageCommand.Execute(null);
+        Assert.Equal("Usage location: GB → US", Assert.Single(pipeline.Pending).Summary);
+    }
+
+    [Fact]
+    public async Task A_reset_password_is_shown_once_and_never_logged()
+    {
+        var (pipeline, _, log) = Pipeline(testMode: true, change => change is ResetPassword
+            ? new ApplyResult(ChangeOutcome.Applied, Reveal: "Kp7r-Xw3n-Bq9t-Hm4s")
+            : new ApplyResult(ChangeOutcome.Applied));
+        Tenantry.ViewModels.Records.DialogViewModel? dialog = null;
+        var tray = new PendingChangesViewModel(pipeline, "Contoso", showTestMode: true, () => Task.CompletedTask);
+        var page = new UserDetailViewModel(User(), pipeline: pipeline, canEdit: Availability.Yes, openDialog: d => dialog = d, closeDialog: () => dialog = null);
+
+        page.ResetPasswordCommand.Execute(null);
+        var reset = Assert.IsType<Tenantry.ViewModels.Records.ResetPasswordViewModel>(dialog!.Content);
+        reset.StageCommand.Execute(null);
+        Assert.Null(dialog);
+        page.SignOutEverywhereCommand.Execute(null);
+        Assert.Equal(2, tray.Count);
+
+        await tray.ApplyCommand.ExecuteAsync(null); // both take something away: confirm first
+        await tray.ApplyCommand.ExecuteAsync(null);
+
+        var shown = Assert.Single(tray.Reveals);
+        Assert.Equal("Kp7r-Xw3n-Bq9t-Hm4s", shown.Secret);
+        Assert.DoesNotContain(log.All(), e => (e.Detail ?? "").Contains("Kp7r", StringComparison.Ordinal));
+        Assert.DoesNotContain("Kp7r", System.Text.Json.JsonSerializer.Serialize(log.All()), StringComparison.Ordinal);
+        shown.DismissCommand.Execute(null);
+        Assert.False(tray.HasReveals);
+        Assert.Empty(tray.Reveals);
+    }
+
+    [Fact]
+    public void Temporary_passwords_are_readable_and_meet_complexity()
+    {
+        var passwords = Enumerable.Range(0, 200).Select(_ => TemporaryPassword.Create()).ToArray();
+
+        Assert.All(passwords, p =>
+        {
+            Assert.Matches("^([A-Z][a-z][2-9][a-z]-){3}[A-Z][a-z][2-9][a-z]$", p);
+            Assert.DoesNotContain(p, c => "0O1lI".Contains(c));
+        });
+        Assert.Equal(passwords.Length, passwords.Distinct().Count());
+    }
+
+    [Fact]
+    public void The_preview_opens_any_tab_in_a_popup()
+    {
+        Tenantry.ViewModels.Records.DialogViewModel? dialog = null;
+        var page = new UserDetailViewModel(User(), openDialog: d => dialog = d);
+
+        Assert.DoesNotContain(page.ManageRows, s => s.Key == "overview");
+        page.ManageCommand.Execute(page.ManageRows.Single(s => s.Key == "account"));
+
+        Assert.Equal(("Account", "zz-tenantry-test-ada"), (dialog!.Title, dialog.Subtitle));
+        Assert.Same(page.Account, dialog.Content);
     }
 
     [Fact]
@@ -252,7 +410,7 @@ public class ChangePipelineTests
         var page = Assert.IsType<UserDetailViewModel>(vm.SelectedTab);
         Assert.False(vm.Pending!.ShowBanner);
 
-        var department = page.Fields.Single(f => f.Property == "department");
+        var department = await Field(page, "department");
         department.EditCommand.Execute(null);
         department.Draft = "Moved Department";
         department.StageCommand.Execute(null);

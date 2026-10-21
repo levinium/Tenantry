@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.AccountSectionView"
+             x:DataType="rec:AccountSection">
+  <!-- One card per kind of detail; cards wrap to fit the page or popup. -->
+  <StackPanel Spacing="12">
+    <TextBlock Classes="muted" Text="Reading the account details…" IsVisible="{Binding IsLoading}" />
+    <Border Classes="banner error" IsVisible="{Binding HasError}">
+      <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
+    </Border>
+
+    <Border Classes="banner neutral" IsVisible="{Binding IsGuest}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="PersonSupport" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap">
+          <Run Text="Guest: " FontWeight="SemiBold" />
+          <Run Text="{Binding GuestStatus}" />
+        </TextBlock>
+      </StackPanel>
+    </Border>
+
+    <ItemsControl ItemsSource="{Binding Groups}" IsVisible="{Binding IsReady}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel ItemSpacing="12" LineSpacing="12" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:FieldGroup">
+          <Border Classes="card" Width="340">
+            <StackPanel Spacing="14">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="18" Foreground="{DynamicResource Accent}" />
+                <TextBlock Classes="h3" Text="{Binding Title}" VerticalAlignment="Center" />
+              </StackPanel>
+              <ItemsControl ItemsSource="{Binding Fields}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="12" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="ed:EditableField">
+                    <views:EditableFieldView />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <Border Classes="card" Width="340" HorizontalAlignment="Left" IsVisible="{Binding IsReady}">
+      <StackPanel Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="People" FontSize="18" Foreground="{DynamicResource Accent}" />
+          <TextBlock Classes="h3" Text="Manager" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Classes="value" Text="{Binding ManagerText}" />
+        <TextBlock Classes="caption" TextWrapping="Wrap" Text="Choosing a manager arrives with the people picker in the Groups &amp; access update." />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

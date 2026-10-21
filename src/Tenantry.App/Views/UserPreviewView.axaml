@@ -1,77 +1,82 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
              xmlns:c="using:Tenantry.App.Controls"
-             xmlns:ed="using:Tenantry.ViewModels.Editing"
-             xmlns:views="using:Tenantry.App.Views"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.UserPreviewView"
-             x:DataType="vm:UserDetailViewModel">
-  <!-- The user record, stacked to fit the preview pane. -->
-  <StackPanel Spacing="18">
+             x:DataType="vm:UserDetailViewModel"
+             x:Name="Root">
+  <!-- The record, compact: who, what needs attention, quick actions, then one Manage row per
+       area. Manage opens that area's editor in a popup, so the narrow pane never overflows. -->
+  <StackPanel Spacing="16">
     <StackPanel Spacing="10">
       <Border Classes="avatar large" HorizontalAlignment="Left">
         <TextBlock Text="{Binding Initials}" />
       </Border>
       <StackPanel Spacing="2">
         <TextBlock Classes="h2" Text="{Binding User.DisplayName}" TextWrapping="Wrap" />
-        <SelectableTextBlock Classes="muted" Text="{Binding User.UserPrincipalName}" TextWrapping="Wrap" />
+        <SelectableTextBlock Classes="muted" Text="{Binding SecondaryText}" TextWrapping="Wrap" />
       </StackPanel>
-      <StackPanel Orientation="Horizontal" Spacing="8">
+      <WrapPanel ItemSpacing="8" LineSpacing="6">
         <c:Badge Text="{Binding StatusText}" Kind="{Binding StatusKind}" />
         <c:Badge Text="{Binding KindText}" Kind="{Binding KindKind}" />
-      </StackPanel>
-    </StackPanel>
-
-    <Border Classes="divider" />
-    <StackPanel Spacing="12">
-      <TextBlock Classes="h3" Text="Sign-in" />
-      <StackPanel Spacing="6">
-        <Button Classes="danger-outline" HorizontalAlignment="Left" Command="{Binding ToggleSignInCommand}"
-                IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding SignInActionTip}" ToolTip.ShowOnDisabled="True"
-                Classes.undo="{Binding HasPendingSignIn}">
+        <ItemsControl ItemsSource="{Binding Health}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemSpacing="8" LineSpacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:HealthChip">
+              <c:Badge Text="{Binding Text}" Kind="{Binding Kind}" ToolTip.Tip="{Binding Tip}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </WrapPanel>
+      <WrapPanel ItemSpacing="8" LineSpacing="8">
+        <Button Command="{Binding ResetPasswordCommand}" IsEnabled="{Binding CanEdit}"
+                ToolTip.Tip="{Binding ResetPasswordTip}" ToolTip.ShowOnDisabled="True">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Password" FontSize="14" />
+            <TextBlock Text="Reset password" />
+          </StackPanel>
+        </Button>
+        <Button Classes="danger-outline" Classes.undo="{Binding HasPendingSignIn}" Command="{Binding ToggleSignInCommand}"
+                IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding SignInActionTip}" ToolTip.ShowOnDisabled="True">
           <TextBlock Text="{Binding SignInActionText}" />
         </Button>
-        <TextBlock Classes="caption pendingtext" Text="{Binding PendingSignInText}" IsVisible="{Binding HasPendingSignIn}" />
-      </StackPanel>
-      <StackPanel Spacing="2">
-        <TextBlock Classes="label" Text="LAST SIGN-IN" />
-        <TextBlock Classes="value" Text="{Binding LastSignInText}" />
-        <TextBlock Classes="caption" Text="{Binding LastSignInExact}" />
-      </StackPanel>
-      <StackPanel Spacing="2">
-        <TextBlock Classes="label" Text="ACCOUNT CREATED" />
-        <TextBlock Classes="value" Text="{Binding CreatedText}" />
-      </StackPanel>
-    </StackPanel>
-
-    <Border Classes="divider" />
-    <StackPanel Spacing="12">
-      <TextBlock Classes="h3" Text="Profile" />
-      <ItemsControl ItemsSource="{Binding Fields}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <StackPanel Spacing="12" />
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="ed:EditableField">
-            <views:EditableFieldView />
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-      <StackPanel Spacing="2">
-        <TextBlock Classes="label" Text="EMAIL" />
-        <SelectableTextBlock Classes="value" Text="{Binding Email}" TextWrapping="Wrap" />
-      </StackPanel>
+        <Button IsEnabled="{Binding CanEdit}" ToolTip.Tip="More actions" ToolTip.ShowOnDisabled="True">
+          <ic:FluentIcon Icon="MoreHorizontal" FontSize="16" />
+          <Button.Flyout>
+            <MenuFlyout Placement="BottomEdgeAlignedRight">
+              <MenuItem Header="{Binding SignOutText}" Command="{Binding SignOutEverywhereCommand}">
+                <MenuItem.Icon>
+                  <ic:FluentIcon Icon="SignOut" FontSize="16" />
+                </MenuItem.Icon>
+              </MenuItem>
+            </MenuFlyout>
+          </Button.Flyout>
+        </Button>
+      </WrapPanel>
+      <TextBlock Classes="caption pendingtext" Text="{Binding PendingSignInText}" IsVisible="{Binding HasPendingSignIn}" />
     </StackPanel>
 
     <Border Classes="divider" />
     <StackPanel Spacing="10">
-      <TextBlock Classes="h3" Text="Licenses" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Classes="label" Text="LAST SIGN-IN" />
+        <TextBlock Grid.Column="1" Classes="caption" Text="{Binding LastSignInText}" ToolTip.Tip="{Binding LastSignInExact}" />
+      </Grid>
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Classes="label" Text="MAILBOX" />
+        <TextBlock Grid.Column="1" Classes="caption" Text="{Binding MailboxText}" />
+      </Grid>
       <ItemsControl ItemsSource="{Binding Licenses}" IsVisible="{Binding HasLicenses}">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
-            <WrapPanel ItemSpacing="8" LineSpacing="8" />
+            <WrapPanel ItemSpacing="6" LineSpacing="6" />
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
@@ -80,7 +85,35 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <TextBlock Classes="muted" IsVisible="{Binding !HasLicenses}" Text="No licenses assigned." />
     </StackPanel>
+
+    <Border Classes="divider" />
+    <ItemsControl ItemsSource="{Binding ManageRows}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="4" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:RecordSection">
+          <Button Classes="menurow" Command="{Binding #Root.((vm:UserDetailViewModel)DataContext).ManageCommand}" CommandParameter="{Binding}"
+                  ToolTip.Tip="Open this area in a popup to review and change it">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+              <Border Classes="menuicon">
+                <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="16" />
+              </Border>
+              <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                <TextBlock Classes="caption" Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
+              </StackPanel>
+              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <TextBlock Classes="caption" Text="Manage" VerticalAlignment="Center" />
+                <ic:FluentIcon Icon="ChevronRight" FontSize="12" Foreground="{DynamicResource TextMuted}" />
+              </StackPanel>
+            </Grid>
+          </Button>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
   </StackPanel>
 </UserControl>

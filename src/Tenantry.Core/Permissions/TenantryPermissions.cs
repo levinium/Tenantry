@@ -63,6 +63,14 @@ public static class TenantryPermissions
         "RecordsManagement.ReadWrite.All",
         "InformationProtectionPolicy.Read", // the .All form is application-only
         "SecurityAlert.ReadWrite.All",
+        // Added for user management (Phase 4, 2026-10-21). Directory.ReadWrite.All does NOT
+        // cover passwords: setting one needs this permission (found live: "Insufficient privileges").
+        "User-PasswordProfile.ReadWrite.All",
+        "IdentityRiskyUser.ReadWrite.All",
+        "DelegatedPermissionGrant.ReadWrite.All",
+        "AppRoleAssignment.ReadWrite.All",
+        "BitlockerKey.Read.All",
+        "DeviceLocalCredential.Read.All",
     ]);
 
     public static readonly ApiPermissions Exchange = new(ExchangeAppId, "Office 365 Exchange Online", "https://outlook.office365.com",

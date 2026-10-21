@@ -1,7 +1,9 @@
 namespace Tenantry.Core.Changes;
 
 /// <summary>What applying one change came to.</summary>
-public sealed record ApplyResult(ChangeOutcome Outcome, string? Detail = null)
+/// <param name="Reveal">Something the admin must see once and that is never stored or logged
+/// (a temporary password).</param>
+public sealed record ApplyResult(ChangeOutcome Outcome, string? Detail = null, string? Reveal = null)
 {
     public bool Succeeded => Outcome is ChangeOutcome.Applied or ChangeOutcome.AppliedNotYetVisible;
 }

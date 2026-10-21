@@ -3,22 +3,29 @@ using Tenantry.Core.Changes;
 namespace Tenantry.Demo;
 
 /// <summary>Applies changes to the demo tenant's generated people, in memory. Nothing is sent anywhere.</summary>
-public sealed class DemoChangeExecutor(DemoTenantDirectory directory) : IChangeExecutor
+public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRecords? records = null) : IChangeExecutor
 {
     public Task<ApplyResult> ApplyAsync(ChangeOp change, CancellationToken cancellationToken = default)
     {
-        var applied = change switch
+        if (change is SetUserText text)
+            records?.Remember(text.User.Id, text.Property, Empty(text.New));
+        var result = change switch
         {
-            SetUserText { Property: "displayName" } t => directory.Update(t.User.Id, u => u with { DisplayName = t.New ?? u.DisplayName }),
-            SetUserText { Property: "department" } t => directory.Update(t.User.Id, u => u with { Department = Empty(t.New) }),
-            SetUserText { Property: "jobTitle" } t => directory.Update(t.User.Id, u => u with { JobTitle = Empty(t.New) }),
-            SetSignInAllowed s => directory.Update(s.User.Id, u => u with { AccountEnabled = s.New }),
-            _ => false,
+            SetUserText { Property: "displayName" } t => Done(directory.Update(t.User.Id, u => u with { DisplayName = t.New ?? u.DisplayName })),
+            SetUserText { Property: "department" } t => Done(directory.Update(t.User.Id, u => u with { Department = Empty(t.New) })),
+            SetUserText { Property: "jobTitle" } t => Done(directory.Update(t.User.Id, u => u with { JobTitle = Empty(t.New) })),
+            SetUserText { Property: "userPrincipalName" } t => Done(directory.Update(t.User.Id, u => u with { UserPrincipalName = t.New ?? u.UserPrincipalName })),
+            // Everything else on the Account tab lives only in the record details.
+            SetUserText => Done(records is not null),
+            SetSignInAllowed s => Done(directory.Update(s.User.Id, u => u with { AccountEnabled = s.New })),
+            ResetPassword => new ApplyResult(ChangeOutcome.Applied, Reveal: TemporaryPassword.Create()),
+            RevokeSessions => new ApplyResult(ChangeOutcome.Applied, "Signed out of every session (demo)."),
+            _ => null,
         };
-        return Task.FromResult(applied
-            ? new ApplyResult(ChangeOutcome.Applied)
-            : new ApplyResult(ChangeOutcome.Failed, $"The demo can't apply \"{change.Label}\" changes."));
+        return Task.FromResult(result ?? new ApplyResult(ChangeOutcome.Failed, $"The demo can't apply \"{change.Label}\" changes."));
     }
+
+    static ApplyResult? Done(bool applied) => applied ? new ApplyResult(ChangeOutcome.Applied) : null;
 
     static string? Empty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

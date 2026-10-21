@@ -8,4 +8,7 @@ public static class Platform
 {
     /// <summary>Opens a web address in the user's browser.</summary>
     public static Action<string> OpenUrl { get; set; } = _ => { };
+
+    /// <summary>Puts text on the clipboard.</summary>
+    public static Action<string> CopyText { get; set; } = _ => { };
 }

@@ -51,14 +51,44 @@ public sealed class TenantConnector : ITenantConnector
         var context = await new TenantContextLoader(graph).LoadAsync(cancellationToken);
         _store.MarkUsed(profile.Id, tokens.Account, DateTimeOffset.UtcNow);
 
+        // A newer Tenantry may need permissions this tenant hasn't granted yet. Check against a
+        // fresh token (a cached one can predate a consent change) before saying so.
+        var missing = MissingPermissions(tokens);
+        if (missing.Count > 0)
+        {
+            await tokens.RefreshAsync([TenantryPermissions.Graph.DefaultScope], cancellationToken);
+            missing = MissingPermissions(tokens);
+        }
+
         var entities = OpenLocalCopy(profile.Id, folder);
         var account = tokens.Account ?? "";
         return new ConnectedTenant(profile.DisplayName, account, new CachedTenantDirectory(entities, profile.DisplayName), context,
+            MissingPermissions: missing,
+            UpdatePermissions: async (progress, ct) =>
+            {
+                // The same one-step setup as adding a tenant: it finds this tenant's existing
+                // registration and grants whatever is missing.
+                await SetUpAutomaticallyAsync(progress, ct);
+                await tokens.RefreshAsync([TenantryPermissions.Graph.DefaultScope], ct);
+                return MissingPermissions(tokens);
+            },
             ListState: new JsonListStateStore(folder),
             Sync: new DirectorySync(graph, entities, new RestCmdletRunner(Http, NoRedirectHttp, tokens, profile.TenantId)),
             Resources: entities,
             Changes: new ChangePipeline(new GraphChangeExecutor(graph, entities), new ChangeLog(entities),
-                new JsonTestModeStore(folder, TestModeByDefault), account));
+                new JsonTestModeStore(folder, TestModeByDefault), account),
+            Records: new GraphUserRecords(graph, entities));
+    }
+
+    /// <summary>Graph permissions Tenantry asks for that this sign-in's token doesn't carry.</summary>
+    static IReadOnlyList<string> MissingPermissions(MsalTokenSource tokens)
+    {
+        var granted = tokens.GrantedScopes(TenantryPermissions.Graph.Audience);
+        if (granted.Count == 0)
+            return [];
+        return TenantryPermissions.Graph.DelegatedScopes
+            .Where(s => s is not ("openid" or "profile" or "offline_access") && !granted.Contains(s))
+            .ToArray();
     }
 
     /// <summary>
@@ -87,6 +117,7 @@ public sealed class TenantConnector : ITenantConnector
     public ConnectedTenant ConnectDemo()
     {
         var directory = new DemoTenantDirectory();
+        var records = new DemoUserRecords(directory);
         var account = $"admin@{DemoTenantDirectory.Domain}";
         return new ConnectedTenant(
             "Northgate (demo)",
@@ -98,8 +129,9 @@ public sealed class TenantConnector : ITenantConnector
                 OperatingSystem.IsWindows()),
             IsDemo: true,
             // Demo edits change the generated people in memory; nothing real, so no Test mode.
-            Changes: new ChangePipeline(new DemoChangeExecutor(directory), new ChangeLog(new MemoryEntityStore()),
-                new MemoryTestModeStore(false), account));
+            Changes: new ChangePipeline(new DemoChangeExecutor(directory, records), new ChangeLog(new MemoryEntityStore()),
+                new MemoryTestModeStore(false), account),
+            Records: records);
     }
 
     public async Task<SetupOutcome> SetUpAutomaticallyAsync(IProgress<string> progress, CancellationToken cancellationToken = default)
