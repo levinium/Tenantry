@@ -74,6 +74,35 @@ public sealed partial class DataListViewModel : TabViewModel
     [ObservableProperty]
     public partial object? SelectedRow { get; set; }
 
+    // ---- Selection (bulk edit) ------------------------------------------------------------
+
+    /// <summary>Every checked row (the grid's selection); the preview follows <see cref="SelectedRow"/>.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectionCount), nameof(HasSelection), nameof(SelectionText), nameof(BulkText))]
+    public partial IReadOnlyList<object> SelectedRows { get; set; } = [];
+
+    public int SelectionCount => SelectedRows.Count;
+
+    /// <summary>The selection bar shows once two or more rows are checked.</summary>
+    public bool HasSelection => SelectedRows.Count > 1;
+
+    public string SelectionText => $"{SelectedRows.Count:N0} selected";
+
+    /// <summary>What the selection bar's main button does ("Edit 3 users…"); none for lists without one.</summary>
+    public ListBulkAction? BulkAction { get; set; }
+
+    public string BulkText => BulkAction is { } a ? $"Edit {SelectedRows.Count:N0} {a.Noun}…" : "";
+
+    [RelayCommand]
+    void BulkEdit()
+    {
+        if (BulkAction is { IsEnabled: true } action && SelectedRows.Count > 0)
+            action.Run(SelectedRows);
+    }
+
+    [RelayCommand]
+    public void ClearSelection() => SelectedRows = SelectedRow is { } row ? [row] : [];
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEmpty))]
     public partial bool IsLoading { get; private set; }
@@ -1047,8 +1076,11 @@ public sealed partial class DataListViewModel : TabViewModel
         UpdateFilterMenu();
 
         var selectedId = SelectedRow is { } s ? _source.Id(s) : null;
+        var checkedIds = SelectedRows.Select(_source.Id).ToHashSet(StringComparer.Ordinal);
         Rows = _source.Run(CurrentQuery(), _now());
         SelectedRow = selectedId is null ? null : Rows.FirstOrDefault(r => _source.Id(r) == selectedId);
+        // Checked rows stay checked while they're still in the list (after a filter or a reload).
+        SelectedRows = checkedIds.Count == 0 ? [] : Rows.Where(r => checkedIds.Contains(_source.Id(r))).ToArray();
         UpdateSortIndicators();
 
         var stored = JsonSerializer.Serialize(StoredQuery());

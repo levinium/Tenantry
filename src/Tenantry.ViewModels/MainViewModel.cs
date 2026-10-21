@@ -45,7 +45,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);
         if (tenant.Changes is { } changes)
+        {
             Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync);
+            var canEdit = Evaluate(Capabilities.EditUsers);
+            Users.BulkAction = new ListBulkAction("users", canEdit.IsAvailable, canEdit.Reason ?? "Choose one change to make to every checked user",
+                rows => OpenBulkEditor($"Edit {rows.Count:N0} users",
+                    Records.BulkActions.ForUsers(rows.Cast<UserSummary>().ToArray(), _index, _tenant.Records), changes));
+            Groups.BulkAction = new ListBulkAction("groups and mailboxes", canEdit.IsAvailable, canEdit.Reason ?? "Choose one change to make to every checked group or mailbox",
+                rows => OpenBulkEditor($"Edit {rows.Count:N0} groups and mailboxes",
+                    Records.BulkActions.ForGroups(rows.Cast<GroupSummary>().ToArray(), _index), changes));
+        }
 
         var readUsers = Evaluate(Capabilities.ReadUsers);
         Sections =
@@ -366,6 +375,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     public void CloseDialog() => Dialog = null;
+
+    void OpenBulkEditor(string heading, IReadOnlyList<Editing.BulkAction> actions, Tenantry.Core.Changes.ChangePipeline pipeline) =>
+        ShowDialog(new Records.DialogViewModel(heading, "One change for every checked row, staged for review",
+            new Editing.BulkEditorViewModel(heading, actions, pipeline, CloseDialog)));
 
     // ---- Changes --------------------------------------------------------------------------
 

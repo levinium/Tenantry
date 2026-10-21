@@ -171,6 +171,25 @@
   <Style Selector="Border.banner.neutral">
     <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
   </Style>
+  <Style Selector="Border.banner.success">
+    <Setter Property="Background" Value="{DynamicResource BadgeSuccessBg}" />
+  </Style>
+
+  <!-- Bulk edit: each action is a full-width option; the chosen one is tinted. -->
+  <Style Selector="RadioButton.bulkaction">
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="RadioButton.bulkaction:pointerover">
+    <Setter Property="Background" Value="{DynamicResource NavHoverBg}" />
+  </Style>
+  <Style Selector="RadioButton.bulkaction:checked">
+    <Setter Property="Background" Value="{DynamicResource DropSlotBg}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
 
   <!-- Editing: the Pending changes tray, pending values in place, and sign-in actions -->
   <Style Selector="Border.tray">
@@ -198,6 +217,15 @@
   </Style>
   <Style Selector="Border.licenserow.pending">
     <Setter Property="Background" Value="{DynamicResource DropSlotBg}" />
+  </Style>
+
+  <!-- Bulk edit: the bar above a list when several rows are checked. -->
+  <Style Selector="Border.selectionbar">
+    <Setter Property="Background" Value="{DynamicResource DropSlotBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="14,6" />
   </Style>
 
   <!-- People picker: matches drop below the search box as a light, bordered list. -->

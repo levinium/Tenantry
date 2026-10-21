@@ -295,7 +295,21 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "mailbox-people-light");
         editing.CloseDialog();
         editing.Pending.DiscardAllCommand.Execute(null);
+        // Bulk edit: three users checked, the selection bar, then the editor after staging.
         editing.SelectedSection = editing.Sections.Single(s => s.Key == "users");
+        editing.Users.SelectedRows = editing.Users.Rows.Skip(3).Take(3).ToArray();
+        Render(editing, "users-selected-light");
+        editing.Users.BulkEditCommand.Execute(null);
+        var bulk = (Tenantry.ViewModels.Editing.BulkEditorViewModel)editing.Dialog!.Content;
+        var detail = bulk.Actions.Single(a => a.Title == "Set a detail");
+        bulk.Selected = detail;
+        detail.Choice = detail.Choices.First();
+        detail.Text = "Operations";
+        bulk.StageCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        Render(editing, "bulk-edit-light");
+        editing.CloseDialog();
+        editing.Pending.DiscardAllCommand.Execute(null);
+        editing.Users.ClearSelectionCommand.Execute(null);
         editing.SelectedTab = page;
         // Demo people aren't test objects, so Test mode would (rightly) refuse the reset.
         editing.Pending.TurnOffTestModeCommand.Execute(null);

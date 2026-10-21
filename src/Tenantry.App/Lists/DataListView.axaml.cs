@@ -46,10 +46,15 @@ public partial class DataListView : UserControl
         };
         Grid.SelectionChanged += (_, _) =>
         {
+            UpdateSelectAll();
             if (_vm is null || _syncingSelection)
                 return;
-            // The view model updates the preview pane from the selection.
+            // The view model updates the preview pane from the selection, and the selection bar
+            // from every checked row.
+            _syncingSelection = true;
             _vm.SelectedRow = Grid.SelectedItem;
+            _vm.SelectedRows = Grid.SelectedItems.Cast<object>().ToArray();
+            _syncingSelection = false;
         };
         Grid.ContextRequested += OnContextRequested;
         // On a narrow toolbar the display tools drop their labels; on a very narrow one every tool
@@ -62,7 +67,7 @@ public partial class DataListView : UserControl
         // Freezing the name column only helps when there's room to scroll beside it. In a narrow
         // table it would eat most of the width and leave the scrollbar a stub, so only the row
         // actions stay frozen then.
-        Grid.SizeChanged += (_, e) => Grid.FrozenColumnCount = e.NewSize.Width < 720 ? 1 : 2;
+        Grid.SizeChanged += (_, e) => Grid.FrozenColumnCount = e.NewSize.Width < 720 ? 2 : 3;
         // The preview pane takes about a third of the space, so the list is never squeezed out;
         // panels take at most about half the height, so the table keeps some room and a
         // panel's buttons never fall off the bottom.
@@ -85,7 +90,7 @@ public partial class DataListView : UserControl
         Grid.ColumnReordered += (_, e) =>
         {
             if (_vm is not null && _columnKeys.TryGetValue(e.Column, out var key))
-                _vm.ColumnMovedTo(key, e.Column.DisplayIndex - 1);
+                _vm.ColumnMovedTo(key, e.Column.DisplayIndex - LeadingColumns);
         };
     }
 
@@ -120,12 +125,95 @@ public partial class DataListView : UserControl
             case nameof(DataListViewModel.IsCompact):
                 Grid.Classes.Set("compact", _vm!.IsCompact);
                 break;
-            case nameof(DataListViewModel.SelectedRow):
+            case nameof(DataListViewModel.SelectedRow) when !_syncingSelection:
                 _syncingSelection = true;
                 Grid.SelectedItem = _vm!.SelectedRow;
                 _syncingSelection = false;
                 break;
+            case nameof(DataListViewModel.SelectedRows) when !_syncingSelection:
+                ShowChecked();
+                break;
         }
+    }
+
+    /// <summary>Puts the view model's checked rows into the grid (after Clear selection or a reload).</summary>
+    void ShowChecked()
+    {
+        if (_vm is null)
+            return;
+        _syncingSelection = true;
+        Grid.SelectedItems.Clear();
+        foreach (var row in _vm.SelectedRows)
+            Grid.SelectedItems.Add(row);
+        if (_vm.SelectedRows.Count == 0 && _vm.SelectedRow is { } single)
+            Grid.SelectedItem = single;
+        _syncingSelection = false;
+        UpdateSelectAll();
+    }
+
+    // ---- Checkboxes (bulk edit) -------------------------------------------------------------
+
+    /// <summary>Columns before the list's own: the checkbox and the row actions.</summary>
+    const int LeadingColumns = 2;
+
+    CheckBox? _selectAll;
+
+    /// <summary>
+    /// A checkbox per row, so picking several rows needs no hidden gesture (Ctrl- and
+    /// Shift-click work too). The header box checks or clears every row in the list.
+    /// </summary>
+    DataGridTemplateColumn CheckColumn()
+    {
+        _selectAll = new CheckBox { HorizontalAlignment = HorizontalAlignment.Center, MinWidth = 0, Padding = new Thickness(0) };
+        ToolTip.SetTip(_selectAll, "Check every row in the list, or clear them all");
+        _selectAll.Click += (_, e) =>
+        {
+            if (Grid.SelectedItems.Count > 0 && Grid.SelectedItems.Count >= (_vm?.Rows.Count ?? 0))
+                Grid.SelectedItems.Clear();
+            else
+                Grid.SelectAll();
+            e.Handled = true;
+        };
+        return new DataGridTemplateColumn
+        {
+            Header = _selectAll,
+            Width = new DataGridLength(44),
+            CanUserResize = false,
+            CanUserReorder = false,
+            CanUserSort = false,
+            CellTemplate = new FuncDataTemplate<object>((_, _) =>
+            {
+                var check = new CheckBox { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MinWidth = 0, Padding = new Thickness(0) };
+                check.Bind(Avalonia.Controls.Primitives.ToggleButton.IsCheckedProperty, new Binding(nameof(DataGridRow.IsSelected))
+                {
+                    RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(DataGridRow) },
+                    Mode = BindingMode.OneWay,
+                });
+                ToolTip.SetTip(check, "Check to include this row when editing several at once");
+                check.Click += (_, e) =>
+                {
+                    if (check.DataContext is { } row)
+                    {
+                        if (Grid.SelectedItems.Contains(row))
+                            Grid.SelectedItems.Remove(row);
+                        else
+                            Grid.SelectedItems.Add(row);
+                    }
+                    e.Handled = true;
+                };
+                return check;
+            }, supportsRecycling: true),
+        };
+    }
+
+    void UpdateSelectAll()
+    {
+        if (_selectAll is null)
+            return;
+        var count = Grid.SelectedItems.Count;
+        var total = _vm?.Rows.Count ?? 0;
+        // Checked when every row is, cleared when none is, and in between when only some are.
+        _selectAll.IsChecked = count == 0 ? false : count >= total ? true : null;
     }
 
     void UpdateItems()
@@ -143,6 +231,7 @@ public partial class DataListView : UserControl
         _syncingSelection = true;
         Grid.SelectedItem = _vm.SelectedRow;
         _syncingSelection = false;
+        ShowChecked();
     }
 
     /// <summary>Groups rows by the view model's group key for the chosen field.</summary>
@@ -164,6 +253,7 @@ public partial class DataListView : UserControl
         for (var i = Grid.Columns.Count - 1; i >= 0; i--)
             Grid.Columns.RemoveAt(i);
         _columnKeys.Clear();
+        Grid.Columns.Add(CheckColumn());
         Grid.Columns.Add(ActionsColumn());
         foreach (var c in _vm.Columns.Where(c => c.IsVisible))
         {

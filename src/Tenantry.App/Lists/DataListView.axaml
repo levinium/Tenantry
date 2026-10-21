@@ -747,6 +747,26 @@
         <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
       </Border>
 
+      <!-- Two or more rows checked: what can be done with them all -->
+      <Border DockPanel.Dock="Top" Classes="selectionbar" Margin="0,0,0,8" IsVisible="{Binding HasSelection}">
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+          <ic:FluentIcon Icon="CheckboxChecked" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" FontWeight="SemiBold" VerticalAlignment="Center" Text="{Binding SelectionText}" />
+          <Button Grid.Column="2" Classes="ghost" Command="{Binding ClearSelectionCommand}" ToolTip.Tip="Uncheck every row">
+            <TextBlock Text="Clear selection" />
+          </Button>
+          <Button Grid.Column="3" Classes="accent" Command="{Binding BulkEditCommand}"
+                  IsVisible="{Binding BulkAction, Converter={x:Static ObjectConverters.IsNotNull}}"
+                  IsEnabled="{Binding BulkAction.IsEnabled, FallbackValue=False}"
+                  ToolTip.Tip="{Binding BulkAction.Tip}" ToolTip.ShowOnDisabled="True">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="Edit" FontSize="14" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding BulkText}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+
       <!-- The table -->
       <!-- No minimum height: in a very short window an open panel (and its buttons) wins over
            the table, which comes back as soon as the panel closes. -->
@@ -754,7 +774,7 @@
         <Grid>
           <DataGrid x:Name="Grid" Theme="{StaticResource TopScrollDataGrid}"
                     IsReadOnly="True" CanUserSortColumns="False" CanUserResizeColumns="True" CanUserReorderColumns="True"
-                    FrozenColumnCount="2" SelectionMode="Single" />
+                    FrozenColumnCount="3" SelectionMode="Extended" />
           <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
             <ic:FluentIcon Icon="Search" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource TextMuted}" />
             <TextBlock Classes="muted" HorizontalAlignment="Center" Text="Nothing matches these filters." />

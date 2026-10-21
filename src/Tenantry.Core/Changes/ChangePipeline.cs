@@ -44,6 +44,9 @@ public sealed class MemoryTestModeStore(bool testMode) : ITestModeStore
 public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITestModeStore testMode, string account, Func<DateTimeOffset>? now = null)
 {
     readonly List<ChangeOp> _pending = [];
+    // Slot → staged change, so screens can ask "is anything pending here?" per row without
+    // scanning the tray (bulk edits stage hundreds at once).
+    readonly Dictionary<(string TargetId, string Key), ChangeOp> _bySlot = [];
     readonly Func<DateTimeOffset> _now = now ?? (() => DateTimeOffset.UtcNow);
 
     public IReadOnlyList<ChangeOp> Pending => _pending;
@@ -52,37 +55,60 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
 
     public ChangeLog Log => log;
 
-    /// <summary>Raised whenever the staged changes change.</summary>
+    /// <summary>Raised whenever the staged changes change (once per call, however many changes it staged).</summary>
     public event EventHandler? Changed;
 
     /// <summary>The staged change for a slot, if any (for showing "pending" values in place).</summary>
-    public ChangeOp? PendingFor(string targetId, string key) =>
-        _pending.FirstOrDefault(p => p.Target.Id == targetId && p.Key == key);
+    public ChangeOp? PendingFor(string targetId, string key) => _bySlot.GetValueOrDefault((targetId, key));
 
     public void Stage(ChangeOp change)
     {
-        var index = _pending.FindIndex(p => p.Target.Id == change.Target.Id && p.Key == change.Key);
-        if (index >= 0)
+        Put(change);
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Stages many changes (a bulk edit) and tells listeners once.</summary>
+    public void StageAll(IEnumerable<ChangeOp> changes)
+    {
+        foreach (var change in changes)
+            Put(change);
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    void Put(ChangeOp change)
+    {
+        var slot = (change.Target.Id, change.Key);
+        if (_bySlot.TryGetValue(slot, out var earlier))
         {
-            change = change.Since(_pending[index]);
+            var index = _pending.IndexOf(earlier);
+            change = change.Since(earlier);
             _pending.RemoveAt(index);
+            _bySlot.Remove(slot);
             if (!change.IsNoChange)
+            {
                 _pending.Insert(index, change);
+                _bySlot[slot] = change;
+            }
         }
         else if (!change.IsNoChange)
+        {
             _pending.Add(change);
-        Changed?.Invoke(this, EventArgs.Empty);
+            _bySlot[slot] = change;
+        }
     }
 
     public void Unstage(ChangeOp change)
     {
-        if (_pending.Remove(change))
-            Changed?.Invoke(this, EventArgs.Empty);
+        if (!_pending.Remove(change))
+            return;
+        _bySlot.Remove((change.Target.Id, change.Key));
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     public void Clear()
     {
         _pending.Clear();
+        _bySlot.Clear();
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -92,6 +118,7 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
     {
         var batch = _pending.ToArray();
         var results = new List<(ChangeOp, ApplyResult)>(batch.Length);
+        var succeeded = new HashSet<ChangeOp>(ReferenceEqualityComparer.Instance);
         for (var i = 0; i < batch.Length; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -112,9 +139,17 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
             }
             log.Add(new ChangeLogEntry(Guid.NewGuid().ToString("N"), _now(), account, change, result.Outcome, result.Detail));
             if (result.Succeeded)
-                _pending.Remove(change);
+                succeeded.Add(change);
             results.Add((change, result));
             progress?.Report((i + 1, batch.Length));
+        }
+        // Successes leave the tray in one pass (a bulk apply can be hundreds of changes).
+        _pending.RemoveAll(succeeded.Contains);
+        foreach (var change in succeeded)
+        {
+            var slot = (change.Target.Id, change.Key);
+            if (ReferenceEquals(_bySlot.GetValueOrDefault(slot), change))
+                _bySlot.Remove(slot);
         }
         Changed?.Invoke(this, EventArgs.Empty);
         return results;

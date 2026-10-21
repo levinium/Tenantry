@@ -93,4 +93,10 @@ mode, because nothing in it is real.
 - **4a:** the rest of the Account tab (password reset, sign-out everywhere, manager); licenses
   and apps; group owners and members and mailbox access, editable from the user, the group page
   and the group preview's Manage popup.
-- **Next:** bulk edit from list multi-select, and a Change log area.
+- **4a, bulk edit:** every list has a checkbox column (Ctrl- and Shift-click work too). With two
+  or more rows checked, a bar offers "Edit N users…" (or groups and mailboxes). The bulk editor
+  offers a set of actions described as data (`BulkAction`: an optional picker, choice and text
+  value, plus a planner). Each action plans one change per row and lists the rows it skips with
+  the reason. `ChangePipeline.StageAll` stages them together and raises `Changed` once. Pending
+  changes are indexed by (target, key), so screens can look up a slot without scanning the tray.
+- **Next:** a Change log area.

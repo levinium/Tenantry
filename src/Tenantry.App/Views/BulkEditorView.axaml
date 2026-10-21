@@ -1,0 +1,108 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.BulkEditorView"
+             x:DataType="ed:BulkEditorViewModel">
+  <!-- Left: the actions, one chosen. Right: what that action asks for, then Stage and the outcome. -->
+  <Grid ColumnDefinitions="300,*" ColumnSpacing="20" Width="900">
+    <ScrollViewer MaxHeight="560">
+      <ItemsControl ItemsSource="{Binding Actions}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ed:BulkAction">
+            <RadioButton Classes="bulkaction" GroupName="bulk" IsChecked="{Binding IsSelected}" ToolTip.Tip="{Binding Description}">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="16" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+              </StackPanel>
+            </RadioButton>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <StackPanel Grid.Column="1" Spacing="14">
+      <Border Classes="banner warning" IsVisible="{Binding IsTestMode}">
+        <TextBlock TextWrapping="Wrap"
+                   Text="Test mode is on: when you apply, only zz-tenantry-test- objects change. Changes to anything else are refused and stay in the tray." />
+      </Border>
+
+      <TextBlock Classes="muted" IsVisible="{Binding !HasSelected}" TextWrapping="Wrap"
+                 Text="Choose what to do on the left. Every change is staged for review first; nothing is sent until you apply it." />
+
+      <Panel IsVisible="{Binding HasSelected}">
+      <StackPanel Spacing="14" DataContext="{Binding Selected}" x:DataType="ed:BulkAction">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="h3" Text="{Binding Title}" />
+          <TextBlock Classes="muted" Text="{Binding Description}" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <!-- Who or which group -->
+        <StackPanel Spacing="6" IsVisible="{Binding HasPicker}">
+          <views:PersonPickerView DataContext="{Binding Picker}" MaxWidth="440" HorizontalAlignment="Left"
+                                  IsVisible="{Binding !$parent[StackPanel].((ed:BulkAction)DataContext).HasPicked}" />
+          <Border Classes="togglerow" IsVisible="{Binding HasPicked}" HorizontalAlignment="Left" MinWidth="360">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+              <StackPanel Spacing="1">
+                <TextBlock Text="{Binding Picked.Name, FallbackValue=''}" FontWeight="SemiBold" />
+                <TextBlock Classes="caption" Text="{Binding Picked.Detail, FallbackValue=''}" />
+              </StackPanel>
+              <Button Grid.Column="1" Classes="ghost" Content="Change" Command="{Binding ClearPickedCommand}" ToolTip.Tip="Choose someone or something else" />
+            </Grid>
+          </Border>
+        </StackPanel>
+
+        <!-- A choice -->
+        <StackPanel Spacing="4" IsVisible="{Binding HasChoices}">
+          <TextBlock Classes="label" Text="{Binding ChoiceLabel}" />
+          <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Choice}" MinWidth="360" MaxDropDownHeight="360" PlaceholderText="Choose…" />
+          <TextBlock Classes="caption" Text="Reading the tenant's licenses…" IsVisible="{Binding IsLoadingChoices}" />
+        </StackPanel>
+
+        <!-- A value -->
+        <StackPanel Spacing="4" IsVisible="{Binding HasText}">
+          <TextBlock Classes="label" Text="{Binding TextLabel}" />
+          <TextBox Text="{Binding Text}" MaxWidth="440" HorizontalAlignment="Left" MinWidth="360" PlaceholderText="Leave empty to clear it" />
+        </StackPanel>
+      </StackPanel>
+      </Panel>
+
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasSelected}">
+        <Button Classes="accent" Command="{Binding StageCommand}" ToolTip.Tip="Add one change per selected row to Pending changes">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Add" FontSize="14" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding StageText}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <TextBlock Classes="muted" Text="Preparing…" IsVisible="{Binding IsWorking}" VerticalAlignment="Center" />
+      </StackPanel>
+
+      <Border Classes="banner error" IsVisible="{Binding HasError}">
+        <TextBlock Text="{Binding Error}" TextWrapping="Wrap" />
+      </Border>
+      <Border Classes="banner success" IsVisible="{Binding HasResult}">
+        <StackPanel Spacing="6">
+          <TextBlock Text="{Binding Result}" TextWrapping="Wrap" FontWeight="SemiBold" />
+          <TextBlock Classes="caption" Text="{Binding SkippedHeading}"
+                     IsVisible="{Binding SkippedHeading, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <ItemsControl ItemsSource="{Binding Skipped}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Classes="caption" Text="{Binding}" TextWrapping="Wrap" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <Button Content="Done" HorizontalAlignment="Right" Command="{Binding DoneCommand}" ToolTip.Tip="Close; staged changes stay in Pending changes" />
+    </StackPanel>
+  </Grid>
+</UserControl>
