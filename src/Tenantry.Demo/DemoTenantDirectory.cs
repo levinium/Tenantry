@@ -109,12 +109,27 @@ public sealed class DemoTenantDirectory : ITenantDirectory
             var (forwarding, to) = roll < 0.03 ? (ForwardingKind.External, $"{alias}@personal.example")
                 : roll < 0.06 ? (ForwardingKind.Internal, $"assistant@{Domain}")
                 : (ForwardingKind.None, (string?)null);
+            var (used, quota, reply) = DemoMailboxDetails(u.Id);
             return u with
             {
                 Mailbox = new MailboxInfo(type, u.Mail, random.Bool(0.3f) ? [$"{alias[0]}{alias[(alias.IndexOf('.') + 1)..]}@{Domain}"] : [],
-                    forwarding, to, forwarding != ForwardingKind.None && random.Bool(), random.Bool(0.1f), random.Bool(0.3f), type == "Shared" && random.Bool()),
+                    forwarding, to, forwarding != ForwardingKind.None && random.Bool(), random.Bool(0.1f), random.Bool(0.3f), type == "Shared" && random.Bool(),
+                    used, quota, reply),
             };
         }).ToArray();
+    }
+
+    /// <summary>
+    /// A mailbox's size and automatic replies, from its own stable seed (so the list and the Mail
+    /// tab agree): most are a few GB into 50 GB, about one in ten is nearly full, one in eight replies.
+    /// </summary>
+    internal static (long Used, long Quota, AutoReplyState Reply) DemoMailboxDetails(string userId)
+    {
+        var seed = DemoUserRecords.StableSeed(userId);
+        var random = new Random(seed);
+        const long quota = 50L << 30;
+        var used = seed % 10 == 0 ? (long)(quota * (0.9 + random.NextDouble() * 0.08)) : (long)(quota * random.NextDouble() * 0.35);
+        return (used, quota, seed % 8 == 0 ? AutoReplyState.On : AutoReplyState.Off);
     }
 
     /// <summary>Changes one generated person (the demo's change executor writes through this).</summary>

@@ -80,3 +80,14 @@ title), groups (name, email, description, type) and every list's views. Every ty
 appear. Names that start with the query rank first, then names containing a word that starts
 with it, then everything else that matches; each kind shows at most six results. Choosing a
 person or group opens its record page. Choosing a view switches to that list and applies the view.
+
+## Mailbox details and sync settings (2026-10-21)
+
+- **Mailbox size and automatic replies** feed the "Mailbox nearly full" and "Automatic reply on" views. Exchange offers neither tenant-wide, so they take two reads per mailbox (`Get-MailboxStatistics`, `Get-MailboxAutoReplyConfiguration`). The reads go through `ICmdletRunner.InvokeManyAsync`: ten calls per `$batch` request (sub-requests need absolute URLs, and the response is JSON only when `Accept: application/json` is sent), with 8 requests in flight.
+- The read runs **in the background**, outside the main sync's lock, so checking for changes and Refresh never wait for it. `BackgroundUpdated` tells the lists to re-read.
+- Measured on a tenant with a few hundred mailboxes:
+  - one call at a time: about 11 minutes;
+  - batched with 4 requests in flight: about 6 minutes;
+  - batched with 8 in flight: under 4 minutes, with no throttling.
+- Microsoft's mailbox usage report (Graph, one call) has the sizes, but it was several days old when checked and has no automatic replies, so it isn't used.
+- **Sync settings** are per tenant, stored in `sync.json`, and edited in Settings: how often to check for changes, how often to re-read mailboxes and sign-ins, and how often (or never) to read mailbox sizes and replies. Settings also lists each part of the local copy, when it was last read, and "Check everything now" and "Download everything again".

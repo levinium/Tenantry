@@ -56,7 +56,11 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
                 Forwarding = f.NewTo is null ? ForwardingKind.None : f.NewIsExternal ? ForwardingKind.External : ForwardingKind.Internal,
             }),
             SetHiddenFromAddressList h => Mailbox(h.User.Id, m => m with { HiddenFromAddressList = h.New }),
-            SetAutoReply r => Remember(() => records?.RememberAutoReply(r.User.Id, r.New)),
+            SetAutoReply r => Remember(() =>
+            {
+                records?.RememberAutoReply(r.User.Id, r.New);
+                directory.Update(r.User.Id, u => u.Mailbox is { } m ? u with { Mailbox = m with { AutoReply = r.New.State } } : u);
+            }),
             _ => null,
         };
         return result ?? new ApplyResult(ChangeOutcome.Failed, $"The demo can't apply \"{change.Label}\" changes.");

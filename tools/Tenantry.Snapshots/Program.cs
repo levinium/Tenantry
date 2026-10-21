@@ -357,9 +357,24 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     }
 
     // A synced tenant: the sidebar shows when the local copy was last brought up to date.
-    var synced = new MainViewModel(connector.ConnectDemo() with { ListState = new Tenantry.Core.Lists.MemoryListStateStore(), Sync = new SnapshotSync() }, () => { });
+    var synced = new MainViewModel(connector.ConnectDemo() with
+    {
+        ListState = new Tenantry.Core.Lists.MemoryListStateStore(), Sync = new SnapshotSync(), SyncSettings = new MemorySyncSettingsStore(),
+    }, () => { });
     synced.Users.LoadAsync().GetAwaiter().GetResult();
     Render(synced, $"users-synced-{suffix}");
+    // Settings: how often each part of the local copy is read, and when it last was.
+    synced.OpenSettingsCommand.Execute(null);
+    Render(synced, $"settings-{suffix}");
+    synced.CloseDialog();
+    if (full)
+    {
+        // The new mailbox views: nearly full, with the storage and reply columns shown.
+        foreach (var c in synced.Users.Columns.Where(c => c.Key is UserFields.StorageUsed or UserFields.AutoReply))
+            c.IsVisible = true;
+        synced.Users.ApplyView(synced.Users.Views.Single(v => v.View.Id == "nearly-full"));
+        Render(synced, "users-nearly-full-light");
+    }
 
     if (full)
     {
@@ -474,6 +489,17 @@ sealed class SnapshotSync : ITenantSync
     public IReadOnlyList<string> Notes => [];
 
     public Task<int> SyncAsync(IProgress<string>? progress = null, SyncScope scope = SyncScope.Changes, CancellationToken cancellationToken = default) => Task.FromResult(0);
+
+    public IReadOnlyList<SyncArea> Areas =>
+    [
+        new("Users", "Everyone in the directory, their licenses and status (changes only)", LastSyncedAt, "Every 10 minutes"),
+        new("Groups", "Groups with their members and owners (changes only)", LastSyncedAt, "Every 10 minutes"),
+        new("Licenses", "The tenant's licenses and how many are left", LastSyncedAt, "Every 10 minutes"),
+        new("Last sign-in times", "When each person last signed in", DateTimeOffset.Now.AddMinutes(-34), "Every hour"),
+        new("Domains and Teams", "The tenant's domains, and which groups are Teams", DateTimeOffset.Now.AddMinutes(-34), "Every hour"),
+        new("Mailboxes", "Mailbox types, addresses, forwarding, address list; who can use shared mailboxes", DateTimeOffset.Now.AddMinutes(-34), "Every hour"),
+        new("Mailbox size and automatic replies", "Two reads per mailbox, in the background", DateTimeOffset.Now.AddMinutes(-31), "Every hour"),
+    ];
 }
 
 /// <summary>Fictional saved tenants; the demo for everything else.</summary>

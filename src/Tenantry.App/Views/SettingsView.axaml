@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+  <StackPanel Spacing="18" Width="760">
+    <!-- How often -->
+    <StackPanel Spacing="12">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="ArrowSync" FontSize="18" Foreground="{DynamicResource Accent}" />
+        <TextBlock Classes="h3" Text="Keeping the local copy up to date" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="caption" TextWrapping="Wrap"
+                 Text="Lists and searches read an encrypted copy of this tenant kept on this computer, so they're instant. These choices are for this tenant only and are saved as you change them." />
+      <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="12">
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="Check for changes" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Users, groups and licenses: only what changed, so it's quick." />
+        </StackPanel>
+        <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:SettingsViewModel.ChangesOptions}" SelectedItem="{Binding Changes}" MinWidth="320" VerticalAlignment="Center" />
+
+        <StackPanel Grid.Row="1" Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="Re-read mailboxes and sign-ins" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Mailbox settings, who can use shared mailboxes, last sign-in times, domains and Teams: read in full." />
+        </StackPanel>
+        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{x:Static vm:SettingsViewModel.DetailsOptions}" SelectedItem="{Binding Details}" MinWidth="320" VerticalAlignment="Center" />
+
+        <StackPanel Grid.Row="2" Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="Read mailbox sizes and automatic replies" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="For the Mailbox nearly full and Automatic reply on views. Two reads per mailbox, done in the background; a few minutes for a large tenant." />
+        </StackPanel>
+        <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{x:Static vm:SettingsViewModel.MailboxDetailsOptions}" SelectedItem="{Binding MailboxDetails}" MinWidth="320" VerticalAlignment="Center" />
+      </Grid>
+    </StackPanel>
+
+    <Border Classes="divider" />
+
+    <!-- What's in the copy, and when -->
+    <StackPanel Spacing="10" IsVisible="{Binding HasAreas}">
+      <TextBlock Classes="h3" Text="What's kept, and when it was last read" />
+      <ItemsControl ItemsSource="{Binding Areas}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:SyncAreaRow">
+            <Border Classes="valuerow">
+              <Grid ColumnDefinitions="*,170,220" ColumnSpacing="12">
+                <StackPanel Spacing="1">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  <TextBlock Classes="caption" Text="{Binding Holds}" TextWrapping="Wrap" />
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="{Binding Last}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Classes="caption" Text="{Binding Every}" VerticalAlignment="Center" TextWrapping="Wrap" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+
+    <!-- Now -->
+    <StackPanel Orientation="Horizontal" Spacing="10">
+      <Button Classes="accent" Command="{Binding SyncEverythingCommand}" ToolTip.Tip="Check for changes and re-read everything now, whatever the schedule">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="ArrowSync" FontSize="14" VerticalAlignment="Center" />
+          <TextBlock Text="Check everything now" VerticalAlignment="Center" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding StartOverCommand}" IsVisible="{Binding !IsConfirmingStartOver}"
+              ToolTip.Tip="Forget what's kept and download the whole tenant again (for when something looks wrong)">
+        <TextBlock Text="Download everything again…" />
+      </Button>
+      <Button Classes="danger-outline" Command="{Binding StartOverCommand}" IsVisible="{Binding IsConfirmingStartOver}"
+              ToolTip.Tip="This can take a few minutes for a large tenant">
+        <TextBlock Text="Yes, download everything again" />
+      </Button>
+      <Button Classes="ghost" Content="Cancel" Command="{Binding CancelStartOverCommand}" IsVisible="{Binding IsConfirmingStartOver}" />
+      <TextBlock Classes="muted" Text="{Binding Status}" VerticalAlignment="Center"
+                 IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

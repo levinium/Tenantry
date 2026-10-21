@@ -77,4 +77,10 @@ public sealed class OverviewSection(object record) : RecordSection
 public sealed record HealthChip(string Text, BadgeKind Kind, string Tip);
 
 /// <summary>A popup over the window: a title and any record section (or other editor) inside.</summary>
-public sealed record DialogViewModel(string Title, string? Subtitle, object Content);
+/// <param name="Footnote">The line under the popup; editors remind that changes are staged, Settings needs none.</param>
+public sealed record DialogViewModel(string Title, string? Subtitle, object Content, string? Footnote = DialogViewModel.Staged)
+{
+    public const string Staged = "Changes go to Pending changes at the bottom of the window; nothing is sent until you apply them.";
+
+    public bool HasFootnote => !string.IsNullOrEmpty(Footnote);
+}

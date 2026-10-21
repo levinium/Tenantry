@@ -22,6 +22,10 @@ public static class UserFields
     public const string ForwardingTo = "forwardto";
     public const string LitigationHold = "hold";
     public const string Archive = "archive";
+    public const string AddressList = "addresslist";
+    public const string AutoReply = "autoreply";
+    public const string StorageUsed = "storage";
+    public const string Storage = "storagestate";
 
     public const string Active = "Active";
     public const string Blocked = "Blocked";
@@ -38,6 +42,12 @@ public static class UserFields
     public const string SharedMailboxType = "Shared mailbox";
     public const string RoomType = "Room";
     public const string EquipmentType = "Equipment";
+    public const string Shown = "Shown";
+    public const string Hidden = "Hidden";
+    public const string Scheduled = "Scheduled";
+    public const string NotReadYet = "Not read yet";
+    public const string NearlyFull = "Nearly full";
+    public const string NotFull = "Under 90%";
 
     /// <summary>
     /// What kind of account this is. Entra only says Member or Guest; Exchange knows a shared,
@@ -111,6 +121,38 @@ public static class UserFields
         {
             Key = Archive, Label = "Archive", Kind = FieldKind.Choice, Aliases = ["archivemailbox"],
             EmptyLabel = NoMailbox, ChoiceOrder = [On, Off, NoMailbox], Text = u => OnOff(u, m => m.ArchiveEnabled),
+        },
+        new()
+        {
+            Key = AddressList, Label = "Address list", Kind = FieldKind.Choice, Aliases = ["gal", "hidden", "addressbook"],
+            EmptyLabel = NoMailbox, ChoiceOrder = [Shown, Hidden, NoMailbox],
+            Text = u => u.Mailbox is { } m ? (m.HiddenFromAddressList ? Hidden : Shown) : null,
+        },
+
+        // From the hourly mailbox-details read (size and automatic replies, one mailbox at a time).
+        new()
+        {
+            Key = AutoReply, Label = "Automatic replies", Kind = FieldKind.Choice, Aliases = ["autoreplies", "oof", "outofoffice"],
+            EmptyLabel = NoMailbox, ChoiceOrder = [On, Scheduled, Off, NotReadYet, NoMailbox],
+            Text = u => u.Mailbox is not { } m ? null
+                : m.AutoReply switch
+                {
+                    AutoReplyState.On => On,
+                    AutoReplyState.Scheduled => Scheduled,
+                    AutoReplyState.Off => Off,
+                    _ => NotReadYet,
+                },
+        },
+        new()
+        {
+            Key = Storage, Label = "Mailbox storage", Kind = FieldKind.Choice, Aliases = ["full", "quota"],
+            EmptyLabel = NoMailbox, ChoiceOrder = [NearlyFull, NotFull, NotReadYet, NoMailbox],
+            Text = u => u.Mailbox is not { } m ? null : m.UsedPercent is null ? NotReadYet : m.IsNearlyFull ? NearlyFull : NotFull,
+        },
+        new()
+        {
+            Key = StorageUsed, Label = "Storage used (%)", Kind = FieldKind.Number, Aliases = ["used", "storageused"],
+            Number = u => u.Mailbox?.UsedPercent is { } p ? Math.Round(p) : null,
         },
     ];
 }

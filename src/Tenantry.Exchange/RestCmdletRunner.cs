@@ -99,7 +99,8 @@ public sealed class RestCmdletRunner : ICmdletRunner
         };
     }
 
-    async Task<JsonElement> PostAsync(string url, string body, string[] scopes, string anchor, string cmdlet, int pageSize, CancellationToken cancellationToken)
+    async Task<JsonElement> PostAsync(string url, string body, string[] scopes, string anchor, string cmdlet, int pageSize, CancellationToken cancellationToken,
+        bool acceptJson = false)
     {
         string? claims = null;
         var challenged = false;
@@ -110,6 +111,9 @@ public sealed class RestCmdletRunner : ICmdletRunner
             request.Headers.Add("X-AnchorMailbox", $"UPN:{anchor}");
             request.Headers.Add("X-CmdletName", cmdlet);
             request.Headers.Add("Prefer", $"odata.maxpagesize={pageSize}");
+            // A $batch answers in multipart unless JSON is asked for (seen live).
+            if (acceptJson)
+                request.Headers.Accept.ParseAdd("application/json");
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
 
             using var response = await _http.SendAsync(request, cancellationToken);
@@ -133,6 +137,78 @@ public sealed class RestCmdletRunner : ICmdletRunner
 
             throw new CmdletException(cmdlet, (int)response.StatusCode, ErrorMessage(text) ?? response.ReasonPhrase ?? "");
         }
+    }
+
+    /// <summary>Calls per $batch request: the size CIPP uses.</summary>
+    const int BatchSize = 10;
+
+    /// <summary>
+    /// Sends single-object cmdlets ten to a <c>$batch</c> request (one round trip instead of ten;
+    /// measured live at about half the time even in sequence). Sub-requests need absolute URLs
+    /// (relative ones are refused), and the response is JSON only when asked for. A throttled
+    /// sub-request is retried after its Retry-After, up to the usual number of attempts.
+    /// </summary>
+    public async Task<IReadOnlyList<CmdletResult>> InvokeManyAsync(CmdletEndpoint endpoint, IReadOnlyList<CmdletCall> calls,
+        CancellationToken cancellationToken = default)
+    {
+        var anchor = _tokens.Account ?? throw new InvalidOperationException("Sign in before running cmdlets.");
+        var audience = endpoint == CmdletEndpoint.Compliance ? ComplianceHost : ExchangeHost;
+        var host = endpoint == CmdletEndpoint.Compliance ? await ComplianceHostAsync(anchor, cancellationToken) : ExchangeHost;
+        string[] scopes = [$"{audience}/.default"];
+        var results = new CmdletResult?[calls.Count];
+
+        for (var start = 0; start < calls.Count; start += BatchSize)
+        {
+            var pending = Enumerable.Range(start, Math.Min(BatchSize, calls.Count - start)).ToList();
+            for (var attempt = 1; pending.Count > 0; attempt++)
+            {
+                var requests = pending.Select(i => new
+                {
+                    id = i.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    method = "POST",
+                    url = $"{host}/adminapi/beta/{_tenantId}/InvokeCommand"
+                          + (calls[i].Select is { Count: > 0 } select ? "?$select=" + string.Join(',', select) : ""),
+                    body = new { CmdletInput = new { CmdletName = calls[i].Cmdlet, Parameters = calls[i].Parameters ?? new Dictionary<string, object?>() } },
+                    headers = new Dictionary<string, string>
+                    {
+                        ["Content-Type"] = "application/json",
+                        ["X-CmdletName"] = calls[i].Cmdlet,
+                        ["Prefer"] = "odata.maxpagesize=1000",
+                    },
+                }).ToArray();
+                var batch = await PostAsync($"{host}/adminapi/beta/{_tenantId}/$batch", JsonSerializer.Serialize(new { requests }),
+                    scopes, anchor, "$batch", BatchSize, cancellationToken, acceptJson: true);
+
+                var throttled = new List<int>();
+                var wait = TimeSpan.Zero;
+                foreach (var response in batch.TryGetProperty("responses", out var list) ? list.EnumerateArray() : default)
+                {
+                    if (!int.TryParse(response.GetProperty("id").GetString(), out var i))
+                        continue;
+                    var status = response.TryGetProperty("status", out var s) ? s.GetInt32() : 500;
+                    var body = response.TryGetProperty("body", out var b) ? b : default;
+                    if (status is >= 200 and < 300)
+                        results[i] = new CmdletResult(body.ValueKind == JsonValueKind.Object && body.TryGetProperty("value", out var rows)
+                            ? rows.EnumerateArray().Select(r => r.Clone()).ToArray() : [], null);
+                    else if (status == 429 && attempt < HttpRetry.MaxAttempts)
+                    {
+                        throttled.Add(i);
+                        var retryAfter = response.TryGetProperty("headers", out var h) && h.TryGetProperty("Retry-After", out var ra)
+                            && int.TryParse(ra.GetString(), out var seconds) ? TimeSpan.FromSeconds(seconds) : TimeSpan.FromSeconds(2 * attempt);
+                        wait = retryAfter > wait ? retryAfter : wait;
+                    }
+                    else
+                        results[i] = new CmdletResult([], CmdletException.Plain(ErrorMessage(body.ValueKind == JsonValueKind.Undefined ? "" : body.GetRawText()) ?? $"HTTP {status}"));
+                }
+                // A sub-request the batch didn't answer at all is reported, not retried forever.
+                foreach (var i in pending.Where(i => results[i] is null && !throttled.Contains(i)))
+                    results[i] = new CmdletResult([], "No answer in the batch response.");
+                pending = throttled;
+                if (pending.Count > 0)
+                    await _delay(wait, cancellationToken);
+            }
+        }
+        return results.Select(r => r ?? new CmdletResult([], "No answer in the batch response.")).ToArray();
     }
 
     async Task<string> ComplianceHostAsync(string anchor, CancellationToken cancellationToken)

@@ -23,8 +23,13 @@ namespace Tenantry.Graph;
 /// A slow read the admin isn't allowed (no Entra ID P1, no Exchange role) is skipped with a
 /// note, never failing the sync.
 /// </summary>
-public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdletRunner? exchange = null, Func<DateTimeOffset>? now = null) : ITenantSync
+/// <param name="settings">How often each part is re-read (Settings); the defaults when null.</param>
+public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdletRunner? exchange = null, Func<DateTimeOffset>? now = null,
+    Func<SyncSettings>? settings = null) : ITenantSync
 {
+    /// <summary>Each mailbox's size and automatic-reply state (one Exchange read per mailbox for each).</summary>
+    public const string MailboxDetails = "mailboxdetails";
+
     public const string Users = "user";
     public const string Groups = "group";
     public const string Skus = "sku";
@@ -51,7 +56,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
     [
         "ExternalDirectoryObjectId", "RecipientTypeDetails", "PrimarySmtpAddress", "EmailAddresses", "ForwardingSmtpAddress",
         "ForwardingAddress", "DeliverToMailboxAndForward", "LitigationHoldEnabled", "ArchiveStatus", "HiddenFromAddressListsEnabled",
-        "GrantSendOnBehalfTo",
+        "GrantSendOnBehalfTo", "ProhibitSendReceiveQuota",
     ];
 
     /// <summary>Mailboxes whose access lists are read: the ones shared between people.</summary>
@@ -59,7 +64,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
 
     const int AccessReadsAtOnce = 4;
 
-    static readonly TimeSpan SlowInterval = TimeSpan.FromHours(1);
+    SyncSettings Settings => settings?.Invoke() ?? SyncSettings.Default;
 
     readonly Func<DateTimeOffset> _now = now ?? (() => DateTimeOffset.UtcNow);
     readonly SemaphoreSlim _running = new(1, 1);
@@ -90,8 +95,12 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
                 changed += await SyncSignInsAsync(progress, cancellationToken);
             if (exchange is not null && Due(Mailboxes, scope))
                 changed += await SyncMailboxesAsync(notes, progress, cancellationToken);
+            // Mailbox sizes and replies take minutes for a big tenant: read in the background, so
+            // checking for changes (and Refresh) never waits for them.
+            if (exchange is not null && Settings.MailboxDetailsOn && Due(MailboxDetails, scope, Settings.MailboxDetailsMinutes))
+                StartMailboxDetails();
 
-            _notes = notes;
+            _notes = [.. notes, .. _detailNotes];
             return changed;
         }
         finally
@@ -100,8 +109,38 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         }
     }
 
-    bool Due(string key, SyncScope scope) =>
-        scope != SyncScope.Changes || store.GetMark(key) is not { } last || _now() - last.SyncedAt >= SlowInterval;
+    bool Due(string key, SyncScope scope, int? minutes = null) =>
+        scope != SyncScope.Changes || store.GetMark(key) is not { } last
+        || _now() - last.SyncedAt >= TimeSpan.FromMinutes(Math.Max(1, minutes ?? Settings.DetailsMinutes));
+
+    /// <summary>Each part of the local copy, when it was last read and how often (for Settings).</summary>
+    public IReadOnlyList<SyncArea> Areas
+    {
+        get
+        {
+            var s = Settings;
+            string Every(int minutes, string none) => minutes <= 0 ? none : minutes % 60 == 0 && minutes >= 60
+                ? minutes == 60 ? "Every hour" : minutes == 1440 ? "Once a day" : $"Every {minutes / 60} hours"
+                : $"Every {minutes} minutes";
+            var changes = Every(s.ChangesMinutes, "When the tenant opens, and on Refresh");
+            var details = Every(s.DetailsMinutes, "On Refresh");
+            List<SyncArea> areas =
+            [
+                new("Users", "Everyone in the directory, their licenses and status (changes only)", store.GetMark(Users)?.SyncedAt, changes),
+                new("Groups", "Groups with their members and owners (changes only)", store.GetMark(GroupsMark)?.SyncedAt, changes),
+                new("Licenses", "The tenant's licenses and how many are left", store.GetMark(Skus)?.SyncedAt, changes),
+                new("Last sign-in times", "When each person last signed in", store.GetMark(SignIns)?.SyncedAt, details),
+                new("Domains and Teams", "The tenant's domains, and which groups are Teams", store.GetMark(Domains)?.SyncedAt, details),
+            ];
+            if (exchange is not null)
+            {
+                areas.Add(new("Mailboxes", "Mailbox types, addresses, forwarding, address list; who can use shared mailboxes", store.GetMark(Mailboxes)?.SyncedAt, details));
+                areas.Add(new("Mailbox size and automatic replies", "Two reads per mailbox, in the background",
+                    store.GetMark(MailboxDetails)?.SyncedAt, BackgroundStatus ?? Every(s.MailboxDetailsMinutes, "Off")));
+            }
+            return areas;
+        }
+    }
 
     /// <summary>A small collection read in full: every row upserted, anything missing removed.</summary>
     async Task<int> ReadWholeAsync(string kind, string path, string idProperty, CancellationToken cancellationToken)
@@ -325,6 +364,122 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         var changes = access.Select(a => new EntityChange(a.Key, a.Value)).ToArray();
         return store.Apply(MailboxAccess, changes)
             + store.RemoveExcept(MailboxAccess, mailboxes.Select(m => m.Id).ToHashSet(StringComparer.Ordinal));
+    }
+
+    // ---- Mailbox details, in the background ---------------------------------------------------
+
+    /// <summary>Mailboxes whose two reads go in one $batch request (ten calls).</summary>
+    const int MailboxesPerBatch = 5;
+
+    /// <summary>Batches in flight at once.</summary>
+    const int BatchesAtOnce = 8;
+
+    Task? _details;
+    IReadOnlyList<string> _detailNotes = [];
+
+    /// <summary>Raised (on a worker thread) when the background read has stored new values.</summary>
+    public event EventHandler? BackgroundUpdated;
+
+    /// <summary>The background read now running, if any (tests await it).</summary>
+    public Task BackgroundWork => _details ?? Task.CompletedTask;
+
+    /// <summary>"Reading… 120 of 604", while the background read runs; null otherwise.</summary>
+    public string? BackgroundStatus { get; private set; }
+
+    void StartMailboxDetails()
+    {
+        if (_details is { IsCompleted: false })
+            return;
+        _details = Task.Run(async () =>
+        {
+            try
+            {
+                var notes = new List<string>();
+                if (await SyncMailboxDetailsAsync(notes, CancellationToken.None) > 0)
+                    BackgroundUpdated?.Invoke(this, EventArgs.Empty);
+                _detailNotes = notes;
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                _detailNotes = [$"Mailbox sizes and automatic replies weren't read: {e.Message}"];
+            }
+            finally
+            {
+                BackgroundStatus = null;
+            }
+        });
+    }
+
+    /// <summary>
+    /// Every mailbox's size (Get-MailboxStatistics) and automatic-reply state
+    /// (Get-MailboxAutoReplyConfiguration). Exchange has no tenant-wide form of either, so it's
+    /// two reads per mailbox, sent ten to a $batch request, a few requests at a time (measured
+    /// live: one by one took about 11 minutes for 600 mailboxes). A mailbox that can't be read
+    /// keeps what was stored.
+    /// </summary>
+    async Task<int> SyncMailboxDetailsAsync(List<string> notes, CancellationToken cancellationToken)
+    {
+        var mailboxes = new List<(string Id, string Address)>();
+        foreach (var json in store.All(Mailboxes))
+        {
+            using var m = JsonDocument.Parse(json);
+            if (m.RootElement.TryGetProperty("ExternalDirectoryObjectId", out var o) && o.GetString() is { Length: > 0 } id
+                && m.RootElement.TryGetProperty("PrimarySmtpAddress", out var a) && a.GetString() is { Length: > 0 } address)
+                mailboxes.Add((id, address));
+        }
+        if (mailboxes.Count == 0)
+        {
+            store.SetMark(MailboxDetails, new SyncMark(null, _now()));
+            return 0;
+        }
+
+        var details = new System.Collections.Concurrent.ConcurrentBag<EntityChange>();
+        var failed = 0;
+        var done = 0;
+        BackgroundStatus = $"Reading… 0 of {mailboxes.Count:N0}";
+        await Parallel.ForEachAsync(mailboxes.Chunk(MailboxesPerBatch), new ParallelOptions { MaxDegreeOfParallelism = BatchesAtOnce, CancellationToken = cancellationToken },
+            async (chunk, ct) =>
+            {
+                var calls = chunk.SelectMany(m => new[]
+                {
+                    new CmdletCall("Get-MailboxStatistics", new Dictionary<string, object?> { ["Identity"] = m.Address }, ["TotalItemSize", "ItemCount"]),
+                    new CmdletCall("Get-MailboxAutoReplyConfiguration", new Dictionary<string, object?> { ["Identity"] = m.Address }, ["AutoReplyState"]),
+                }).ToArray();
+                IReadOnlyList<CmdletResult> results;
+                try
+                {
+                    results = await exchange!.InvokeManyAsync(CmdletEndpoint.Exchange, calls, ct);
+                }
+                catch (CmdletException)
+                {
+                    Interlocked.Add(ref failed, chunk.Length);
+                    return;
+                }
+                for (var i = 0; i < chunk.Length; i++)
+                {
+                    var (stats, reply) = (results[2 * i], results[2 * i + 1]);
+                    if (!stats.Succeeded && !reply.Succeeded)
+                    {
+                        Interlocked.Increment(ref failed);
+                        continue;
+                    }
+                    var row = new JsonObject { ["id"] = chunk[i].Id };
+                    if (stats.Rows.Count > 0 && stats.Rows[0].TryGetProperty("TotalItemSize", out var size)
+                        && MailDetails.ParseBytes(size.ValueKind == JsonValueKind.String ? size.GetString() : size.ToString()) is { } used)
+                        row["usedBytes"] = used;
+                    if (reply.Rows.Count > 0 && reply.Rows[0].TryGetProperty("AutoReplyState", out var state))
+                        row["autoReply"] = state.GetString() switch { "Enabled" => "On", "Scheduled" => "Scheduled", _ => "Off" };
+                    details.Add(new EntityChange(chunk[i].Id, row));
+                }
+                var now = Interlocked.Add(ref done, chunk.Length);
+                BackgroundStatus = $"Reading… {now:N0} of {mailboxes.Count:N0}";
+            });
+        if (failed > 0)
+            notes.Add($"The size or automatic replies of {failed:N0} mailboxes couldn't be read; their previous values are shown.");
+        var changed = store.Apply(MailboxDetails, details.ToArray())
+                      + store.RemoveExcept(MailboxDetails, mailboxes.Select(m => m.Id).ToHashSet(StringComparer.Ordinal));
+        store.SetMark(MailboxDetails, new SyncMark(null, _now()));
+        return changed;
     }
 
     /// <summary>One mailbox's Full access and Send as trustees, as stored under <see cref="MailboxAccess"/>.</summary>

@@ -249,6 +249,51 @@ public class DirectorySyncTests
         System.Text.Json.JsonDocument.Parse(json).RootElement.EnumerateArray().Select(e => e.Clone()).ToArray();
 
     [Fact]
+    public async Task Mailbox_size_and_automatic_replies_feed_the_list_and_follow_the_settings()
+    {
+        // Ada: 47 GB of 50 GB with a reply on. Bo: small, no reply.
+        var exchange = new FakeExchange((cmdlet, parameters) => (cmdlet, parameters is not null && parameters.TryGetValue("Identity", out var who) ? who as string : null) switch
+        {
+            ("Get-Mailbox", _) => Rows("""
+                [
+                  {"ExternalDirectoryObjectId":"u1","RecipientTypeDetails":"UserMailbox","PrimarySmtpAddress":"ada@contoso.example","ProhibitSendReceiveQuota":"50 GB (53,687,091,200 bytes)","HiddenFromAddressListsEnabled":true},
+                  {"ExternalDirectoryObjectId":"u2","RecipientTypeDetails":"UserMailbox","PrimarySmtpAddress":"bo@contoso.example","ProhibitSendReceiveQuota":"50 GB (53,687,091,200 bytes)"}
+                ]
+                """),
+            ("Get-MailboxStatistics", "ada@contoso.example") => Rows("""[{"TotalItemSize":"47 GB (50,465,865,728 bytes)","ItemCount":90000}]"""),
+            ("Get-MailboxStatistics", _) => Rows("""[{"TotalItemSize":"1.2 GB (1,288,490,188 bytes)","ItemCount":1200}]"""),
+            ("Get-MailboxAutoReplyConfiguration", "ada@contoso.example") => Rows("""[{"AutoReplyState":"Enabled"}]"""),
+            ("Get-MailboxAutoReplyConfiguration", _) => Rows("""[{"AutoReplyState":"Disabled"}]"""),
+            _ => [],
+        });
+        var store = new MemoryEntityStore();
+        var settings = new MemorySyncSettingsStore();
+        var sync = new DirectorySync(Graph(FirstRun().On(HttpMethod.Get, "users/delta?$deltatoken=d1",
+            $$"""{"value":[],"@odata.deltaLink":"{{Base}}users/delta?$deltatoken=d1"}""")), store, exchange, () => Now, settings.Load);
+        var updated = 0;
+        sync.BackgroundUpdated += (_, _) => Interlocked.Increment(ref updated);
+        await sync.SyncAsync(cancellationToken: Ct);
+        // Sizes and replies are read in the background: the sync itself doesn't wait for them.
+        await sync.BackgroundWork;
+        Assert.Equal(1, updated);
+
+        var users = (await new CachedTenantDirectory(store, "Contoso").GetUsersAsync(Ct)).ToDictionary(u => u.Id);
+        Assert.True(users["u1"].Mailbox!.IsNearlyFull);
+        Assert.Equal(AutoReplyState.On, users["u1"].Mailbox!.AutoReply);
+        Assert.False(users["u2"].Mailbox!.IsNearlyFull);
+        Assert.Equal(UserFields.NearlyFull, UserFields.All.Single(f => f.Key == UserFields.Storage).Text!(users["u1"]));
+        Assert.Equal(UserFields.Hidden, UserFields.All.Single(f => f.Key == UserFields.AddressList).Text!(users["u1"]));
+        Assert.Contains(sync.Areas, a => a.Name == "Mailbox size and automatic replies" && a.LastSyncedAt == Now && a.Every == "Every hour");
+
+        // Turned off in Settings: an Everything sync no longer reads them.
+        settings.Save(settings.Load() with { MailboxDetailsMinutes = 0 });
+        var before = exchange.Calls.Count(c => c.Cmdlet == "Get-MailboxStatistics");
+        await sync.SyncAsync(scope: SyncScope.Everything, cancellationToken: Ct);
+        Assert.Equal(before, exchange.Calls.Count(c => c.Cmdlet == "Get-MailboxStatistics"));
+        Assert.Equal("Off", sync.Areas.Single(a => a.Name == "Mailbox size and automatic replies").Every);
+    }
+
+    [Fact]
     public async Task Shared_mailboxes_list_who_can_use_them_beside_the_groups()
     {
         // u2 is a shared mailbox: Ada has Full access and Send as; Cy sends on behalf (given by

@@ -25,6 +25,37 @@ public interface ICmdletRunner
         IReadOnlyDictionary<string, object?>? parameters = null,
         CancellationToken cancellationToken = default,
         IReadOnlyList<string>? select = null);
+
+    /// <summary>
+    /// Runs several single-object cmdlets (no paging) and returns each one's output or error, in
+    /// order. The REST runner sends them ten to a request; this default runs them one by one.
+    /// </summary>
+    async Task<IReadOnlyList<CmdletResult>> InvokeManyAsync(CmdletEndpoint endpoint, IReadOnlyList<CmdletCall> calls,
+        CancellationToken cancellationToken = default)
+    {
+        var results = new List<CmdletResult>(calls.Count);
+        foreach (var call in calls)
+        {
+            try
+            {
+                results.Add(new CmdletResult(await InvokeAsync(endpoint, call.Cmdlet, call.Parameters, cancellationToken, call.Select), null));
+            }
+            catch (CmdletException e)
+            {
+                results.Add(new CmdletResult([], e.Explanation));
+            }
+        }
+        return results;
+    }
+}
+
+/// <summary>One cmdlet call in a batch.</summary>
+public sealed record CmdletCall(string Cmdlet, IReadOnlyDictionary<string, object?>? Parameters, IReadOnlyList<string>? Select = null);
+
+/// <summary>A batched call's output, or why it failed (then <see cref="Rows"/> is empty).</summary>
+public sealed record CmdletResult(IReadOnlyList<JsonElement> Rows, string? Error)
+{
+    public bool Succeeded => Error is null;
 }
 
 public sealed class CmdletException(string cmdlet, int status, string message)
@@ -44,7 +75,8 @@ public sealed class CmdletException(string cmdlet, int status, string message)
     public bool IsNotFound => Detail.Contains("ManagementObjectNotFoundException", StringComparison.Ordinal)
         || Detail.Contains("RecipientNotFoundException", StringComparison.Ordinal);
 
-    internal static string Plain(string text)
+    /// <summary>Exchange's message without its internal prefix (also used for errors inside a batch).</summary>
+    public static string Plain(string text)
     {
         var parts = text.Split('|');
         return parts.Length >= 3 && parts[1].Contains("Exception", StringComparison.Ordinal) ? string.Join('|', parts[2..]).Trim() : text;

@@ -157,7 +157,7 @@ public sealed class GraphUserRecords(GraphClient graph, IEntityStore store, ICmd
             throw new InvalidOperationException("Exchange Online isn't connected for this tenant.");
         var identity = new Dictionary<string, object?> { ["Identity"] = address };
         var mailboxTask = exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-Mailbox", identity, cancellationToken,
-            [.. DirectorySync.MailboxSelect, "ProhibitSendReceiveQuota", "IssueWarningQuota"]);
+            [.. DirectorySync.MailboxSelect, "IssueWarningQuota"]);
         var replyTask = exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-MailboxAutoReplyConfiguration", identity, cancellationToken,
             ["AutoReplyState", "StartTime", "EndTime", "InternalMessage", "ExternalMessage", "ExternalAudience"]);
         var statsTask = ReadStatisticsAsync(identity, cancellationToken);

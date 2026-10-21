@@ -30,12 +30,25 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
         }
 
         var domains = Ids(DirectorySync.Domains);
+        // Size and automatic replies, from the hourly per-mailbox read (absent until it has run).
+        var details = new Dictionary<string, (long? Used, AutoReplyState? Reply)>(StringComparer.Ordinal);
+        foreach (var json in store.All(DirectorySync.MailboxDetails))
+        {
+            using var d = JsonDocument.Parse(json);
+            if (Str(d.RootElement, "id") is not { } id)
+                continue;
+            long? used = d.RootElement.TryGetProperty("usedBytes", out var u) && u.ValueKind == JsonValueKind.Number ? u.GetInt64() : null;
+            AutoReplyState? reply = Str(d.RootElement, "autoReply") is { } r && Enum.TryParse<AutoReplyState>(r, out var state) ? state : null;
+            details[id] = (used, reply);
+        }
         var mailboxes = new Dictionary<string, MailboxInfo>(StringComparer.Ordinal);
         foreach (var json in store.All(DirectorySync.Mailboxes))
         {
             using var mailbox = JsonDocument.Parse(json);
-            if (Str(mailbox.RootElement, "ExternalDirectoryObjectId") is { } owner)
-                mailboxes[owner] = ToMailbox(mailbox.RootElement, domains);
+            if (Str(mailbox.RootElement, "ExternalDirectoryObjectId") is not { } owner)
+                continue;
+            var info = ToMailbox(mailbox.RootElement, domains);
+            mailboxes[owner] = details.TryGetValue(owner, out var extra) ? info with { UsedBytes = extra.Used, AutoReply = extra.Reply } : info;
         }
 
         var stored = store.All(DirectorySync.Users);
@@ -247,7 +260,8 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             KeepsCopyWhenForwarding: Bool(m, "DeliverToMailboxAndForward"),
             LitigationHold: Bool(m, "LitigationHoldEnabled"),
             ArchiveEnabled: string.Equals(Str(m, "ArchiveStatus"), "Active", StringComparison.OrdinalIgnoreCase),
-            HiddenFromAddressList: Bool(m, "HiddenFromAddressListsEnabled"));
+            HiddenFromAddressList: Bool(m, "HiddenFromAddressListsEnabled"),
+            QuotaBytes: MailDetails.ParseBytes(Str(m, "ProhibitSendReceiveQuota")));
     }
 
     static bool IsInternal(string address, IReadOnlySet<string> domains)

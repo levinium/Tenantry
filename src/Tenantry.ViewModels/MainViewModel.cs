@@ -142,6 +142,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        // Background reads (mailbox sizes and replies) finish on a worker thread; the lists are
+        // re-read back on this (the UI) thread.
+        var ui = SynchronizationContext.Current;
+        sync.BackgroundUpdated += (_, _) =>
+        {
+            if (ui is null)
+                _ = AfterBackgroundUpdateAsync();
+            else
+                ui.Post(_ => _ = AfterBackgroundUpdateAsync(), null);
+        };
+
         if (sync.LastSyncedAt is null)
         {
             const string first = "Downloading the directory for the first time…";
@@ -168,8 +179,61 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 await ReloadListsAsync(cancellationToken);
         }
 
-        if (_syncInterval is { } interval)
-            _ = CheckPeriodicallyAsync(interval, _lifetime.Token);
+        StartChecking();
+    }
+
+    async Task AfterBackgroundUpdateAsync()
+    {
+        try
+        {
+            await ReloadListsAsync(_lifetime.Token);
+            OnPropertyChanged(nameof(SyncTip));
+        }
+        catch (OperationCanceledException)
+        {
+            // The tenant was closed meanwhile.
+        }
+    }
+
+    CancellationTokenSource? _checking;
+
+    /// <summary>How often to check for changes: the tenant's setting, else the app's default; null for never.</summary>
+    TimeSpan? ChangesInterval => _tenant.SyncSettings?.Load() is { } s
+        ? s.ChangesMinutes > 0 ? TimeSpan.FromMinutes(s.ChangesMinutes) : null
+        : _syncInterval;
+
+    /// <summary>(Re)starts the periodic check, e.g. after the interval is changed in Settings.</summary>
+    void StartChecking()
+    {
+        _checking?.Cancel();
+        _checking?.Dispose();
+        _checking = null;
+        if (_syncInterval is null || ChangesInterval is not { } interval)
+            return;
+        _checking = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _ = CheckPeriodicallyAsync(interval, _checking.Token);
+        OnPropertyChanged(nameof(SyncTip));
+    }
+
+    // ---- Settings -------------------------------------------------------------------------
+
+    public bool HasSettings => _tenant.SyncSettings is not null;
+
+    [RelayCommand]
+    void OpenSettings()
+    {
+        if (_tenant.SyncSettings is not { } store)
+            return;
+        ShowDialog(new Records.DialogViewModel("Settings", TenantName,
+            new SettingsViewModel(TenantName, store, _tenant.Sync, SyncNowAsync, StartChecking, _now), Footnote: null));
+    }
+
+    /// <summary>Settings' "Check everything now" and "Download everything again".</summary>
+    async Task SyncNowAsync(SyncScope scope)
+    {
+        if (await SyncAsync(null, scope, _lifetime.Token) is null)
+            throw new InvalidOperationException(SyncError ?? "The sync failed.");
+        await ReloadListsAsync(_lifetime.Token);
     }
 
     // ---- Sync status ----------------------------------------------------------------------
@@ -210,9 +274,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var when = LastSyncedAt is { } at ? $"Last brought up to date {Display.Exact(at)}. " : "";
             var error = SyncError is not null && !IsSyncing ? $"The last check failed: {SyncError} " : "";
             var notes = _tenant.Sync?.Notes is { Count: > 0 } n ? string.Join(" ", n) + " " : "";
+            var every = ChangesInterval is { } i ? $"and every {i.TotalMinutes:0} minutes while it's open" : "and when you click Refresh";
             return $"{error}{notes}{when}Lists read a local copy of the directory, so they are instant. " +
-                   $"Tenantry checks for changes when you open the tenant and every {DefaultSyncInterval.TotalMinutes:0} minutes while it's open; " +
-                   $"mailboxes and last sign-in times are re-read hourly. {where} " +
+                   $"Tenantry checks for changes when you open the tenant {every}; " +
+                   $"mailboxes, their sizes and last sign-in times are re-read less often (see Settings). {where} " +
                    "Click Refresh to check everything now.";
         }
     }

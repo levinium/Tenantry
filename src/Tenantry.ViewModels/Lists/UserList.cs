@@ -31,7 +31,11 @@ public static class UserList
         View("unlicensed", "Unlicensed members", Is(F.Type, F.Member), Is(F.Status, F.Active), Is(F.Licenses, F.Unlicensed)),
         View("guests-never", "Guests never signed in", Is(F.Type, F.Guest), new DateCondition(F.LastSignIn, DateOp.Never)),
         View("shared", "Shared mailboxes", Is(F.Mailbox, F.SharedMailbox)),
+        View("forwarding", "Forwarding on", new ChoiceCondition(F.Forwarding, [F.ForwardsExternally, F.ForwardsInternally], [])),
         View("forwarding-external", "Forwarding outside the organization", Is(F.Forwarding, F.ForwardsExternally)),
+        View("nearly-full", "Mailbox nearly full", Is(F.Storage, F.NearlyFull)),
+        View("auto-reply", "Automatic reply on", new ChoiceCondition(F.AutoReply, [F.On, F.Scheduled], [])),
+        View("hidden", "Hidden from the address list", Is(F.AddressList, F.Hidden)),
         View("licensed-shared", "Licensed shared mailboxes", Is(F.Mailbox, F.SharedMailbox), IsNot(F.Licenses, F.Unlicensed)),
     ];
 
@@ -107,6 +111,18 @@ public static class UserList
                 Text = u => u.Mailbox is { } m ? (m.LitigationHold ? F.On : F.Off) : null },
             new() { Key = F.Archive, Header = "Archive", Cell = CellKind.Text, MinWidth = 100, DefaultWidth = 110, DefaultVisible = false,
                 Text = u => u.Mailbox is { } m ? (m.ArchiveEnabled ? F.On : F.Off) : null },
+            new() { Key = F.AddressList, Header = "Address list", Cell = CellKind.Text, MinWidth = 110, DefaultWidth = 120, DefaultVisible = false,
+                Text = u => u.Mailbox is { } m ? (m.HiddenFromAddressList ? F.Hidden : F.Shown) : null },
+            new() { Key = F.AutoReply, Header = "Automatic replies", Cell = CellKind.Badge, MinWidth = 140, DefaultWidth = 150, DefaultVisible = false,
+                Badge = u => u.Mailbox?.AutoReply switch
+                {
+                    AutoReplyState.On => (F.On, BadgeKind.Info),
+                    AutoReplyState.Scheduled => (F.Scheduled, BadgeKind.Info),
+                    AutoReplyState.Off => (F.Off, BadgeKind.Neutral),
+                    _ => (u.Mailbox is null ? F.NoMailbox : F.NotReadYet, BadgeKind.Neutral),
+                } },
+            new() { Key = F.StorageUsed, Header = "Storage used (%)", Cell = CellKind.Number, MinWidth = 130, DefaultWidth = 140, DefaultVisible = false,
+                Number = u => u.Mailbox?.UsedPercent is { } p ? Math.Round(p) : null },
         ],
     };
 }

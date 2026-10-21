@@ -108,6 +108,13 @@
               </Flyout>
             </Button.Flyout>
           </Button>
+          <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Command="{Binding OpenSettingsCommand}"
+                  IsVisible="{Binding HasSettings}" ToolTip.Tip="How often this tenant's local copy is updated, and when it last was">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Settings" FontSize="18" />
+              <TextBlock Text="Settings" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
           <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Command="{Binding SwitchTenantCommand}">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="ArrowSwap" FontSize="18" />
@@ -323,8 +330,8 @@
           </Grid>
           <Border DockPanel.Dock="Top" Classes="divider" />
           <TextBlock DockPanel.Dock="Bottom" Classes="caption" Margin="22,8,22,12" TextWrapping="Wrap"
-                     Text="Changes go to Pending changes at the bottom of the window; nothing is sent until you apply them." />
-          <Border DockPanel.Dock="Bottom" Classes="divider" />
+                     Text="{Binding Dialog.Footnote, FallbackValue=''}" IsVisible="{Binding Dialog.HasFootnote, FallbackValue=False}" />
+          <Border DockPanel.Dock="Bottom" Classes="divider" IsVisible="{Binding Dialog.HasFootnote, FallbackValue=False}" />
           <ScrollViewer x:Name="DialogScroller" Padding="22,16">
             <ContentControl Content="{Binding Dialog.Content, FallbackValue={x:Null}}" />
           </ScrollViewer>

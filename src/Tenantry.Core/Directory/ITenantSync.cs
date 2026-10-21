@@ -31,6 +31,15 @@ public interface ITenantSync
     /// </summary>
     IReadOnlyList<string> Notes { get; }
 
+    /// <summary>Each part of the local copy and when it was last read, for Settings.</summary>
+    IReadOnlyList<SyncArea> Areas => [];
+
+    /// <summary>
+    /// Raised, possibly on a worker thread, when work the sync started in the background (mailbox
+    /// sizes and replies) has stored new values, so lists can re-read the local copy.
+    /// </summary>
+    event EventHandler? BackgroundUpdated { add { } remove { } }
+
     /// <summary>Brings the local copy up to date; returns how many objects changed.</summary>
     Task<int> SyncAsync(IProgress<string>? progress = null, SyncScope scope = SyncScope.Changes, CancellationToken cancellationToken = default);
 }

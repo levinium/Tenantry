@@ -409,7 +409,12 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
                 continue;
             var actual = GraphUserRecords.ToAutoReply(rows[0]);
             if (actual.State == reply.State && (reply.State == AutoReplyState.Off || Same(actual.Internal, reply.Internal)))
+            {
+                // The list's "Automatic replies" column follows at once, not at the next hourly read.
+                store.Apply(DirectorySync.MailboxDetails, [new EntityChange(change.User.Id,
+                    new JsonObject { ["id"] = change.User.Id, ["autoReply"] = actual.State.ToString() })]);
                 return new ApplyResult(ChangeOutcome.Applied);
+            }
         }
         return new ApplyResult(ChangeOutcome.AppliedNotYetVisible,
             "Exchange accepted the change but still shows the old automatic replies; it usually appears within a minute.");

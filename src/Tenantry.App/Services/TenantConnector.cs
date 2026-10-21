@@ -63,6 +63,7 @@ public sealed class TenantConnector : ITenantConnector
         var entities = OpenLocalCopy(profile.Id, folder);
         var account = tokens.Account ?? "";
         var exchange = new RestCmdletRunner(Http, NoRedirectHttp, tokens, profile.TenantId);
+        var syncSettings = new Tenantry.Core.Directory.JsonSyncSettingsStore(folder);
         return new ConnectedTenant(profile.DisplayName, account, new CachedTenantDirectory(entities, profile.DisplayName), context,
             MissingPermissions: missing,
             UpdatePermissions: async (progress, ct) =>
@@ -89,11 +90,12 @@ public sealed class TenantConnector : ITenantConnector
                 return missing;
             },
             ListState: new JsonListStateStore(folder),
-            Sync: new DirectorySync(graph, entities, exchange),
+            Sync: new DirectorySync(graph, entities, exchange, settings: syncSettings.Load),
             Resources: entities,
             Changes: new ChangePipeline(new GraphChangeExecutor(graph, entities, exchange: exchange), new ChangeLog(entities),
                 new JsonTestModeStore(folder, TestModeByDefault), account),
-            Records: new GraphUserRecords(graph, entities, exchange));
+            Records: new GraphUserRecords(graph, entities, exchange),
+            SyncSettings: syncSettings);
     }
 
     /// <summary>How long to wait before each re-check of newly granted permissions (about 90 s in all).</summary>

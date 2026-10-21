@@ -64,12 +64,10 @@ public sealed class DemoUserRecords(DemoTenantDirectory directory) : IUserRecord
     {
         var user = (await directory.GetUsersAsync(cancellationToken)).First(u => u.Id == userId);
         var mailbox = user.Mailbox ?? throw new InvalidOperationException("This person has no mailbox.");
-        var seed = StableSeed(userId);
-        var random = new Random(seed);
-        const long quota = 50L << 30;
-        var used = seed % 10 == 0 ? (long)(quota * (0.9 + random.NextDouble() * 0.08)) : (long)(quota * random.NextDouble() * 0.35);
+        var (used, quota, state) = DemoTenantDirectory.DemoMailboxDetails(userId);
+        var random = new Random(StableSeed(userId) + 1);
         if (!_autoReplies.TryGetValue(userId, out var reply))
-            reply = seed % 8 == 0
+            reply = state == AutoReplyState.On
                 ? new AutoReply(AutoReplyState.On, null, null, "I'm away this week with limited access to email. For anything urgent, contact the front desk.",
                     "Thanks for your message. I'm out of the office this week and will reply when I'm back.", AutoReplyAudience.All)
                 : AutoReply.Off;
@@ -173,7 +171,7 @@ public sealed class DemoUserRecords(DemoTenantDirectory directory) : IUserRecord
     internal void RememberRemovedApp(string assignmentId) => _removedApps.Add(assignmentId);
 
     /// <summary>A seed from the id that is the same on every run (string.GetHashCode isn't).</summary>
-    static int StableSeed(string id)
+    internal static int StableSeed(string id)
     {
         var hash = 2166136261u;
         foreach (var c in id)
