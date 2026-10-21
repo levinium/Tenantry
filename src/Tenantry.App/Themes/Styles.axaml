@@ -971,6 +971,8 @@
   <!-- A thin moving bar under a status line while work runs. -->
   <Style Selector="ProgressBar.working">
     <Setter Property="IsIndeterminate" Value="True" />
+    <!-- The moving part slides past the track's ends; clip it so it never runs under the button beside it. -->
+    <Setter Property="ClipToBounds" Value="True" />
     <Setter Property="Height" Value="3" />
     <Setter Property="MinHeight" Value="3" />
     <Setter Property="CornerRadius" Value="2" />

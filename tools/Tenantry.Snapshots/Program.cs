@@ -386,6 +386,12 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     paused.RaiseBackground();
     busy.RefreshCommand.Execute(null);
     Render(busy, $"syncing-{suffix}");
+    if (full)
+    {
+        // Later frames of the moving bar, to check it stays inside its column.
+        foreach (var ms in new[] { 400, 900, 1500 })
+            Render(busy, $"syncing-bar-{ms}-light", during: _ => Thread.Sleep(ms));
+    }
     busy.OpenSettingsCommand.Execute(null);
     Render(busy, $"settings-syncing-{suffix}");
     paused.Release.SetResult();
@@ -541,7 +547,7 @@ sealed class PausedSync : ITenantSync
     {
         if (scope == SyncScope.Changes)
             return 0;
-        progress?.Report("Shared mailbox access: 5 of 13…");
+        progress?.Report("Mailbox access: 5 of 13…");
         await Release.Task;
         return 0;
     }

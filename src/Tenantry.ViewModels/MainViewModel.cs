@@ -248,7 +248,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     public bool HasSync => _tenant.Sync is not null;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SyncText), nameof(SyncTip), nameof(HasSyncError), nameof(IsSyncOk))]
+    [NotifyPropertyChangedFor(nameof(SyncText), nameof(SyncTip), nameof(HasSyncError), nameof(IsSyncOk), nameof(IsBusy))]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     public partial bool IsSyncing { get; private set; }
 
@@ -267,10 +267,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     /// <summary>The background read's progress ("Mailbox sizes: 120 of 604"), shown under the status line.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasBackgroundText))]
+    [NotifyPropertyChangedFor(nameof(HasBackgroundText), nameof(IsBusy))]
     public partial string? BackgroundText { get; private set; }
 
     public bool HasBackgroundText => BackgroundText is not null;
+
+    /// <summary>
+    /// A sync or the background read is running. While it is, the status area keeps all its rows
+    /// (step, bar, background line), so it doesn't jump as messages and steps come and go.
+    /// </summary>
+    public bool IsBusy => IsSyncing || HasBackgroundText;
 
     public bool HasSyncError => SyncError is not null && !IsSyncing;
 

@@ -86,9 +86,9 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
             // Each step says what it's doing, so a long Refresh never looks stuck.
             progress?.Report("Reading licenses…");
             var changed = await ReadWholeAsync(Skus, $"subscribedSkus?$select={SkuSelect}", "skuId", cancellationToken);
-            progress?.Report("Checking users for changes…");
+            progress?.Report("Checking users…");
             changed += await SyncDeltaAsync(Users, Users, $"users/delta?$select={UserSelect}", "users", scope, _ => item => new EntityChange(Id(item), ToObject(item)), progress, cancellationToken);
-            progress?.Report("Checking groups for changes…");
+            progress?.Report("Checking groups…");
             changed += await SyncDeltaAsync(Groups, GroupsMark, $"groups/delta?$select={GroupSelect}", "groups", scope, GroupMapper, progress, cancellationToken);
 
             if (Due(Domains, scope))
@@ -98,7 +98,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
             }
             if (Due(Teams, scope))
             {
-                progress?.Report("Reading which groups are Teams…");
+                progress?.Report("Reading Teams…");
                 changed += await ReadWholeAsync(Teams, "groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&$select=id&$top=999", "id", cancellationToken);
             }
             if (Due(SignIns, scope))
@@ -283,7 +283,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
         var changed = 0;
         try
         {
-            progress?.Report("Reading sign-in times…");
+            progress?.Report("Reading sign-ins…");
             var changes = new List<EntityChange>();
             await foreach (var item in graph.GetAllAsync("users?$select=id,signInActivity&$top=999", cancellationToken))
             {
@@ -353,7 +353,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
     {
         if (mailboxes.Count == 0)
             return store.RemoveExcept(MailboxAccess, new HashSet<string>());
-        progress?.Report($"Shared mailbox access: 0 of {mailboxes.Count:N0}…");
+        progress?.Report($"Mailbox access: 0 of {mailboxes.Count:N0}…");
         var access = new System.Collections.Concurrent.ConcurrentDictionary<string, JsonObject>(StringComparer.Ordinal);
         var failed = 0;
         var done = 0;
@@ -369,7 +369,7 @@ public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdlet
                     // Typically a mailbox removed between the two reads. Keep what was stored.
                     Interlocked.Increment(ref failed);
                 }
-                progress?.Report($"Shared mailbox access: {Interlocked.Increment(ref done):N0} of {mailboxes.Count:N0}…");
+                progress?.Report($"Mailbox access: {Interlocked.Increment(ref done):N0} of {mailboxes.Count:N0}…");
             });
         if (failed > 0)
             notes.Add($"Access for {failed:N0} shared mailboxes couldn't be read; their previous access is shown.");

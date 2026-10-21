@@ -56,13 +56,18 @@
               </ic:FluentIcon>
               <ic:FluentIcon Icon="Warning" FontSize="16" Foreground="{DynamicResource BadgeWarningFg}" IsVisible="{Binding HasSyncError}" />
             </Panel>
-            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-              <TextBlock Classes="caption" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" Text="{Binding SyncText}" />
-              <ProgressBar Classes="working" Margin="0,3,0,1" IsVisible="{Binding IsSyncing}" />
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1" ClipToBounds="True">
+              <!-- One line, so the area keeps its height as steps change; the tooltip has it in full. -->
+              <TextBlock Classes="caption" TextTrimming="CharacterEllipsis" Text="{Binding SyncText}" ToolTip.Tip="{Binding SyncText}" />
+              <!-- While busy every row stays (empty where there's nothing to show), so nothing jumps. -->
+              <Panel Height="3" Margin="0,3,0,1" IsVisible="{Binding IsBusy}">
+                <ProgressBar Classes="working" IsVisible="{Binding IsSyncing}" />
+              </Panel>
               <!-- The background read (mailbox sizes and replies) under it, while it runs -->
-              <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding HasBackgroundText}"
+              <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding IsBusy}" MinHeight="15"
                           ToolTip.Tip="Reading every mailbox's size and automatic replies in the background; the lists update when it's done">
-                <ic:FluentIcon Classes="spin" Icon="ArrowSync" FontSize="11" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center">
+                <ic:FluentIcon Classes="spin" Icon="ArrowSync" FontSize="11" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"
+                               IsVisible="{Binding HasBackgroundText}">
                   <ic:FluentIcon.RenderTransform>
                     <RotateTransform />
                   </ic:FluentIcon.RenderTransform>
