@@ -968,6 +968,11 @@
     </Style.Animations>
   </Style>
 
+  <!-- The sidebar's sync step: two lines' room while busy (text anchored at the top). -->
+  <Style Selector="TextBlock.syncstep.busy">
+    <Setter Property="MinHeight" Value="34" />
+  </Style>
+
   <!-- A thin moving bar under a status line while work runs. -->
   <Style Selector="ProgressBar.working">
     <Setter Property="IsIndeterminate" Value="True" />

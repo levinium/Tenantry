@@ -57,8 +57,10 @@
               <ic:FluentIcon Icon="Warning" FontSize="16" Foreground="{DynamicResource BadgeWarningFg}" IsVisible="{Binding HasSyncError}" />
             </Panel>
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1" ClipToBounds="True">
-              <!-- One line, so the area keeps its height as steps change; the tooltip has it in full. -->
-              <TextBlock Classes="caption" TextTrimming="CharacterEllipsis" Text="{Binding SyncText}" ToolTip.Tip="{Binding SyncText}" />
+              <!-- The step wraps freely; while busy it has room for two lines, anchored at the top, so a
+                   shorter step leaves space rather than shrinking the area (nothing jumps or is cut off). -->
+              <TextBlock Classes="caption syncstep" Classes.busy="{Binding IsBusy}" TextWrapping="Wrap" VerticalAlignment="Top"
+                         Text="{Binding SyncText}" />
               <!-- While busy every row stays (empty where there's nothing to show), so nothing jumps. -->
               <Panel Height="3" Margin="0,3,0,1" IsVisible="{Binding IsBusy}">
                 <ProgressBar Classes="working" IsVisible="{Binding IsSyncing}" />
@@ -72,7 +74,7 @@
                     <RotateTransform />
                   </ic:FluentIcon.RenderTransform>
                 </ic:FluentIcon>
-                <TextBlock Classes="caption" Foreground="{DynamicResource TextMuted}" FontSize="11" TextTrimming="CharacterEllipsis"
+                <TextBlock Classes="caption" Foreground="{DynamicResource TextMuted}" FontSize="11" TextWrapping="Wrap"
                            Text="{Binding BackgroundText}" VerticalAlignment="Center" />
               </StackPanel>
             </StackPanel>

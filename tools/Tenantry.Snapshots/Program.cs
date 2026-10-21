@@ -547,7 +547,7 @@ sealed class PausedSync : ITenantSync
     {
         if (scope == SyncScope.Changes)
             return 0;
-        progress?.Report("Mailbox access: 5 of 13…");
+        progress?.Report("Shared mailbox access: 5 of 13…");
         await Release.Task;
         return 0;
     }
