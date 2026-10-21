@@ -327,6 +327,10 @@
     <Setter Property="Height" Value="1" />
     <Setter Property="Background" Value="{DynamicResource Divider}" />
   </Style>
+  <Style Selector="Border.vdivider">
+    <Setter Property="Width" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource Divider}" />
+  </Style>
 
   <!-- Type scale: one title per screen, section headings, body, secondary text, labels. -->
   <Style Selector="TextBlock.h1">

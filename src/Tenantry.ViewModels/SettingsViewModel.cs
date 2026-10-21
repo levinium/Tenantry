@@ -10,6 +10,9 @@ public sealed record IntervalOption(int Minutes, string Label)
     public override string ToString() => Label;
 }
 
+/// <summary>An area of Settings, listed down the left ("Sync"); more join as settings grow.</summary>
+public sealed record SettingsArea(string Key, string Title, string Icon, string Description);
+
 /// <summary>One part of the local copy as Settings lists it.</summary>
 public sealed record SyncAreaRow(string Name, string Holds, string Last, string Every);
 
@@ -69,6 +72,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     public string TenantName { get; }
+
+    /// <summary>Settings' areas, down the left. Sync is the only one so far.</summary>
+    public static IReadOnlyList<SettingsArea> SettingsAreas { get; } =
+    [
+        new("sync", "Sync", "ArrowSync", "How often this tenant's local copy is brought up to date"),
+    ];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSyncArea))]
+    public partial SettingsArea SelectedArea { get; set; } = SettingsAreas[0];
+
+    public bool IsSyncArea => SelectedArea.Key == "sync";
 
     /// <summary>The option for a stored value; an unknown value (edited by hand) shows as its own option.</summary>
     static IntervalOption Pick(IReadOnlyList<IntervalOption> options, int minutes) =>
@@ -130,6 +145,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(LiveText));
         OnPropertyChanged(nameof(HasLiveText));
+        OnPropertyChanged(nameof(ShowStatus));
         OnPropertyChanged(nameof(BackgroundText));
         OnPropertyChanged(nameof(HasBackgroundText));
         SyncEverythingCommand.NotifyCanExecuteChanged();
@@ -150,11 +166,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SyncEverythingCommand), nameof(StartOverCommand))]
-    [NotifyPropertyChangedFor(nameof(LiveText), nameof(HasLiveText))]
+    [NotifyPropertyChangedFor(nameof(LiveText), nameof(HasLiveText), nameof(ShowStatus))]
     public partial bool IsSyncing { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowStatus))]
     public partial string? Status { get; private set; }
+
+    /// <summary>The last outcome ("Up to date."), when no sync is running to say more.</summary>
+    public bool ShowStatus => !string.IsNullOrEmpty(Status) && !HasLiveText;
 
     /// <summary>The first click on "Download everything again" asks; the second does it.</summary>
     [ObservableProperty]
