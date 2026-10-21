@@ -770,6 +770,28 @@
   </Style>
 
   <!-- Status pills -->
+  <!-- Spinner: a quarter arc turning over a faint ring -->
+  <Style Selector="Ellipse.spintrack">
+    <Setter Property="Stroke" Value="{DynamicResource Divider}" />
+    <Setter Property="StrokeThickness" Value="3" />
+  </Style>
+  <Style Selector="Arc.spinner">
+    <Setter Property="Stroke" Value="{DynamicResource Accent}" />
+    <Setter Property="StrokeThickness" Value="3" />
+    <Setter Property="StrokeLineCap" Value="Round" />
+    <!-- Needs a RotateTransform set on the Arc itself (see StartingView). -->
+    <Style.Animations>
+      <Animation Duration="0:0:0.9" IterationCount="Infinite">
+        <KeyFrame Cue="0%">
+          <Setter Property="RotateTransform.Angle" Value="0" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="RotateTransform.Angle" Value="360" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+
   <!-- Main tabs: hidden while the area's list is the only page open -->
   <Style Selector="TabControl.liststrip /template/ ItemsPresenter#PART_ItemsPresenter">
     <Setter Property="IsVisible" Value="False" />

@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             x:Class="Tenantry.App.Views.StartingView"
+             x:DataType="vm:StartingViewModel">
+  <!-- Shown while the startup tenant opens: the app's mark, a spinner and what it's doing. -->
+  <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18" MaxWidth="420">
+    <Image Source="/Assets/tenantry-256.png" Width="56" Height="56" HorizontalAlignment="Center"
+           RenderOptions.BitmapInterpolationMode="HighQuality" />
+    <Panel Width="32" Height="32" HorizontalAlignment="Center">
+      <Ellipse Classes="spintrack" />
+      <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+        <Arc.RenderTransform>
+          <RotateTransform />
+        </Arc.RenderTransform>
+      </Arc>
+    </Panel>
+    <StackPanel Spacing="6">
+      <TextBlock Classes="h2" HorizontalAlignment="Center" Text="{Binding Title}" />
+      <TextBlock Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Text="{Binding Hint}" />
+    </StackPanel>
+    <Button Classes="ghost" HorizontalAlignment="Center" Command="{Binding CancelCommand}"
+            Content="Cancel and show my tenants"
+            ToolTip.Tip="Stop opening this tenant and go to the home page" />
+  </StackPanel>
+</UserControl>

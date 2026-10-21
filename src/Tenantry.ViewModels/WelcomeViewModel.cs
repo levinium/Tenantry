@@ -61,10 +61,12 @@ public sealed partial class WelcomeViewModel : ObservableObject
     {
         if (IsBusy)
             return;
-        var startup = Profiles.FirstOrDefault(p => p.IsDefault) ?? (Profiles.Count == 1 ? Profiles[0] : null);
-        if (startup is not null)
+        if (StartupTenant is { } startup)
             await ConnectCommand.ExecuteAsync(startup);
     }
+
+    /// <summary>The tenant opened at startup: the default, or the only one; null when the home page should show.</summary>
+    public TenantCard? StartupTenant => Profiles.FirstOrDefault(p => p.IsDefault) ?? (Profiles.Count == 1 ? Profiles[0] : null);
 
     public bool HasDefault => Profiles.Any(p => p.IsDefault);
 

@@ -39,6 +39,9 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     var full = theme == ThemeVariant.Light;
 
     Render(new ShellViewModel(connector).CurrentPage, $"welcome-{suffix}");
+    var opening = new ShellViewModel(connector);
+    opening.PrepareStartup();
+    Render(opening.CurrentPage, $"starting-{suffix}");
     if (full)
     {
         var welcome = (WelcomeViewModel)new ShellViewModel(connector).CurrentPage;

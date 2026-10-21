@@ -15,6 +15,8 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var shell = new ShellViewModel(new TenantConnector());
+            // Before the window shows, so an auto-opening tenant never flashes the home page.
+            shell.PrepareStartup();
             var window = new MainWindow { DataContext = shell };
             Platform.OpenUrl = url => _ = window.Launcher.LaunchUriAsync(new Uri(url));
             desktop.MainWindow = window;

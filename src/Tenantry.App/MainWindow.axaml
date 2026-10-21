@@ -11,6 +11,9 @@
   <!-- The shell: welcome screen, setup wizard or a connected tenant. -->
   <ContentControl Content="{Binding CurrentPage}">
     <ContentControl.DataTemplates>
+      <DataTemplate DataType="vm:StartingViewModel">
+        <views:StartingView />
+      </DataTemplate>
       <DataTemplate DataType="vm:WelcomeViewModel">
         <views:WelcomeView />
       </DataTemplate>

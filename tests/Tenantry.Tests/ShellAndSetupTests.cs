@@ -55,6 +55,61 @@ public class ShellAndSetupTests
     }
 
     [Fact]
+    public async Task An_auto_opening_tenant_shows_an_opening_page_not_the_home_page()
+    {
+        var connector = new FakeConnector();
+        connector.Profiles.Add(FakeConnector.Profile("p1", "Contoso"));
+        var gate = new TaskCompletionSource<ConnectedTenant>();
+        connector.OnConnect = (_, _) => gate.Task;
+        var shell = new ShellViewModel(connector);
+
+        shell.PrepareStartup();
+        var starting = Assert.IsType<StartingViewModel>(shell.CurrentPage);
+        Assert.Equal("Opening Contoso…", starting.Title);
+
+        var start = shell.StartAsync();
+        Assert.IsType<StartingViewModel>(shell.CurrentPage);
+        gate.SetResult(FakeConnector.Tenant());
+        await start;
+        Assert.IsType<MainViewModel>(shell.CurrentPage);
+    }
+
+    [Fact]
+    public async Task A_failed_or_cancelled_auto_open_falls_back_to_the_home_page_with_the_reason()
+    {
+        var connector = new FakeConnector();
+        connector.Profiles.Add(FakeConnector.Profile("p1", "Contoso"));
+        connector.OnConnect = async (_, ct) =>
+        {
+            await Task.Delay(Timeout.Infinite, ct);
+            throw new InvalidOperationException("unreachable");
+        };
+        var shell = new ShellViewModel(connector);
+        shell.PrepareStartup();
+        var starting = Assert.IsType<StartingViewModel>(shell.CurrentPage);
+
+        var start = shell.StartAsync();
+        starting.CancelCommand.Execute(null);
+        await start;
+
+        var welcome = Assert.IsType<WelcomeViewModel>(shell.CurrentPage);
+        Assert.Equal("Sign-in was cancelled.", welcome.Error);
+    }
+
+    [Fact]
+    public void Several_tenants_with_no_default_start_on_the_home_page()
+    {
+        var connector = new FakeConnector();
+        connector.Profiles.Add(FakeConnector.Profile("p1", "Contoso"));
+        connector.Profiles.Add(FakeConnector.Profile("p2", "Fabrikam"));
+        var shell = new ShellViewModel(connector);
+
+        shell.PrepareStartup();
+
+        Assert.IsType<WelcomeViewModel>(shell.CurrentPage);
+    }
+
+    [Fact]
     public async Task Several_tenants_stay_on_the_home_page_at_start()
     {
         var connector = new FakeConnector();
