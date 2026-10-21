@@ -62,6 +62,12 @@
                     <ic:FluentIcon Icon="SignOut" FontSize="16" />
                   </MenuItem.Icon>
                 </MenuItem>
+                <MenuItem Header="{Binding ConvertMailboxText}" Command="{Binding OpenConvertMailboxCommand}" IsVisible="{Binding HasMailbox}"
+                          ToolTip.Tip="Change between a person's own mailbox and a shared one (added to Pending changes)">
+                  <MenuItem.Icon>
+                    <ic:FluentIcon Icon="MailMultiple" FontSize="16" />
+                  </MenuItem.Icon>
+                </MenuItem>
               </MenuFlyout>
             </Button.Flyout>
           </Button>

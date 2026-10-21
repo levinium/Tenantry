@@ -14,7 +14,18 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             await records.RememberDelegateAsync(own.Mailbox.Id, own.Person.Address ?? own.Person.Name, own.Right, own.New);
             return new ApplyResult(ChangeOutcome.Applied);
         }
-        if (change is SetUserText text)
+        // What's inside a mailbox (rules, sharing, devices, deleted items) lives with the records.
+        if (records is not null && change.Target.Kind == "user" && change is SetInboxRuleEnabled or RemoveInboxRule or SetFolderPermission or SetMobileDevice
+                or RestoreDeletedItem)
+        {
+            var owner = (await directory.GetUsersAsync(cancellationToken)).FirstOrDefault(u => u.Id == change.Target.Id);
+            var address = owner?.Mailbox?.PrimaryAddress ?? owner?.UserPrincipalName ?? "";
+            records.ApplyContents(change, address);
+            return new ApplyResult(ChangeOutcome.Applied);
+        }
+        if (change is ConvertMailbox convert)
+            return Mailbox(convert.User.Id, m => m with { Type = convert.NewShared ? "Shared" : "User" })
+                   ?? new ApplyResult(ChangeOutcome.Failed, "That person has no mailbox.");        if (change is SetUserText text)
             records?.Remember(text.User.Id, text.Property, Empty(text.New));
         var result = change switch
         {

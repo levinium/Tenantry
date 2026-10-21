@@ -58,6 +58,9 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
     /// <summary>Raised whenever the staged changes change (once per call, however many changes it staged).</summary>
     public event EventHandler? Changed;
 
+    /// <summary>After an apply: the changes that went through, so open pages can re-read what they show.</summary>
+    public event EventHandler<IReadOnlyList<ChangeOp>>? Applied;
+
     /// <summary>The staged change for a slot, if any (for showing "pending" values in place).</summary>
     public ChangeOp? PendingFor(string targetId, string key) => _bySlot.GetValueOrDefault((targetId, key));
 
@@ -144,12 +147,16 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
         var batch = _pending.ToArray();
         var results = new List<(ChangeOp, ApplyResult)>(batch.Length);
         var succeeded = new HashSet<ChangeOp>(ReferenceEqualityComparer.Instance);
+        // Slots whose change in this batch didn't go through, for changes that depend on them.
+        var notApplied = new Dictionary<(string, string), ChangeOp>();
         for (var i = 0; i < batch.Length; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var change = batch[i];
             ApplyResult result;
-            if (WriteGuard.Refusal(change, testMode.IsTestMode) is { } refusal)
+            if (change.DependsOn is { } needed && notApplied.TryGetValue((change.Target.Id, needed), out var blocker))
+                result = new ApplyResult(ChangeOutcome.Failed, $"Not applied because \"{blocker.Label}\" didn't go through; it needs that first.");
+            else if (WriteGuard.Refusal(change, testMode.IsTestMode) is { } refusal)
                 result = new ApplyResult(ChangeOutcome.Refused, refusal);
             else
             {
@@ -165,6 +172,8 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
             log.Add(new ChangeLogEntry(Guid.NewGuid().ToString("N"), _now(), account, change, result.Outcome, result.Detail));
             if (result.Succeeded)
                 succeeded.Add(change);
+            else
+                notApplied[(change.Target.Id, change.Key)] = change;
             results.Add((change, result));
             progress?.Report((i + 1, batch.Length));
         }
@@ -177,6 +186,8 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
                 _bySlot.Remove(slot);
         }
         Changed?.Invoke(this, EventArgs.Empty);
+        if (succeeded.Count > 0)
+            Applied?.Invoke(this, batch.Where(succeeded.Contains).ToArray());
         return results;
     }
 

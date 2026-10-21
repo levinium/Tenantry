@@ -251,6 +251,20 @@
               </Button>
             </StackPanel>
           </Grid>
+          <!-- Changes that can't be undone (a phone wipe): type the phrase before Apply goes ahead. -->
+          <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding TypedConfirms}" Margin="0,10,0,0" IsVisible="{Binding HasTypedConfirms}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ed:TypedConfirmRow">
+                <Border Classes="banner warning" Margin="0,0,0,6">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <ic:FluentIcon Icon="Warning" FontSize="16" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Prompt}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="2" Text="{Binding Typed}" Width="220" PlaceholderText="{Binding Phrase}" VerticalAlignment="Center" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
           <!-- Temporary passwords: shown once, never stored; copy, pass on, dismiss. -->
           <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Reveals}" Margin="0,10,0,0" IsVisible="{Binding HasReveals}">
             <ItemsControl.ItemTemplate>

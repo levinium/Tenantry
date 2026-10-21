@@ -23,6 +23,9 @@
     <DataTemplate DataType="rec:ResetPasswordViewModel">
       <views:ResetPasswordView />
     </DataTemplate>
+    <DataTemplate DataType="rec:ConvertMailboxViewModel">
+      <views:ConvertMailboxView />
+    </DataTemplate>
     <DataTemplate DataType="rec:GroupPeopleEditor">
       <views:GroupPeopleEditorView />
     </DataTemplate>

@@ -75,7 +75,18 @@ public sealed class RestCmdletRunner : ICmdletRunner
         string? next = $"{host}/adminapi/beta/{_tenantId}/InvokeCommand{query}";
         while (next is not null && (limit is null || results.Count < limit))
         {
-            var page = await PostAsync(next, body, scopes, anchor, cmdlet, pageSize, cancellationToken);
+            JsonElement page;
+            try
+            {
+                page = await PostAsync(next, body, scopes, anchor, cmdlet, pageSize, cancellationToken);
+            }
+            catch (CmdletException e) when (NeedsProxy(e) && ProxyAnchor(sent) is { } target && !string.Equals(target, anchor, StringComparison.OrdinalIgnoreCase))
+            {
+                // Some cmdlets (Set-Mailbox -Type) must run on the server holding the mailbox they
+                // change. The module answers "needs proxy" by routing on that mailbox; so does this.
+                anchor = target;
+                continue;
+            }
             if (page.TryGetProperty("value", out var items))
                 results.AddRange(items.EnumerateArray().Select(i => i.Clone()));
             // Paging re-sends the SAME body to the next link; a next link lasts minutes only.
@@ -85,6 +96,15 @@ public sealed class RestCmdletRunner : ICmdletRunner
     }
 
     const int MaxPageSize = 1000;
+
+    static bool NeedsProxy(CmdletException e) => e.Detail.Contains("Cmdlet needs proxy", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The mailbox a cmdlet acts on, as an address, to route on it ("Identity" or "Mailbox").</summary>
+    internal static string? ProxyAnchor(IReadOnlyDictionary<string, object?> parameters) =>
+        new[] { "Identity", "Mailbox" }
+            .Select(name => parameters.FirstOrDefault(p => p.Key.Equals(name, StringComparison.OrdinalIgnoreCase)).Value as string)
+            .Select(value => value?.Split(':', '\\')[0])
+            .FirstOrDefault(value => value is not null && value.Contains('@'));
 
     /// <summary>The caller's ResultSize as a number, or null for "Unlimited" or none.</summary>
     internal static int? ResultLimit(IReadOnlyDictionary<string, object?>? parameters)

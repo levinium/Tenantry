@@ -41,20 +41,27 @@ public sealed partial class MailSection : RecordSection, IDisposable
     readonly ChangePipeline? _pipeline;
     readonly Availability _canEdit;
     readonly IDirectoryIndex _index;
+    readonly Action? _convert;
     MailDetails? _data;
     bool _loading;
 
-    public MailSection(UserSummary user, IUserRecords? records, ChangePipeline? pipeline, Availability canEdit, IDirectoryIndex? index = null)
+    public MailSection(UserSummary user, IUserRecords? records, ChangePipeline? pipeline, Availability canEdit, IDirectoryIndex? index = null,
+        Action? convert = null)
     {
         _user = user;
         _records = records;
         _pipeline = pipeline;
         _canEdit = canEdit;
         _index = index ?? EmptyIndex.Instance;
+        _convert = convert;
         SenderPicker = new PersonPicker("Accept mail only from: type a name or group", SenderOptions, AddSender);
+        CreateSharingPicker();
         Summary = SummaryFor(user.Mailbox, null);
         if (_pipeline is not null)
+        {
             _pipeline.Changed += OnPendingChanged;
+            _pipeline.Applied += OnApplied;
+        }
     }
 
     public override string Key => "mail";
@@ -137,6 +144,9 @@ public sealed partial class MailSection : RecordSection, IDisposable
 
     void OnPendingChanged(object? sender, EventArgs e)
     {
+        RebuildContents();
+        OnPropertyChanged(nameof(MailboxTypePendingText));
+        OnPropertyChanged(nameof(HasMailboxTypePending));
         if (_data is null)
             return;
         if (!_staging)
@@ -186,6 +196,7 @@ public sealed partial class MailSection : RecordSection, IDisposable
                      nameof(ForwardingText), nameof(ForwardingPendingText), nameof(HasForwardingPending), nameof(IsForwardingOutside),
                      nameof(AutoReplyText), nameof(AutoReplyPendingText), nameof(HasAutoReplyPending),
                      nameof(ShowInAddressList), nameof(AddressListPendingText), nameof(HasAddressListPending), nameof(Domains),
+                     nameof(IsSharedMailbox), nameof(MailboxTypeText), nameof(ConvertText), nameof(MailboxTypePendingText), nameof(HasMailboxTypePending),
                  })
             OnPropertyChanged(name);
     }
@@ -529,6 +540,9 @@ public sealed partial class MailSection : RecordSection, IDisposable
     public void Dispose()
     {
         if (_pipeline is not null)
+        {
             _pipeline.Changed -= OnPendingChanged;
+            _pipeline.Applied -= OnApplied;
+        }
     }
 }

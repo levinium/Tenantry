@@ -8,7 +8,7 @@ using Tenantry.Core.Licensing;
 namespace Tenantry.Graph;
 
 /// <summary>Live record-page reads from Graph.</summary>
-public sealed class GraphUserRecords(GraphClient graph, IEntityStore store, ICmdletRunner? exchange = null) : IUserRecords
+public sealed partial class GraphUserRecords(GraphClient graph, IEntityStore store, ICmdletRunner? exchange = null) : IUserRecords
 {
     public async Task<IReadOnlyList<MailboxDelegate>> GetMailboxDelegatesAsync(string userId, string address, CancellationToken cancellationToken = default)
     {

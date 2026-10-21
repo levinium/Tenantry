@@ -301,11 +301,41 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "user-mail-light", height: 1400);
         editing.Pending.DiscardAllCommand.Execute(null);
 
-        // Mail settings, the whole tab: limits changed, POP being turned off.
+        // Mail settings: limits changed, POP being turned off.
+        page.MailTab.SelectedPage = Tenantry.ViewModels.Records.MailPage.Limits;
         page.MailTab.MaxSendDraft = "25";
         page.MailTab.AppRows.Single(r => r.Name == "POP").IsOn = !page.MailTab.AppRows.Single(r => r.Name == "POP").IsOn;
-        Render(editing, "user-mail-settings-light", height: 3000);
+        Render(editing, "user-mail-settings-light", height: 1600);
         editing.Pending.DiscardAllCommand.Execute(null);
+
+        // Archive & holds, Rules & sharing (a rule being turned off), devices (a wipe waiting for its typed name), recovery & trace.
+        page.MailTab.SelectedPage = Tenantry.ViewModels.Records.MailPage.Retention;
+        Render(editing, "user-mail-retention-light", height: 1100);
+        page.MailTab.SelectedPage = Tenantry.ViewModels.Records.MailPage.RulesAndSharing;
+        Settle();
+        if (page.MailTab.Rules.Count > 0)
+            page.MailTab.Rules[0].IsEnabled = false;
+        Render(editing, "user-mail-rules-light", height: 1300);
+        editing.Pending.DiscardAllCommand.Execute(null);
+        page.MailTab.SelectedPage = Tenantry.ViewModels.Records.MailPage.Devices;
+        Settle();
+        page.MailTab.Devices[0].WipeCommand.Execute(null);
+        editing.Pending.ApplyCommand.Execute(null);
+        Render(editing, "user-mail-devices-light", height: 1000);
+        editing.Pending.CancelConfirmCommand.Execute(null);
+        editing.Pending.DiscardAllCommand.Execute(null);
+        page.MailTab.SelectedPage = Tenantry.ViewModels.Records.MailPage.Recovery;
+        Settle();
+        if (page.MailTab.Trace.Count > 0)
+            page.MailTab.Trace[0].IsExpanded = true;
+        Render(editing, "user-mail-recovery-light", height: 1500);
+        page.MailTab.SelectedPage = Tenantry.ViewModels.Records.MailPage.Delivery;
+
+        // Converting to a shared mailbox: the options popup.
+        page.OpenConvertMailboxCommand.Execute(null);
+        Settle();
+        Render(editing, "user-convert-light", height: 900);
+        editing.CloseDialog();
 
         // Groups & access: their groups (one membership being removed), a group being searched for.
         editing.Groups.LoadAsync().GetAwaiter().GetResult();

@@ -73,7 +73,9 @@ public sealed class CmdletException(string cmdlet, int status, string message)
 
     /// <summary>Exchange couldn't find a recipient it was given (no such object, or not mail-enabled).</summary>
     public bool IsNotFound => Detail.Contains("ManagementObjectNotFoundException", StringComparison.Ordinal)
-        || Detail.Contains("RecipientNotFoundException", StringComparison.Ordinal);
+        || Detail.Contains("RecipientNotFoundException", StringComparison.Ordinal)
+        // A folder permission that's gone (seen live after Remove-MailboxFolderPermission).
+        || Detail.Contains("UserNotFoundInPermissionEntryException", StringComparison.Ordinal);
 
     /// <summary>Exchange's message without its internal prefix (also used for errors inside a batch).</summary>
     public static string Plain(string text)

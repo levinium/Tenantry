@@ -33,6 +33,27 @@ public sealed partial class PendingRow(ChangeOp change, Action<ChangeOp> remove)
 }
 
 /// <summary>
+/// A change that can't be undone (wiping a phone), waiting for the admin to type its phrase
+/// before Apply goes ahead.
+/// </summary>
+public sealed partial class TypedConfirmRow(ChangeOp change, Action changed) : ObservableObject
+{
+    public ChangeOp Change { get; } = change;
+
+    public string Phrase => Change.ConfirmPhrase ?? "";
+
+    public string Prompt => $"{Change.Label} ({Change.Target.Name}): {Change.After}. This can't be undone. Type {Phrase} to confirm.";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Matches))]
+    public partial string Typed { get; set; } = "";
+
+    public bool Matches => string.Equals(Typed.Trim(), Phrase.Trim(), StringComparison.CurrentCultureIgnoreCase);
+
+    partial void OnTypedChanged(string value) => changed();
+}
+
+/// <summary>
 /// Something to show the admin once after applying (a temporary password): with a Copy button,
 /// kept only until dismissed, never stored or logged.
 /// </summary>
@@ -115,8 +136,23 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     void ToggleOpen() => IsOpen = !IsOpen;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ApplyText), nameof(ApplyIsDanger))]
+    [NotifyPropertyChangedFor(nameof(ApplyText), nameof(ApplyIsDanger), nameof(HasTypedConfirms))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCommand))]
     public partial bool IsConfirming { get; private set; }
+
+    /// <summary>While confirming: the changes that also need their phrase typed.</summary>
+    public ObservableCollection<TypedConfirmRow> TypedConfirms { get; } = [];
+
+    public bool HasTypedConfirms => IsConfirming && TypedConfirms.Count > 0;
+
+    partial void OnIsConfirmingChanged(bool value)
+    {
+        TypedConfirms.Clear();
+        if (value)
+            foreach (var row in Rows.Where(r => r.Change.ConfirmPhrase is not null))
+                TypedConfirms.Add(new TypedConfirmRow(row.Change, ApplyCommand.NotifyCanExecuteChanged));
+        OnPropertyChanged(nameof(HasTypedConfirms));
+    }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ApplyCommand), nameof(DiscardAllCommand))]
@@ -133,7 +169,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
 
     public bool ApplyIsDanger => IsConfirming;
 
-    bool CanApply => HasChanges && !IsApplying;
+    bool CanApply => HasChanges && !IsApplying && (!IsConfirming || TypedConfirms.All(t => t.Matches));
 
     /// <summary>Applies everything; with changes that take something away, the first click asks to confirm.</summary>
     [RelayCommand(CanExecute = nameof(CanApply))]
@@ -176,7 +212,9 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanApply))]
+    bool CanDiscard => HasChanges && !IsApplying;
+
+    [RelayCommand(CanExecute = nameof(CanDiscard))]
     void DiscardAll()
     {
         _problems.Clear();

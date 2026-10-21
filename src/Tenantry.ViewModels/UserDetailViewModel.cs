@@ -155,7 +155,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         new AccountSection(User, _records, _pipeline, _canEdit, _index),
         new LicensesSection(User, _records, _pipeline, _canEdit),
         new GroupsAccessSection(User, _index, _pipeline, _canEdit, _records, _openGroup, _openUser),
-        new MailSection(User, _records, _pipeline, _canEdit, _index),
+        new MailSection(User, _records, _pipeline, _canEdit, _index, OpenConvertMailbox),
         new PlannedSection("onedrive", "OneDrive", "Cloud", "update 4d",
             ["Storage used against the quota", "Open their OneDrive", "Give someone (a manager) access"]),
         new PlannedSection("security", "Security & sign-in", "ShieldLock", "update 4c",
@@ -216,6 +216,19 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         if (CanEdit)
             _openDialog?.Invoke(new DialogViewModel("Reset password", User.DisplayName,
                 new ResetPasswordViewModel(Target, _pipeline!, () => _closeDialog?.Invoke())));
+    }
+
+    public bool HasMailbox => User.Mailbox is not null;
+
+    public string ConvertMailboxText => User.Mailbox?.Type == "Shared" ? "Convert to a user mailbox…" : "Convert to a shared mailbox…";
+
+    /// <summary>Opens the Convert mailbox popup (the Actions menu and the Mail tab).</summary>
+    [RelayCommand]
+    void OpenConvertMailbox()
+    {
+        if (CanEdit && User.Mailbox is not null)
+            _openDialog?.Invoke(new DialogViewModel("Convert mailbox", User.DisplayName,
+                new ConvertMailboxViewModel(User, _records, _pipeline!, () => _closeDialog?.Invoke())));
     }
 
     public bool HasPendingSignOut => _pipeline?.PendingFor(User.Id, "sessions") is not null;

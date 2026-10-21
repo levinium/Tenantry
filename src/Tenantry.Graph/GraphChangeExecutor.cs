@@ -17,7 +17,7 @@ namespace Tenantry.Graph;
 /// Distribution lists, mail-enabled security groups and mailbox permissions change through
 /// Exchange (<paramref name="exchange"/>); without it, those changes fail with a reason.
 /// </remarks>
-public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, Func<TimeSpan, CancellationToken, Task>? delay = null,
+public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore store, Func<TimeSpan, CancellationToken, Task>? delay = null,
     ICmdletRunner? exchange = null) : IChangeExecutor
 {
     const string DirectoryObjects = "https://graph.microsoft.com/v1.0/directoryObjects/";
@@ -70,7 +70,13 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
         EnableAutoExpandingArchive a => await EnableAutoExpandingAsync(a, cancellationToken),
         SetLitigationHold h => await SetLitigationHoldAsync(h, cancellationToken),
         SetAllowedSender s => await SetAllowedSenderAsync(s, cancellationToken),
-        _ =>new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
+        SetInboxRuleEnabled r => await SetInboxRuleEnabledAsync(r, cancellationToken),
+        RemoveInboxRule r => await RemoveInboxRuleAsync(r, cancellationToken),
+        SetFolderPermission f => await SetFolderPermissionAsync(f, cancellationToken),
+        SetMobileDevice d => await SetMobileDeviceAsync(d, cancellationToken),
+        RestoreDeletedItem r => await RestoreDeletedItemAsync(r, cancellationToken),
+        ConvertMailbox c => await ConvertMailboxAsync(c, cancellationToken),
+        _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 
     /// <summary>
@@ -341,9 +347,9 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
     /// into the local copy until <paramref name="done"/> holds.
     /// </summary>
     async Task<ApplyResult> SetMailboxAsync(ChangeTarget user, Dictionary<string, object?> parameters, Func<JsonObject, bool> done, CancellationToken cancellationToken,
-        IReadOnlyList<string>? alsoRead = null) =>
+        IReadOnlyList<string>? alsoRead = null, IReadOnlyList<TimeSpan>? waits = null) =>
         await RunAndReadBackAsync(user, "Set-Mailbox", parameters, "Get-Mailbox", [.. DirectorySync.MailboxSelect, .. alsoRead ?? []],
-            DirectorySync.Mailboxes, done, cancellationToken);
+            DirectorySync.Mailboxes, done, cancellationToken, waits);
 
     /// <summary>
     /// Runs an Exchange cmdlet against a mailbox, then reads the mailbox back with
@@ -352,7 +358,7 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
     /// seconds to show a change.
     /// </summary>
     async Task<ApplyResult> RunAndReadBackAsync(ChangeTarget user, string cmdlet, Dictionary<string, object?> parameters, string readCmdlet,
-        IReadOnlyList<string> select, string? storeKind, Func<JsonObject, bool> done, CancellationToken cancellationToken)
+        IReadOnlyList<string> select, string? storeKind, Func<JsonObject, bool> done, CancellationToken cancellationToken, IReadOnlyList<TimeSpan>? waits = null)
     {
         if (exchange is null)
             return NoExchange;
@@ -367,7 +373,7 @@ public sealed class GraphChangeExecutor(GraphClient graph, IEntityStore store, F
             return new ApplyResult(ChangeOutcome.Failed, e.Explanation);
         }
 
-        foreach (var wait in ReadBackWaits)
+        foreach (var wait in waits ?? ReadBackWaits)
         {
             if (wait > TimeSpan.Zero)
                 await _delay(wait, cancellationToken);

@@ -36,6 +36,12 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(EnableAutoExpandingArchive), "enableAutoExpandingArchive")]
 [JsonDerivedType(typeof(SetLitigationHold), "setLitigationHold")]
 [JsonDerivedType(typeof(SetAllowedSender), "setAllowedSender")]
+[JsonDerivedType(typeof(SetInboxRuleEnabled), "setInboxRuleEnabled")]
+[JsonDerivedType(typeof(RemoveInboxRule), "removeInboxRule")]
+[JsonDerivedType(typeof(SetFolderPermission), "setFolderPermission")]
+[JsonDerivedType(typeof(SetMobileDevice), "setMobileDevice")]
+[JsonDerivedType(typeof(RestoreDeletedItem), "restoreDeletedItem")]
+[JsonDerivedType(typeof(ConvertMailbox), "convertMailbox")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -61,6 +67,21 @@ public abstract record ChangeOp
     /// </summary>
     [JsonIgnore]
     public virtual bool IsCaution => false;
+
+    /// <summary>
+    /// For changes that can't be undone (wiping a phone): what the admin must type before it's
+    /// applied, on top of the caution confirmation. Null for everything else.
+    /// </summary>
+    [JsonIgnore]
+    public virtual string? ConfirmPhrase => null;
+
+    /// <summary>
+    /// The slot (on the same target) of a change this one must follow: when both are applied
+    /// together and that one doesn't go through, this one is skipped. Removing a mailbox's license
+    /// depends on converting it to shared first, or the mailbox would be left unlicensed.
+    /// </summary>
+    [JsonIgnore]
+    public string? DependsOn { get; init; }
 
     /// <summary>True when the change would leave things as they are (staged back to the original).</summary>
     [JsonIgnore]
@@ -417,3 +438,133 @@ public sealed record SetSignInAllowed(ChangeTarget User, bool Old, bool New) : C
     public override bool IsNoChange => Old == New;
     public override ChangeOp Since(ChangeOp earlier) => earlier is SetSignInAllowed e ? this with { Old = e.Old } : this;
 }
+
+// ---- Mailbox contents (4b-3) ----------------------------------------------------------------
+
+/// <summary>Turns an inbox rule on or off (Enable-InboxRule / Disable-InboxRule).</summary>
+/// <param name="RuleIdentity">Exchange's "mailbox\ruleId".</param>
+public sealed record SetInboxRuleEnabled(ChangeTarget User, string RuleIdentity, string RuleName, bool Old, bool New) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "rule:" + RuleIdentity;
+    public override string Label => $"Inbox rule \"{RuleName}\"";
+    public override string Before => Old ? "On" : "Off";
+    public override string After => New ? "On" : "Off";
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetInboxRuleEnabled e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>Deletes an inbox rule (Remove-InboxRule). It can't be brought back: a caution change.</summary>
+/// <param name="Was">How the rule read before ("On: forwards to …"), for the review.</param>
+public sealed record RemoveInboxRule(ChangeTarget User, string RuleIdentity, string RuleName, string Was) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "rule:" + RuleIdentity;
+    public override string Label => $"Inbox rule \"{RuleName}\"";
+    public override string Before => Was;
+    public override string After => "Deleted";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
+/// Someone's access to a folder of this mailbox (its calendar): added, changed or removed
+/// (Add-, Set- or Remove-MailboxFolderPermission). Taking access away is a caution change.
+/// </summary>
+/// <param name="Person">Who, as Exchange takes them: an address, or "Default" / "Anonymous".</param>
+/// <param name="Old">Their role before (null: no entry).</param>
+/// <param name="New">Their role after (null: entry removed).</param>
+public sealed record SetFolderPermission(ChangeTarget User, string FolderIdentity, string FolderName, string Person, string PersonName, string? Old, string? New)
+    : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => $"folder:{FolderName.ToLowerInvariant()}:{Person.ToLowerInvariant()}";
+    public override string Label => $"{FolderName} access for {PersonName}";
+    public override string Before => Old is null ? "No access" : Directory.FolderRoles.NameOf(Old);
+    public override string After => New is null ? "Removed" : Directory.FolderRoles.NameOf(New);
+    public override bool IsCaution => New is null || string.Equals(New, "None", StringComparison.OrdinalIgnoreCase);
+    public override bool IsNoChange => string.Equals(Old, New, StringComparison.OrdinalIgnoreCase);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetFolderPermission e ? this with { Old = e.Old } : this;
+}
+
+public enum DeviceAction
+{
+    /// <summary>Erases the whole device back to factory settings.</summary>
+    Wipe,
+
+    /// <summary>Removes only their work mail and data from the device.</summary>
+    WipeAccountOnly,
+
+    Block,
+    Unblock,
+
+    /// <summary>Forgets the device's partnership; it can set up sync again unless blocked.</summary>
+    Remove,
+}
+
+/// <summary>
+/// Something done to one of their phones or tablets. A wipe can't be undone, so besides the
+/// caution confirmation the admin types the device's name (<see cref="ChangeOp.ConfirmPhrase"/>).
+/// </summary>
+/// <param name="DeviceIdentity">Exchange's identity for the partnership (wipe, remove).</param>
+/// <param name="DeviceId">The device's ID (block, unblock).</param>
+public sealed record SetMobileDevice(ChangeTarget User, string DeviceIdentity, string DeviceId, string DeviceName, DeviceAction Action) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+
+    // Wiping or removing and blocking are separate slots: a lost phone is often blocked and wiped.
+    public override string Key => (Action is DeviceAction.Block or DeviceAction.Unblock ? "deviceaccess:" : "device:") + DeviceIdentity;
+
+    public override string Label => $"Device {DeviceName}";
+
+    public override string Before => Action switch
+    {
+        DeviceAction.Unblock => "Blocked",
+        DeviceAction.Block => "Allowed",
+        _ => "Syncing their mail",
+    };
+
+    public override string After => Action switch
+    {
+        DeviceAction.Wipe => "Wiped: erased back to factory settings",
+        DeviceAction.WipeAccountOnly => "Their work mail and data removed from it",
+        DeviceAction.Block => "Blocked from syncing",
+        DeviceAction.Unblock => "Allowed to sync",
+        _ => "Removed (it can set up sync again unless blocked)",
+    };
+
+    public override bool IsCaution => Action != DeviceAction.Unblock;
+    public override string? ConfirmPhrase => Action is DeviceAction.Wipe or DeviceAction.WipeAccountOnly ? DeviceName : null;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Puts a deleted item back where it was deleted from (Restore-RecoverableItems).</summary>
+public sealed record RestoreDeletedItem(ChangeTarget User, string EntryId, string Subject) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "restore:" + EntryId;
+    public override string Label => $"Deleted item \"{Subject}\"";
+    public override string Before => "Deleted";
+    public override string After => "Restored to its folder";
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
+/// Converts a user mailbox to a shared one, or back (Set-Mailbox -Type). Converting to shared is
+/// a caution change; removing the licenses it no longer needs is staged as separate changes after it.
+/// </summary>
+public sealed record ConvertMailbox(ChangeTarget User, bool OldShared, bool NewShared) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "mailboxtype";
+    public override string Label => "Mailbox type";
+    public override string Before => OldShared ? "Shared mailbox" : "User mailbox";
+    public override string After => NewShared ? "Shared mailbox" : "User mailbox";
+    public override bool IsCaution => NewShared;
+    public override bool IsNoChange => OldShared == NewShared;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is ConvertMailbox e ? this with { OldShared = e.OldShared } : this;
+}
+

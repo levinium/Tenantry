@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.ConvertMailboxView"
+             x:DataType="rec:ConvertMailboxViewModel">
+  <StackPanel Spacing="16" MaxWidth="620" HorizontalAlignment="Left">
+    <TextBlock TextWrapping="Wrap" Text="{Binding Explanation}" />
+    <TextBlock Classes="muted" Text="Checking their licenses and mailbox size…" IsVisible="{Binding IsLoading}" />
+
+    <ItemsControl ItemsSource="{Binding Warnings}" IsVisible="{Binding HasWarnings}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="x:String">
+          <Border Classes="banner warning" Margin="0,0,0,6">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Warning" FontSize="16" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding}" TextWrapping="Wrap" VerticalAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <StackPanel Spacing="8" IsVisible="{Binding ToShared}" IsEnabled="{Binding IsReady}">
+      <CheckBox IsChecked="{Binding RemoveLicenses}" IsEnabled="{Binding HasLicensesToRemove}">
+        <TextBlock Text="{Binding RemoveLicensesText}" TextWrapping="Wrap" />
+      </CheckBox>
+      <TextBlock Classes="caption" Text="{Binding GroupLicensesText}" IsVisible="{Binding HasGroupLicenses}" TextWrapping="Wrap" Margin="28,0,0,0" />
+      <CheckBox IsChecked="{Binding BlockSignIn}">
+        <TextBlock TextWrapping="Wrap" Text="Also block sign-in to the account (Microsoft's advice: nobody signs in to a shared mailbox directly)" />
+      </CheckBox>
+    </StackPanel>
+
+    <TextBlock Classes="caption" TextWrapping="Wrap"
+               Text="The mailbox is converted first; the other changes run after it." />
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Command="{Binding ConvertCommand}" IsEnabled="{Binding IsReady}" Content="{Binding ActionText}"
+              ToolTip.Tip="Adds the conversion to Pending changes" />
+      <Button Command="{Binding CancelCommand}" Content="Cancel" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>
