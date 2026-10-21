@@ -20,6 +20,7 @@ public partial class App : Application
             // Before the window shows, so an auto-opening tenant never flashes the home page.
             shell.PrepareStartup();
             var window = new MainWindow { DataContext = shell };
+            window.RememberPlacement(new WindowPlacementStore());
             Platform.OpenUrl = url => _ = window.Launcher.LaunchUriAsync(new Uri(url));
             Platform.CopyText = text => _ = CopyAsync(window, text);
             desktop.MainWindow = window;
