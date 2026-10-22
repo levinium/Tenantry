@@ -5,6 +5,7 @@
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:conv="using:Tenantry.App.Converters"
              xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:views="using:Tenantry.App.Views"
              x:Class="Tenantry.App.Views.UserPreviewView"
              x:DataType="vm:UserDetailViewModel"
              x:Name="Root">
@@ -16,9 +17,14 @@
         <TextBlock Text="{Binding Initials}" />
       </Border>
       <StackPanel Spacing="2">
-        <TextBlock Classes="h2" Text="{Binding User.DisplayName}" TextWrapping="Wrap" />
-        <SelectableTextBlock Classes="muted" Text="{Binding SecondaryText}" TextWrapping="Wrap" />
+        <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="name">
+          <TextBlock Classes="h2" Text="{Binding User.DisplayName}" TextWrapping="Wrap" />
+        </Border>
+        <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="upn,mail">
+          <SelectableTextBlock Classes="muted" Text="{Binding SecondaryText}" TextWrapping="Wrap" />
+        </Border>
       </StackPanel>
+      <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="status,type,mailbox,forwarding,autoreply,storagestate,hold,archive,addresslist,emailapps">
       <WrapPanel ItemSpacing="8" LineSpacing="6">
         <c:Badge Text="{Binding StatusText}" Kind="{Binding StatusKind}" />
         <c:Badge Text="{Binding KindText}" Kind="{Binding KindKind}" />
@@ -35,6 +41,8 @@
           </ItemsControl.ItemTemplate>
         </ItemsControl>
       </WrapPanel>
+      </Border>
+      <views:FreshnessView DataContext="{Binding Freshness}" HorizontalAlignment="Left" Margin="0,2,0,0" />
       <WrapPanel ItemSpacing="8" LineSpacing="8">
         <Button Command="{Binding ResetPasswordCommand}" IsEnabled="{Binding CanEdit}"
                 ToolTip.Tip="{Binding ResetPasswordTip}" ToolTip.ShowOnDisabled="True">
@@ -96,6 +104,8 @@
       </ItemsControl.ItemsPanel>
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="rec:RecordSection">
+          <Border Classes="fresh" HorizontalAlignment="Stretch" Margin="0" Padding="0"
+                  c:FreshHighlight.Source="{Binding #Root.((vm:UserDetailViewModel)DataContext).Freshness}" c:FreshHighlight.Keys="{Binding FreshKeys}">
           <Button Classes="menurow" Command="{Binding #Root.((vm:UserDetailViewModel)DataContext).ManageCommand}" CommandParameter="{Binding}"
                   ToolTip.Tip="Open this area in a popup to review and change it">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
@@ -112,6 +122,7 @@
               </StackPanel>
             </Grid>
           </Button>
+          </Border>
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>

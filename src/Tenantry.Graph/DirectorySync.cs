@@ -24,7 +24,7 @@ namespace Tenantry.Graph;
 /// note, never failing the sync.
 /// </summary>
 /// <param name="settings">How often each part is re-read (Settings); the defaults when null.</param>
-public sealed class DirectorySync(GraphClient graph, IEntityStore store, ICmdletRunner? exchange = null, Func<DateTimeOffset>? now = null,
+public sealed partial class DirectorySync(GraphClient graph, IEntityStore store, ICmdletRunner? exchange = null, Func<DateTimeOffset>? now = null,
     Func<SyncSettings>? settings = null) : ITenantSync
 {
     /// <summary>Each mailbox's size and automatic-reply state (one Exchange read per mailbox for each).</summary>

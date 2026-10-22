@@ -36,6 +36,8 @@
 
       <SolidColorBrush x:Key="NavHoverBg" Color="#DDE1E7" />
       <SolidColorBrush x:Key="NavSelectedBg" Color="#DCE3FB" />
+      <!-- A value that just changed in Microsoft 365: a soft accent wash that fades (never a warning colour). -->
+      <SolidColorBrush x:Key="FreshBg" Color="#D6E0FF" />
       <SolidColorBrush x:Key="NavSelectedFg" Color="#1E3A8A" />
 
       <SolidColorBrush x:Key="AvatarBg" Color="#DCE3FB" />
@@ -99,6 +101,7 @@
 
       <SolidColorBrush x:Key="NavHoverBg" Color="#2A2C32" />
       <SolidColorBrush x:Key="NavSelectedBg" Color="#2D3755" />
+      <SolidColorBrush x:Key="FreshBg" Color="#30406E" />
       <SolidColorBrush x:Key="NavSelectedFg" Color="#D0DBFF" />
 
       <SolidColorBrush x:Key="AvatarBg" Color="#2D3755" />

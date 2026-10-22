@@ -57,7 +57,13 @@ if (args.Contains("--behavior-check"))
     return passed ? 0 : 1;
 }
 
-var connector = new SnapshotConnector(new TenantConnector().ConnectDemo());
+var demoTenant = new TenantConnector().ConnectDemo();
+// No waiting anywhere: with no message loop, a delayed continuation would land on a worker thread.
+if (demoTenant.Directory is Tenantry.Demo.DemoTenantDirectory demoDirectory)
+    demoDirectory.CheckTakes = TimeSpan.Zero;
+MainViewModel.PreviewSettle = TimeSpan.Zero;
+Tenantry.ViewModels.Records.RecordFreshness.SettleAfter = TimeSpan.FromHours(1);
+var connector = new SnapshotConnector(demoTenant);
 
 foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
 {
@@ -255,6 +261,10 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         var person = (UserDetailViewModel)editing.Users.PreviewModel!;
         // The preview: summary, health, quick actions and a Manage row per area.
         Render(editing, "preview-manage-light");
+        // The same preview while it's being checked against Microsoft 365.
+        person.Freshness.Start();
+        Render(editing, "preview-checking-light");
+        person.Freshness.UpToDate(DateTimeOffset.Now);
 
         // Manage → Account opens the tab in a popup; one change staged, another being typed.
         person.ManageCommand.Execute(person.Account);
@@ -276,6 +286,12 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         page.Account.LoadAsync().GetAwaiter().GetResult();
         editing.Pending!.DiscardAllCommand.Execute(null);
         Render(editing, "user-account-light");
+
+        // A check that found changes made elsewhere: the line names them, the values are briefly tinted.
+        page.SelectedSection = page.Sections[0];
+        Render(editing, "user-fresh-light", during: _ => page.Freshness.Updated(
+            [new Tenantry.ViewModels.Records.FieldChange("status", "Status"), new Tenantry.ViewModels.Records.FieldChange("license", "Licenses")], DateTimeOffset.Now));
+        page.Freshness.UpToDate(DateTimeOffset.Now);
 
         // Licenses & apps: a license opened to its apps, one switched off, another being added.
         page.SelectedSection = page.LicensesTab;

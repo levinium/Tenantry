@@ -9,7 +9,7 @@ namespace Tenantry.Demo;
 /// <c>.example</c> domain (RFC 2606), so generated data can never be mistaken for, or collide
 /// with, a real organisation.
 /// </summary>
-public sealed class DemoTenantDirectory : ITenantDirectory
+public sealed partial class DemoTenantDirectory : ITenantDirectory
 {
     public const string Domain = "northgate.example";
     public const string GuestDomain = "partner.example";

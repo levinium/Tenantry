@@ -41,6 +41,7 @@ public sealed partial class AccountSection : RecordSection, IDisposable
     public override string Key => "account";
     public override string Title => "Account";
     public override string Icon => "Person";
+    public override string FreshKeys => "name,upn,mail,department,title";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsReady))]

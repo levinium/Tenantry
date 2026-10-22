@@ -41,7 +41,9 @@
           </StackPanel>
           <StackPanel Spacing="2">
             <TextBlock Classes="label" Text="STATUS" />
-            <TextBlock Classes="value" Text="{Binding StatusText}" />
+            <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="status">
+              <TextBlock Classes="value" Text="{Binding StatusText}" />
+            </Border>
           </StackPanel>
           <StackPanel Spacing="2">
             <TextBlock Classes="label" Text="LAST SIGN-IN" />
@@ -61,7 +63,8 @@
             <ic:FluentIcon Icon="Apps" FontSize="18" Foreground="{DynamicResource Accent}" />
             <TextBlock Classes="h3" Text="Licenses" VerticalAlignment="Center" />
           </StackPanel>
-          <ItemsControl ItemsSource="{Binding Licenses}" IsVisible="{Binding HasLicenses}">
+          <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="license" IsVisible="{Binding HasLicenses}">
+          <ItemsControl ItemsSource="{Binding Licenses}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
                 <WrapPanel ItemSpacing="8" LineSpacing="8" />
@@ -73,6 +76,7 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          </Border>
           <TextBlock Classes="muted" IsVisible="{Binding !HasLicenses}" Text="No licenses assigned." />
         </StackPanel>
       </Border>
@@ -85,15 +89,21 @@
           </StackPanel>
           <StackPanel Spacing="2">
             <TextBlock Classes="label" Text="ADDRESS" />
-            <SelectableTextBlock Classes="value" Text="{Binding Email}" TextWrapping="Wrap" />
+            <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="mail,addresses">
+              <SelectableTextBlock Classes="value" Text="{Binding Email}" TextWrapping="Wrap" />
+            </Border>
           </StackPanel>
           <StackPanel Spacing="2">
             <TextBlock Classes="label" Text="MAILBOX" />
-            <TextBlock Classes="value" Text="{Binding MailboxText}" />
+            <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="mailbox">
+              <TextBlock Classes="value" Text="{Binding MailboxText}" />
+            </Border>
           </StackPanel>
           <StackPanel Spacing="2">
             <TextBlock Classes="label" Text="FORWARDING" />
-            <TextBlock Classes="value" Text="{Binding ForwardingText}" TextWrapping="Wrap" />
+            <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="forwarding,forwardto">
+              <TextBlock Classes="value" Text="{Binding ForwardingText}" TextWrapping="Wrap" />
+            </Border>
           </StackPanel>
         </StackPanel>
       </Border>
@@ -110,7 +120,9 @@
           </StackPanel>
           <StackPanel Spacing="2">
             <TextBlock Classes="label" Text="SIGN-IN NAME" />
-            <SelectableTextBlock Classes="code" Text="{Binding User.UserPrincipalName}" TextWrapping="Wrap" />
+            <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="upn">
+              <SelectableTextBlock Classes="code" Text="{Binding User.UserPrincipalName}" TextWrapping="Wrap" />
+            </Border>
           </StackPanel>
         </StackPanel>
       </Border>

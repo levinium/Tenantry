@@ -67,6 +67,7 @@ public sealed partial class MailSection : RecordSection, IDisposable
     public override string Key => "mail";
     public override string Title => "Mail";
     public override string Icon => "Mail";
+    public override string FreshKeys => "mailbox,addresses,forwarding,forwardto,addresslist,autoreply,storage,storagestate,hold,archive,emailapps";
 
     public bool HasMailbox => _user.Mailbox is not null;
 

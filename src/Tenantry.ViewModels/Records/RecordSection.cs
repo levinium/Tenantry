@@ -19,6 +19,12 @@ public abstract partial class RecordSection : ObservableObject
     [ObservableProperty]
     public partial string Summary { get; protected set; } = "";
 
+    /// <summary>
+    /// The list fields this section's summary shows (comma-separated keys), so its preview row is
+    /// tinted when a record check finds one of them changed.
+    /// </summary>
+    public virtual string FreshKeys => "";
+
     /// <summary>Called when the section is first shown, to load anything it reads live.</summary>
     public virtual Task LoadAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 

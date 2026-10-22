@@ -109,3 +109,36 @@ What changed:
 - **`Get-Mailbox` is left as one call.** Splitting it by type or by name range saved only about 3 of its 24 seconds.
 - Microsoft's mailbox usage report (Graph, one call) has the sizes, but it was several days old when checked and has no automatic replies, so it isn't used.
 - **Sync settings** are per tenant, stored in `sync.json`, and edited in Settings: how often to check for changes, how often to re-read mailboxes and sign-ins, and how often (or never) to read mailbox sizes and replies. Settings also lists each part of the local copy, when it was last read, and "Check everything now" and "Download everything again".
+
+## Record checks (2026-10-22)
+
+Opening a record checks that one object against Microsoft 365 behind the page.
+
+- **How it works:** the page shows the saved copy at once. Meanwhile `IRecordRefresher` re-reads
+  the object into the local copy, in exactly the shapes the sync stores, and anything that changed
+  updates in place.
+  - **User:** Graph (with last sign-in, when the tenant has Entra ID P1), plus Get-Mailbox and
+    Get-CASMailbox together. A shared mailbox also gets who can use it.
+  - **Group:** the group, its members and its owners.
+  - **Shared-mailbox row:** handled as its account, like a user.
+- **When:**
+  - a record tab opens or is switched to;
+  - a preview stays on screen for half a second, so arrowing down a list costs nothing;
+  - the refresh button is pressed.
+
+  An object checked in the last minute isn't read again except from the button.
+- **What counts as a change:** the list fields, compared value by value, plus who's in a group and
+  with what access, even when the count is the same.
+  - Last sign-in and storage change constantly, so they're updated but never announced.
+  - When something did change, lists and every open copy of the record re-read the local copy.
+- **How it shows:** a muted line under the record's name.
+  - "Checking Microsoft 365 for changes…" while it runs.
+  - "Updated from Microsoft 365: Job title" when something changed; it settles to "Up to date ·
+    checked 9:42 AM" after ten seconds.
+  - Changed values get a soft accent tint (`FreshBg`) that fades over 2.5 s, with a tooltip saying
+    why. Warning colours are never used: it's information, not a problem.
+- **Measured live:**
+  - a user with a mailbox: about 2 s;
+  - a user without one: about 4 s (Exchange takes a while to say "no mailbox");
+  - a group: 0.3 s;
+  - a shared mailbox with its access: about 8 s.

@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.FreshnessView"
+             x:DataType="rec:RecordFreshness">
+  <!-- "Checking Microsoft 365 for changes…" / "Up to date · checked 9:42 AM" / "Updated from Microsoft 365: Job title".
+       Muted on purpose: it informs, it never alarms. -->
+  <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsVisible}" Background="Transparent" ToolTip.Tip="{Binding Tip}">
+    <Panel Width="12" Height="12" VerticalAlignment="Center">
+      <ic:FluentIcon Classes="spin" Icon="ArrowSync" FontSize="12" Foreground="{DynamicResource TextMuted}" IsVisible="{Binding IsChecking}">
+        <ic:FluentIcon.RenderTransform>
+          <RotateTransform />
+        </ic:FluentIcon.RenderTransform>
+      </ic:FluentIcon>
+      <ic:FluentIcon Icon="Checkmark" FontSize="12" Foreground="{DynamicResource TextMuted}" IsVisible="{Binding IsUpToDate}" />
+      <ic:FluentIcon Icon="Info" FontSize="12" Foreground="{DynamicResource TextMuted}" IsVisible="{Binding IsFailed}" />
+      <Ellipse Width="7" Height="7" Fill="{DynamicResource Accent}" IsVisible="{Binding IsUpdated}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    </Panel>
+    <TextBlock Classes="caption" Text="{Binding Text}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+    <Button Classes="rowaction" Padding="3" Command="{Binding RefreshCommand}" IsVisible="{Binding IsSettled}" VerticalAlignment="Center"
+            ToolTip.Tip="Check Microsoft 365 for changes now">
+      <ic:FluentIcon Icon="ArrowClockwise" FontSize="12" />
+    </Button>
+  </StackPanel>
+</UserControl>

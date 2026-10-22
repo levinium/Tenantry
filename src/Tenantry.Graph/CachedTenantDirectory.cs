@@ -75,6 +75,58 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
         return users;
     }
 
+    /// <summary>One user, read by key (a record page refreshing itself): the same joins as the list, for one row.</summary>
+    public Task<UserSummary?> GetUserAsync(string id, CancellationToken cancellationToken = default) =>
+        Task.Run(() =>
+        {
+            if (store.Get(DirectorySync.Users, id) is not { } json)
+                return null;
+            var skuNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var skuJson in store.All(DirectorySync.Skus))
+            {
+                using var sku = JsonDocument.Parse(skuJson);
+                var skuId = sku.RootElement.GetProperty("skuId").GetString()!;
+                skuNames[skuId] = LicenseNames.For(skuId, Str(sku.RootElement, "skuPartNumber"));
+            }
+            using var user = JsonDocument.Parse(json);
+            var summary = ToSummary(user.RootElement, skuNames);
+            if (store.Get(DirectorySync.Mailboxes, id) is not { } mailboxJson)
+                return summary;
+            using var mailbox = JsonDocument.Parse(mailboxJson);
+            var info = ToMailbox(mailbox.RootElement, Ids(DirectorySync.Domains));
+            if (store.Get(DirectorySync.MailboxDetails, id) is { } detailsJson)
+            {
+                using var d = JsonDocument.Parse(detailsJson);
+                long? used = d.RootElement.TryGetProperty("usedBytes", out var u) && u.ValueKind == JsonValueKind.Number ? u.GetInt64() : null;
+                AutoReplyState? reply = Str(d.RootElement, "autoReply") is { } r && Enum.TryParse<AutoReplyState>(r, out var state) ? state : null;
+                info = info with { UsedBytes = used, AutoReply = reply };
+            }
+            if (store.Get(DirectorySync.CasMailboxes, id) is { } casJson)
+            {
+                var orgSmtpOn = true;
+                if (store.Get(DirectorySync.CasMailboxes, DirectorySync.OrgSettingsId) is { } orgJson)
+                {
+                    using var org = JsonDocument.Parse(orgJson);
+                    orgSmtpOn = !Bool(org.RootElement, "smtpClientAuthenticationDisabled");
+                }
+                using var cas = JsonDocument.Parse(casJson);
+                info = info with { Apps = ToEmailApps(cas.RootElement, orgSmtpOn) };
+            }
+            return summary with { Mailbox = info };
+        }, cancellationToken);
+
+    /// <summary>One group by key; a shared mailbox's row needs every user's addresses, so it comes from the full read.</summary>
+    public async Task<GroupSummary?> GetGroupAsync(string id, CancellationToken cancellationToken = default)
+    {
+        if (store.Get(DirectorySync.Groups, id) is { } json)
+            return await Task.Run(() =>
+            {
+                using var group = JsonDocument.Parse(json);
+                return ToGroup(group.RootElement, Ids(DirectorySync.Teams));
+            }, cancellationToken);
+        return (await GetGroupsAsync(cancellationToken)).FirstOrDefault(g => g.Id == id);
+    }
+
     public Task<IReadOnlyList<GroupSummary>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
         Task.Run<IReadOnlyList<GroupSummary>>(() =>
         {

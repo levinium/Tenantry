@@ -5,6 +5,7 @@
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:conv="using:Tenantry.App.Converters"
              xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:views="using:Tenantry.App.Views"
              x:Class="Tenantry.App.Views.UserDetailView"
              x:DataType="vm:UserDetailViewModel">
   <!-- A user's record: who they are and what to do, then one tab per area. -->
@@ -15,9 +16,14 @@
           <TextBlock Text="{Binding Initials}" />
         </Border>
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
-          <TextBlock Classes="h1" Text="{Binding User.DisplayName}" TextWrapping="Wrap" />
-          <SelectableTextBlock Classes="muted" Text="{Binding SecondaryText}" />
-          <WrapPanel ItemSpacing="8" LineSpacing="6" Margin="0,6,0,0">
+          <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="name">
+            <TextBlock Classes="h1" Text="{Binding User.DisplayName}" TextWrapping="Wrap" />
+          </Border>
+          <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="upn,mail">
+            <SelectableTextBlock Classes="muted" Text="{Binding SecondaryText}" />
+          </Border>
+          <Border Classes="fresh" HorizontalAlignment="Left" Margin="-6,4,-6,-2" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="status,type,mailbox,forwarding,autoreply,storagestate,hold,archive,addresslist,emailapps">
+          <WrapPanel ItemSpacing="8" LineSpacing="6">
             <c:Badge Text="{Binding StatusText}" Kind="{Binding StatusKind}" />
             <c:Badge Text="{Binding KindText}" Kind="{Binding KindKind}" />
             <ItemsControl ItemsSource="{Binding Health}">
@@ -33,7 +39,9 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </WrapPanel>
+          </Border>
           <TextBlock Classes="caption pendingtext" Text="{Binding PendingSignInText}" IsVisible="{Binding HasPendingSignIn}" />
+          <views:FreshnessView DataContext="{Binding Freshness}" HorizontalAlignment="Left" Margin="0,2,0,0" />
         </StackPanel>
 
         <!-- Everyday actions as buttons; the disruptive one in a menu. All are staged for review. -->

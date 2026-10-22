@@ -3,6 +3,7 @@
              xmlns:vm="using:Tenantry.ViewModels"
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:views="using:Tenantry.App.Views"
              x:Class="Tenantry.App.Views.GroupDetailView"
              x:DataType="vm:GroupDetailViewModel"
              x:Name="Root">
@@ -16,8 +17,13 @@
             <TextBlock Text="{Binding Initials}" />
           </Border>
           <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
-            <TextBlock Classes="h1" Text="{Binding Group.DisplayName}" TextWrapping="Wrap" />
-            <SelectableTextBlock Classes="muted" Text="{Binding Email}" />
+            <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="name">
+              <TextBlock Classes="h1" Text="{Binding Group.DisplayName}" TextWrapping="Wrap" />
+            </Border>
+            <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="mail">
+              <SelectableTextBlock Classes="muted" Text="{Binding Email}" />
+            </Border>
+            <views:FreshnessView DataContext="{Binding Freshness}" HorizontalAlignment="Left" Margin="0,2,0,0" />
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
               <c:Badge Text="{Binding TypeText}" Kind="{Binding TypeKind}" />
               <c:Badge Text="{Binding MembershipText}" Kind="Neutral" IsVisible="{Binding ShowMembership}" />
@@ -75,7 +81,9 @@
       <!-- Owners and members, or people with access: editable in place; people and groups open their pages -->
       <Border Classes="card">
         <StackPanel Spacing="12">
-          <TextBlock Classes="muted" Text="{Binding MembersSummary}" TextWrapping="Wrap" />
+          <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="members,owners">
+            <TextBlock Classes="muted" Text="{Binding MembersSummary}" TextWrapping="Wrap" />
+          </Border>
           <ContentControl Content="{Binding People}" />
         </StackPanel>
       </Border>

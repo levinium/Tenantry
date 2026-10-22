@@ -153,6 +153,7 @@ public sealed partial class LicensesSection : RecordSection, IDisposable
     public override string Key => "licenses";
     public override string Title => "Licenses & apps";
     public override string Icon => "Apps";
+    public override string FreshKeys => "license,licensecount";
 
     static string SummaryFor(IReadOnlyList<string> licenses) => licenses.Count switch
     {

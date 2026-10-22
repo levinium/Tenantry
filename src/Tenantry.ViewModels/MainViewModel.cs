@@ -66,6 +66,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             new NavSection("security", "Security & compliance", Later),
         ];
         Tabs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasRecordTabs));
+        CheckPreviewsWhenTheySettle();
         SelectedSection = Sections[0];
     }
 
@@ -412,11 +413,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             Tabs.Add(existing);
         }
         SelectedTab = existing;
+        _ = CheckAsync(existing, force: false);
     }
 
     /// <summary>A user's record (page or preview), editable when the tenant and the admin's role allow.</summary>
     UserDetailViewModel NewUserPage(UserSummary user) =>
-        new(user, _now(), _tenant.Changes, Evaluate(Capabilities.EditUsers), _tenant.Records, ShowDialog, CloseDialog, _index, OpenUser, OpenGroup);
+        Fresh(new UserDetailViewModel(user, _now(), _tenant.Changes, Evaluate(Capabilities.EditUsers), _tenant.Records, ShowDialog, CloseDialog, _index,
+            OpenUser, OpenGroup));
 
     // ---- Permissions ----------------------------------------------------------------------
 
@@ -488,7 +491,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     public PendingChangesViewModel? Pending { get; }
 
     /// <summary>After changes apply: lists re-read the local copy (already updated by read-back), open records follow.</summary>
-    async Task AfterChangesAppliedAsync()
+    Task AfterChangesAppliedAsync() => FollowLocalCopyAsync();
+
+    /// <summary>Lists re-read the local copy, and open records and previews show what's in it now.</summary>
+    async Task FollowLocalCopyAsync()
     {
         await ReloadListsAsync(_lifetime.Token);
         foreach (var page in Tabs.OfType<UserDetailViewModel>())
@@ -518,10 +524,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             Tabs.Add(existing);
         }
         SelectedTab = existing;
+        _ = CheckAsync(existing, force: false);
     }
 
     GroupDetailViewModel NewGroupPage(GroupSummary group) =>
-        new(group, _index, OpenUser, OpenGroup, _tenant.Changes, Evaluate(Capabilities.EditUsers), ShowDialog, CloseDialog);
+        Fresh(new GroupDetailViewModel(group, _index, OpenUser, OpenGroup, _tenant.Changes, Evaluate(Capabilities.EditUsers), ShowDialog, CloseDialog));
 
     // ---- Ctrl+K ---------------------------------------------------------------------------
 

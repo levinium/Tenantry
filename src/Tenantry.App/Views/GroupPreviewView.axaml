@@ -3,6 +3,7 @@
              xmlns:vm="using:Tenantry.ViewModels"
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:views="using:Tenantry.App.Views"
              x:Class="Tenantry.App.Views.GroupPreviewView"
              x:DataType="vm:GroupDetailViewModel">
   <!-- The group record, stacked to fit the preview pane; the full member list is on its page. -->
@@ -12,8 +13,13 @@
         <TextBlock Text="{Binding Initials}" />
       </Border>
       <StackPanel Spacing="2">
-        <TextBlock Classes="h2" Text="{Binding Group.DisplayName}" TextWrapping="Wrap" />
-        <SelectableTextBlock Classes="muted" Text="{Binding Email}" TextWrapping="Wrap" />
+        <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="name">
+          <TextBlock Classes="h2" Text="{Binding Group.DisplayName}" TextWrapping="Wrap" />
+        </Border>
+        <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="mail">
+          <SelectableTextBlock Classes="muted" Text="{Binding Email}" TextWrapping="Wrap" />
+        </Border>
+        <views:FreshnessView DataContext="{Binding Freshness}" HorizontalAlignment="Left" Margin="0,2,0,0" />
       </StackPanel>
       <WrapPanel ItemSpacing="8" LineSpacing="8">
         <c:Badge Text="{Binding TypeText}" Kind="{Binding TypeKind}" />
@@ -51,7 +57,9 @@
         </Button>
       </Grid>
       <TextBlock Classes="caption" Text="{Binding OwnersText}" IsVisible="{Binding ShowMembership}" />
-      <TextBlock Classes="muted" Text="{Binding MembersSummary}" TextWrapping="Wrap" />
+      <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="members,owners">
+        <TextBlock Classes="muted" Text="{Binding MembersSummary}" TextWrapping="Wrap" />
+      </Border>
       <ItemsControl ItemsSource="{Binding FirstMembers}">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>

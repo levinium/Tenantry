@@ -256,6 +256,9 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         OnPropertyChanged(nameof(SignOutText));
     }
 
+    /// <summary>Whether this page matches Microsoft 365: checked when the page opens (see MainViewModel).</summary>
+    public RecordFreshness Freshness { get; } = new();
+
     /// <summary>Shows the user as they are now (after changes are applied and read back).</summary>
     public void Update(UserSummary user)
     {

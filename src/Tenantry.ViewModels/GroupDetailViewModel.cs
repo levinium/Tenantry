@@ -165,6 +165,9 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
             _openGroup(group);
     }
 
+    /// <summary>Whether this page matches Microsoft 365: checked when the page opens (see MainViewModel).</summary>
+    public RecordFreshness Freshness { get; } = new();
+
     /// <summary>Shows the group as it is now (after changes are applied and read back).</summary>
     public void Update(GroupSummary group)
     {
