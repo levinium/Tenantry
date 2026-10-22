@@ -83,7 +83,7 @@
         </StackPanel>
       </Border>
 
-      <!-- Reset sign-in: Entra's two buttons, then a pass to sign in and set MFA up again. -->
+      <!-- Reset sign-in: Entra's two buttons for when someone must prove who they are again. -->
       <Border Classes="card">
         <StackPanel Spacing="12">
           <StackPanel Orientation="Horizontal" Spacing="10">
@@ -91,7 +91,7 @@
             <TextBlock Classes="h3" Text="Reset sign-in" VerticalAlignment="Center" />
           </StackPanel>
           <TextBlock Classes="caption" TextWrapping="Wrap"
-                     Text="When they should prove who they are again: a lost or new phone, a suspected compromise, someone leaving. Use the steps you need, in this order; each goes to Pending changes, and pressing again undoes it." />
+                     Text="When they should prove who they are again: a lost or new phone, a suspected compromise, someone leaving. Use one or both, in this order; each goes to Pending changes, and pressing again undoes it." />
 
           <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="12">
             <TextBlock Classes="h3" Text="1" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Top" />
@@ -115,27 +115,32 @@
                     Command="{Binding ToggleReregisterCommand}" IsEnabled="{Binding CanReregister}" ToolTip.Tip="{Binding ReregisterTip}"
                     ToolTip.ShowOnDisabled="True" VerticalAlignment="Center" Width="190" HorizontalContentAlignment="Center" />
           </Grid>
-
-          <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="12">
-            <TextBlock Classes="h3" Text="3" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Top" />
-            <StackPanel Grid.Column="1" Spacing="6">
-              <TextBlock Text="Temporary Access Pass (if they need one)" FontWeight="SemiBold" />
-              <TextBlock Classes="caption" TextWrapping="Wrap"
-                         Text="A time-limited code they sign in with to set MFA up again, when a password alone won't get them in. It's shown to you once after applying." />
-              <StackPanel Orientation="Horizontal" Spacing="12" IsEnabled="{Binding CanEdit}">
-                <TextBlock Text="Valid for" VerticalAlignment="Center" />
-                <ComboBox ItemsSource="{x:Static rec:SecuritySection.TapLifetimes}" SelectedItem="{Binding TapLifetime}" MinWidth="110" />
-                <CheckBox IsChecked="{Binding TapOneTime}" Content="One use only" />
-              </StackPanel>
-              <TextBlock Classes="pendingtext" Text="{Binding TapPendingText}" IsVisible="{Binding HasTapPending}" TextWrapping="Wrap" />
-            </StackPanel>
-            <Button Grid.Column="2" Content="Create a pass" Command="{Binding CreateTapCommand}" IsEnabled="{Binding CanEdit}" VerticalAlignment="Top" Width="190" HorizontalContentAlignment="Center"
-                    ToolTip.Tip="Adds the pass to Pending changes; it's created and shown once when you apply" />
-          </Grid>
         </StackPanel>
       </Border>
-      <!-- Risk -->
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <!-- Temporary Access Pass: often used on its own (a first sign-in, a new device). -->
         <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Password" FontSize="18" Foreground="{DynamicResource Accent}" />
+              <TextBlock Classes="h3" Text="Temporary Access Pass" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock Classes="caption" TextWrapping="Wrap"
+                       Text="A time-limited code they sign in with instead of a password, to set up MFA or a new device. It's shown to you once after applying." />
+            <StackPanel Orientation="Horizontal" Spacing="12" IsEnabled="{Binding CanEdit}">
+              <TextBlock Text="Valid for" VerticalAlignment="Center" />
+              <ComboBox ItemsSource="{x:Static rec:SecuritySection.TapLifetimes}" SelectedItem="{Binding TapLifetime}" MinWidth="110" />
+              <CheckBox IsChecked="{Binding TapOneTime}" Content="One use only" />
+            </StackPanel>
+            <Button HorizontalAlignment="Left" Content="Create a Temporary Access Pass" Command="{Binding CreateTapCommand}" IsEnabled="{Binding CanEdit}"
+                    ToolTip.Tip="Adds the pass to Pending changes; it's created and shown once when you apply" />
+            <TextBlock Classes="pendingtext" Text="{Binding TapPendingText}" IsVisible="{Binding HasTapPending}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+
+        <!-- Risk -->
+        <Border Grid.Column="1" Classes="card">
           <StackPanel Spacing="10">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
               <ic:FluentIcon Icon="ShieldError" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
@@ -154,6 +159,7 @@
             <TextBlock Classes="pendingtext" Text="{Binding RiskPendingText}" IsVisible="{Binding HasRiskPending}" />
           </StackPanel>
         </Border>
+      </Grid>
     </StackPanel>
 
     <!-- Sign-in log -->
