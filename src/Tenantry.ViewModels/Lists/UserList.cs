@@ -41,6 +41,10 @@ public static class UserList
         View("hold", "Litigation hold on", Is(F.LitigationHold, F.On)),
         View("archive", "Archive on", Is(F.Archive, F.On)),
         View("licensed-shared", "Licensed shared mailboxes", Is(F.Mailbox, F.SharedMailbox), IsNot(F.Licenses, F.Unlicensed)),
+        // People who can sign in but haven't set up multi-factor sign-in: the first thing an attacker looks for.
+        View("no-mfa", "No MFA registered", Is(F.Status, F.Active), new ChoiceCondition(F.Type, [F.Member, F.Guest], []), Is(F.Mfa, F.MfaNotRegistered)),
+        View("admins", "Admins", Is(F.AdminRole, F.IsAdmin)),
+        View("admins-no-mfa", "Admins without MFA", Is(F.AdminRole, F.IsAdmin), Is(F.Mfa, F.MfaNotRegistered)),
     ];
 
     /// <summary>Member, Guest, or (from Exchange) Shared mailbox, Room or Equipment.</summary>
@@ -127,6 +131,11 @@ public static class UserList
                 } },
             new() { Key = F.StorageUsed, Header = "Storage used (%)", Cell = CellKind.Number, MinWidth = 130, DefaultWidth = 140, DefaultVisible = false,
                 Number = u => u.Mailbox?.UsedPercent is { } p ? Math.Round(p) : null },
+            new() { Key = F.Mfa, Header = "MFA", Cell = CellKind.Badge, MinWidth = 120, DefaultWidth = 140, DefaultVisible = false,
+                Badge = u => u.Security is not { } s ? (F.NotReadYet, BadgeKind.Neutral)
+                    : s.MfaRegistered ? (F.MfaRegistered, BadgeKind.Success) : (F.MfaNotRegistered, BadgeKind.Warning) },
+            new() { Key = F.AdminRole, Header = "Admin role", Cell = CellKind.Text, MinWidth = 110, DefaultWidth = 120, DefaultVisible = false,
+                Text = u => u.Security is { } s ? (s.IsAdmin ? F.IsAdmin : F.NotAdmin) : null },
         ],
     };
 }

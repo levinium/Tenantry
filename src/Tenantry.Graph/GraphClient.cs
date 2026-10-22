@@ -24,6 +24,8 @@ public sealed class GraphException(HttpStatusCode status, string? code, string m
 public sealed class GraphClient
 {
     public const string V1 = "https://graph.microsoft.com/v1.0/";
+    const string ClientName = "Tenantry";
+    static readonly string ClientVersion = typeof(GraphClient).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
     static readonly string[] Scopes = ["https://graph.microsoft.com/.default"];
 
     readonly HttpClient _http;
@@ -92,6 +94,10 @@ public sealed class GraphClient
             var token = await _tokens.GetTokenAsync(_scopes, claims, cancellationToken);
             using var request = new HttpRequestMessage(method, url);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            // BitLocker keys and LAPS passwords refuse requests that don't say which client asks (seen live).
+            request.Headers.UserAgent.ParseAdd(ClientName + "/" + ClientVersion);
+            request.Headers.Add("ocp-client-name", ClientName);
+            request.Headers.Add("ocp-client-version", ClientVersion);
             if (payload is not null)
                 request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
 

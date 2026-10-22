@@ -32,6 +32,9 @@
     <DataTemplate DataType="vm:SettingsViewModel">
       <views:SettingsView />
     </DataTemplate>
+    <DataTemplate DataType="rec:SecuritySection">
+      <views:SecuritySectionView />
+    </DataTemplate>
     <DataTemplate DataType="rec:MailSection">
       <views:MailSectionView />
     </DataTemplate>

@@ -63,6 +63,14 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             mailboxes[owner] = apps.TryGetValue(owner, out var a) ? info with { Apps = a } : info;
         }
 
+        var security = new Dictionary<string, UserSecurity>(StringComparer.Ordinal);
+        foreach (var json in store.All(DirectorySync.Registration))
+        {
+            using var r = JsonDocument.Parse(json);
+            if (Str(r.RootElement, "id") is { } id)
+                security[id] = ToSecurity(r.RootElement);
+        }
+
         var stored = store.All(DirectorySync.Users);
         var users = new List<UserSummary>(stored.Count);
         foreach (var json in stored)
@@ -70,7 +78,11 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             cancellationToken.ThrowIfCancellationRequested();
             using var user = JsonDocument.Parse(json);
             var summary = ToSummary(user.RootElement, skuNames);
-            users.Add(mailboxes.TryGetValue(summary.Id, out var mailboxInfo) ? summary with { Mailbox = mailboxInfo } : summary);
+            if (mailboxes.TryGetValue(summary.Id, out var mailboxInfo))
+                summary = summary with { Mailbox = mailboxInfo };
+            if (security.TryGetValue(summary.Id, out var registered))
+                summary = summary with { Security = registered };
+            users.Add(summary);
         }
         return users;
     }
@@ -90,6 +102,11 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             }
             using var user = JsonDocument.Parse(json);
             var summary = ToSummary(user.RootElement, skuNames);
+            if (store.Get(DirectorySync.Registration, id) is { } registrationJson)
+            {
+                using var registration = JsonDocument.Parse(registrationJson);
+                summary = summary with { Security = ToSecurity(registration.RootElement) };
+            }
             if (store.Get(DirectorySync.Mailboxes, id) is not { } mailboxJson)
                 return summary;
             using var mailbox = JsonDocument.Parse(mailboxJson);
@@ -329,6 +346,13 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
     }
 
     /// <summary>A Get-CASMailbox row as <see cref="EmailApps"/>; SMTP sending left unset follows the organization.</summary>
+    /// <summary>A row of Entra's MFA registration report.</summary>
+    internal static UserSecurity ToSecurity(JsonElement r) => new(
+        Bool(r, "isMfaRegistered"),
+        Bool(r, "isAdmin"),
+        r.TryGetProperty("methodsRegistered", out var m) && m.ValueKind == JsonValueKind.Array ? m.EnumerateArray().Select(x => x.GetString()).OfType<string>().ToArray() : [],
+        Str(r, "userPreferredMethodForSecondaryAuthentication") is { } preferred && preferred != "none" ? preferred : null);
+
     internal static EmailApps ToEmailApps(JsonElement c, bool orgSmtpOn)
     {
         bool On(string name) => !c.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.False;

@@ -187,7 +187,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         {
             var results = await _pipeline.ApplyAsync();
             foreach (var (change, result) in results.Where(r => r.Result.Reveal is not null))
-                Reveals.Add(new RevealRow($"Temporary password for {change.Target.Name}", result.Reveal!, DismissReveal));
+                Reveals.Add(new RevealRow(change is CreateTemporaryAccessPass ? $"Temporary Access Pass for {change.Target.Name}" : $"Temporary password for {change.Target.Name}", result.Reveal!, DismissReveal));
             OnPropertyChanged(nameof(HasReveals));
             OnPropertyChanged(nameof(IsVisible));
             _problems.Clear();

@@ -177,7 +177,8 @@ public sealed class FreshRecordTests
         store.Apply(DirectorySync.Users, [new EntityChange("u1", System.Text.Json.Nodes.JsonNode.Parse("""{"id":"u1","displayName":"Old name","userPrincipalName":"ada@example.org"}""")!.AsObject())]);
         var http = new FakeHttp()
             .On(HttpMethod.Get, "/users/u1?", """{"id":"u1","displayName":"New name","userPrincipalName":"ada@example.org","accountEnabled":true}""")
-            .On(HttpMethod.Get, "/users/gone?", """{"error":{"code":"Request_ResourceNotFound","message":"Not found."}}""", HttpStatusCode.NotFound);
+            .On(HttpMethod.Get, "/users/gone?", """{"error":{"code":"Request_ResourceNotFound","message":"Not found."}}""", HttpStatusCode.NotFound)
+            .On(HttpMethod.Get, "/userRegistrationDetails/u1", """{"id":"u1","isAdmin":false,"isMfaRegistered":true,"methodsRegistered":["microsoftAuthenticatorPush"]}""");
         var sync = new DirectorySync(new GraphClient(http.Client(), new FakeTokens(), delay: NoDelay.Instance), store);
         store.Apply(DirectorySync.Users, [new EntityChange("gone", System.Text.Json.Nodes.JsonNode.Parse("""{"id":"gone","displayName":"Gone"}""")!.AsObject())]);
 
@@ -185,7 +186,9 @@ public sealed class FreshRecordTests
         await sync.RefreshUserAsync("gone", Ct);
 
         var directory = new CachedTenantDirectory(store, "Test");
-        Assert.Equal("New name", (await ((ITenantDirectory)directory).GetUserAsync("u1", Ct))!.DisplayName);
+        var refreshed = (await ((ITenantDirectory)directory).GetUserAsync("u1", Ct))!;
+        Assert.Equal("New name", refreshed.DisplayName);
+        Assert.True(refreshed.Security!.MfaRegistered);
         Assert.Null(store.Get(DirectorySync.Users, "gone"));
         Assert.Contains(http.Requests, r => r.PathAndQuery.Contains("signInActivity", StringComparison.Ordinal));
     }

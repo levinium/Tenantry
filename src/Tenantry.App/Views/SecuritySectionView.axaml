@@ -1,0 +1,283 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.SecuritySectionView"
+             x:DataType="rec:SecuritySection">
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </StackPanel>
+    </Border>
+
+    <!-- The tab's pages. -->
+    <ListBox Classes="chips" ItemsSource="{x:Static rec:SecuritySection.Pages}" SelectedItem="{Binding SelectedPageItem}">
+      <ListBox.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel ItemSpacing="8" LineSpacing="8" />
+        </ItemsPanelTemplate>
+      </ListBox.ItemsPanel>
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="rec:SecurityPageItem">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="15" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+
+    <!-- Sign-in methods -->
+    <StackPanel Spacing="12" IsVisible="{Binding ShowMethods}">
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+            <ic:FluentIcon Icon="Key" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="h3" Text="Multi-factor sign-in" VerticalAlignment="Center" />
+          </Grid>
+          <Border Classes="banner warning" IsVisible="{Binding HasMfaWarning}">
+            <TextBlock Text="{Binding MfaText}" TextWrapping="Wrap" />
+          </Border>
+          <TextBlock Classes="value" Text="{Binding MfaText}" TextWrapping="Wrap" IsVisible="{Binding !HasMfaWarning}" />
+
+          <TextBlock Classes="label" Text="SIGN-IN METHODS" Margin="0,6,0,0" />
+          <TextBlock Classes="muted" Text="Reading their sign-in methods…" IsVisible="{Binding MethodsLoading}" />
+          <TextBlock Classes="error" Text="{Binding MethodsError}" IsVisible="{Binding HasMethodsError}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding Methods}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="rec:MethodRow">
+                <Border Classes="valuerow">
+                  <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+                    <StackPanel Spacing="1" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Kind}" FontWeight="SemiBold" />
+                      <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Classes="caption" Text="{Binding AddedText}" VerticalAlignment="Center" />
+                    <c:Badge Grid.Column="2" Text="Removing" Kind="Info" IsVisible="{Binding IsRemoving}" VerticalAlignment="Center" />
+                    <Button Grid.Column="3" Classes="rowaction" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}"
+                            ToolTip.Tip="{Binding RemoveTip}" VerticalAlignment="Center">
+                      <Panel>
+                        <ic:FluentIcon Icon="Delete" FontSize="14" IsVisible="{Binding !IsRemoving}" />
+                        <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding IsRemoving}" />
+                      </Panel>
+                    </Button>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Button Classes="ghost" HorizontalAlignment="Left" Content="Remove every method except the password…" Command="{Binding RemoveAllCommand}"
+                  IsVisible="{Binding CanRemoveAll}"
+                  ToolTip.Tip="For a lost phone or a suspected compromise: they register MFA again at their next sign-in (added to Pending changes)" />
+
+          <TextBlock Classes="label" Text="ADD A PHONE NUMBER" Margin="0,6,0,0" />
+          <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding CanEdit}">
+            <ComboBox ItemsSource="{Binding PhoneTypeNames}" SelectedItem="{Binding NewPhoneType}" MinWidth="160" />
+            <TextBox Text="{Binding NewPhoneNumber, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True"
+                     Width="240" PlaceholderText="+1 2065551234" />
+          </StackPanel>
+          <TextBlock Classes="error" Text="{Binding PhoneError}" IsVisible="{Binding HasPhoneError}" TextWrapping="Wrap" />
+          <TextBlock Classes="pendingtext" Text="{Binding PhonePendingText}" IsVisible="{Binding HasPhonePending}" />
+        </StackPanel>
+      </Border>
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <!-- Temporary Access Pass -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Password" FontSize="18" Foreground="{DynamicResource Accent}" />
+              <TextBlock Classes="h3" Text="Temporary Access Pass" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock Classes="caption" TextWrapping="Wrap"
+                       Text="A time-limited code they sign in with to set up MFA: a new phone, a lost one, or a first sign-in. It's shown to you once after applying." />
+            <StackPanel Orientation="Horizontal" Spacing="12" IsEnabled="{Binding CanEdit}">
+              <TextBlock Text="Valid for" VerticalAlignment="Center" />
+              <ComboBox ItemsSource="{x:Static rec:SecuritySection.TapLifetimes}" SelectedItem="{Binding TapLifetime}" MinWidth="110" />
+              <CheckBox IsChecked="{Binding TapOneTime}" Content="One use only" />
+            </StackPanel>
+            <Button HorizontalAlignment="Left" Content="Create a Temporary Access Pass" Command="{Binding CreateTapCommand}" IsEnabled="{Binding CanEdit}"
+                    ToolTip.Tip="Adds the pass to Pending changes; it's created and shown once when you apply" />
+            <TextBlock Classes="pendingtext" Text="{Binding TapPendingText}" IsVisible="{Binding HasTapPending}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+
+        <!-- Risk -->
+        <Border Grid.Column="1" Classes="card">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+              <ic:FluentIcon Icon="ShieldError" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1" Classes="h3" Text="Risk" VerticalAlignment="Center" />
+              <c:Badge Grid.Column="2" Text="At risk" Kind="Danger" IsVisible="{Binding IsAtRisk}" />
+            </Grid>
+            <TextBlock Classes="muted" Text="Checking Identity Protection…" IsVisible="{Binding RiskLoading}" />
+            <TextBlock Classes="error" Text="{Binding RiskError}" IsVisible="{Binding HasRiskError}" TextWrapping="Wrap" />
+            <TextBlock Classes="value" Text="{Binding RiskText}" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsRiskAvailable}" IsEnabled="{Binding CanEdit}">
+              <Button Classes="danger-outline" Content="Confirm compromised" Command="{Binding ConfirmCompromisedCommand}"
+                      ToolTip.Tip="Raises their risk to high, so risk policies act on it (added to Pending changes)" />
+              <Button Content="Dismiss risk" Command="{Binding DismissRiskCommand}" IsVisible="{Binding IsAtRisk}"
+                      ToolTip.Tip="You've checked and it's fine (added to Pending changes)" />
+            </StackPanel>
+            <TextBlock Classes="pendingtext" Text="{Binding RiskPendingText}" IsVisible="{Binding HasRiskPending}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </StackPanel>
+
+    <!-- Sign-in log -->
+    <Border Classes="card" IsVisible="{Binding ShowSignIns}">
+      <StackPanel Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="History" FontSize="18" Foreground="{DynamicResource Accent}" />
+          <TextBlock Classes="h3" Text="Sign-in log" VerticalAlignment="Center" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <TextBlock Text="Last" VerticalAlignment="Center" />
+          <ComboBox ItemsSource="{x:Static rec:SecuritySection.SignInDayOptions}" SelectedItem="{Binding SignInDays}" MinWidth="70" />
+          <TextBlock Text="days" VerticalAlignment="Center" />
+          <CheckBox IsChecked="{Binding FailuresOnly}" Content="Failed sign-ins only" Margin="12,0,0,0" />
+        </StackPanel>
+        <TextBlock Classes="muted" Text="Reading the sign-in log…" IsVisible="{Binding SignInsLoading}" />
+        <TextBlock Classes="error" Text="{Binding SignInsError}" IsVisible="{Binding HasSignInsError}" TextWrapping="Wrap" />
+        <TextBlock Classes="muted" Text="{Binding SignInsUnavailable}" IsVisible="{Binding HasSignInsUnavailable}" TextWrapping="Wrap" />
+        <TextBlock Classes="caption" Text="{Binding SignInsSummary}" />
+        <ItemsControl ItemsSource="{Binding SignIns}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:SignInRow">
+              <Border Classes="valuerow">
+                <Grid ColumnDefinitions="120,*,Auto" ColumnSpacing="12">
+                  <TextBlock Text="{Binding When}" VerticalAlignment="Top" />
+                  <StackPanel Grid.Column="1" Spacing="1">
+                    <TextBlock Text="{Binding App}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Classes="caption" Text="{Binding Where}" />
+                    <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <c:Badge Grid.Column="2" Text="{Binding Status}" Kind="{Binding StatusKind}" VerticalAlignment="Top" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
+    <!-- Roles and app access -->
+    <StackPanel Spacing="12" IsVisible="{Binding ShowAccess}">
+      <TextBlock Classes="muted" Text="Reading their roles and app access…" IsVisible="{Binding AccessLoading}" />
+      <TextBlock Classes="error" Text="{Binding AccessError}" IsVisible="{Binding HasAccessError}" TextWrapping="Wrap" />
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="PersonKey" FontSize="18" Foreground="{DynamicResource Accent}" />
+            <TextBlock Classes="h3" Text="Admin roles" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Roles assigned to them directly. Roles that come from a group they're in show on the group." />
+          <TextBlock Classes="muted" Text="No admin roles." IsVisible="{Binding HasNoRoles}" />
+          <ItemsControl ItemsSource="{Binding Roles}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="rec:RevocableRow">
+                <Border Classes="valuerow">
+                  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                    <StackPanel Spacing="1" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                      <TextBlock Classes="caption" Text="{Binding Detail}" />
+                    </StackPanel>
+                    <c:Badge Grid.Column="1" Text="Removing" Kind="Info" IsVisible="{Binding IsRevoking}" VerticalAlignment="Center" />
+                    <Button Grid.Column="2" Classes="rowaction" Command="{Binding ToggleCommand}" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding Tip}"
+                            ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
+                      <Panel>
+                        <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !IsRevoking}" />
+                        <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding IsRevoking}" />
+                      </Panel>
+                    </Button>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Classes="label" Text="ROLES THEY CAN ACTIVATE (ELIGIBLE)" Margin="0,6,0,0" />
+          <TextBlock Classes="muted" Text="{Binding EligibleText}" IsVisible="{Binding HasEligibleText}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding EligibleRoles}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Classes="value" Text="{Binding}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="AppsList" FontSize="18" Foreground="{DynamicResource Accent}" />
+            <TextBlock Classes="h3" Text="Apps they've given access to their data" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="Apps they agreed could act for them, with what each may do. An unfamiliar app reading mail is a common sign of a phishing consent." />
+          <TextBlock Classes="muted" Text="No apps." IsVisible="{Binding HasNoConsents}" />
+          <ItemsControl ItemsSource="{Binding Consents}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="rec:RevocableRow">
+                <Border Classes="valuerow">
+                  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                    <StackPanel Spacing="1" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                      <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <c:Badge Grid.Column="1" Text="Revoking" Kind="Info" IsVisible="{Binding IsRevoking}" VerticalAlignment="Center" />
+                    <Button Grid.Column="2" Classes="rowaction" Command="{Binding ToggleCommand}" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding Tip}"
+                            ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
+                      <Panel>
+                        <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !IsRevoking}" />
+                        <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding IsRevoking}" />
+                      </Panel>
+                    </Button>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <!-- Conditional Access -->
+    <Border Classes="card" IsVisible="{Binding ShowConditionalAccess}">
+      <StackPanel Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="ShieldTask" FontSize="18" Foreground="{DynamicResource Accent}" />
+          <TextBlock Classes="h3" Text="Conditional Access policies" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Classes="caption" TextWrapping="Wrap"
+                   Text="Which policies cover them, judged on who each includes and excludes (them, their groups, their roles). Apps, locations and devices then decide when a policy acts." />
+        <CheckBox IsChecked="{Binding ShowAllPolicies}" Content="Also show policies that don't apply to them" />
+        <TextBlock Classes="muted" Text="Reading the policies…" IsVisible="{Binding PoliciesLoading}" />
+        <TextBlock Classes="error" Text="{Binding PoliciesError}" IsVisible="{Binding HasPoliciesError}" TextWrapping="Wrap" />
+        <TextBlock Classes="caption" Text="{Binding PoliciesSummary}" />
+        <ItemsControl ItemsSource="{Binding Policies}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:PolicyRow">
+              <Border Classes="valuerow">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                  <StackPanel Spacing="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Classes="caption" Text="{Binding Why}" />
+                    <TextBlock Classes="caption" Text="{Binding Controls}" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <c:Badge Grid.Column="1" Text="{Binding Fit}" Kind="{Binding FitKind}" VerticalAlignment="Center" />
+                  <c:Badge Grid.Column="2" Text="{Binding State}" Kind="{Binding StateKind}" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

@@ -76,6 +76,12 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         SetMobileDevice d => await SetMobileDeviceAsync(d, cancellationToken),
         RestoreDeletedItem r => await RestoreDeletedItemAsync(r, cancellationToken),
         ConvertMailbox c => await ConvertMailboxAsync(c, cancellationToken),
+        RemoveAuthMethod m => await RemoveAuthMethodAsync(m, cancellationToken),
+        AddPhoneMethod p => await AddPhoneMethodAsync(p, cancellationToken),
+        CreateTemporaryAccessPass t => await CreateTemporaryAccessPassAsync(t, cancellationToken),
+        RemoveRoleAssignment r => await RemoveRoleAssignmentAsync(r, cancellationToken),
+        RevokeAppConsent c => await RevokeAppConsentAsync(c, cancellationToken),
+        SetUserRisk r => await SetUserRiskAsync(r, cancellationToken),
         _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 

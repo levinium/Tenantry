@@ -42,6 +42,9 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
     public const string MailboxAccess = "mailboxaccess";
     public const string SignIns = "signin";
 
+    /// <summary>Entra's MFA registration report, one row per user (needs Entra ID P1).</summary>
+    public const string Registration = "registration";
+
     const string UserSelect = "id,displayName,userPrincipalName,mail,department,jobTitle,accountEnabled,userType,createdDateTime,assignedLicenses";
     /// <summary>Licenses with counts and their apps, for the license picker and per-app switches.</summary>
     public const string SkuSelect = "skuId,skuPartNumber,prepaidUnits,consumedUnits,servicePlans,appliesTo,capabilityStatus";
@@ -119,6 +122,8 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                 }
                 if (Due(SignIns, scope))
                     changed += await SyncSignInsAsync(progress, cancellationToken);
+                if (Due(Registration, scope))
+                    changed += await SyncRegistrationAsync(progress, cancellationToken);
             }
             catch
             {
@@ -176,6 +181,7 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                 new("Groups", "Groups with their members and owners (changes only)", store.GetMark(GroupsMark)?.SyncedAt, changes),
                 new("Licenses", "The tenant's licenses and how many are left", store.GetMark(Skus)?.SyncedAt, changes),
                 new("Last sign-in times", "When each person last signed in", store.GetMark(SignIns)?.SyncedAt, details),
+                new("MFA registration", "Who has set up multi-factor sign-in, and who holds an admin role", store.GetMark(Registration)?.SyncedAt, details),
                 new("Domains and Teams", "The tenant's domains, and which groups are Teams", store.GetMark(Domains)?.SyncedAt, details),
             ];
             if (exchange is not null)
@@ -344,6 +350,39 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
         store.SetMark(SignIns, new SyncMark(null, _now()));
         return changed;
     }
+
+    /// <summary>
+    /// Entra's MFA registration report for everyone, in pages: whether each person registered
+    /// MFA, with what, and whether they hold an admin role. Needs Entra ID P1; without it the
+    /// MFA column stays "Not read". Stored whole each time (people who left drop out).
+    /// </summary>
+    async Task<int> SyncRegistrationAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        try
+        {
+            progress?.Report("Reading MFA registration…");
+            var changes = new List<EntityChange>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            await foreach (var item in graph.GetAllAsync(RegistrationPath, cancellationToken))
+            {
+                var id = Id(item);
+                seen.Add(id);
+                changes.Add(new EntityChange(id, ToObject(item)));
+            }
+            var changed = store.Apply(Registration, changes) + store.RemoveExcept(Registration, seen);
+            store.SetMark(Registration, new SyncMark(null, _now()));
+            return changed;
+        }
+        catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.BadRequest)
+        {
+            // No Entra ID P1, or no reports role: MFA stays "Not read". Not an error.
+            store.SetMark(Registration, new SyncMark(null, _now()));
+            return 0;
+        }
+    }
+
+    const string RegistrationPath =
+        "reports/authenticationMethods/userRegistrationDetails?$select=id,isAdmin,isMfaRegistered,methodsRegistered,userPreferredMethodForSecondaryAuthentication";
 
     /// <summary>The Get-CASMailbox properties the lists use: each email app on or off.</summary>
     internal static readonly string[] CasSelect =

@@ -109,7 +109,11 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
                 else if (_now - User.LastSignIn > TimeSpan.FromDays(90))
                     chips.Add(new("Inactive 90+ days", BadgeKind.Warning, $"Last signed in {LastSignInText}."));
             }
-            if (User.Kind == UserKind.Member && isPerson && User.Licenses.Count == 0)
+            // From Entra's MFA registration report (synced; absent without Entra ID P1).
+            if (isPerson && User.AccountEnabled && User.Security is { MfaRegistered: false } security)
+                chips.Add(security.IsAdmin
+                    ? new("Admin without MFA", BadgeKind.Danger, "Holds an admin role and has no multi-factor sign-in registered.")
+                    : new("No MFA registered", BadgeKind.Warning, "Signs in with a password alone. A Temporary Access Pass (Security & sign-in) lets them set MFA up."));            if (User.Kind == UserKind.Member && isPerson && User.Licenses.Count == 0)
                 chips.Add(new("Unlicensed", BadgeKind.Warning, "A member account with no licenses: no mailbox, Office apps or OneDrive."));
             if (!isPerson && User.Licenses.Count > 0)
                 chips.Add(new("Licensed mailbox account", BadgeKind.Info, "Shared, room and equipment mailboxes usually need no license (up to 50 GB)."));
@@ -158,9 +162,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         new MailSection(User, _records, _pipeline, _canEdit, _index, OpenConvertMailbox),
         new PlannedSection("onedrive", "OneDrive", "Cloud", "update 4d",
             ["Storage used against the quota", "Open their OneDrive", "Give someone (a manager) access"]),
-        new PlannedSection("security", "Security & sign-in", "ShieldLock", "update 4c",
-            ["Authentication methods and MFA", "Sign-in logs", "Risk status: confirm compromised or dismiss",
-             "Roles: active and eligible (PIM)", "Apps they've granted access to their data", "Conditional Access policies that apply"]),
+        new SecuritySection(User, _records as ISecurityRecords, _pipeline, _canEdit),
         new PlannedSection("devices", "Devices", "Laptop", "update 4c",
             ["Devices they've registered or that are managed", "BitLocker recovery keys and local admin passwords"]),
         new PlannedSection("activity", "Activity", "History", "update 4d",

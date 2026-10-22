@@ -118,7 +118,20 @@ public sealed partial class DemoTenantDirectory : ITenantDirectory
                     // Most have every app on; a few still allow POP or IMAP (worth a review).
                     new EmailApps(true, true, true, random.Bool(0.08f), random.Bool(0.12f), true, null, false)),
             };
-        }).ToArray();
+        }).Select(WithSecurity).ToArray();
+    }
+
+    /// <summary>
+    /// MFA registration from each person's own seed (so the other generated values stay as they
+    /// were): most registered, about one in eight not; about one in twenty-five an admin.
+    /// </summary>
+    static UserSummary WithSecurity(UserSummary u)
+    {
+        var random = new Random(DemoUserRecords.StableSeed(u.Id) + 5);
+        var registered = random.NextDouble() > 0.12;
+        var admin = u.Kind == UserKind.Member && random.NextDouble() < 0.04;
+        string[] methods = registered ? random.NextDouble() < 0.7 ? ["microsoftAuthenticatorPush", "mobilePhone"] : ["mobilePhone"] : ["email"];
+        return u with { Security = new UserSecurity(registered, admin, methods, registered ? methods[0] : null) };
     }
 
     /// <summary>

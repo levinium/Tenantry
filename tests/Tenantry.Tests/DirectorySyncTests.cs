@@ -52,6 +52,9 @@ public class DirectorySyncTests
             {"value":[
               {"id":"u1","signInActivity":{"lastSignInDateTime":"2026-10-19T08:00:00Z"}},
               {"id":"ghost","signInActivity":{"lastSignInDateTime":"2026-10-19T08:00:00Z"}}]}
+            """)
+        .On(HttpMethod.Get, "/reports/authenticationMethods/userRegistrationDetails", """
+            {"value":[{"id":"u1","isAdmin":true,"isMfaRegistered":false,"methodsRegistered":["email"],"userPreferredMethodForSecondaryAuthentication":"none"}]}
             """);
 
     static GraphClient Graph(FakeHttp http) => new(http.Client(), new FakeTokens(), delay: NoDelay.Instance);
@@ -71,6 +74,9 @@ public class DirectorySyncTests
         var ada = users.Single(u => u.Id == "u1");
         Assert.Equal(["Microsoft 365 E3"], ada.Licenses);
         Assert.Equal(new DateTimeOffset(2026, 10, 19, 8, 0, 0, TimeSpan.Zero), ada.LastSignIn);
+        // From the MFA registration report: an admin with only email registered.
+        Assert.Equal((false, true), (ada.Security!.MfaRegistered, ada.Security.IsAdmin));
+        Assert.Null(users.Single(u => u.Id == "u2").Security);
         Assert.DoesNotContain(users, u => u.Id == "ghost");
         Assert.Equal($"{Base}users/delta?$deltatoken=d1", store.GetMark(DirectorySync.Users)!.Cursor);
         Assert.Equal(Now, sync.LastSyncedAt);
@@ -127,6 +133,7 @@ public class DirectorySyncTests
     {
         var http = new FakeHttp()
             .On(HttpMethod.Get, "users?$select=id,signInActivity", """{"error":{"code":"Authentication_RequestFromNonPremiumTenantOrB2CTenant","message":"premium"}}""", HttpStatusCode.Forbidden)
+            .On(HttpMethod.Get, "/reports/authenticationMethods", """{"error":{"code":"Authentication_RequestFromNonPremiumTenantOrB2CTenant","message":"premium"}}""", HttpStatusCode.Forbidden)
             .On(HttpMethod.Get, "/subscribedSkus", """{"value":[]}""")
             .On(HttpMethod.Get, "users/delta?$select", $$"""{"value":[{"id":"u1","displayName":"Ada"}],"@odata.deltaLink":"{{Base}}users/delta?$deltatoken=d1"}""")
             .On(HttpMethod.Get, "groups/delta?$select", $$"""{"value":[],"@odata.deltaLink":"{{Base}}groups/delta?$deltatoken=gd1"}""")

@@ -42,6 +42,12 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetMobileDevice), "setMobileDevice")]
 [JsonDerivedType(typeof(RestoreDeletedItem), "restoreDeletedItem")]
 [JsonDerivedType(typeof(ConvertMailbox), "convertMailbox")]
+[JsonDerivedType(typeof(RemoveAuthMethod), "removeAuthMethod")]
+[JsonDerivedType(typeof(AddPhoneMethod), "addPhoneMethod")]
+[JsonDerivedType(typeof(CreateTemporaryAccessPass), "createTemporaryAccessPass")]
+[JsonDerivedType(typeof(RemoveRoleAssignment), "removeRoleAssignment")]
+[JsonDerivedType(typeof(RevokeAppConsent), "revokeAppConsent")]
+[JsonDerivedType(typeof(SetUserRisk), "setUserRisk")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -568,3 +574,91 @@ public sealed record ConvertMailbox(ChangeTarget User, bool OldShared, bool NewS
     public override ChangeOp Since(ChangeOp earlier) => earlier is ConvertMailbox e ? this with { OldShared = e.OldShared } : this;
 }
 
+// ---- Security & sign-in (4c-1) --------------------------------------------------------------
+
+/// <summary>
+/// Removes one sign-in method (a phone, the Authenticator app, a security key…). They may need to
+/// register again before they can sign in where MFA is required: a caution change.
+/// </summary>
+/// <param name="Segment">The Graph collection it lives in ("phoneMethods").</param>
+public sealed record RemoveAuthMethod(ChangeTarget User, string MethodId, string Segment, string MethodName) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "authmethod:" + MethodId;
+    public override string Label => $"Sign-in method {MethodName}";
+    public override string Before => "Registered";
+    public override string After => "Removed";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Adds a phone number they can use for MFA and password reset.</summary>
+/// <param name="PhoneType">"mobile", "alternateMobile" or "office".</param>
+public sealed record AddPhoneMethod(ChangeTarget User, string PhoneType, string Number) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "phone:" + PhoneType;
+    public override string Label => PhoneType switch { "alternateMobile" => "Alternate phone", "office" => "Office phone", _ => "Mobile phone" };
+    public override string Before => "Not set";
+    public override string After => Number;
+    public override bool IsNoChange => Number.Length == 0;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
+/// A Temporary Access Pass: a time-limited code they sign in with to set up MFA (a new phone, a
+/// lost one). Shown to the admin once after applying, never stored.
+/// </summary>
+public sealed record CreateTemporaryAccessPass(ChangeTarget User, int Minutes, bool OneTime) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "tap";
+    public override string Label => "Temporary Access Pass";
+    public override string Before => "None";
+    public override string After => $"Valid {(Minutes >= 60 ? $"{Minutes / 60} hour{(Minutes >= 120 ? "s" : "")}" : $"{Minutes} minutes")}{(OneTime ? ", one use" : "")} (shown to you once)";
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Takes away a directory role they hold directly.</summary>
+public sealed record RemoveRoleAssignment(ChangeTarget User, string AssignmentId, string RoleName) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "role:" + AssignmentId;
+    public override string Label => $"Role {RoleName}";
+    public override string Before => "Assigned";
+    public override string After => "Removed";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Takes back the access they gave an app to their data (a delegated consent).</summary>
+public sealed record RevokeAppConsent(ChangeTarget User, string GrantId, string AppName) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "consent:" + GrantId;
+    public override string Label => $"App access {AppName}";
+    public override string Before => "Allowed";
+    public override string After => "Revoked";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
+/// Identity Protection: confirm the account was compromised (raises its risk to high, so risk
+/// policies act on it: a caution change) or dismiss the risk.
+/// </summary>
+public sealed record SetUserRisk(ChangeTarget User, bool Compromised) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "risk";
+    public override string Label => "Risk";
+    public override string Before => "At risk";
+    public override string After => Compromised ? "Confirmed compromised (risk high)" : "Dismissed";
+    public override bool IsCaution => Compromised;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}

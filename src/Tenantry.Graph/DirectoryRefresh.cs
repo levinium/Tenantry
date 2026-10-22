@@ -28,6 +28,15 @@ public sealed partial class DirectorySync : IRecordRefresher
             return;
         }
         store.Apply(Users, [new EntityChange(userId, ToObject(user))]);
+        try
+        {
+            var registration = await graph.GetAsync($"reports/authenticationMethods/userRegistrationDetails/{userId}", cancellationToken);
+            store.Apply(Registration, [new EntityChange(userId, ToObject(registration))]);
+        }
+        catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.BadRequest or HttpStatusCode.NotFound)
+        {
+            // No Entra ID P1, or not in the report yet: MFA stays as it was.
+        }
 
         if (exchange is null || user.TryGetProperty("userPrincipalName", out var upn) is false || upn.GetString() is not { Length: > 0 } identity)
             return;

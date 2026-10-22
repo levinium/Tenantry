@@ -42,7 +42,7 @@ public class PaletteAndGroupsTests
     {
         var vm = await Loaded();
         vm.OpenPaletteCommand.Execute(null);
-        vm.Palette.Query = "admins";
+        vm.Palette.Query = "it admins";
 
         vm.Palette.OpenSelected();
 

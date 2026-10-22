@@ -23,7 +23,10 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             records.ApplyContents(change, address);
             return new ApplyResult(ChangeOutcome.Applied);
         }
-        if (change is ConvertMailbox convert)
+        if (change is CreateTemporaryAccessPass)
+            return new ApplyResult(ChangeOutcome.Applied, "Pass them this code (demo).", Reveal: "Tap" + Random.Shared.Next(100000, 999999).ToString(System.Globalization.CultureInfo.InvariantCulture) + "!x");
+        if (records is not null && records.ApplySecurity(change))
+            return new ApplyResult(ChangeOutcome.Applied);        if (change is ConvertMailbox convert)
             return Mailbox(convert.User.Id, m => m with { Type = convert.NewShared ? "Shared" : "User" })
                    ?? new ApplyResult(ChangeOutcome.Failed, "That person has no mailbox.");        if (change is SetUserText text)
             records?.Remember(text.User.Id, text.Property, Empty(text.New));

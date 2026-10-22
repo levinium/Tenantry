@@ -27,6 +27,8 @@ public static class UserFields
     public const string StorageUsed = "storage";
     public const string Storage = "storagestate";
     public const string EmailAppsOn = "emailapps";
+    public const string Mfa = "mfa";
+    public const string AdminRole = "admin";
 
     public const string Active = "Active";
     public const string Blocked = "Blocked";
@@ -49,6 +51,10 @@ public static class UserFields
     public const string NotReadYet = "Not read yet";
     public const string NearlyFull = "Nearly full";
     public const string NotFull = "Under 90%";
+    public const string MfaRegistered = "Registered";
+    public const string MfaNotRegistered = "Not registered";
+    public const string IsAdmin = "Admin";
+    public const string NotAdmin = "Not admin";
 
     /// <summary>
     /// What kind of account this is. Entra only says Member or Guest; Exchange knows a shared,
@@ -160,6 +166,20 @@ public static class UserFields
             Key = EmailAppsOn, Label = "Email apps on", Kind = FieldKind.MultiChoice, Aliases = ["apps", "protocols", "pop", "imap"],
             EmptyLabel = "None", ChoiceOrder = EmailApps.All.Select(a => a.Name).ToArray(),
             Values = u => u.Mailbox?.Apps is { } apps ? EmailApps.All.Where(a => apps.IsOn(a.Parameter)).Select(a => a.Name).ToArray() : [],
+        },
+
+        // From Entra's MFA registration report (needs Entra ID P1; "Not read" without it).
+        new()
+        {
+            Key = Mfa, Label = "MFA", Kind = FieldKind.Choice, Aliases = ["multifactor", "2fa"],
+            EmptyLabel = NotReadYet, ChoiceOrder = [MfaRegistered, MfaNotRegistered, NotReadYet],
+            Text = u => u.Security is { } s ? (s.MfaRegistered ? MfaRegistered : MfaNotRegistered) : null,
+        },
+        new()
+        {
+            Key = AdminRole, Label = "Admin role", Kind = FieldKind.Choice, Aliases = ["admin", "isadmin"],
+            EmptyLabel = NotReadYet, ChoiceOrder = [IsAdmin, NotAdmin, NotReadYet],
+            Text = u => u.Security is { } s ? (s.IsAdmin ? IsAdmin : NotAdmin) : null,
         },
     ];
 }

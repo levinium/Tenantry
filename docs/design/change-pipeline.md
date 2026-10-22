@@ -145,6 +145,31 @@ shown, and again after changes to that mailbox apply (the pipeline's `Applied` e
   Their parameters are covered by unit tests. Blocking and unblocking were tested live with a
   made-up device ID.
 
+### Security & sign-in (4c-1)
+
+| Change | Sent as | Read back | Caution |
+|---|---|---|---|
+| Remove a sign-in method | `DELETE users/{id}/authentication/{collection}/{id}` | the method list no longer has it | always |
+| Add a phone | `POST …/authentication/phoneMethods` (`+1 2065551234`: country code, space, number) | `phoneMethods` has that type | no |
+| Temporary Access Pass | `POST …/temporaryAccessPassMethods`; the pass comes back once and is shown in the tray, never stored | none | no |
+| Remove a role | `DELETE roleManagement/directory/roleAssignments/{id}` | not found | always |
+| Revoke an app consent | `DELETE oauth2PermissionGrants/{id}` | not found | always |
+| Confirm compromised / dismiss risk | `POST identityProtection/riskyUsers/confirmCompromised` or `dismiss` | none | when confirming |
+
+- **Read-only cards:**
+  - **Sign-in log:** `auditLogs/signIns` filtered to the person, needs Entra ID P1.
+  - **Conditional Access:** each policy is judged against the person, their groups (via
+    `transitiveMemberOf`), their roles and guest status. Exclusions win.
+  - **Risk and eligible roles:** need Entra ID P2. Without it the card says so.
+- **MFA registration:** comes from `reports/authenticationMethods/userRegistrationDetails`. It's
+  synced for everyone (one paged read, a few seconds) and re-read by a record check. It drives
+  the MFA and Admin role columns, the "No MFA registered" and "Admins without MFA" views, and a
+  health chip.
+- **The method list lags:** Microsoft's combined list of methods lagged a newly added phone or
+  pass by up to half a minute (seen live). The tab reads it again 20 s after a method change
+  applies.
+- **Graph headers:** requests now carry `User-Agent` and `ocp-client-name/version`. BitLocker
+  keys and LAPS refuse requests without them.
 ## Write guard and Test mode
 
 - **What it allows:** while a tenant is in Test mode, only objects whose **address** starts with

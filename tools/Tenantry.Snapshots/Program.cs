@@ -353,6 +353,24 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "user-convert-light", height: 900);
         editing.CloseDialog();
 
+        // Security & sign-in: each page.
+        var security = page.Sections.OfType<Tenantry.ViewModels.Records.SecuritySection>().Single();
+        page.SelectedSection = security;
+        security.LoadAsync().GetAwaiter().GetResult();
+        foreach (var (securityPage, name) in new[]
+                 {
+                     (Tenantry.ViewModels.Records.SecurityPage.Methods, "user-security-methods-light"),
+                     (Tenantry.ViewModels.Records.SecurityPage.SignIns, "user-security-signins-light"),
+                     (Tenantry.ViewModels.Records.SecurityPage.Access, "user-security-access-light"),
+                     (Tenantry.ViewModels.Records.SecurityPage.ConditionalAccess, "user-security-policies-light"),
+                 })
+        {
+            security.SelectedPage = securityPage;
+            Settle();
+            Render(editing, name, height: 1200);
+        }
+        security.SelectedPage = Tenantry.ViewModels.Records.SecurityPage.Methods;
+
         // Groups & access: their groups (one membership being removed), a group being searched for.
         editing.Groups.LoadAsync().GetAwaiter().GetResult();
         page.Update(page.User);
