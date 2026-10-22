@@ -133,6 +133,13 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
             Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Logs something done outside Apply, such as revealing a secret, so the change log shows who
+    /// saw what and when. Nothing is staged or sent.
+    /// </summary>
+    public void Record(ChangeOp happened, string? detail = null) =>
+        log.Add(new ChangeLogEntry(Guid.NewGuid().ToString("N"), _now(), account, happened, ChangeOutcome.Applied, detail));
+
     public void Clear()
     {
         _pending.Clear();

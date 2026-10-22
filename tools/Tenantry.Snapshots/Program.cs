@@ -371,6 +371,18 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         }
         security.SelectedPage = Tenantry.ViewModels.Records.SecurityPage.Methods;
 
+        // Devices: the laptop opened to its keys and actions, then its (made-up) recovery key shown.
+        var devices = page.Sections.OfType<Tenantry.ViewModels.Records.DevicesSection>().Single();
+        page.SelectedSection = devices;
+        devices.LoadAsync().GetAwaiter().GetResult();
+        devices.Devices[0].IsExpanded = true;
+        Settle();
+        Render(editing, "user-devices-light", height: 1100);
+        Tenantry.ViewModels.Records.SecretRow.ShowFor = TimeSpan.FromHours(1);
+        _ = devices.Devices[0].Secrets[0].ShowCommand.ExecuteAsync(null);
+        Settle();
+        Render(editing, "user-devices-key-light", height: 1100);
+
         // Groups & access: their groups (one membership being removed), a group being searched for.
         editing.Groups.LoadAsync().GetAwaiter().GetResult();
         page.Update(page.User);

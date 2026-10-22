@@ -82,6 +82,8 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         RemoveRoleAssignment r => await RemoveRoleAssignmentAsync(r, cancellationToken),
         RevokeAppConsent c => await RevokeAppConsentAsync(c, cancellationToken),
         SetUserRisk r => await SetUserRiskAsync(r, cancellationToken),
+        SetDeviceEnabled d => await SetDeviceEnabledAsync(d, cancellationToken),
+        RunDeviceAction a => await RunDeviceActionAsync(a, cancellationToken),
         _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 

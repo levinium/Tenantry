@@ -163,8 +163,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         new PlannedSection("onedrive", "OneDrive", "Cloud", "update 4d",
             ["Storage used against the quota", "Open their OneDrive", "Give someone (a manager) access"]),
         new SecuritySection(User, _records as ISecurityRecords, _pipeline, _canEdit),
-        new PlannedSection("devices", "Devices", "Laptop", "update 4c",
-            ["Devices they've registered or that are managed", "BitLocker recovery keys and local admin passwords"]),
+        new DevicesSection(User, _records as IDeviceRecords, _pipeline, _canEdit),
         new PlannedSection("activity", "Activity", "History", "update 4d",
             ["Every change made to them in Tenantry", "Microsoft 365 audit log for this person", "Last activity in mail, OneDrive and Teams"]),
     ];

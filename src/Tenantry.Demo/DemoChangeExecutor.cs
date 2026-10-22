@@ -25,6 +25,8 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
         }
         if (change is CreateTemporaryAccessPass)
             return new ApplyResult(ChangeOutcome.Applied, "Pass them this code (demo).", Reveal: "Tap" + Random.Shared.Next(100000, 999999).ToString(System.Globalization.CultureInfo.InvariantCulture) + "!x");
+        if (records is not null && records.ApplyDevice(change))
+            return new ApplyResult(ChangeOutcome.Applied);
         if (records is not null && records.ApplySecurity(change))
             return new ApplyResult(ChangeOutcome.Applied);        if (change is ConvertMailbox convert)
             return Mailbox(convert.User.Id, m => m with { Type = convert.NewShared ? "Shared" : "User" })

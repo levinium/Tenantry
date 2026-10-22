@@ -48,6 +48,9 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(RemoveRoleAssignment), "removeRoleAssignment")]
 [JsonDerivedType(typeof(RevokeAppConsent), "revokeAppConsent")]
 [JsonDerivedType(typeof(SetUserRisk), "setUserRisk")]
+[JsonDerivedType(typeof(SetDeviceEnabled), "setDeviceEnabled")]
+[JsonDerivedType(typeof(RunDeviceAction), "runDeviceAction")]
+[JsonDerivedType(typeof(SecretViewed), "secretViewed")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -659,6 +662,90 @@ public sealed record SetUserRisk(ChangeTarget User, bool Compromised) : ChangeOp
     public override string Before => "At risk";
     public override string After => Compromised ? "Confirmed compromised (risk high)" : "Dismissed";
     public override bool IsCaution => Compromised;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+// ---- Devices (4c-2) -------------------------------------------------------------------------
+
+/// <summary>Enables or disables a device in Entra: a disabled device can't be used to sign in. Disabling is a caution change.</summary>
+/// <param name="Device">The Entra device object (Kind "device"), named as the device is.</param>
+public sealed record SetDeviceEnabled(ChangeTarget Device, bool Old, bool New) : ChangeOp
+{
+    public override ChangeTarget Target => Device;
+    public override string Key => "enabled";
+    public override string Label => "Device sign-in";
+    public override string Before => Old ? "Enabled" : "Disabled";
+    public override string After => New ? "Enabled" : "Disabled";
+    public override bool IsCaution => !New;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetDeviceEnabled e ? this with { Old = e.Old } : this;
+}
+
+public enum DeviceCommand
+{
+    Sync,
+    Restart,
+    Lock,
+    RotateLocalAdminPassword,
+
+    /// <summary>Removes work data and apps, and takes it out of management; their own things stay.</summary>
+    Retire,
+
+    /// <summary>Erases the device back to factory settings.</summary>
+    Wipe,
+}
+
+/// <summary>
+/// An Intune remote action on a managed device. All but Sync interrupt or remove something:
+/// caution changes. A wipe can't be undone, so the admin also types the device's name.
+/// </summary>
+/// <param name="Device">The Intune managed device (Kind "manageddevice").</param>
+public sealed record RunDeviceAction(ChangeTarget Device, DeviceCommand Command) : ChangeOp
+{
+    public override ChangeTarget Target => Device;
+    public override string Key => Command is DeviceCommand.Retire or DeviceCommand.Wipe ? "remove" : "action:" + Command;
+    public override string Label => Command switch
+    {
+        DeviceCommand.Sync => "Sync with Intune",
+        DeviceCommand.Restart => "Restart",
+        DeviceCommand.Lock => "Lock",
+        DeviceCommand.RotateLocalAdminPassword => "Local admin password",
+        DeviceCommand.Retire => "Retire",
+        _ => "Wipe",
+    };
+    public override string Before => Command switch
+    {
+        DeviceCommand.RotateLocalAdminPassword => "Current password",
+        DeviceCommand.Retire or DeviceCommand.Wipe => "Managed",
+        _ => "",
+    };
+    public override string After => Command switch
+    {
+        DeviceCommand.Sync => "Checks in now",
+        DeviceCommand.Restart => "Restarts now",
+        DeviceCommand.Lock => "Locks now",
+        DeviceCommand.RotateLocalAdminPassword => "A new password",
+        DeviceCommand.Retire => "Retired: work data removed, no longer managed",
+        _ => "Wiped: erased back to factory settings",
+    };
+    public override bool IsCaution => Command != DeviceCommand.Sync;
+    public override string? ConfirmPhrase => Command == DeviceCommand.Wipe ? Device.Name : null;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
+/// Not a change: a record that someone revealed a secret (a BitLocker key, a local admin
+/// password), kept in Tenantry's change log beside Microsoft's own audit.
+/// </summary>
+public sealed record SecretViewed(ChangeTarget Device, string What) : ChangeOp
+{
+    public override ChangeTarget Target => Device;
+    public override string Key => "viewed:" + What;
+    public override string Label => What;
+    public override string Before => "Hidden";
+    public override string After => "Shown to you";
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;
 }

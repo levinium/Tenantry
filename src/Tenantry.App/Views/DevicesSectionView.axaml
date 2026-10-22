@@ -1,0 +1,127 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:changes="using:Tenantry.Core.Changes"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.DevicesSectionView"
+             x:DataType="rec:DevicesSection">
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </StackPanel>
+    </Border>
+    <TextBlock Classes="muted" Text="Reading their devices…" IsVisible="{Binding IsLoading}" />
+    <Border Classes="banner error" IsVisible="{Binding HasError}">
+      <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
+    </Border>
+    <TextBlock Classes="muted" Text="{Binding Unavailable}" IsVisible="{Binding HasUnavailable}" TextWrapping="Wrap" />
+    <TextBlock Classes="muted" Text="No devices: nothing registered or joined in Entra, and nothing managed by Intune." IsVisible="{Binding HasNoDevices}" TextWrapping="Wrap" />
+
+    <ItemsControl ItemsSource="{Binding Devices}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="10" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:DeviceItem">
+          <Border Classes="card">
+            <StackPanel Spacing="10">
+              <!-- The summary: click to open the details. -->
+              <Button Classes="ghost" Command="{Binding ToggleCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0"
+                      ToolTip.Tip="Show or hide this device's details, keys and actions">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                  <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="22" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+                  <StackPanel Grid.Column="1" Spacing="3">
+                    <WrapPanel ItemSpacing="6" LineSpacing="4">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                      <c:Badge Text="{Binding JoinType}" Kind="Neutral" />
+                      <c:Badge Text="Managed by Intune" Kind="Info" IsVisible="{Binding IsManaged}" />
+                      <c:Badge Text="{Binding ComplianceText}" Kind="{Binding ComplianceKind}" IsVisible="{Binding HasCompliance}" />
+                      <c:Badge Text="Disabled" Kind="Danger" IsVisible="{Binding IsDisabled}" />
+                      <c:Badge Text="Not encrypted" Kind="Warning" IsVisible="{Binding IsUnencrypted}" />
+                    </WrapPanel>
+                    <TextBlock Classes="caption" Text="{Binding Detail}" />
+                    <TextBlock Classes="caption" Text="{Binding LastText}" />
+                    <TextBlock Classes="pendingtext" Text="{Binding PendingText}" IsVisible="{Binding HasPending}" />
+                  </StackPanel>
+                  <Panel Grid.Column="2" VerticalAlignment="Center">
+                    <ic:FluentIcon Icon="ChevronDown" FontSize="14" IsVisible="{Binding !IsExpanded}" />
+                    <ic:FluentIcon Icon="ChevronUp" FontSize="14" IsVisible="{Binding IsExpanded}" />
+                  </Panel>
+                </Grid>
+              </Button>
+
+              <StackPanel Spacing="12" IsVisible="{Binding IsExpanded}" Margin="34,0,0,0">
+                <ItemsControl ItemsSource="{Binding FactLines}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                      <SelectableTextBlock Classes="caption" Text="{Binding}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Secrets: hidden until Show; each view is logged. -->
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="label" Text="RECOVERY" />
+                  <TextBlock Classes="muted" Text="Reading its keys…" IsVisible="{Binding SecretsLoading}" />
+                  <TextBlock Classes="caption" Text="{Binding SecretsNote}" IsVisible="{Binding HasSecretsNote}" TextWrapping="Wrap" />
+                  <ItemsControl ItemsSource="{Binding Secrets}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="rec:SecretRow">
+                        <Border Classes="valuerow">
+                          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                            <StackPanel Spacing="2" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                              <SelectableTextBlock Classes="code" Text="{Binding Masked}" TextWrapping="Wrap" />
+                              <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" />
+                              <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="{Binding ShowText}" Command="{Binding ShowCommand}" VerticalAlignment="Center"
+                                    ToolTip.Tip="Shows it for a minute. Microsoft records who reads it, and so does Tenantry's change log." />
+                            <Button Grid.Column="2" Command="{Binding CopyCommand}" IsVisible="{Binding IsShown}" VerticalAlignment="Center" ToolTip.Tip="Copy">
+                              <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ic:FluentIcon Icon="Copy" FontSize="14" />
+                                <TextBlock Text="Copy" IsVisible="{Binding !Copied}" />
+                                <TextBlock Text="Copied" IsVisible="{Binding Copied}" />
+                              </StackPanel>
+                            </Button>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+
+                <!-- Actions: each goes to Pending changes; pressing again undoes it. -->
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="label" Text="ACTIONS" />
+                  <WrapPanel ItemSpacing="8" LineSpacing="8">
+                    <Button Content="{Binding SyncText}" Command="{Binding RunCommand}" CommandParameter="{x:Static changes:DeviceCommand.Sync}"
+                            IsVisible="{Binding CanManage}" ToolTip.Tip="Ask it to check in with Intune now (added to Pending changes)" />
+                    <Button Content="{Binding RestartText}" Command="{Binding RunCommand}" CommandParameter="{x:Static changes:DeviceCommand.Restart}"
+                            IsVisible="{Binding CanManage}" ToolTip.Tip="Restarts it straight away, unsaved work and all (added to Pending changes)" />
+                    <Button Content="{Binding LockText}" Command="{Binding RunCommand}" CommandParameter="{x:Static changes:DeviceCommand.Lock}"
+                            IsVisible="{Binding CanManage}" ToolTip.Tip="Locks the screen; they unlock it with their PIN or password (added to Pending changes)" />
+                    <Button Content="{Binding RotateText}" Command="{Binding RunCommand}" CommandParameter="{x:Static changes:DeviceCommand.RotateLocalAdminPassword}"
+                            IsVisible="{Binding CanRotate}" ToolTip.Tip="Gives the local admin account a new password, after someone has used it (Windows LAPS; added to Pending changes)" />
+                    <Button Classes="danger-outline" Content="{Binding EnableText}" Command="{Binding ToggleEnabledCommand}" IsVisible="{Binding CanSetEnabled}"
+                            ToolTip.Tip="A disabled device can't be used to sign in to work apps (added to Pending changes)" />
+                    <Button Classes="danger-outline" Content="{Binding RetireText}" Command="{Binding RunCommand}" CommandParameter="{x:Static changes:DeviceCommand.Retire}"
+                            IsVisible="{Binding CanManage}" ToolTip.Tip="Removes work data and apps and stops managing it; their own things stay (added to Pending changes)" />
+                    <Button Classes="danger-outline" Content="{Binding WipeText}" Command="{Binding RunCommand}" CommandParameter="{x:Static changes:DeviceCommand.Wipe}"
+                            IsVisible="{Binding CanManage}" ToolTip.Tip="Erases it back to factory settings. You'll type its name to confirm when applying." />
+                  </WrapPanel>
+                </StackPanel>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

@@ -170,6 +170,30 @@ shown, and again after changes to that mailbox apply (the pipeline's `Applied` e
   applies.
 - **Graph headers:** requests now carry `User-Agent` and `ocp-client-name/version`. BitLocker
   keys and LAPS refuse requests without them.
+### Devices (4c-2)
+
+The tab joins two lists on the Entra device ID: the person's Entra devices (registered or owned)
+and their Intune devices (managed, by primary user).
+
+| Change | Sent as | Read back | Caution |
+|---|---|---|---|
+| Disable or enable in Entra | `PATCH devices/{objectId}` `accountEnabled` | the property | when disabling |
+| Sync, restart, lock | `POST deviceManagement/managedDevices/{id}/syncDevice`, `rebootNow` or `remoteLock` | none: the device acts when it next checks in | all but sync |
+| Rotate the local admin password | beta `…/rotateLocalAdminPassword` | none | yes |
+| Retire or wipe (one slot: staging one replaces the other) | `…/retire`, or `…/wipe` with `keepEnrollmentData` and `keepUserData` false | none | yes; a wipe also asks for the device's name |
+
+- **Secrets:**
+  - BitLocker keys (`informationProtection/bitlocker/recoveryKeys`) and the LAPS password
+    (`directory/deviceLocalCredentials`, base64) list their metadata only.
+  - Each secret is read when Show is pressed, stays on screen for 60 s, and is logged as
+    `SecretViewed` through `ChangePipeline.Record`, beside Microsoft's own audit of the read.
+- **Not tested live:**
+  - The admin can't create a test device: Microsoft refuses `POST /devices` with this app's
+    permissions.
+  - The tenant has no test device enrolled in Intune.
+
+  So these changes are covered by unit tests. The write guard refuses them on any device whose
+  name doesn't start with the test marker.
 ## Write guard and Test mode
 
 - **What it allows:** while a tenant is in Test mode, only objects whose **address** starts with
