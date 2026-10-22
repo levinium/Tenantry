@@ -287,6 +287,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
             Methods.Add(new MethodRow(method, PendingFor("authmethod:" + method.Id) is not null, CanEdit, () => ToggleRemove(captured)));
         }
         OnPropertyChanged(nameof(CanRemoveAll));
+        RefreshLostPhone();
     }
 
     void ToggleRemove(AuthMethod method)
@@ -310,6 +311,61 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
             return;
         _pipeline!.StageAll(_methods!.Where(m => m.Removable && PendingFor("authmethod:" + m.Id) is null)
             .Select(m => new RemoveAuthMethod(Target, m.Id, m.Segment, m.Kind)));
+    }
+
+    // ---- Reset sign-in -----------------------------------------------------------------------
+    // Entra's two buttons for when someone must prove who they are again (a lost or new phone, a
+    // suspected compromise, someone leaving), side by side with a Temporary Access Pass.
+
+    IEnumerable<AuthMethod> Removable => _methods?.Where(m => m.Removable) ?? [];
+
+    /// <summary>Every MFA method is pending removal: re-registration is staged.</summary>
+    public bool IsReregisterPending => Removable.Any() && Removable.All(m => PendingFor("authmethod:" + m.Id) is not null);
+
+    public bool CanReregister => CanEdit && Removable.Any();
+
+    public string ReregisterText => IsReregisterPending ? "Undo re-register" : "Require re-register";
+
+    public string ReregisterTip => !Removable.Any() && _methods is not null
+        ? "They have no MFA methods to remove: they'll be asked to register MFA when a policy needs it."
+        : IsReregisterPending ? "Keep their methods (take the removals out of Pending changes)"
+        : "Removes their MFA methods (Authenticator, phones, passkeys…) but not the password; they set MFA up again at their next sign-in (added to Pending changes)";
+
+    /// <summary>Entra's "Require re-register multifactor authentication": removes every method but the password, or undoes that.</summary>
+    [RelayCommand]
+    void ToggleReregister()
+    {
+        if (!CanEdit)
+            return;
+        if (IsReregisterPending)
+        {
+            foreach (var pending in Removable.Select(m => PendingFor("authmethod:" + m.Id)).OfType<ChangeOp>().ToArray())
+                _pipeline!.Unstage(pending);
+        }
+        else
+            RemoveAll();
+    }
+
+    public bool IsRevokePending => PendingFor("sessions") is not null;
+
+    public string RevokeText => IsRevokePending ? "Undo revoke sessions" : "Revoke sessions";
+
+    /// <summary>Entra's "Revoke sessions" (the record's "Sign out everywhere"): every app and browser asks them to sign in again.</summary>
+    [RelayCommand]
+    void ToggleRevokeSessions()
+    {
+        if (!CanEdit)
+            return;
+        if (PendingFor("sessions") is { } pending)
+            _pipeline!.Unstage(pending);
+        else
+            _pipeline!.Stage(new RevokeSessions(Target));
+    }
+
+    void RefreshLostPhone()
+    {
+        foreach (var name in new[] { nameof(IsReregisterPending), nameof(CanReregister), nameof(ReregisterText), nameof(ReregisterTip), nameof(IsRevokePending), nameof(RevokeText) })
+            OnPropertyChanged(name);
     }
 
     // ---- Add a phone ------------------------------------------------------------------------

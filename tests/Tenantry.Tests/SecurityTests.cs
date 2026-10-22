@@ -175,6 +175,25 @@ public sealed class SecurityTests
     }
 
     [Fact]
+    public async Task Lost_phone_revokes_sessions_and_requires_re_registration_each_undone_by_pressing_again()
+    {
+        var (tab, pipeline, page) = await Tab(SecurityPage.Methods);
+
+        tab.ToggleRevokeSessionsCommand.Execute(null);
+        tab.ToggleReregisterCommand.Execute(null);
+
+        Assert.IsType<RevokeSessions>(pipeline.Pending[0]);
+        Assert.Equal(["a1", "p1"], pipeline.Pending.OfType<RemoveAuthMethod>().Select(m => m.MethodId).Order());
+        Assert.Equal(("Undo revoke sessions", "Undo re-register"), (tab.RevokeText, tab.ReregisterText));
+        // The record's own Sign out everywhere follows the same pending change.
+        Assert.Equal("Undo sign out everywhere", page.SignOutText);
+
+        tab.ToggleReregisterCommand.Execute(null);
+        tab.ToggleRevokeSessionsCommand.Execute(null);
+        Assert.Empty(pipeline.Pending);
+    }
+
+    [Fact]
     public async Task A_phone_stages_once_its_number_is_valid_and_a_pass_stages_from_its_button()
     {
         var (tab, pipeline, _) = await Tab(SecurityPage.Methods);
