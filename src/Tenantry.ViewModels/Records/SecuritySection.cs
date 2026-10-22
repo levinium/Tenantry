@@ -44,6 +44,8 @@ public sealed class SignInRow(SignInEvent e)
     public string Status => e.Succeeded ? "Signed in" : "Failed";
     public BadgeKind StatusKind => e.Succeeded ? BadgeKind.Success : BadgeKind.Danger;
     public string Detail => string.Join(" · ", new[] { e.Problem, e.ConditionalAccess, e.Detail }.Where(s => !string.IsNullOrEmpty(s)).Distinct());
+    public string Client => e.ClientKind + (e.MultiFactor switch { true => " · multi-factor", false => " · password only", _ => "" });
+    public bool IsLegacy => e.ClientKind.StartsWith("Legacy", StringComparison.Ordinal);
     public bool HasDetail => Detail.Length > 0;
 }
 
@@ -457,17 +459,31 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
     }
 
     // ---- Sign-in log ------------------------------------------------------------------------
+    // Days, type and result are asked of the sign-in log itself; app, place, client, MFA and the
+    // search box narrow what came back (the latest 500), instantly.
 
     public static IReadOnlyList<int> SignInDayOptions { get; } = [1, 7, 30];
+
+    public static IReadOnlyList<string> SignInKindOptions { get; } = ["Interactive", "Non-interactive"];
+
+    public static IReadOnlyList<string> SignInResultOptions { get; } = ["All results", "Succeeded", "Failed"];
 
     [ObservableProperty]
     public partial int SignInDays { get; set; } = 7;
 
     [ObservableProperty]
-    public partial bool FailuresOnly { get; set; }
+    public partial string SignInKind { get; set; } = "Interactive";
+
+    [ObservableProperty]
+    public partial string SignInResult { get; set; } = "All results";
 
     partial void OnSignInDaysChanged(int value) => _ = LoadSignInsAsync(again: true);
-    partial void OnFailuresOnlyChanged(bool value) => _ = LoadSignInsAsync(again: true);
+    partial void OnSignInKindChanged(string value) => _ = LoadSignInsAsync(again: true);
+    partial void OnSignInResultChanged(string value) => _ = LoadSignInsAsync(again: true);
+
+    SignInQuery Query => new(SignInDays,
+        SignInKind == "Non-interactive" ? Tenantry.Core.Directory.SignInKind.NonInteractive : Tenantry.Core.Directory.SignInKind.Interactive,
+        SignInResult switch { "Succeeded" => Tenantry.Core.Directory.SignInResult.Succeeded, "Failed" => Tenantry.Core.Directory.SignInResult.Failed, _ => Tenantry.Core.Directory.SignInResult.All });
 
     Available<IReadOnlyList<SignInEvent>>? _signIns;
 
@@ -486,26 +502,128 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
     public bool HasSignInsUnavailable => SignInsUnavailable is not null;
 
-    public string SignInsSummary => _signIns?.Value is { } list
-        ? list.Count == 0 ? $"No {(FailuresOnly ? "failed " : "")}sign-ins in the last {Days(SignInDays)}."
-        : $"{list.Count:N0}{(list.Count >= 100 ? "+" : "")} {(FailuresOnly ? "failed " : "")}sign-in{(list.Count == 1 ? "" : "s")} in the last {Days(SignInDays)}"
-          + (FailuresOnly ? "" : $", {list.Count(e => !e.Succeeded)} failed") + "."
-        : "";
+    // The facets: each lists what the loaded sign-ins hold, with counts, most common first.
 
-    static string Days(int days) => days == 1 ? "day" : $"{days} days";
+    [ObservableProperty]
+    public partial IReadOnlyList<FacetOption> AppOptions { get; private set; } = [FacetOption.Any("Any app")];
+
+    [ObservableProperty]
+    public partial IReadOnlyList<FacetOption> LocationOptions { get; private set; } = [FacetOption.Any("Anywhere")];
+
+    [ObservableProperty]
+    public partial IReadOnlyList<FacetOption> ClientOptions { get; private set; } = [FacetOption.Any("Any client")];
+
+    [ObservableProperty]
+    public partial IReadOnlyList<FacetOption> AuthOptions { get; private set; } = [FacetOption.Any("Any authentication")];
+
+    [ObservableProperty]
+    public partial FacetOption? SelectedApp { get; set; }
+
+    [ObservableProperty]
+    public partial FacetOption? SelectedLocation { get; set; }
+
+    [ObservableProperty]
+    public partial FacetOption? SelectedClient { get; set; }
+
+    [ObservableProperty]
+    public partial FacetOption? SelectedAuth { get; set; }
+
+    /// <summary>Words to find in the app, place, IP address, device or failure reason.</summary>
+    [ObservableProperty]
+    public partial string SignInSearch { get; set; } = "";
+
+    partial void OnSelectedAppChanged(FacetOption? value) => FilterSignIns();
+    partial void OnSelectedLocationChanged(FacetOption? value) => FilterSignIns();
+    partial void OnSelectedClientChanged(FacetOption? value) => FilterSignIns();
+    partial void OnSelectedAuthChanged(FacetOption? value) => FilterSignIns();
+    partial void OnSignInSearchChanged(string value) => FilterSignIns();
+
+    static string AuthOf(SignInEvent e) => e.MultiFactor switch { true => "Multi-factor", false => "Single-factor (password only)", _ => "Not recorded" };
+
+    public bool HasSignInFilters => SelectedApp?.Value is not null || SelectedLocation?.Value is not null || SelectedClient?.Value is not null
+                                    || SelectedAuth?.Value is not null || SignInSearch.Trim().Length > 0;
+
+    [RelayCommand]
+    void ClearSignInFilters()
+    {
+        _settingFacets = true;
+        SelectedApp = AppOptions[0];
+        SelectedLocation = LocationOptions[0];
+        SelectedClient = ClientOptions[0];
+        SelectedAuth = AuthOptions[0];
+        SignInSearch = "";
+        _settingFacets = false;
+        FilterSignIns();
+    }
+
+    bool _settingFacets;
+
+    [ObservableProperty]
+    public partial string SignInsSummary { get; private set; } = "";
 
     async Task LoadSignInsAsync(bool again = false)
     {
         if (!_shown)
             return;
-        var (days, failures) = (SignInDays, FailuresOnly);
-        _signIns = await ReadAsync(_signIns, r => r.GetSignInsAsync(_user.Id, days, failures), v => SignInsLoading = v, v => SignInsError = v, again);
-        SignIns.Clear();
-        foreach (var e in _signIns?.Value ?? [])
-            SignIns.Add(new SignInRow(e));
+        var query = Query;
+        _signIns = await ReadAsync(_signIns, r => r.GetSignInsAsync(_user.Id, query), v => SignInsLoading = v, v => SignInsError = v, again);
+        BuildFacets(_signIns?.Value ?? []);
         OnPropertyChanged(nameof(SignInsUnavailable));
         OnPropertyChanged(nameof(HasSignInsUnavailable));
-        OnPropertyChanged(nameof(SignInsSummary));
+        FilterSignIns();
+    }
+
+    /// <summary>Options from what was loaded; a choice that's still there stays chosen.</summary>
+    void BuildFacets(IReadOnlyList<SignInEvent> events)
+    {
+        static IReadOnlyList<FacetOption> Options(string any, IEnumerable<string?> values) =>
+        [
+            FacetOption.Any(any),
+            .. values.Select(v => string.IsNullOrEmpty(v) ? "Unknown" : v)
+                .GroupBy(v => v, StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.CurrentCulture)
+                .Select(g => new FacetOption(g.Key, $"{g.Key} ({g.Count():N0})")),
+        ];
+        static FacetOption Keep(IReadOnlyList<FacetOption> options, FacetOption? chosen) =>
+            options.FirstOrDefault(o => o.Value is not null && string.Equals(o.Value, chosen?.Value, StringComparison.OrdinalIgnoreCase)) ?? options[0];
+
+        _settingFacets = true;
+        var (app, location, client, auth) = (SelectedApp, SelectedLocation, SelectedClient, SelectedAuth);
+        AppOptions = Options("Any app", events.Select(e => e.App));
+        LocationOptions = Options("Anywhere", events.Select(e => e.Location));
+        ClientOptions = Options("Any client", events.Select(e => e.ClientKind));
+        AuthOptions = Options("Any authentication", events.Select(AuthOf));
+        SelectedApp = Keep(AppOptions, app);
+        SelectedLocation = Keep(LocationOptions, location);
+        SelectedClient = Keep(ClientOptions, client);
+        SelectedAuth = Keep(AuthOptions, auth);
+        _settingFacets = false;
+    }
+
+    void FilterSignIns()
+    {
+        if (_settingFacets)
+            return;
+        var all = _signIns?.Value ?? [];
+        var words = SignInSearch.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        bool Is(FacetOption? chosen, string? value) => chosen?.Value is null || string.Equals(chosen.Value, string.IsNullOrEmpty(value) ? "Unknown" : value, StringComparison.OrdinalIgnoreCase);
+        var shown = all.Where(e => Is(SelectedApp, e.App) && Is(SelectedLocation, e.Location) && Is(SelectedClient, e.ClientKind) && Is(SelectedAuth, AuthOf(e))
+                                   && words.All(w => string.Join(' ', e.App, e.Location, e.IpAddress, e.Device, e.Problem, e.ClientApp).Contains(w, StringComparison.CurrentCultureIgnoreCase)))
+            .ToArray();
+        SignIns.Clear();
+        foreach (var e in shown)
+            SignIns.Add(new SignInRow(e));
+        OnPropertyChanged(nameof(HasSignInFilters));
+        var kind = SignInKind == "Non-interactive" ? "non-interactive " : "";
+        var result = SignInResult switch { "Failed" => "failed ", "Succeeded" => "successful ", _ => "" };
+        var period = SignInDays == 1 ? "day" : $"{SignInDays} days";
+        SignInsSummary = _signIns?.Value is null ? ""
+            : all.Count == 0 ? $"No {result}{kind}sign-ins in the last {period}."
+            : (shown.Length == all.Count ? $"{all.Count:N0}" : $"Showing {shown.Length:N0} of {all.Count:N0}")
+              + $" {result}{kind}sign-in{(all.Count == 1 ? "" : "s")} in the last {period}"
+              + (SignInResult == "All results" ? $", {shown.Count(e => !e.Succeeded):N0} failed" : "")
+              + (all.Count >= ISecurityRecords.SignInLimit ? $" (the latest {ISecurityRecords.SignInLimit:N0}; narrow the days or type to see older ones)" : "")
+              + ".";
     }
 
     // ---- Roles and app access ---------------------------------------------------------------
@@ -631,4 +749,12 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
             _pipeline.Applied -= OnApplied;
         }
     }
+}
+
+/// <summary>One choice in a sign-in filter: a value with how many sign-ins have it, or "any".</summary>
+public sealed record FacetOption(string? Value, string Label)
+{
+    public static FacetOption Any(string label) => new(null, label);
+
+    public override string ToString() => Label;
 }

@@ -43,13 +43,25 @@ public sealed partial class GraphUserRecords : ISecurityRecords
         return methods.OrderBy(m => m.Removable).ThenBy(m => m.Kind, StringComparer.CurrentCulture).ToArray();
     }
 
-    public async Task<Available<IReadOnlyList<SignInEvent>>> GetSignInsAsync(string userId, int days, bool failuresOnly, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// The beta sign-in log: unlike v1.0 it has non-interactive sign-ins, the client app and
+    /// whether MFA was needed. Days, type and result go to the service; the rest is filtered on
+    /// what comes back.
+    /// </summary>
+    public async Task<Available<IReadOnlyList<SignInEvent>>> GetSignInsAsync(string userId, SignInQuery query, CancellationToken cancellationToken = default)
     {
-        var since = DateTime.UtcNow.AddDays(-Math.Clamp(days, 1, 30)).ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
-        var filter = $"userId eq '{userId}' and createdDateTime ge {since}" + (failuresOnly ? " and status/errorCode ne 0" : "");
+        var since = DateTime.UtcNow.AddDays(-Math.Clamp(query.Days, 1, 30)).ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+        var type = query.Kind == SignInKind.NonInteractive ? "nonInteractiveUser" : "interactiveUser";
+        var filter = $"userId eq '{userId}' and createdDateTime ge {since} and signInEventTypes/any(t: t eq '{type}')" + query.Result switch
+        {
+            SignInResult.Failed => " and status/errorCode ne 0",
+            SignInResult.Succeeded => " and status/errorCode eq 0",
+            _ => "",
+        };
         try
         {
-            var page = await graph.GetAsync($"auditLogs/signIns?$filter={Uri.EscapeDataString(filter)}&$top=100", cancellationToken);
+            var page = await graph.GetAsync($"https://graph.microsoft.com/beta/auditLogs/signIns?$filter={Uri.EscapeDataString(filter)}&$top={ISecurityRecords.SignInLimit}",
+                cancellationToken);
             var events = page.GetProperty("value").EnumerateArray().Select(s =>
             {
                 var status = s.TryGetProperty("status", out var st) ? st : default;
@@ -69,7 +81,14 @@ public sealed partial class GraphUserRecords : ISecurityRecords
                     code == 0 ? null : status.ValueKind == JsonValueKind.Object ? Text(status, "failureReason") : null,
                     string.IsNullOrEmpty(device) ? null : device,
                     Text(s, "conditionalAccessStatus") switch { "success" => "Conditional Access passed", "failure" => "Blocked by Conditional Access", _ => null },
-                    status.ValueKind == JsonValueKind.Object ? Text(status, "additionalDetails") : null);
+                    status.ValueKind == JsonValueKind.Object ? Text(status, "additionalDetails") : null,
+                    Text(s, "clientAppUsed"),
+                    Text(s, "authenticationRequirement") switch
+                    {
+                        "multiFactorAuthentication" => true,
+                        "singleFactorAuthentication" => false,
+                        _ => null,
+                    });
             }).OrderByDescending(e => e.When).ToArray();
             return new(events);
         }

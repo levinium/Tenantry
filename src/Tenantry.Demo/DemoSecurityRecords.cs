@@ -37,21 +37,27 @@ public sealed partial class DemoUserRecords : ISecurityRecords
         return methods.ToArray();
     }
 
-    public async Task<Available<IReadOnlyList<SignInEvent>>> GetSignInsAsync(string userId, int days, bool failuresOnly, CancellationToken cancellationToken = default)
+    public async Task<Available<IReadOnlyList<SignInEvent>>> GetSignInsAsync(string userId, SignInQuery query, CancellationToken cancellationToken = default)
     {
         var person = await PersonAsync(userId, cancellationToken);
-        var random = new Random(StableSeed(userId) + 21 + days);
+        var days = query.Days;
+        var background = query.Kind == SignInKind.NonInteractive;
+        var random = new Random(StableSeed(userId) + 21 + days + (background ? 100 : 0));
         string[] apps = ["Outlook", "Microsoft Teams", "OneDrive", "Office 365 portal", "SharePoint Online"];
-        var events = Enumerable.Range(0, Math.Min(60, days * random.Next(2, 6)))
+        string[] clients = ["Browser", "Mobile Apps and Desktop clients", "Mobile Apps and Desktop clients", "Exchange ActiveSync"];
+        var events = Enumerable.Range(0, Math.Min(background ? 300 : 60, days * random.Next(2, 6) * (background ? 8 : 1)))
             .Select(_ =>
             {
                 var failed = random.NextDouble() < 0.08;
+                var client = failed && random.NextDouble() < 0.4 ? "IMAP4" : clients[random.Next(clients.Length)];
                 return new SignInEvent(DateTimeOffset.UtcNow.AddMinutes(-random.Next(days * 24 * 60)), apps[random.Next(apps.Length)],
-                    failed && random.NextDouble() < 0.5 ? "Lagos, NG" : "Springfield, US", $"203.0.113.{random.Next(2, 250)}", !failed,
+                    failed && random.NextDouble() < 0.5 ? "Lagos, NG" : random.NextDouble() < 0.85 ? "Springfield, US" : "Albany, US",
+                    $"203.0.113.{random.Next(2, 250)}", !failed,
                     failed ? "Invalid username or password." : null, random.NextDouble() < 0.6 ? "Windows 11 · Edge" : "iOS · Outlook",
-                    failed ? null : "Conditional Access passed", failed ? null : person.Security?.MfaRegistered == true ? "MFA requirement satisfied by claim in the token" : null);
+                    failed ? null : "Conditional Access passed", failed ? null : person.Security?.MfaRegistered == true ? "MFA requirement satisfied by claim in the token" : null,
+                    client, client == "IMAP4" ? false : person.Security?.MfaRegistered);
             })
-            .Where(e => !failuresOnly || !e.Succeeded)
+            .Where(e => query.Result switch { SignInResult.Failed => !e.Succeeded, SignInResult.Succeeded => e.Succeeded, _ => true })
             .OrderByDescending(e => e.When)
             .ToArray();
         return new(events);

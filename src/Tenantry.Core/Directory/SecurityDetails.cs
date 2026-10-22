@@ -36,8 +36,39 @@ public sealed record UserSecurity(bool MfaRegistered, bool IsAdmin, IReadOnlyLis
 public sealed record AuthMethod(string Id, string Segment, string Kind, string? Detail, DateTimeOffset? Added, bool Removable);
 
 /// <summary>One sign-in from the sign-in log (Entra ID P1).</summary>
+/// <param name="ClientApp">Entra's client app ("Browser", "Mobile Apps and Desktop clients", "IMAP4"…).</param>
+/// <param name="MultiFactor">Whether the sign-in needed more than a password; null when the log doesn't say.</param>
 public sealed record SignInEvent(DateTimeOffset When, string App, string? Location, string? IpAddress, bool Succeeded, string? Problem,
-    string? Device, string? ConditionalAccess, string? Detail);
+    string? Device, string? ConditionalAccess, string? Detail, string? ClientApp = null, bool? MultiFactor = null)
+{
+    /// <summary>The client as a person reads it; the old protocols (which often skip MFA) named as such.</summary>
+    public string ClientKind => ClientApp switch
+    {
+        null or "" => "Unknown",
+        "Browser" => "Browser",
+        "Mobile Apps and Desktop clients" => "Apps and desktop clients",
+        var other => $"Legacy: {other}",
+    };
+}
+
+public enum SignInKind
+{
+    /// <summary>A person signed in (typed a password, approved a prompt).</summary>
+    Interactive,
+
+    /// <summary>Apps refreshing their access in the background: most of the traffic, and where stolen tokens show.</summary>
+    NonInteractive,
+}
+
+public enum SignInResult
+{
+    All,
+    Succeeded,
+    Failed,
+}
+
+/// <summary>What the sign-in log is asked for; the rest of the filtering happens on what comes back.</summary>
+public sealed record SignInQuery(int Days, SignInKind Kind = SignInKind.Interactive, SignInResult Result = SignInResult.All);
 
 /// <summary>A directory role held directly (Entra roles; not Azure resource roles).</summary>
 /// <param name="Scope">"The whole organization", or the administrative unit it's limited to.</param>
@@ -77,7 +108,11 @@ public interface ISecurityRecords
 {
     Task<IReadOnlyList<AuthMethod>> GetAuthMethodsAsync(string userId, CancellationToken cancellationToken = default);
 
-    Task<Available<IReadOnlyList<SignInEvent>>> GetSignInsAsync(string userId, int days, bool failuresOnly, CancellationToken cancellationToken = default);
+    /// <summary>The latest sign-ins matching the query (up to <see cref="SignInLimit"/>).</summary>
+    Task<Available<IReadOnlyList<SignInEvent>>> GetSignInsAsync(string userId, SignInQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>How many sign-ins one query brings back at most.</summary>
+    const int SignInLimit = 500;
 
     Task<Available<UserRisk>> GetRiskAsync(string userId, CancellationToken cancellationToken = default);
 

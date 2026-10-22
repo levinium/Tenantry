@@ -115,8 +115,18 @@ public sealed class SecurityTests
                 new("a1", "microsoftAuthenticatorMethods", "Microsoft Authenticator", "iPhone", null, true),
                 new("p1", "phoneMethods", "Phone", "+1 2065551234 (mobile)", null, true),
             ]);
-        public Task<Available<IReadOnlyList<SignInEvent>>> GetSignInsAsync(string userId, int days, bool failuresOnly, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new Available<IReadOnlyList<SignInEvent>>([]));
+        public SignInQuery? LastQuery { get; private set; }
+
+        public Task<Available<IReadOnlyList<SignInEvent>>> GetSignInsAsync(string userId, SignInQuery query, CancellationToken cancellationToken = default)
+        {
+            LastQuery = query;
+            return Task.FromResult(new Available<IReadOnlyList<SignInEvent>>(
+            [
+                new(DateTimeOffset.Now, "Outlook", "Springfield, US", "203.0.113.5", true, null, "Windows", null, null, "Browser", true),
+                new(DateTimeOffset.Now, "Outlook", "Lagos, NG", "198.51.100.7", false, "Invalid password", null, null, null, "IMAP4", false),
+                new(DateTimeOffset.Now, "Teams", "Springfield, US", "203.0.113.6", true, null, "iOS", null, null, "Mobile Apps and Desktop clients", true),
+            ]));
+        }
         public Task<Available<UserRisk>> GetRiskAsync(string userId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Available<UserRisk>.Because("Needs Microsoft Entra ID P2."));
         public Task<(IReadOnlyList<RoleHeld> Active, Available<IReadOnlyList<RoleHeld>> Eligible)> GetRolesAsync(string userId, CancellationToken cancellationToken = default) =>
@@ -193,6 +203,38 @@ public sealed class SecurityTests
         Assert.Equal(2, pipeline.Pending.Count(c => c.IsCaution));
         Assert.True(tab.Roles.Single().IsRevoking);
         Assert.Equal("No roles they can activate.", tab.EligibleText);
+    }
+
+    [Fact]
+    public async Task Sign_ins_narrow_by_place_client_and_search_and_type_and_result_go_to_the_log()
+    {
+        var pipeline = new ChangePipeline(new Noop(), new ChangeLog(new MemoryEntityStore()), new MemoryTestModeStore(true), "admin");
+        var records = new Records();
+        var view = new UserDetailViewModel(Person(null), pipeline: pipeline, canEdit: Availability.Yes, records: records);
+        var tab = view.Sections.OfType<SecuritySection>().Single();
+        tab.SelectedPage = SecurityPage.SignIns;
+        await tab.LoadAsync(Ct);
+
+        Assert.Equal(["Anywhere", "Springfield, US (2)", "Lagos, NG (1)"], tab.LocationOptions.Select(o => o.Label));
+        Assert.Contains(tab.ClientOptions, o => o.Value == "Legacy: IMAP4");
+
+        tab.SelectedLocation = tab.LocationOptions.Single(o => o.Value == "Springfield, US");
+        Assert.Equal(2, tab.SignIns.Count);
+        Assert.StartsWith("Showing 2 of 3", tab.SignInsSummary);
+        tab.SignInSearch = "198.51";
+        Assert.Empty(tab.SignIns);
+
+        tab.ClearSignInFiltersCommand.Execute(null);
+        tab.SelectedClient = tab.ClientOptions.Single(o => o.Value == "Legacy: IMAP4");
+        Assert.True(Assert.Single(tab.SignIns).IsLegacy);
+
+        tab.SignInKind = "Non-interactive";
+        tab.SignInResult = "Failed";
+        for (var i = 0; i < 50 && records.LastQuery?.Result != SignInResult.Failed; i++)
+            await Task.Delay(10, Ct);
+        Assert.Equal(new SignInQuery(7, SignInKind.NonInteractive, SignInResult.Failed), records.LastQuery);
+        // The chosen client is still there after the reload, so it stays chosen.
+        Assert.Equal("Legacy: IMAP4", tab.SelectedClient!.Value);
     }
 
     [Fact]
