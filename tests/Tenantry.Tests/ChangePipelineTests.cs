@@ -345,6 +345,55 @@ public class ChangePipelineTests
         Assert.Equal("Usage location: GB → US", Assert.Single(pipeline.Pending).Summary);
     }
 
+    [Theory]
+    [InlineData("Short1!", "at least 8")]
+    [InlineData("alllowercase", "three of")]
+    [InlineData(" Padded-Pass1", "space")]
+    [InlineData("Summer-2026", null)]
+    [InlineData("lower case 99", null)]
+    public void A_typed_password_is_checked_against_Entras_rules(string password, string? problem)
+    {
+        var found = TemporaryPassword.Problem(password);
+        if (problem is null)
+            Assert.Null(found);
+        else
+            Assert.Contains(problem, found);
+    }
+
+    [Fact]
+    public async Task A_password_the_admin_types_is_sent_but_never_logged_printed_or_shown_back()
+    {
+        string? sent = null;
+        var (pipeline, _, log) = Pipeline(testMode: true, change =>
+        {
+            sent = (change as ResetPassword)?.Chosen;
+            return new ApplyResult(ChangeOutcome.Applied, "Password set.");
+        });
+        Tenantry.ViewModels.Records.DialogViewModel? dialog = null;
+        var tray = new PendingChangesViewModel(pipeline, "Contoso", showTestMode: true, () => Task.CompletedTask);
+        var page = new UserDetailViewModel(User(), pipeline: pipeline, canEdit: Availability.Yes, openDialog: d => dialog = d, closeDialog: () => dialog = null);
+        page.ResetPasswordCommand.Execute(null);
+        var reset = Assert.IsType<Tenantry.ViewModels.Records.ResetPasswordViewModel>(dialog!.Content);
+
+        reset.TypeOwn = true;
+        reset.Password = "weakpass";
+        Assert.True(reset.HasProblem);
+        Assert.False(reset.StageCommand.CanExecute(null));
+        reset.Password = "Typed-Secret-77";
+        reset.StageCommand.Execute(null);
+
+        var staged = Assert.IsType<ResetPassword>(pipeline.Pending.Single());
+        Assert.DoesNotContain("Typed-Secret", staged.Summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("Typed-Secret", staged.ToString(), StringComparison.Ordinal);
+        await tray.ApplyCommand.ExecuteAsync(null);
+        await tray.ApplyCommand.ExecuteAsync(null);
+
+        Assert.Equal("Typed-Secret-77", sent);
+        Assert.Empty(tray.Reveals);
+        Assert.DoesNotContain("Typed-Secret", System.Text.Json.JsonSerializer.Serialize(log.All()), StringComparison.Ordinal);
+        Assert.Null(Assert.IsType<ResetPassword>(log.All().Single().Change).Chosen);
+    }
+
     [Fact]
     public async Task A_reset_password_is_shown_once_and_never_logged()
     {

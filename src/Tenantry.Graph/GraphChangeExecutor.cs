@@ -94,7 +94,7 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
     /// </summary>
     async Task<ApplyResult> ResetPasswordAsync(ResetPassword reset, CancellationToken cancellationToken)
     {
-        var password = TemporaryPassword.Create();
+        var password = reset.Chosen ?? TemporaryPassword.Create();
         try
         {
             await graph.PatchAsync($"users/{reset.User.Id}", new JsonObject
@@ -105,7 +105,8 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
                     ["forceChangePasswordNextSignIn"] = reset.MustChangeAtNextSignIn,
                 },
             }, cancellationToken);
-            return new ApplyResult(ChangeOutcome.Applied, Reveal: password);
+            // A password the admin chose isn't shown back: they know it.
+            return reset.Chosen is null ? new ApplyResult(ChangeOutcome.Applied, Reveal: password) : new ApplyResult(ChangeOutcome.Applied, "Password set.");
         }
         catch (GraphException e)
         {

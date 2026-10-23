@@ -131,16 +131,24 @@ public sealed record SetUserText(ChangeTarget User, string Property, string Prop
 /// Gives the user a new temporary password. The password itself is shown once to the admin
 /// after applying and is never stored (not in the tray, the change log, or the local copy).
 /// </summary>
-public sealed record ResetPassword(ChangeTarget User, bool MustChangeAtNextSignIn) : ChangeOp
+/// <param name="Chosen">
+/// A password the admin typed, or null to generate one (shown once after applying). A typed one
+/// is kept in memory only: never serialized into the change log, never in a summary or ToString.
+/// </param>
+public sealed record ResetPassword(ChangeTarget User, bool MustChangeAtNextSignIn, [property: JsonIgnore] string? Chosen = null) : ChangeOp
 {
     public override ChangeTarget Target => User;
     public override string Key => "password";
     public override string Label => "Password";
     public override string Before => "Current password";
-    public override string After => MustChangeAtNextSignIn ? "New temporary password (must change at next sign-in)" : "New password";
+    public override string After => (Chosen is null ? "A new generated password" : "A password you chose")
+        + (MustChangeAtNextSignIn ? " (they change it at next sign-in)" : "");
     public override bool IsCaution => true;
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;
+
+    /// <summary>Never prints the password (a record's ToString would list every property).</summary>
+    public override string ToString() => Summary;
 }
 
 /// <summary>Gives or takes away one license (assignLicense). Taking one away is a caution change.</summary>

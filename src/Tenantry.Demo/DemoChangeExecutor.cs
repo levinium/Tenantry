@@ -48,7 +48,7 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
                 })),
             SetLicenseApps a => Remember(() => records?.RememberApps(a.User.Id, a.SkuId, a.NewDisabled)),
             RemoveAppAssignment r => Remember(() => records?.RememberRemovedApp(r.AssignmentId)),
-            ResetPassword => new ApplyResult(ChangeOutcome.Applied, Reveal: TemporaryPassword.Create()),
+            ResetPassword r => r.Chosen is null ? new ApplyResult(ChangeOutcome.Applied, Reveal: TemporaryPassword.Create()) : new ApplyResult(ChangeOutcome.Applied, "Password set (demo)."),
             RevokeSessions => new ApplyResult(ChangeOutcome.Applied, "Signed out of every session (demo)."),
             SetManager m => Remember(() => records?.RememberManager(m.User.Id, m.NewId)),
             SetGroupMembership m => Done(directory.UpdateGroup(m.Group.Id, g => m.Role == GroupRole.Owner
