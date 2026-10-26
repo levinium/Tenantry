@@ -43,7 +43,7 @@ public class DataListViewModelTests
         var (list, _) = await Loaded();
 
         Assert.Equal(["Ada", "Alan", "Grace", "Guest, Pat", "Linus"], Names(list));
-        Assert.Equal("All users", list.CurrentViewName);
+        Assert.Equal("All Users", list.CurrentViewName);
         var counts = list.Views.ToDictionary(v => v.View.Id, v => v.Count);
         Assert.Equal(5, counts["all"]);
         Assert.Equal(1, counts["blocked"]);
@@ -67,7 +67,7 @@ public class DataListViewModelTests
 
         Assert.DoesNotContain("Grace", Names(list));
         Assert.Equal("Status: not Blocked", list.Pills.Single().Text);
-        Assert.Equal("All users (changed)", list.CurrentViewName);
+        Assert.Equal("All Users (changed)", list.CurrentViewName);
 
         list.Pills.Single().RemoveCommand.Execute(null);
         Assert.Contains("Grace", Names(list));
@@ -124,7 +124,7 @@ public class DataListViewModelTests
         Assert.Equal((1, true), (dept.SortPriority, dept.ShowPriority));
         Assert.Equal((2, "2"), (name.SortPriority, name.PriorityText));
         Assert.Equal(["Alan", "Grace", "Linus", "Ada", "Guest, Pat"], Names(list));
-        Assert.Equal("Sort: 2 levels", list.SortSummary);
+        Assert.Equal("Sort: 2 Levels", list.SortSummary);
     }
 
     [Fact]
@@ -135,10 +135,10 @@ public class DataListViewModelTests
         list.AddSortByColumn(list.Columns.Single(c => c.Key == F.LastSignIn));
         list.AddSortByColumn(list.Columns.Single(c => c.Key == F.LastSignIn));   // flips to newest first
 
-        Assert.Equal(["1. Department, A → Z", "2. Last sign-in, newest first"], list.SortPills.Select(p => p.Text));
+        Assert.Equal(["1. Department, A → Z", "2. Last Sign-In, newest first"], list.SortPills.Select(p => p.Text));
 
         list.SortPills[0].RemoveCommand.Execute(null);
-        Assert.Equal(["Last sign-in, newest first"], list.SortPills.Select(p => p.Text));
+        Assert.Equal(["Last Sign-In, newest first"], list.SortPills.Select(p => p.Text));
 
         list.ClearSort();
         Assert.False(list.HasSort);
@@ -168,8 +168,8 @@ public class DataListViewModelTests
         list.SortLevels[1].Field = list.SortFields.Single(f => f.Key == F.LastSignIn);
         list.SortLevels[1].Descending = true;
         list.MoveSortLevelUpCommand.Execute(list.SortLevels[1]);
-        Assert.Equal(("Sort by", "Then by"), (list.SortLevels[0].LevelText, list.SortLevels[1].LevelText));
-        Assert.Equal("Newest first", list.SortLevels[0].DirectionText);
+        Assert.Equal(("Sort By", "Then By"), (list.SortLevels[0].LevelText, list.SortLevels[1].LevelText));
+        Assert.Equal("Newest First", list.SortLevels[0].DirectionText);
         list.ApplySort();
 
         Assert.Equal(["Ada", "Linus", "Alan", "Grace", "Guest, Pat"], Names(list));
@@ -224,7 +224,7 @@ public class DataListViewModelTests
         date.DaysText = "100";
         list.ApplyFilter();
         Assert.Equal(["Alan", "Grace"], Names(list));
-        Assert.Equal("Last sign-in: over 100 days ago", list.Pills.Single().Text);
+        Assert.Equal("Last Sign-In: over 100 days ago", list.Pills.Single().Text);
 
         list.EditFilter(FieldOf(list, F.LicenseCount));
         ((NumberFilterEditor)list.Editor!).MinText = "2";
@@ -273,8 +273,8 @@ public class DataListViewModelTests
         var store = new MemoryListStateStore();
         var (list, _) = await Loaded(store);
 
-        Assert.Equal(["All users", "Members", "Guests", "Sign-in blocked"], list.ChipViews.Select(v => v.Name));
-        Assert.Equal("More views (17)", list.MoreViewsText);
+        Assert.Equal(["All Users", "Members", "Guests", "Sign-In Blocked"], list.ChipViews.Select(v => v.Name));
+        Assert.Equal("More Views (17)", list.MoreViewsText);
 
         // An unpinned view shows as a chip while it's the current one.
         list.ApplyView(list.MoreViews.Single(v => v.View.Id == "inactive"));
@@ -311,7 +311,7 @@ public class DataListViewModelTests
         var second = list.SortLevels[1];
         list.MoveSortLevelTo(second, 0);
         Assert.Same(second, list.SortLevels[0]);
-        Assert.Equal("Sort by", second.LevelText);
+        Assert.Equal("Sort By", second.LevelText);
     }
 
     [Fact]
@@ -357,13 +357,13 @@ public class DataListViewModelTests
         var alan = list.Rows[1];
 
         var menu = list.MenuFor(alan);
-        Assert.Equal(["Open", "Show in preview"], menu.Take(2).Select(m => m.Label));
+        Assert.Equal(["Open", "Show in Preview"], menu.Take(2).Select(m => m.Label));
         menu[1].Run!();
         Assert.True(list.IsPreviewOpen);
         Assert.Same(alan, list.SelectedRow);
-        Assert.Contains(menu, m => m.Label == "Open in Entra admin center");
-        Assert.Equal("E5; Visio", menu.Single(m => m.Label == "Copy licenses").CopyText);
-        Assert.Equal("alan@contoso.example", menu.Single(m => m.Label == "Copy address").CopyText);
+        Assert.Contains(menu, m => m.Label == "Open in Entra Admin Center");
+        Assert.Equal("E5; Visio", menu.Single(m => m.Label == "Copy Licenses").CopyText);
+        Assert.Equal("alan@contoso.example", menu.Single(m => m.Label == "Copy Address").CopyText);
     }
 
     [Fact]
@@ -376,7 +376,7 @@ public class DataListViewModelTests
         list.ExportCsv(writer);
         var lines = writer.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
 
-        Assert.Equal("Name,Name (detail),Department,Job title,Status,Type,Licenses,Last sign-in", lines[0]);
+        Assert.Equal("Name,Name (detail),Department,Job Title,Status,Type,Licenses,Last Sign-In", lines[0]);
         Assert.Equal(2, lines.Length);
         // Commas inside values are quoted; empty department, title, licenses and sign-in stay empty.
         Assert.Equal("\"Guest, Pat\",\"guest, pat@contoso.example\",,,Active,Guest,,", lines[1]);

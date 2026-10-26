@@ -161,13 +161,13 @@ public sealed partial class AccountSection : RecordSection, IDisposable
         [
             new("Name", "Person",
             [
-                Field("First name", "givenName"),
-                Field("Last name", "surname"),
-                Field("Display name", "displayName", required: true, hint: "How the name appears in Outlook, Teams and the address list."),
+                Field("First Name", "givenName"),
+                Field("Last Name", "surname"),
+                Field("Display Name", "displayName", required: true, hint: "How the name appears in Outlook, Teams and the address list."),
             ]),
             new("Work", "Briefcase",
             [
-                Field("Job title", "jobTitle"),
+                Field("Job Title", "jobTitle"),
                 Field("Department", "department"),
                 Field("Company", "companyName"),
                 Field("Employee ID", "employeeId"),
@@ -175,22 +175,22 @@ public sealed partial class AccountSection : RecordSection, IDisposable
             ]),
             new("Contact", "Call",
             [
-                Field("Work phone", "businessPhones"),
-                Field("Mobile phone", "mobilePhone"),
+                Field("Work Phone", "businessPhones"),
+                Field("Mobile Phone", "mobilePhone"),
             ]),
             new("Address", "Location",
             [
                 Field("Street", "streetAddress"),
                 Field("City", "city"),
-                Field("State or province", "state"),
-                Field("Postal code", "postalCode"),
-                Field("Country or region", "country"),
+                Field("State or Province", "state"),
+                Field("Postal Code", "postalCode"),
+                Field("Country or Region", "country"),
             ]),
-            new("Sign-in and licensing", "Key",
+            new("Sign-In and Licensing", "Key",
             [
-                Field("Sign-in name", "userPrincipalName", required: true, validate: upn => ValidateSignInName(upn, domains),
+                Field("Sign-In Name", "userPrincipalName", required: true, validate: upn => ValidateSignInName(upn, domains),
                     hint: "Changing it changes how they sign in everywhere; their old name stops working."),
-                Field("Usage location", "usageLocation", choices: countries,
+                Field("Usage Location", "usageLocation", choices: countries,
                     hint: "The country they use Microsoft 365 in. Required before licenses can be assigned."),
             ]),
         ];

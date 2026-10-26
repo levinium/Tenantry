@@ -16,12 +16,12 @@
 
         <StackPanel Grid.Column="1" VerticalAlignment="Center">
           <TextBlock Classes="h2" Text="Tenantry" />
-          <TextBlock Classes="caption" Text="Microsoft 365 administration" />
+          <TextBlock Classes="caption" Text="Microsoft 365 Administration" />
         </StackPanel>
         <Button Grid.Column="2" Classes="accent" VerticalAlignment="Center" Command="{Binding AddTenantCommand}">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <ic:FluentIcon Icon="Add" FontSize="16" />
-            <TextBlock Text="Add tenant" />
+            <TextBlock Text="Add Tenant" />
           </StackPanel>
         </Button>
       </Grid>
@@ -30,7 +30,7 @@
       <Border Classes="banner info" IsVisible="{Binding IsBusy}">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
           <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Status}" />
-          <Button Grid.Column="1" Content="Cancel sign-in" Command="{Binding CancelSignInCommand}" />
+          <Button Grid.Column="1" Content="Cancel Sign-In" Command="{Binding CancelSignInCommand}" />
         </Grid>
       </Border>
       <Border Classes="banner error" IsVisible="{Binding Error, Converter={x:Static ObjectConverters.IsNotNull}}">
@@ -88,20 +88,20 @@
                               <ic:FluentIcon Icon="Open" FontSize="14" />
                             </MenuItem.Icon>
                           </MenuItem>
-                          <MenuItem Header="Open at startup (make default)" IsVisible="{Binding !IsDefault}"
+                          <MenuItem Header="Open at Startup (Make Default)" IsVisible="{Binding !IsDefault}"
                                     Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).SetDefaultCommand}" CommandParameter="{Binding}">
                             <MenuItem.Icon>
                               <ic:FluentIcon Icon="Star" FontSize="14" />
                             </MenuItem.Icon>
                           </MenuItem>
-                          <MenuItem Header="Stop opening at startup" IsVisible="{Binding IsDefault}"
+                          <MenuItem Header="Stop Opening at Startup" IsVisible="{Binding IsDefault}"
                                     Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).ClearDefaultCommand}" CommandParameter="{Binding}">
                             <MenuItem.Icon>
                               <ic:FluentIcon Icon="Star" FontSize="14" />
                             </MenuItem.Icon>
                           </MenuItem>
                           <Separator />
-                          <MenuItem Header="Remove from this computer…" Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).AskRemoveCommand}" CommandParameter="{Binding}">
+                          <MenuItem Header="Remove from This Computer…" Command="{Binding #Root.((vm:WelcomeViewModel)DataContext).AskRemoveCommand}" CommandParameter="{Binding}">
                             <MenuItem.Icon>
                               <ic:FluentIcon Icon="Delete" FontSize="14" />
                             </MenuItem.Icon>
@@ -133,17 +133,17 @@
       <Border Classes="card" IsVisible="{Binding HasNoProfiles}" Padding="32">
         <StackPanel Spacing="10" HorizontalAlignment="Center">
           <ic:FluentIcon Icon="Organization" FontSize="36" Foreground="{DynamicResource Accent}" HorizontalAlignment="Center" />
-          <TextBlock Classes="h3" HorizontalAlignment="Center" Text="No tenants yet" />
+          <TextBlock Classes="h3" HorizontalAlignment="Center" Text="No Tenants Yet" />
           <TextBlock Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="420"
                      Text="Add a Microsoft 365 tenant you administer. Tenantry walks you through connecting it." />
-          <Button Classes="accent" HorizontalAlignment="Center" Content="Add tenant" Command="{Binding AddTenantCommand}" />
+          <Button Classes="accent" HorizontalAlignment="Center" Content="Add Tenant" Command="{Binding AddTenantCommand}" />
         </StackPanel>
       </Border>
 
       <!-- The demo, out of the way -->
       <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
         <TextBlock Classes="caption" VerticalAlignment="Center" Text="Want to look around first?" />
-        <Button Classes="link" Command="{Binding OpenDemoCommand}" Content="Explore the demo tenant" />
+        <Button Classes="link" Command="{Binding OpenDemoCommand}" Content="Explore the Demo Tenant" />
       </StackPanel>
     </StackPanel>
   </ScrollViewer>

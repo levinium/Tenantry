@@ -203,7 +203,7 @@ public sealed class BulkEditTests
     [Fact]
     public async Task Licenses_are_added_only_where_missing_and_shortfalls_are_flagged()
     {
-        var add = Action(BulkActions.ForUsers(() => [Ada, Bo, Cy], new Index(), new Records()), "Add a license");
+        var add = Action(BulkActions.ForUsers(() => [Ada, Bo, Cy], new Index(), new Records()), "Add a License");
         await add.LoadAsync(Ct);
         add.Choice = add.Choices.Single(c => ((LicenseSku)c.Value).SkuId == "sku-e3");
 
@@ -217,7 +217,7 @@ public sealed class BulkEditTests
     [Fact]
     public async Task Removing_a_license_only_offers_ones_they_hold()
     {
-        var remove = Action(BulkActions.ForUsers(() => [Ada, Bo], new Index(), new Records()), "Remove a license");
+        var remove = Action(BulkActions.ForUsers(() => [Ada, Bo], new Index(), new Records()), "Remove a License");
         await remove.LoadAsync(Ct);
 
         Assert.Equal(["Microsoft 365 E3"], remove.Choices.Select(c => c.Label));
@@ -228,11 +228,11 @@ public sealed class BulkEditTests
     public async Task Group_and_mailbox_actions_skip_people_already_there()
     {
         var actions = BulkActions.ForUsers(() => [Ada, Bo, Cy], new Index(), new Records());
-        var join = Action(actions, "Add to a group");
+        var join = Action(actions, "Add to a Group");
         join.Picker!.Query = "test";
         Assert.DoesNotContain(join.Picker.Results, r => r.Id == "g3");
         join.Picker.PickCommand.Execute(join.Picker.Results.Single(r => r.Id == "g1"));
-        var access = Action(actions, "Give access to a shared mailbox");
+        var access = Action(actions, "Give Access to a Shared Mailbox");
         access.Picked = PickOption.Of(Shared);
         access.Choice = access.Choices.Single(c => (MailboxRight)c.Value == MailboxRight.FullAccess);
 
@@ -247,8 +247,8 @@ public sealed class BulkEditTests
     [Fact]
     public async Task Sign_in_skips_accounts_already_that_way()
     {
-        var block = Action(BulkActions.ForUsers(() => [Ada, Bo], new Index(), new Records()), "Block or allow sign-in");
-        block.Choice = block.Choices.Single(c => c.Label == "Block sign-in");
+        var block = Action(BulkActions.ForUsers(() => [Ada, Bo], new Index(), new Records()), "Block or Allow Sign-In");
+        block.Choice = block.Choices.Single(c => c.Label == "Block Sign-In");
 
         var plan = await block.PlanAsync(Ct);
 
@@ -262,9 +262,9 @@ public sealed class BulkEditTests
     public async Task Group_bulk_skips_mailboxes_dynamic_groups_and_last_owners()
     {
         var actions = BulkActions.ForGroups(() => [Team, Second, Dynamic, Shared], new Index());
-        var addMember = Action(actions, "Add a member");
+        var addMember = Action(actions, "Add a Member");
         addMember.Picked = PickOption.Of(Cy);
-        var removeOwner = Action(actions, "Remove an owner");
+        var removeOwner = Action(actions, "Remove an Owner");
         removeOwner.Picker!.Query = "ada";
         removeOwner.Picker.PickCommand.Execute(removeOwner.Picker.Results.Single());
 
@@ -288,9 +288,9 @@ public sealed class BulkEditTests
         var editor = new BulkEditorViewModel("Edit 3 users", BulkActions.ForUsers(() => [Ada, Bo, Cy], new Index(), new Records()), pipeline, () => closed = true);
         Assert.False(editor.StageCommand.CanExecute(null));
 
-        editor.Selected = Action(editor.Actions, "Sign out everywhere");
-        Assert.True(Action(editor.Actions, "Sign out everywhere").IsSelected);
-        Assert.Equal("Add to Pending changes (takes something away)", editor.StageText);
+        editor.Selected = Action(editor.Actions, "Sign Out Everywhere");
+        Assert.True(Action(editor.Actions, "Sign Out Everywhere").IsSelected);
+        Assert.Equal("Add to Pending Changes (Takes Something Away)", editor.StageText);
         await editor.StageCommand.ExecuteAsync(null);
 
         Assert.Equal(3, pipeline.Pending.Count);
@@ -322,7 +322,7 @@ public sealed class BulkEditTests
         Assert.Equal("SELECTION", list.PaneTitle);
         var panel = Assert.IsType<SelectionPanelViewModel>(list.PreviewModel);
         Assert.Equal("2 users selected", panel.Heading);
-        Assert.Equal("Sign-in", panel.Summary[1].Label);
+        Assert.Equal("Sign-In", panel.Summary[1].Label);
         Assert.Equal("1 allowed · 1 blocked", panel.Summary[1].Value);
         Assert.DoesNotContain(panel.Bulk!.Actions, a => a.Title == "Set a detail");
 

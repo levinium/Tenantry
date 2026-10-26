@@ -29,15 +29,15 @@ public static class GroupList
         View("all", "All"),
         View("m365", "Microsoft 365", Is(F.Type, Kind(GroupKind.Microsoft365))),
         View("security", "Security", new ChoiceCondition(F.Type, [Kind(GroupKind.Security), Kind(GroupKind.MailEnabledSecurity)], [])),
-        View("distribution", "Distribution lists", Is(F.Type, Kind(GroupKind.Distribution))),
-        View("shared", "Shared mailboxes", Is(F.Type, Kind(GroupKind.SharedMailbox))),
-        View("rooms", "Rooms & equipment", new ChoiceCondition(F.Type, [Kind(GroupKind.RoomMailbox), Kind(GroupKind.EquipmentMailbox)], [])),
-        View("groups", "Groups only", new ChoiceCondition(F.Type, GroupKinds, [])),
+        View("distribution", "Distribution Lists", Is(F.Type, Kind(GroupKind.Distribution))),
+        View("shared", "Shared Mailboxes", Is(F.Type, Kind(GroupKind.SharedMailbox))),
+        View("rooms", "Rooms & Equipment", new ChoiceCondition(F.Type, [Kind(GroupKind.RoomMailbox), Kind(GroupKind.EquipmentMailbox)], [])),
+        View("groups", "Groups Only", new ChoiceCondition(F.Type, GroupKinds, [])),
         View("teams", "Teams", Is(F.Team, F.Yes)),
-        View("dynamic", "Dynamic membership", Is(F.Membership, F.Dynamic)),
-        View("empty", "Empty groups", new ChoiceCondition(F.Type, GroupKinds, []), new NumberCondition(F.Members, null, 0)),
-        View("nobody", "Shared mailboxes nobody can use", Is(F.Type, Kind(GroupKind.SharedMailbox)), new NumberCondition(F.Members, null, 0)),
-        View("public", "Public Microsoft 365 groups", Is(F.Type, Kind(GroupKind.Microsoft365)), Is(F.Visibility, "Public")),
+        View("dynamic", "Dynamic Membership", Is(F.Membership, F.Dynamic)),
+        View("empty", "Empty Groups", new ChoiceCondition(F.Type, GroupKinds, []), new NumberCondition(F.Members, null, 0)),
+        View("nobody", "Shared Mailboxes Nobody Can Use", Is(F.Type, Kind(GroupKind.SharedMailbox)), new NumberCondition(F.Members, null, 0)),
+        View("public", "Public Microsoft 365 Groups", Is(F.Type, Kind(GroupKind.Microsoft365)), Is(F.Visibility, "Public")),
     ];
 
     public static (string Text, BadgeKind Kind) TypeBadge(GroupKind kind) => kind switch
@@ -61,7 +61,7 @@ public static class GroupList
         Actions =
         [
             // Mailboxes: the Exchange admin center's mailbox list (it has no stable link to one mailbox).
-            new RowAction<GroupSummary>("Open in admin center", "Globe",
+            new RowAction<GroupSummary>("Open in Admin Center", "Globe",
                 g => Platform.OpenUrl(g.IsMailbox
                     ? "https://admin.exchange.microsoft.com/#/mailboxes"
                     : $"https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/{g.Id}")),

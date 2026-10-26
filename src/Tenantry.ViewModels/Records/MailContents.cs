@@ -128,7 +128,7 @@ public sealed partial class DeletedRow(DeletedItem item, bool restoring, bool ca
         .Where(s => !string.IsNullOrEmpty(s)));
     public bool IsRestoring => restoring;
     public bool CanEdit => canEdit;
-    public string RestoreText => restoring ? "Undo restore" : "Restore";
+    public string RestoreText => restoring ? "Undo Restore" : "Restore";
 
     [RelayCommand]
     void Toggle() => toggle();
@@ -144,9 +144,9 @@ public sealed partial class TraceRow(TracedMessage message, TraceDirection direc
     /// <summary>Exchange's status, as words ("FilteredAsSpam" reads "Filtered as spam").</summary>
     public string Status => message.Status switch
     {
-        "FilteredAsSpam" => "Filtered as spam",
-        "GettingStatus" => "Getting status",
-        "Expanded" => "Sent to a group",
+        "FilteredAsSpam" => "Filtered as Spam",
+        "GettingStatus" => "Getting Status",
+        "Expanded" => "Sent to a Group",
         var status => status,
     };
 
@@ -332,7 +332,7 @@ public sealed partial class MailSection
             Rules.Add(new RuleRow(rule, enabled, pending switch
                 {
                     RemoveInboxRule => "Deleting",
-                    SetInboxRuleEnabled p => p.New ? "Turning on" : "Turning off",
+                    SetInboxRuleEnabled p => p.New ? "Turning On" : "Turning Off",
                     _ => null,
                 }, pending is RemoveInboxRule, CanEdit, rule.ForwardsTo.Any(a => !IsInternal(StripName(a))),
                 on => _pipeline?.Stage(new SetInboxRuleEnabled(Target, captured.Identity, captured.Name, captured.Enabled, on)),
@@ -394,8 +394,8 @@ public sealed partial class MailSection
 
     static string Describe(FolderPermission p) => p.User switch
     {
-        "Default" => "Everyone in the organization",
-        "Anonymous" => "People outside the organization",
+        "Default" => "Everyone in the Organization",
+        "Anonymous" => "People Outside the Organization",
         _ => p.User,
     };
 
@@ -480,7 +480,7 @@ public sealed partial class MailSection
             var pendingText = string.Join(", ", new[] { access, action }.OfType<SetMobileDevice>().Select(p => p.Action switch
             {
                 DeviceAction.Wipe => "Wiping",
-                DeviceAction.WipeAccountOnly => "Removing work data",
+                DeviceAction.WipeAccountOnly => "Removing Work Data",
                 DeviceAction.Block => "Blocking",
                 DeviceAction.Unblock => "Unblocking",
                 _ => "Removing",
@@ -610,7 +610,7 @@ public sealed partial class MailSection
         ? "Shared mailbox: people get access from Groups & access, and it needs no license up to 50 GB."
         : "User mailbox: this person's own mail.";
 
-    public string ConvertText => IsSharedMailbox ? "Convert to a user mailbox…" : "Convert to a shared mailbox…";
+    public string ConvertText => IsSharedMailbox ? "Convert to a User Mailbox…" : "Convert to a Shared Mailbox…";
 
     public string? MailboxTypePendingText => PendingFor("mailboxtype") is { } p ? $"Pending: {p.After.ToLowerInvariant()}" : null;
 

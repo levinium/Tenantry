@@ -32,7 +32,7 @@
             <Button Classes="namelink" HorizontalAlignment="Left" Margin="0,6,0,0" IsVisible="{Binding HasAccount}"
                     Command="{Binding OpenAccountCommand}"
                     ToolTip.Tip="Open the mailbox's account in Users: sign-in, licenses and other account settings">
-              <TextBlock Text="Open the account (sign-in and licenses)" />
+              <TextBlock Text="Open the Account (Sign-In and Licenses)" />
             </Button>
           </StackPanel>
         </Grid>

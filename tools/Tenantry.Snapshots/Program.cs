@@ -525,8 +525,8 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         department.EditCommand.Execute(null);
         department.Draft = "Operations";
         department.StageCommand.ExecuteAsync(null).GetAwaiter().GetResult();
-        panel.Bulk!.ToggleCommand.Execute(panel.Bulk.Actions.Single(a => a.Title == "Add to a group"));
-        panel.Bulk.Actions.Single(a => a.Title == "Add to a group").Picker!.Query = "sg";
+        panel.Bulk!.ToggleCommand.Execute(panel.Bulk.Actions.Single(a => a.Title == "Add to a Group"));
+        panel.Bulk.Actions.Single(a => a.Title == "Add to a Group").Picker!.Query = "sg";
         Render(editing, "bulk-edit-light");
         editing.Pending.DiscardAllCommand.Execute(null);
         editing.Users.ClearSelectionCommand.Execute(null);
@@ -733,14 +733,14 @@ sealed class SnapshotSync : ITenantSync
 
     public IReadOnlyList<SyncArea> Areas =>
     [
-        new("Users", "Everyone in the directory, their licenses and status (changes only)", LastSyncedAt, "Every 10 minutes"),
-        new("Groups", "Groups with their members and owners (changes only)", LastSyncedAt, "Every 10 minutes"),
-        new("Licenses", "The tenant's licenses and how many are left", LastSyncedAt, "Every 10 minutes"),
-        new("Last sign-in times", "When each person last signed in", DateTimeOffset.Now.AddMinutes(-34), "Every hour"),
-        new("Domains and Teams", "The tenant's domains, and which groups are Teams", DateTimeOffset.Now.AddMinutes(-34), "Every hour"),
-        new("Mailboxes", "Mailbox types, addresses, forwarding, address list; who can use shared mailboxes", DateTimeOffset.Now.AddMinutes(-34), "Every hour"),
-        new("Automatic replies", "Whether each mailbox is replying; one read per mailbox, in the background", DateTimeOffset.Now.AddMinutes(-31), "Every hour"),
-        new("Mailbox sizes", "Storage used against the quota; one read per mailbox, in the background", DateTimeOffset.Now.AddMinutes(-91), "Every 4 hours"),
+        new("Users", "Everyone in the directory, their licenses and status (changes only)", LastSyncedAt, "Every 10 Minutes"),
+        new("Groups", "Groups with their members and owners (changes only)", LastSyncedAt, "Every 10 Minutes"),
+        new("Licenses", "The tenant's licenses and how many are left", LastSyncedAt, "Every 10 Minutes"),
+        new("Last Sign-In Times", "When each person last signed in", DateTimeOffset.Now.AddMinutes(-34), "Every Hour"),
+        new("Domains and Teams", "The tenant's domains, and which groups are Teams", DateTimeOffset.Now.AddMinutes(-34), "Every Hour"),
+        new("Mailboxes", "Mailbox types, addresses, forwarding, address list; who can use shared mailboxes", DateTimeOffset.Now.AddMinutes(-34), "Every Hour"),
+        new("Automatic Replies", "Whether each mailbox is replying; one read per mailbox, in the background", DateTimeOffset.Now.AddMinutes(-31), "Every Hour"),
+        new("Mailbox Sizes", "Storage used against the quota; one read per mailbox, in the background", DateTimeOffset.Now.AddMinutes(-91), "Every 4 Hours"),
     ];
 }
 

@@ -171,25 +171,25 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
         {
             var s = Settings;
             string Every(int minutes, string none) => minutes <= 0 ? none : minutes % 60 == 0 && minutes >= 60
-                ? minutes == 60 ? "Every hour" : minutes == 1440 ? "Once a day" : $"Every {minutes / 60} hours"
-                : $"Every {minutes} minutes";
-            var changes = Every(s.ChangesMinutes, "When the tenant opens, and on Refresh");
+                ? minutes == 60 ? "Every Hour" : minutes == 1440 ? "Once a Day" : $"Every {minutes / 60} Hours"
+                : $"Every {minutes} Minutes";
+            var changes = Every(s.ChangesMinutes, "When the Tenant Opens, and on Refresh");
             var details = Every(s.DetailsMinutes, "On Refresh");
             List<SyncArea> areas =
             [
                 new("Users", "Everyone in the directory, their licenses and status (changes only)", store.GetMark(Users)?.SyncedAt, changes),
                 new("Groups", "Groups with their members and owners (changes only)", store.GetMark(GroupsMark)?.SyncedAt, changes),
                 new("Licenses", "The tenant's licenses and how many are left", store.GetMark(Skus)?.SyncedAt, changes),
-                new("Last sign-in times", "When each person last signed in", store.GetMark(SignIns)?.SyncedAt, details),
-                new("MFA registration", "Who has set up multi-factor sign-in, and who holds an admin role", store.GetMark(Registration)?.SyncedAt, details),
+                new("Last Sign-In Times", "When each person last signed in", store.GetMark(SignIns)?.SyncedAt, details),
+                new("MFA Registration", "Who has set up multi-factor sign-in, and who holds an admin role", store.GetMark(Registration)?.SyncedAt, details),
                 new("Domains and Teams", "The tenant's domains, and which groups are Teams", store.GetMark(Domains)?.SyncedAt, details),
             ];
             if (exchange is not null)
             {
                 areas.Add(new("Mailboxes", "Mailbox types, addresses, forwarding, address list; who can use shared mailboxes", store.GetMark(Mailboxes)?.SyncedAt, details));
-                areas.Add(new("Automatic replies", "Whether each mailbox is replying; one read per mailbox, in the background",
+                areas.Add(new("Automatic Replies", "Whether each mailbox is replying; one read per mailbox, in the background",
                     store.GetMark(RepliesMark)?.SyncedAt, Every(s.MailboxDetailsMinutes, "Off")));
-                areas.Add(new("Mailbox sizes", "Storage used against the quota; one read per mailbox, in the background",
+                areas.Add(new("Mailbox Sizes", "Storage used against the quota; one read per mailbox, in the background",
                     store.GetMark(SizesMark)?.SyncedAt, Every(s.MailboxSizesMinutes, "Off")));
             }
             return areas;

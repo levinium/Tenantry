@@ -254,8 +254,8 @@ public sealed partial class MailSection : RecordSection, IDisposable
             var pending = _pipeline?.PendingFor(_user.Id, "alias:" + address.ToLowerInvariant()) as SetMailAlias;
             var text = pending is { New: true } ? "Adding"
                 : pending is { New: false } ? "Removing"
-                : isPrimary && pendingPrimary is not null ? "Becomes primary"
-                : string.Equals(address, pendingPrimary?.Old, StringComparison.OrdinalIgnoreCase) ? "Stops being primary"
+                : isPrimary && pendingPrimary is not null ? "Becomes Primary"
+                : string.Equals(address, pendingPrimary?.Old, StringComparison.OrdinalIgnoreCase) ? "Stops Being Primary"
                 : null;
             var captured = address;
             Addresses.Add(new AddressRow(address, isPrimary, text, CanEdit,
@@ -314,7 +314,7 @@ public sealed partial class MailSection : RecordSection, IDisposable
 
     public string ForwardingText => _data?.ForwardingTo is { } to
         ? $"Forwarding to {to}{(_data.KeepCopy ? ", keeping a copy" : ", no copy kept")}"
-        : "Not forwarding";
+        : "Not Forwarding";
 
     public bool IsForwardingOutside => _data?.ForwardingTo is { } to && !IsInternal(to);
 

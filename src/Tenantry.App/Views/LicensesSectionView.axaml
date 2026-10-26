@@ -15,7 +15,7 @@
       <StackPanel Orientation="Horizontal" Spacing="10">
         <ic:FluentIcon Icon="Warning" FontSize="16" VerticalAlignment="Center" />
         <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
-                   Text="No usage location is set. Microsoft won't assign licenses until one is: set it on the Account tab (Sign-in and licensing)." />
+                   Text="No usage location is set. Microsoft won't assign licenses until one is: set it on the Account tab (Sign-In and Licensing)." />
       </StackPanel>
     </Border>
 
@@ -37,7 +37,7 @@
                 </DataTemplate>
               </ComboBox.ItemTemplate>
             </ComboBox>
-            <Button Classes="accent" Command="{Binding AddLicenseCommand}" Content="Add license"
+            <Button Classes="accent" Command="{Binding AddLicenseCommand}" Content="Add License"
                     ToolTip.Tip="Add this license (it goes to Pending changes)" />
           </StackPanel>
         </Grid>
@@ -103,7 +103,7 @@
       <StackPanel Spacing="12">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ic:FluentIcon Icon="Grid" FontSize="18" Foreground="{DynamicResource Accent}" />
-          <TextBlock Classes="h3" Text="Enterprise apps" VerticalAlignment="Center" />
+          <TextBlock Classes="h3" Text="Enterprise Apps" VerticalAlignment="Center" />
         </StackPanel>
         <TextBlock Classes="muted" Text="Not assigned to any enterprise apps." IsVisible="{Binding !HasAppAssignments}" />
         <ItemsControl ItemsSource="{Binding AppAssignments}">

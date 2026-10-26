@@ -12,20 +12,20 @@ public sealed record UserSecurity(bool MfaRegistered, bool IsAdmin, IReadOnlyLis
     public static string MethodName(string method) => method switch
     {
         "microsoftAuthenticatorPush" => "Microsoft Authenticator",
-        "microsoftAuthenticatorPasswordless" => "Authenticator (passwordless)",
-        "softwareOneTimePasscode" => "Authenticator app code",
-        "hardwareOneTimePasscode" => "Hardware token",
-        "mobilePhone" => "Mobile phone",
-        "alternateMobilePhone" => "Alternate phone",
-        "officePhone" => "Office phone",
-        "fido2SecurityKey" or "passKeyDeviceBound" or "passKeyDeviceBoundAuthenticator" => "Passkey or security key",
+        "microsoftAuthenticatorPasswordless" => "Authenticator (Passwordless)",
+        "softwareOneTimePasscode" => "Authenticator App Code",
+        "hardwareOneTimePasscode" => "Hardware Token",
+        "mobilePhone" => "Mobile Phone",
+        "alternateMobilePhone" => "Alternate Phone",
+        "officePhone" => "Office Phone",
+        "fido2SecurityKey" or "passKeyDeviceBound" or "passKeyDeviceBoundAuthenticator" => "Passkey or Security Key",
         "windowsHelloForBusiness" => "Windows Hello",
         "email" => "Email",
-        "securityQuestion" => "Security questions",
+        "securityQuestion" => "Security Questions",
         "temporaryAccessPass" => "Temporary Access Pass",
         "push" => "Microsoft Authenticator",
-        "sms" => "Text message",
-        "voiceMobile" or "voiceAlternateMobile" or "voiceOffice" => "Phone call",
+        "sms" => "Text Message",
+        "voiceMobile" or "voiceAlternateMobile" or "voiceOffice" => "Phone Call",
         _ => method,
     };
 }
@@ -46,7 +46,7 @@ public sealed record SignInEvent(DateTimeOffset When, string App, string? Locati
     {
         null or "" => "Unknown",
         "Browser" => "Browser",
-        "Mobile Apps and Desktop clients" => "Apps and desktop clients",
+        "Mobile Apps and Desktop clients" => "Apps and Desktop Clients",
         var other => $"Legacy: {other}",
     };
 }

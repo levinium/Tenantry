@@ -8,7 +8,7 @@
     <StackPanel Margin="48,48,48,48" Spacing="22" MaxWidth="820" HorizontalAlignment="Center">
 
       <StackPanel Spacing="4">
-        <TextBlock Classes="h1" Text="Add a tenant" />
+        <TextBlock Classes="h1" Text="Add a Tenant" />
         <TextBlock Classes="muted" TextWrapping="Wrap"
                    Text="Tenantry signs in through its own app registration in your tenant. Delegated permissions only: it can never do more than the admin who is signed in." />
       </StackPanel>
@@ -20,7 +20,7 @@
             <ic:FluentIcon Icon="Wand" FontSize="28" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
             <StackPanel Grid.Column="1" Spacing="4">
               <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Classes="h3" Text="Set it up for me" />
+                <TextBlock Classes="h3" Text="Set It Up for Me" />
                 <TextBlock Classes="caption" VerticalAlignment="Center" Text="Recommended" />
               </StackPanel>
               <TextBlock Classes="muted" TextWrapping="Wrap" Text="Sign in once as an admin. Tenantry creates and configures the registration, and shows you exactly what it changes first." />
@@ -32,7 +32,7 @@
           <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
             <ic:FluentIcon Icon="Code" FontSize="28" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
             <StackPanel Grid.Column="1" Spacing="4">
-              <TextBlock Classes="h3" Text="I'll create it myself" />
+              <TextBlock Classes="h3" Text="I'll Create It Myself" />
               <TextBlock Classes="muted" TextWrapping="Wrap" Text="Run a generated PowerShell script, or follow the portal steps, then paste two IDs." />
             </StackPanel>
             <ic:FluentIcon Grid.Column="2" Icon="ChevronRight" FontSize="18" VerticalAlignment="Center" Foreground="{DynamicResource TextMuted}" />
@@ -45,7 +45,7 @@
       <StackPanel Spacing="16" IsVisible="{Binding IsAutomatic}">
         <Border Classes="card">
           <StackPanel Spacing="14">
-            <TextBlock Classes="h3" Text="What this changes in your tenant" />
+            <TextBlock Classes="h3" Text="What This Changes in Your Tenant" />
             <ItemsControl ItemsSource="{Binding AutomaticChanges}">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -61,7 +61,7 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <Expander Header="Permissions requested" HorizontalAlignment="Stretch">
+            <Expander Header="Permissions Requested" HorizontalAlignment="Stretch">
               <ItemsControl ItemsSource="{Binding PermissionSummary}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="x:String">
@@ -77,10 +77,10 @@
           <Button Classes="accent" Command="{Binding RunAutomaticCommand}">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <ic:FluentIcon Icon="Key" FontSize="16" />
-              <TextBlock Text="Sign in and set up" />
+              <TextBlock Text="Sign In and Set Up" />
             </StackPanel>
           </Button>
-          <Button Content="Cancel sign-in" IsVisible="{Binding IsBusy}" Command="{Binding CancelRunCommand}" />
+          <Button Content="Cancel Sign-In" IsVisible="{Binding IsBusy}" Command="{Binding CancelRunCommand}" />
           <Button Content="Back" Command="{Binding BackCommand}" />
         </StackPanel>
 
@@ -109,7 +109,7 @@
           <StackPanel Spacing="12">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <Border Classes="avatar small"><TextBlock Text="1" /></Border>
-              <TextBlock Classes="h3" VerticalAlignment="Center" Text="Run the setup script" />
+              <TextBlock Classes="h3" VerticalAlignment="Center" Text="Run the Setup Script" />
             </StackPanel>
             <TextBlock Classes="muted" TextWrapping="Wrap"
                        Text="In PowerShell 7, as an admin with Cloud Application Administrator or higher. It creates the same registration the automatic setup would and prints the two IDs." />
@@ -123,14 +123,14 @@
               <Button Click="OnCopyScript">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <ic:FluentIcon Icon="Copy" FontSize="16" />
-                  <TextBlock Text="Copy script" />
+                  <TextBlock Text="Copy Script" />
                 </StackPanel>
               </Button>
             </StackPanel>
             <StackPanel Spacing="2">
               <TextBlock Classes="caption" TextWrapping="Wrap"
                          Text="Prefer the portal? Create a single-tenant registration with a public-client redirect URI of http://localhost, add the permissions the automatic option lists, grant admin consent, and require assignment." />
-              <HyperlinkButton Padding="0" NavigateUri="{Binding PortalUrl}" Content="Open App registrations in the Entra portal" />
+              <HyperlinkButton Padding="0" NavigateUri="{Binding PortalUrl}" Content="Open App Registrations in the Entra Portal" />
             </StackPanel>
           </StackPanel>
         </Border>
@@ -152,8 +152,8 @@
         </Border>
 
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="accent" Content="Sign in and verify" Command="{Binding VerifyManualCommand}" />
-          <Button Content="Cancel sign-in" IsVisible="{Binding IsBusy}" Command="{Binding CancelRunCommand}" />
+          <Button Classes="accent" Content="Sign In and Verify" Command="{Binding VerifyManualCommand}" />
+          <Button Content="Cancel Sign-In" IsVisible="{Binding IsBusy}" Command="{Binding CancelRunCommand}" />
           <Button Content="Back" Command="{Binding BackCommand}" />
         </StackPanel>
       </StackPanel>
@@ -179,7 +179,7 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
-          <Button Classes="accent" HorizontalAlignment="Left" Content="Back to tenants" Command="{Binding FinishCommand}" />
+          <Button Classes="accent" HorizontalAlignment="Left" Content="Back to Tenants" Command="{Binding FinishCommand}" />
         </StackPanel>
       </Border>
 

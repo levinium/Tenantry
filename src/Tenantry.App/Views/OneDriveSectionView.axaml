@@ -24,7 +24,7 @@
       <StackPanel Spacing="10">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ic:FluentIcon Icon="Cloud" FontSize="18" Foreground="{DynamicResource Accent}" />
-          <TextBlock Classes="h3" Text="No OneDrive yet" VerticalAlignment="Center" />
+          <TextBlock Classes="h3" Text="No OneDrive Yet" VerticalAlignment="Center" />
         </StackPanel>
         <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding NotSetUpText}" />
         <StackPanel Spacing="10" IsVisible="{Binding HasLicense}">
@@ -35,11 +35,11 @@
             <Button Command="{Binding CopySetUpCommandCommand}" ToolTip.Tip="Copy the command, to paste into SharePoint Online PowerShell">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <ic:FluentIcon Icon="Copy" FontSize="14" />
-                <TextBlock Text="Copy command" IsVisible="{Binding !CommandCopied}" />
+                <TextBlock Text="Copy Command" IsVisible="{Binding !CommandCopied}" />
                 <TextBlock Text="Copied" IsVisible="{Binding CommandCopied}" />
               </StackPanel>
             </Button>
-            <Button Content="Check again" Command="{Binding CheckAgainCommand}" ToolTip.Tip="Look for their OneDrive again" />
+            <Button Content="Check Again" Command="{Binding CheckAgainCommand}" ToolTip.Tip="Look for their OneDrive again" />
           </WrapPanel>
         </StackPanel>
       </StackPanel>
@@ -52,7 +52,7 @@
           <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
             <ic:FluentIcon Icon="Storage" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
             <TextBlock Grid.Column="1" Classes="h3" Text="Storage" VerticalAlignment="Center" />
-            <c:Badge Grid.Column="2" Text="Nearly full" Kind="Danger" IsVisible="{Binding IsNearlyFull}" />
+            <c:Badge Grid.Column="2" Text="Nearly Full" Kind="Danger" IsVisible="{Binding IsNearlyFull}" />
           </Grid>
           <TextBlock Classes="value" Text="{Binding UsedText}" />
           <ProgressBar Classes="storage" Classes.full="{Binding IsNearlyFull}" Value="{Binding UsedPercent}" Maximum="100" Height="8" IsVisible="{Binding HasQuota}" />
@@ -68,7 +68,7 @@
             <Button Command="{Binding CopyLinkCommand}" ToolTip.Tip="Copy its address">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <ic:FluentIcon Icon="Copy" FontSize="14" />
-                <TextBlock Text="Copy link" IsVisible="{Binding !Copied}" />
+                <TextBlock Text="Copy Link" IsVisible="{Binding !Copied}" />
                 <TextBlock Text="Copied" IsVisible="{Binding Copied}" />
               </StackPanel>
             </Button>
@@ -81,7 +81,7 @@
         <StackPanel Spacing="10">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="PeopleLock" FontSize="18" Foreground="{DynamicResource Accent}" />
-            <TextBlock Classes="h3" Text="Who can open all of it" VerticalAlignment="Center" />
+            <TextBlock Classes="h3" Text="Who Can Open All of It" VerticalAlignment="Center" />
           </StackPanel>
           <TextBlock Classes="caption" TextWrapping="Wrap"
                      Text="The owner, and anyone given full access: for example a manager taking over the files of someone who has left. Files they share one by one aren't listed here." />

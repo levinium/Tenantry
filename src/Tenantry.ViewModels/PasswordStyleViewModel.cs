@@ -22,17 +22,17 @@ public sealed partial class PasswordStyleViewModel : ObservableObject
 
     public static IReadOnlyList<Choice<PasswordLetters>> LetterChoices { get; } =
     [
-        new(PasswordLetters.Mixed, "Capital and small letters (Aa)"),
-        new(PasswordLetters.LowerOnly, "Small letters only (a)"),
-        new(PasswordLetters.UpperOnly, "Capital letters only (A)"),
-        new(PasswordLetters.None, "No letters"),
+        new(PasswordLetters.Mixed, "Capital and Small Letters (Aa)"),
+        new(PasswordLetters.LowerOnly, "Small Letters Only (a)"),
+        new(PasswordLetters.UpperOnly, "Capital Letters Only (A)"),
+        new(PasswordLetters.None, "No Letters"),
     ];
 
     public static IReadOnlyList<Choice<PasswordSymbols>> SymbolChoices { get; } =
     [
-        new(PasswordSymbols.None, "No symbols"),
-        new(PasswordSymbols.EasyToType, "Symbols that are easy to type on a phone:  ! @ # $ % & * ? + ="),
-        new(PasswordSymbols.Any, "Any symbols, including ones that are hard to find on a phone"),
+        new(PasswordSymbols.None, "No Symbols"),
+        new(PasswordSymbols.EasyToType, "Symbols That Are Easy to Type on a Phone:  ! @ # $ % & * ? + ="),
+        new(PasswordSymbols.Any, "Any Symbols, Including Ones That Are Hard to Find on a Phone"),
     ];
 
     public PasswordStyleViewModel(IPasswordStyleStore store)

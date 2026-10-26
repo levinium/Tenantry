@@ -73,7 +73,7 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
 
     public string MembersHeading => $"Members ({_group.Members.Count:N0})";
 
-    public string AccessHeading => $"People with access ({_group.Members.Count:N0})";
+    public string AccessHeading => $"People with Access ({_group.Members.Count:N0})";
 
     public bool HasNoOwners => IsGroup && Owners.Count == 0;
 
@@ -206,7 +206,7 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
             {
                 var has = actual.Contains(right);
                 var (shown, pending) = GroupAccess.State(_pipeline, _group.Id, $"{right}:{person.Id}", has);
-                return new RightToggle(SetMailboxAccess.RightName(right), shown, pending, CanEdit, CanEdit ? GroupAccess.RightTip(right) : EditReason,
+                return new RightToggle(SetMailboxAccess.RightLabel(right), shown, pending, CanEdit, CanEdit ? GroupAccess.RightTip(right) : EditReason,
                     on => _pipeline!.Stage(new SetMailboxAccess(target, person, right, has, on)));
             }).ToArray(),
             null, Opener(row));

@@ -42,10 +42,10 @@ public partial class App : Application
     {
         var file = await window.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
         {
-            Title = "Save as a CSV file",
+            Title = "Save as a CSV File",
             SuggestedFileName = suggestedName,
             DefaultExtension = "csv",
-            FileTypeChoices = [new Avalonia.Platform.Storage.FilePickerFileType("CSV file") { Patterns = ["*.csv"] }],
+            FileTypeChoices = [new Avalonia.Platform.Storage.FilePickerFileType("CSV File") { Patterns = ["*.csv"] }],
         });
         if (file is null)
             return false;

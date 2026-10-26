@@ -30,7 +30,7 @@ public sealed partial class DemoUserRecords : ISecurityRecords
                 {
                     "microsoftAuthenticatorPush" => new AuthMethod($"ma-{userId}", "microsoftAuthenticatorMethods", "Microsoft Authenticator", "iPhone 15", added, true),
                     "mobilePhone" => new AuthMethod($"ph-{userId}", "phoneMethods", "Phone", $"+1 55501{random.Next(10000, 99999)} (mobile)", added.AddDays(-30), true),
-                    _ => new AuthMethod($"em-{userId}", "emailMethods", "Email (password reset)", person.Mail?.Replace("@", ".home@"), added, true),
+                    _ => new AuthMethod($"em-{userId}", "emailMethods", "Email (Password Reset)", person.Mail?.Replace("@", ".home@"), added, true),
                 });
             _methods[userId] = methods;
         }

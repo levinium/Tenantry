@@ -150,7 +150,7 @@ public sealed class DevicesTests
         for (var i = 0; i < 50 && !key.IsShown; i++)
             await Task.Delay(5, Ct);
         Assert.Equal("111111-222222", key.Masked);
-        Assert.Contains(pipeline.Log.All(), e => e.Change is SecretViewed { What: "BitLocker recovery key (system drive)" });
+        Assert.Contains(pipeline.Log.All(), e => e.Change is SecretViewed { What: "BitLocker Recovery Key (system drive)" });
 
         await showing;
         Assert.False(key.IsShown);
@@ -168,7 +168,7 @@ public sealed class DevicesTests
         laptop.RunCommand.Execute(DeviceCommand.Wipe);
         laptop.ToggleEnabledCommand.Execute(null);
 
-        Assert.Equal(["Sync with Intune", "Wipe", "Device sign-in"], pipeline.Pending.Select(p => p.Label));
+        Assert.Equal(["Sync with Intune", "Wipe", "Device Sign-In"], pipeline.Pending.Select(p => p.Label));
         Assert.Equal(("Undo", "Undo", "Retire"), (laptop.WipeText, laptop.EnableText, laptop.RetireText));
 
         laptop.RunCommand.Execute(DeviceCommand.Wipe);

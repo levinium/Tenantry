@@ -37,10 +37,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
         var createUsers = Evaluate(Capabilities.EditUsers);
         Users = DataListViewModel.Create(UserList.Definition(_now, u => NewUserPage(u)), LoadUsersAsync, OpenUser, tenant.ListState, _now);
-        Users.PrimaryAction = new ListPrimaryAction("New user", "PersonAdd", false,
+        Users.PrimaryAction = new ListPrimaryAction("New User", "PersonAdd", false,
             createUsers.IsAvailable ? "Creating users arrives with the change pipeline (Phase 3)" : createUsers.Reason!);
         Groups = DataListViewModel.Create(GroupList.Definition(g => NewGroupPage(g)), LoadGroupsAsync, OpenGroup, tenant.ListState, _now);
-        Groups.PrimaryAction = new ListPrimaryAction("New group", "PeopleAdd", false, "Creating groups arrives with the change pipeline (Phase 3)");
+        Groups.PrimaryAction = new ListPrimaryAction("New Group", "PeopleAdd", false, "Creating groups arrives with the change pipeline (Phase 3)");
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);

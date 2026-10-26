@@ -52,8 +52,8 @@ public sealed record GroupSummary(
     {
         GroupKind.Microsoft365 => "Microsoft 365",
         GroupKind.Security => "Security",
-        GroupKind.MailEnabledSecurity => "Mail-enabled security",
-        GroupKind.Distribution => "Distribution list",
+        GroupKind.MailEnabledSecurity => "Mail-Enabled Security",
+        GroupKind.Distribution => "Distribution List",
         GroupKind.SharedMailbox => UserFields.SharedMailboxType,
         GroupKind.RoomMailbox => UserFields.RoomType,
         _ => UserFields.EquipmentType,

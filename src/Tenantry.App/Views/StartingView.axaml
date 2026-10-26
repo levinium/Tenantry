@@ -20,7 +20,7 @@
       <TextBlock Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Text="{Binding Hint}" />
     </StackPanel>
     <Button Classes="ghost" HorizontalAlignment="Center" Command="{Binding CancelCommand}"
-            Content="Cancel and show my tenants"
+            Content="Cancel and Show My Tenants"
             ToolTip.Tip="Stop opening this tenant and go to the home page" />
   </StackPanel>
 </UserControl>

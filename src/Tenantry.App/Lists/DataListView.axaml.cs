@@ -441,19 +441,19 @@ public partial class DataListView : UserControl
         var menu = new MenuFlyout();
         if (c.CanSort)
         {
-            menu.Items.Add(Item("Sort A → Z, by this column only", "TextSortAscending", () => _vm?.SortColumnAscending(c)));
-            menu.Items.Add(Item("Sort Z → A, by this column only", "TextSortDescending", () => _vm?.SortColumnDescending(c)));
-            menu.Items.Add(Item("Add as the next sort level", "ArrowSort", () => _vm?.AddSortByColumn(c)));
-            menu.Items.Add(Item("Open the sort panel…", "ArrowSort", () => _vm?.OpenSortPanel()));
+            menu.Items.Add(Item("Sort A → Z, by This Column Only", "TextSortAscending", () => _vm?.SortColumnAscending(c)));
+            menu.Items.Add(Item("Sort Z → A, by This Column Only", "TextSortDescending", () => _vm?.SortColumnDescending(c)));
+            menu.Items.Add(Item("Add as the Next Sort Level", "ArrowSort", () => _vm?.AddSortByColumn(c)));
+            menu.Items.Add(Item("Open the Sort Panel…", "ArrowSort", () => _vm?.OpenSortPanel()));
             menu.Items.Add(new Separator());
-            menu.Items.Add(Item($"Filter by {c.Header.ToLowerInvariant()}…", "Filter", () => _vm?.FilterByColumn(c)));
+            menu.Items.Add(Item($"Filter by {c.Header}…", "Filter", () => _vm?.FilterByColumn(c)));
             if (_vm?.CanGroupBy(c) == true)
-                menu.Items.Add(Item($"Group by {c.Header.ToLowerInvariant()}", "GroupList", () => _vm?.GroupByColumn(c)));
+                menu.Items.Add(Item($"Group by {c.Header}", "GroupList", () => _vm?.GroupByColumn(c)));
         }
         if (c.CanHide)
         {
             menu.Items.Add(new Separator());
-            menu.Items.Add(Item("Hide this column", "EyeOff", () => _vm?.ToggleColumn(c)));
+            menu.Items.Add(Item("Hide This Column", "EyeOff", () => _vm?.ToggleColumn(c)));
         }
         return menu;
     }
@@ -669,7 +669,7 @@ public partial class DataListView : UserControl
             Title = "Export to CSV",
             SuggestedFileName = _vm.SuggestedExportName,
             DefaultExtension = "csv",
-            FileTypeChoices = [new FilePickerFileType("CSV file") { Patterns = ["*.csv"] }],
+            FileTypeChoices = [new FilePickerFileType("CSV File") { Patterns = ["*.csv"] }],
         });
         if (file is null)
             return;

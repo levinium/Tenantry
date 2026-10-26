@@ -63,7 +63,7 @@ public class PaletteAndGroupsTests
 
         Assert.Same(vm.Groups, vm.SelectedTab);
         Assert.Equal("groups", vm.SelectedSection?.Key);
-        Assert.Equal("Distribution lists", vm.Groups.CurrentViewName);
+        Assert.Equal("Distribution Lists", vm.Groups.CurrentViewName);
     }
 
     [Fact]

@@ -110,7 +110,7 @@ public class ChangePipelineTests
 
         Assert.False(pipeline.IsTestMode);
         var entry = Assert.Single(log.All());
-        Assert.Equal("Test mode: On → Off", entry.Change.Summary);
+        Assert.Equal("Test Mode: On → Off", entry.Change.Summary);
     }
 
     // ---- Graph executor -------------------------------------------------------------------
@@ -263,7 +263,7 @@ public class ChangePipelineTests
         name.EditCommand.Execute(null);
         name.Draft = " ";
         name.StageCommand.Execute(null);
-        Assert.Equal("Display name can't be empty.", name.Problem);
+        Assert.Equal("Display Name can't be empty.", name.Problem);
         Assert.Empty(pipeline.Pending);
 
         var readOnly = new UserDetailViewModel(User(), pipeline: pipeline, canEdit: Availability.No("Requires the User Administrator role"));
@@ -342,7 +342,7 @@ public class ChangePipelineTests
         fields["usageLocation"].EditCommand.Execute(null);
         fields["usageLocation"].SelectedChoice = fields["usageLocation"].Choices!.Single(c => c.Value == "US");
         fields["usageLocation"].StageCommand.Execute(null);
-        Assert.Equal("Usage location: GB → US", Assert.Single(pipeline.Pending).Summary);
+        Assert.Equal("Usage Location: GB → US", Assert.Single(pipeline.Pending).Summary);
     }
 
     [Theory]
@@ -458,9 +458,9 @@ public class ChangePipelineTests
         var tray = new PendingChangesViewModel(pipeline, "Contoso", showTestMode: true, () => { refreshed++; return Task.CompletedTask; });
         var page = new UserDetailViewModel(User(), pipeline: pipeline, canEdit: Availability.Yes);
 
-        Assert.Equal("Block sign-in", page.SignInActionText);
+        Assert.Equal("Block Sign-In", page.SignInActionText);
         page.ToggleSignInCommand.Execute(null);
-        Assert.Equal("Undo sign-in change", page.SignInActionText);
+        Assert.Equal("Undo Sign-In Change", page.SignInActionText);
         Assert.Equal(1, tray.Count);
 
         await tray.ApplyCommand.ExecuteAsync(null);

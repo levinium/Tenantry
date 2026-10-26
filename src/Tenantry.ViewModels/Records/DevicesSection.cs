@@ -128,7 +128,7 @@ public sealed partial class DeviceItem : ObservableObject
     public string JoinType => Device.JoinType;
     public bool IsManaged => Device.IsManaged;
     public bool IsDisabled => Device.Enabled == false;
-    public string? ComplianceText => Device.Compliant switch { true => "Compliant", false => "Not compliant", _ => null };
+    public string? ComplianceText => Device.Compliant switch { true => "Compliant", false => "Not Compliant", _ => null };
     public BadgeKind ComplianceKind => Device.Compliant == false ? BadgeKind.Danger : BadgeKind.Success;
     public bool HasCompliance => ComplianceText is not null;
     public bool IsUnencrypted => Device.Encrypted == false;
@@ -137,9 +137,9 @@ public sealed partial class DeviceItem : ObservableObject
     [
         .. new (string, string?)[]
         {
-            ("How it's theirs", Device.Relation),
-            ("Owned by", Device.Ownership),
-            ("Serial number", Device.Serial),
+            ("How It's Theirs", Device.Relation),
+            ("Owned By", Device.Ownership),
+            ("Serial Number", Device.Serial),
             ("Encrypted", Device.Encrypted switch { true => "Yes", false => "No", _ => null }),
             (Device.IsManaged ? "Enrolled" : "Registered", Device.Registered?.ToLocalTime().ToString("d MMM yyyy")),
         }.Where(f => f.Item2 is not null).Select(f => (f.Item1, f.Item2!)),
@@ -191,17 +191,17 @@ public sealed partial class DeviceItem : ObservableObject
             foreach (var key in await keys)
             {
                 var captured = key;
-                Secrets.Add(new SecretRow($"BitLocker recovery key · {key.Volume}", key.Created is { } at ? $"Saved {at.ToLocalTime():d MMM yyyy}" : null,
-                    () => records.RevealRecoveryKeyAsync(captured.Id), () => _section.Logged(this, $"BitLocker recovery key ({captured.Volume.ToLowerInvariant()})")));
+                Secrets.Add(new SecretRow($"BitLocker Recovery Key · {key.Volume}", key.Created is { } at ? $"Saved {at.ToLocalTime():d MMM yyyy}" : null,
+                    () => records.RevealRecoveryKeyAsync(captured.Id), () => _section.Logged(this, $"BitLocker Recovery Key ({captured.Volume.ToLowerInvariant()})")));
             }
             if (await laps is { } local)
-                Secrets.Add(new SecretRow("Local admin password", local.BackedUp is { } at ? $"Backed up {at.ToLocalTime():d MMM yyyy}" : null,
+                Secrets.Add(new SecretRow("Local Admin Password", local.BackedUp is { } at ? $"Backed up {at.ToLocalTime():d MMM yyyy}" : null,
                     async () =>
                     {
                         var (account, password) = await records.RevealLapsAsync(deviceId);
                         return $"{account}: {password}";
                     },
-                    () => _section.Logged(this, "Local admin password")));
+                    () => _section.Logged(this, "Local Admin Password")));
             if (Secrets.Count == 0)
                 notes.Add("No BitLocker keys or local admin password are backed up for it.");
         }
@@ -239,7 +239,7 @@ public sealed partial class DeviceItem : ObservableObject
     public string SyncText => Pending(DeviceCommand.Sync) ?? "Sync";
     public string RestartText => Pending(DeviceCommand.Restart) ?? "Restart";
     public string LockText => Pending(DeviceCommand.Lock) ?? "Lock";
-    public string RotateText => Pending(DeviceCommand.RotateLocalAdminPassword) ?? "Rotate admin password";
+    public string RotateText => Pending(DeviceCommand.RotateLocalAdminPassword) ?? "Rotate Admin Password";
     public string RetireText => Pending(DeviceCommand.Retire) ?? "Retire";
     public string WipeText => Pending(DeviceCommand.Wipe) ?? "Wipe…";
 

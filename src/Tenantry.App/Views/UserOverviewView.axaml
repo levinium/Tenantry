@@ -12,7 +12,7 @@
       <StackPanel Spacing="10">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ic:FluentIcon Icon="Warning" FontSize="18" Foreground="{DynamicResource BadgeWarningFg}" />
-          <TextBlock Classes="h3" Text="Worth a look" VerticalAlignment="Center" />
+          <TextBlock Classes="h3" Text="Worth a Look" VerticalAlignment="Center" />
         </StackPanel>
         <ItemsControl ItemsSource="{Binding Health}">
           <ItemsControl.ItemsPanel>
@@ -37,7 +37,7 @@
         <StackPanel Spacing="14">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="PersonLock" FontSize="18" Foreground="{DynamicResource Accent}" />
-            <TextBlock Classes="h3" Text="Sign-in" VerticalAlignment="Center" />
+            <TextBlock Classes="h3" Text="Sign-In" VerticalAlignment="Center" />
           </StackPanel>
           <StackPanel Spacing="2">
             <TextBlock Classes="label" Text="STATUS" />

@@ -41,7 +41,7 @@ public sealed class SignInRow(SignInEvent e)
     public string Where => string.Join(" · ", new[] { e.Location, e.IpAddress, e.Device }.Where(s => !string.IsNullOrEmpty(s)));
     public string? Device => e.Device;
     public bool Succeeded => e.Succeeded;
-    public string Status => e.Succeeded ? "Signed in" : "Failed";
+    public string Status => e.Succeeded ? "Signed In" : "Failed";
     public BadgeKind StatusKind => e.Succeeded ? BadgeKind.Success : BadgeKind.Danger;
     public string Detail => string.Join(" · ", new[] { e.Problem, e.ConditionalAccess, e.Detail }.Where(s => !string.IsNullOrEmpty(s)).Distinct());
     public string Client => e.ClientKind + (e.MultiFactor switch { true => " · multi-factor", false => " · password only", _ => "" });
@@ -68,7 +68,7 @@ public sealed class PolicyRow(PolicyMatch policy)
     public string Name => policy.Name;
     public string State => policy.State;
     public BadgeKind StateKind => policy.State switch { "On" => BadgeKind.Success, "Report-only" => BadgeKind.Info, _ => BadgeKind.Neutral };
-    public string Fit => policy.Fit switch { PolicyFit.Applies => "Applies", PolicyFit.Excluded => "Excluded", _ => "Doesn't apply" };
+    public string Fit => policy.Fit switch { PolicyFit.Applies => "Applies", PolicyFit.Excluded => "Excluded", _ => "Doesn't Apply" };
     public BadgeKind FitKind => policy.Fit == PolicyFit.Applies ? BadgeKind.Info : BadgeKind.Neutral;
     public string Why => policy.Why;
     public string Controls => $"{policy.Controls} · {policy.Apps}";
@@ -324,7 +324,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
     public bool CanReregister => CanEdit && Removable.Any();
 
-    public string ReregisterText => IsReregisterPending ? "Undo re-register" : "Require re-register";
+    public string ReregisterText => IsReregisterPending ? "Undo Re-Register" : "Require Re-Register";
 
     public string ReregisterTip => !Removable.Any() && _methods is not null
         ? "They have no MFA methods to remove: they'll be asked to register MFA when a policy needs it."
@@ -348,7 +348,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
     public bool IsRevokePending => PendingFor("sessions") is not null;
 
-    public string RevokeText => IsRevokePending ? "Undo revoke sessions" : "Revoke sessions";
+    public string RevokeText => IsRevokePending ? "Undo Revoke Sessions" : "Revoke Sessions";
 
     /// <summary>Entra's "Revoke sessions" (the record's "Sign out everywhere"): every app and browser asks them to sign in again.</summary>
     [RelayCommand]
@@ -370,7 +370,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
     // ---- Add a phone ------------------------------------------------------------------------
 
-    public static IReadOnlyList<(string Type, string Name)> PhoneTypes { get; } = [("mobile", "Mobile"), ("alternateMobile", "Alternate mobile"), ("office", "Office")];
+    public static IReadOnlyList<(string Type, string Name)> PhoneTypes { get; } = [("mobile", "Mobile"), ("alternateMobile", "Alternate Mobile"), ("office", "Office")];
 
     public IReadOnlyList<string> PhoneTypeNames { get; } = PhoneTypes.Select(p => p.Name).ToArray();
 
@@ -438,10 +438,10 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
     // ---- Temporary Access Pass --------------------------------------------------------------
 
-    public static IReadOnlyList<string> TapLifetimes { get; } = ["1 hour", "8 hours", "1 day"];
+    public static IReadOnlyList<string> TapLifetimes { get; } = ["1 Hour", "8 Hours", "1 Day"];
 
     [ObservableProperty]
-    public partial string TapLifetime { get; set; } = "1 hour";
+    public partial string TapLifetime { get; set; } = "1 Hour";
 
     [ObservableProperty]
     public partial bool TapOneTime { get; set; } = true;
@@ -456,7 +456,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
     {
         if (!CanEdit)
             return;
-        var minutes = TapLifetime switch { "8 hours" => 480, "1 day" => 1440, _ => 60 };
+        var minutes = TapLifetime switch { "8 Hours" => 480, "1 Day" => 1440, _ => 60 };
         _pipeline!.Stage(new CreateTemporaryAccessPass(Target, minutes, TapOneTime));
     }
 
@@ -520,9 +520,9 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
     public static IReadOnlyList<int> SignInDayOptions { get; } = [1, 7, 30];
 
-    public static IReadOnlyList<string> SignInKindOptions { get; } = ["Interactive", "Non-interactive"];
+    public static IReadOnlyList<string> SignInKindOptions { get; } = ["Interactive", "Non-Interactive"];
 
-    public static IReadOnlyList<string> SignInResultOptions { get; } = ["All results", "Succeeded", "Failed"];
+    public static IReadOnlyList<string> SignInResultOptions { get; } = ["All Results", "Succeeded", "Failed"];
 
     [ObservableProperty]
     public partial int SignInDays { get; set; } = 7;
@@ -531,14 +531,14 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
     public partial string SignInKind { get; set; } = "Interactive";
 
     [ObservableProperty]
-    public partial string SignInResult { get; set; } = "All results";
+    public partial string SignInResult { get; set; } = "All Results";
 
     partial void OnSignInDaysChanged(int value) => _ = LoadSignInsAsync(again: true);
     partial void OnSignInKindChanged(string value) => _ = LoadSignInsAsync(again: true);
     partial void OnSignInResultChanged(string value) => _ = LoadSignInsAsync(again: true);
 
     SignInQuery Query => new(SignInDays,
-        SignInKind == "Non-interactive" ? Tenantry.Core.Directory.SignInKind.NonInteractive : Tenantry.Core.Directory.SignInKind.Interactive,
+        SignInKind == "Non-Interactive" ? Tenantry.Core.Directory.SignInKind.NonInteractive : Tenantry.Core.Directory.SignInKind.Interactive,
         SignInResult switch { "Succeeded" => Tenantry.Core.Directory.SignInResult.Succeeded, "Failed" => Tenantry.Core.Directory.SignInResult.Failed, _ => Tenantry.Core.Directory.SignInResult.All });
 
     Available<IReadOnlyList<SignInEvent>>? _signIns;
@@ -561,16 +561,16 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
     // The facets: each lists what the loaded sign-ins hold, with counts, most common first.
 
     [ObservableProperty]
-    public partial IReadOnlyList<FacetOption> AppOptions { get; private set; } = [FacetOption.Any("Any app")];
+    public partial IReadOnlyList<FacetOption> AppOptions { get; private set; } = [FacetOption.Any("Any App")];
 
     [ObservableProperty]
     public partial IReadOnlyList<FacetOption> LocationOptions { get; private set; } = [FacetOption.Any("Anywhere")];
 
     [ObservableProperty]
-    public partial IReadOnlyList<FacetOption> ClientOptions { get; private set; } = [FacetOption.Any("Any client")];
+    public partial IReadOnlyList<FacetOption> ClientOptions { get; private set; } = [FacetOption.Any("Any Client")];
 
     [ObservableProperty]
-    public partial IReadOnlyList<FacetOption> AuthOptions { get; private set; } = [FacetOption.Any("Any authentication")];
+    public partial IReadOnlyList<FacetOption> AuthOptions { get; private set; } = [FacetOption.Any("Any Authentication")];
 
     [ObservableProperty]
     public partial FacetOption? SelectedApp { get; set; }
@@ -594,7 +594,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
     partial void OnSelectedAuthChanged(FacetOption? value) => FilterSignIns();
     partial void OnSignInSearchChanged(string value) => FilterSignIns();
 
-    static string AuthOf(SignInEvent e) => e.MultiFactor switch { true => "Multi-factor", false => "Single-factor (password only)", _ => "Not recorded" };
+    static string AuthOf(SignInEvent e) => e.MultiFactor switch { true => "Multi-Factor", false => "Single-Factor (Password Only)", _ => "Not Recorded" };
 
     public bool HasSignInFilters => SelectedApp?.Value is not null || SelectedLocation?.Value is not null || SelectedClient?.Value is not null
                                     || SelectedAuth?.Value is not null || SignInSearch.Trim().Length > 0;
@@ -645,10 +645,10 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
         _settingFacets = true;
         var (app, location, client, auth) = (SelectedApp, SelectedLocation, SelectedClient, SelectedAuth);
-        AppOptions = Options("Any app", events.Select(e => e.App));
+        AppOptions = Options("Any App", events.Select(e => e.App));
         LocationOptions = Options("Anywhere", events.Select(e => e.Location));
-        ClientOptions = Options("Any client", events.Select(e => e.ClientKind));
-        AuthOptions = Options("Any authentication", events.Select(AuthOf));
+        ClientOptions = Options("Any Client", events.Select(e => e.ClientKind));
+        AuthOptions = Options("Any Authentication", events.Select(AuthOf));
         SelectedApp = Keep(AppOptions, app);
         SelectedLocation = Keep(LocationOptions, location);
         SelectedClient = Keep(ClientOptions, client);
@@ -670,14 +670,14 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
         foreach (var e in shown)
             SignIns.Add(new SignInRow(e));
         OnPropertyChanged(nameof(HasSignInFilters));
-        var kind = SignInKind == "Non-interactive" ? "non-interactive " : "";
+        var kind = SignInKind == "Non-Interactive" ? "non-interactive " : "";
         var result = SignInResult switch { "Failed" => "failed ", "Succeeded" => "successful ", _ => "" };
         var period = SignInDays == 1 ? "day" : $"{SignInDays} days";
         SignInsSummary = _signIns?.Value is null ? ""
             : all.Count == 0 ? $"No {result}{kind}sign-ins in the last {period}."
             : (shown.Length == all.Count ? $"{all.Count:N0}" : $"Showing {shown.Length:N0} of {all.Count:N0}")
               + $" {result}{kind}sign-in{(all.Count == 1 ? "" : "s")} in the last {period}"
-              + (SignInResult == "All results" ? $", {shown.Count(e => !e.Succeeded):N0} failed" : "")
+              + (SignInResult == "All Results" ? $", {shown.Count(e => !e.Succeeded):N0} failed" : "")
               + (all.Count >= ISecurityRecords.SignInLimit ? $" (the latest {ISecurityRecords.SignInLimit:N0}; narrow the days or type to see older ones)" : "")
               + ".";
     }

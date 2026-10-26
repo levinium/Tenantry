@@ -14,12 +14,12 @@ public sealed partial class GraphUserRecords : ISecurityRecords
         ["#microsoft.graph.passwordAuthenticationMethod"] = ("passwordMethods", "Password"),
         ["#microsoft.graph.phoneAuthenticationMethod"] = ("phoneMethods", "Phone"),
         ["#microsoft.graph.microsoftAuthenticatorAuthenticationMethod"] = ("microsoftAuthenticatorMethods", "Microsoft Authenticator"),
-        ["#microsoft.graph.fido2AuthenticationMethod"] = ("fido2Methods", "Passkey or security key"),
+        ["#microsoft.graph.fido2AuthenticationMethod"] = ("fido2Methods", "Passkey or Security Key"),
         ["#microsoft.graph.windowsHelloForBusinessAuthenticationMethod"] = ("windowsHelloForBusinessMethods", "Windows Hello"),
-        ["#microsoft.graph.emailAuthenticationMethod"] = ("emailMethods", "Email (password reset)"),
-        ["#microsoft.graph.softwareOathAuthenticationMethod"] = ("softwareOathMethods", "Authenticator app code"),
+        ["#microsoft.graph.emailAuthenticationMethod"] = ("emailMethods", "Email (Password Reset)"),
+        ["#microsoft.graph.softwareOathAuthenticationMethod"] = ("softwareOathMethods", "Authenticator App Code"),
         ["#microsoft.graph.temporaryAccessPassAuthenticationMethod"] = ("temporaryAccessPassMethods", "Temporary Access Pass"),
-        ["#microsoft.graph.platformCredentialAuthenticationMethod"] = ("platformCredentialMethods", "Platform credential (Mac)"),
+        ["#microsoft.graph.platformCredentialAuthenticationMethod"] = ("platformCredentialMethods", "Platform Credential (Mac)"),
     };
 
     public async Task<IReadOnlyList<AuthMethod>> GetAuthMethodsAsync(string userId, CancellationToken cancellationToken = default)

@@ -37,7 +37,7 @@
                 ToolTip.Tip="Search everything: find any person, group or saved view and open it (Ctrl+K)">
           <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
             <ic:FluentIcon Icon="Search" FontSize="14" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1" Text="Search everything" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="Search Everything" VerticalAlignment="Center" />
             <Border Grid.Column="2" Classes="kbd"><TextBlock Text="Ctrl+K" /></Border>
           </Grid>
         </Button>
@@ -98,13 +98,13 @@
           <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="Key" FontSize="18" />
-              <TextBlock Text="Your access" VerticalAlignment="Center" />
+              <TextBlock Text="Your Access" VerticalAlignment="Center" />
             </StackPanel>
             <Button.Flyout>
               <Flyout Placement="RightEdgeAlignedBottom">
                 <StackPanel Spacing="12" Width="440" Margin="4">
                   <StackPanel Spacing="2">
-                    <TextBlock Classes="h3" Text="Your access in this tenant" />
+                    <TextBlock Classes="h3" Text="Your Access in This Tenant" />
                     <TextBlock Classes="caption" TextWrapping="Wrap"
                                Text="Based on your directory roles and the tenant's licenses. Features you can't use show why." />
                   </StackPanel>
@@ -132,11 +132,11 @@
                     <Border Classes="divider" />
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                       <StackPanel Spacing="1">
-                        <TextBlock Text="Test mode" />
+                        <TextBlock Text="Test Mode" />
                         <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding TestModeStateText}" />
                       </StackPanel>
                       <Button Grid.Column="1" VerticalAlignment="Top" IsVisible="{Binding !IsTestMode}"
-                              Command="{Binding TurnOnTestModeCommand}" Content="Turn on"
+                              Command="{Binding TurnOnTestModeCommand}" Content="Turn On"
                               ToolTip.Tip="Only objects starting zz-tenantry-test- can be changed again" />
                     </Grid>
                   </StackPanel>
@@ -154,7 +154,7 @@
           <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Command="{Binding SwitchTenantCommand}">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="ArrowSwap" FontSize="18" />
-              <TextBlock Text="Switch tenant" VerticalAlignment="Center" />
+              <TextBlock Text="Switch Tenant" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
         </StackPanel>
@@ -203,7 +203,7 @@
                        IsVisible="{Binding PermissionsStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
           </StackPanel>
           <Button Grid.Column="2" Classes="accent" VerticalAlignment="Center" Command="{Binding GrantPermissionsCommand}"
-                  Content="Grant permissions…" ToolTip.Tip="{Binding PermissionsList}" />
+                  Content="Grant Permissions…" ToolTip.Tip="{Binding PermissionsList}" />
         </Grid>
       </Border>
 
@@ -216,14 +216,14 @@
             <ic:FluentIcon Icon="Beaker" FontSize="16" VerticalAlignment="Center" />
             <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding TestModeText}" />
             <Button Grid.Column="2" Classes="ghost" VerticalAlignment="Center" IsVisible="{Binding !IsTurningOff}"
-                    Command="{Binding StartTurnOffCommand}" Content="Allow real changes…"
+                    Command="{Binding StartTurnOffCommand}" Content="Allow Real Changes…"
                     ToolTip.Tip="Turn Test mode off for this tenant, so real users and groups can be changed" />
           </Grid>
           <StackPanel IsVisible="{Binding IsTurningOff}" Spacing="8">
             <TextBlock TextWrapping="Wrap" Text="{Binding TurnOffPrompt}" />
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBox Width="280" Text="{Binding TurnOffText}" PlaceholderText="Tenant name" />
-              <Button Classes="danger" Command="{Binding TurnOffTestModeCommand}" Content="Turn off Test mode" />
+              <Button Classes="danger" Command="{Binding TurnOffTestModeCommand}" Content="Turn Off Test Mode" />
               <Button Command="{Binding CancelTurnOffCommand}" Content="Cancel" />
             </StackPanel>
           </StackPanel>
@@ -253,7 +253,7 @@
               </StackPanel>
             </Border>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasChanges}">
-              <Button Classes="ghost" Command="{Binding DiscardAllCommand}" Content="Discard all"
+              <Button Classes="ghost" Command="{Binding DiscardAllCommand}" Content="Discard All"
                       ToolTip.Tip="Remove every pending change; nothing is sent" />
               <Button Command="{Binding CancelConfirmCommand}" Content="Cancel" IsVisible="{Binding ApplyIsDanger}" />
               <Button Classes="accent" Classes.danger="{Binding ApplyIsDanger}" Command="{Binding ApplyCommand}"
@@ -284,17 +284,17 @@
                       ToolTip.Tip="Copy every name, sign-in name and password (pastes into a spreadsheet)">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <ic:FluentIcon Icon="Copy" FontSize="14" />
-                  <TextBlock Text="Copy all" IsVisible="{Binding !AllCopied}" />
+                  <TextBlock Text="Copy All" IsVisible="{Binding !AllCopied}" />
                   <TextBlock Text="Copied" IsVisible="{Binding AllCopied}" />
                 </StackPanel>
               </Button>
               <Button Grid.Column="2" Command="{Binding SaveRevealsCommand}" VerticalAlignment="Center" ToolTip.Tip="Save them as a CSV file. Keep it somewhere safe and delete it when done.">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <ic:FluentIcon Icon="Save" FontSize="14" />
-                  <TextBlock Text="Save as file…" />
+                  <TextBlock Text="Save as File…" />
                 </StackPanel>
               </Button>
-              <Button Grid.Column="3" Content="Done with all" Command="{Binding DismissAllRevealsCommand}" VerticalAlignment="Center"
+              <Button Grid.Column="3" Content="Done with All" Command="{Binding DismissAllRevealsCommand}" VerticalAlignment="Center"
                       ToolTip.Tip="Remove every password from the screen" />
             </Grid>
           </Border>

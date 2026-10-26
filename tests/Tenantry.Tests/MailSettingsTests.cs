@@ -227,7 +227,7 @@ public sealed class MailSettingsTests
         var popOn = Person("a", Plain with { Apps = apps });
         var popOff = Person("b", Plain with { Apps = apps with { Pop = false } });
         var notRead = Person("c", Plain);
-        var action = BulkActions.ForUsers(() => [popOn, popOff, notRead], EmptyIndex.Instance, null).Single(a => a.Title == "Turn an email app off");
+        var action = BulkActions.ForUsers(() => [popOn, popOff, notRead], EmptyIndex.Instance, null).Single(a => a.Title == "Turn an Email App Off");
         action.Choice = action.Choices.Single(c => c.Label == "POP");
 
         var plan = await action.PlanAsync(Ct);

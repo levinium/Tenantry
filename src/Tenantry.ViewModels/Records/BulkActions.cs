@@ -15,8 +15,8 @@ public static class BulkActions
 
     static readonly (string Property, string Label)[] Details =
     [
-        ("department", "Department"), ("jobTitle", "Job title"), ("companyName", "Company"), ("officeLocation", "Office"),
-        ("city", "City"), ("country", "Country or region"), ("usageLocation", "Usage location (country code, e.g. US)"),
+        ("department", "Department"), ("jobTitle", "Job Title"), ("companyName", "Company"), ("officeLocation", "Office"),
+        ("city", "City"), ("country", "Country or Region"), ("usageLocation", "Usage Location (Country Code, e.g. US)"),
     ];
 
     // ---- Users ------------------------------------------------------------------------------
@@ -32,20 +32,20 @@ public static class BulkActions
 
         return
         [
-            new("Block or allow sign-in", "Stop these accounts signing in, or let them sign in again.", "PersonProhibited",
+            new("Block or Allow Sign-In", "Stop these accounts signing in, or let them sign in again.", "PersonProhibited",
                 (a, _) => Task.FromResult(Plan(selected(), u =>
                 {
                     var allow = (bool)a.Choice!.Value;
                     return u.AccountEnabled == allow ? (null, $"{u.DisplayName}: already {(allow ? "allowed" : "blocked")}")
                         : (new SetSignInAllowed(GroupAccess.Target(u), u.AccountEnabled, allow), null);
                 })),
-                choiceLabel: "Sign-in", choices: [new BulkChoice("Block sign-in", false), new BulkChoice("Allow sign-in", true)]),
+                choiceLabel: "Sign-In", choices: [new BulkChoice("Block Sign-In", false), new BulkChoice("Allow Sign-In", true)]),
 
-            new("Sign out everywhere", "End every session; their apps ask them to sign in again within about an hour.", "SignOut",
+            new("Sign Out Everywhere", "End every session; their apps ask them to sign in again within about an hour.", "SignOut",
                 (_, _) => Task.FromResult(Plan(selected(), u => (new RevokeSessions(GroupAccess.Target(u)), null))),
                 isCaution: true),
 
-            new("Add a license", "Assign the same license to everyone who doesn't have it.", "Add",
+            new("Add a License", "Assign the same license to everyone who doesn't have it.", "Add",
                 async (a, ct) =>
                 {
                     var sku = (LicenseSku)a.Choice!.Value;
@@ -59,7 +59,7 @@ public static class BulkActions
                 loadChoices: async ct => (await Catalog(ct)).OrderBy(s => s.Name, StringComparer.CurrentCulture)
                     .Select(s => new BulkChoice($"{s.Name} · {s.Available:N0} left", s)).ToArray()),
 
-            new("Remove a license", "Take a license away from everyone who has it directly.", "Subtract",
+            new("Remove a License", "Take a license away from everyone who has it directly.", "Subtract",
                 (a, _) =>
                 {
                     var sku = (LicenseSku)a.Choice!.Value;
@@ -75,17 +75,17 @@ public static class BulkActions
                 },
                 isCaution: true),
 
-            new("Automatic replies", "Turn automatic replies on with one message for everyone (inside and outside), or turn them off.", "MailArrowUp",
+            new("Automatic Replies", "Turn automatic replies on with one message for everyone (inside and outside), or turn them off.", "MailArrowUp",
                 (a, ct) => AutoRepliesAsync(selected(), records, (bool)a.Choice!.Value, a.Text.Trim(), ct),
-                choiceLabel: "Replies", choices: [new BulkChoice("Turn on", true), new BulkChoice("Turn off", false)],
-                textLabel: "Reply (needed when turning on)"),
+                choiceLabel: "Replies", choices: [new BulkChoice("Turn On", true), new BulkChoice("Turn Off", false)],
+                textLabel: "Reply (Needed When Turning On)"),
 
-            new("Turn forwarding off", "Stop forwarding mail for everyone selected who forwards it.", "MailArrowForward",
+            new("Turn Forwarding Off", "Stop forwarding mail for everyone selected who forwards it.", "MailArrowForward",
                 (_, _) => Task.FromResult(Plan(selected(), u => u.Mailbox is not { } m ? (null, $"{u.DisplayName}: no mailbox")
                     : m.ForwardingTo is null ? (null, $"{u.DisplayName}: not forwarding")
                     : (new SetForwarding(GroupAccess.Target(u), m.ForwardingTo, m.KeepsCopyWhenForwarding, null, false, false), null)))),
 
-            new("Address list", "Hide everyone from the address list (Outlook's directory), or show them again.", "BookContacts",
+            new("Address List", "Hide everyone from the address list (Outlook's directory), or show them again.", "BookContacts",
                 (a, _) =>
                 {
                     var hide = (bool)a.Choice!.Value;
@@ -93,17 +93,17 @@ public static class BulkActions
                         : m.HiddenFromAddressList == hide ? (null, $"{u.DisplayName}: already {(hide ? "hidden" : "shown")}")
                         : (new SetHiddenFromAddressList(GroupAccess.Target(u), m.HiddenFromAddressList, hide), null)));
                 },
-                choiceLabel: "Address list", choices: [new BulkChoice("Hide from the address list", true), new BulkChoice("Show in the address list", false)]),
+                choiceLabel: "Address List", choices: [new BulkChoice("Hide from the Address List", true), new BulkChoice("Show in the Address List", false)]),
 
-            new("Turn an email app off", "Stop everyone reaching their mail one way, such as POP or IMAP (older apps that often skip multi-factor sign-in).", "PlugDisconnected",
+            new("Turn an Email App Off", "Stop everyone reaching their mail one way, such as POP or IMAP (older apps that often skip multi-factor sign-in).", "PlugDisconnected",
                 (a, _) => Task.FromResult(EmailApp(selected(), (string)a.Choice!.Value, false)),
                 choiceLabel: "App", choices: AppChoices(), isCaution: true),
 
-            new("Turn an email app on", "Let everyone reach their mail one more way.", "PlugConnected",
+            new("Turn an Email App On", "Let everyone reach their mail one more way.", "PlugConnected",
                 (a, _) => Task.FromResult(EmailApp(selected(), (string)a.Choice!.Value, true)),
                 choiceLabel: "App", choices: AppChoices()),
 
-            new("Litigation hold", "Keep every item in their mailboxes, even ones they delete, until the hold is lifted; or lift it.", "Gavel",
+            new("Litigation Hold", "Keep every item in their mailboxes, even ones they delete, until the hold is lifted; or lift it.", "Gavel",
                 (a, _) =>
                 {
                     var on = (bool)a.Choice!.Value;
@@ -113,16 +113,16 @@ public static class BulkActions
                         // The list doesn't hold a hold's days or note; turning it off leaves them as Exchange has them.
                         : (new SetLitigationHold(GroupAccess.Target(u), m.LitigationHold, null, null, on, null, on ? note : null), null)));
                 },
-                choiceLabel: "Hold", choices: [new BulkChoice("Turn on (keep items indefinitely)", true), new BulkChoice("Turn off", false)],
-                textLabel: "Note for the hold (optional)", isCaution: true),
+                choiceLabel: "Hold", choices: [new BulkChoice("Turn On (Keep Items Indefinitely)", true), new BulkChoice("Turn Off", false)],
+                textLabel: "Note for the Hold (Optional)", isCaution: true),
 
-            new("Add to a group", "Make everyone a member of one group.", "PeopleAdd",
+            new("Add to a Group", "Make everyone a member of one group.", "PeopleAdd",
                 (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } g ? Membership(selected(), g, GroupRole.Member, true)
                     : BulkPlan.Invalid("That group isn't in the local copy any more.")),
                 pickPlaceholder: "Choose a group: type its name",
                 pickOptions: () => index.AllGroups.Where(g => !g.IsMailbox && !g.IsDynamic).Select(PickOption.Of)),
 
-            new("Remove from a group", "Take everyone out of one group.", "PeopleRemove",
+            new("Remove from a Group", "Take everyone out of one group.", "PeopleRemove",
                 (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } g ? Membership(selected(), g, GroupRole.Member, false)
                     : BulkPlan.Invalid("That group isn't in the local copy any more.")),
                 pickPlaceholder: "Choose a group they're in: type its name",
@@ -133,14 +133,14 @@ public static class BulkActions
                 },
                 isCaution: true),
 
-            new("Give access to a shared mailbox", "Give everyone the same right on one shared, room or equipment mailbox.", "MailInbox",
+            new("Give Access to a Shared Mailbox", "Give everyone the same right on one shared, room or equipment mailbox.", "MailInbox",
                 (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } m ? Access(selected(), m, (MailboxRight)a.Choice!.Value, true)
                     : BulkPlan.Invalid("That mailbox isn't in the local copy any more.")),
                 pickPlaceholder: "Choose a mailbox: type its name",
                 pickOptions: () => index.AllGroups.Where(g => g.IsMailbox).Select(PickOption.Of),
                 choiceLabel: "Right", choices: Rights()),
 
-            new("Remove access to a shared mailbox", "Take the same right away from everyone on one mailbox.", "MailDismiss",
+            new("Remove Access to a Shared Mailbox", "Take the same right away from everyone on one mailbox.", "MailDismiss",
                 (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } m ? Access(selected(), m, (MailboxRight)a.Choice!.Value, false)
                     : BulkPlan.Invalid("That mailbox isn't in the local copy any more.")),
                 pickPlaceholder: "Choose a mailbox they can use: type its name",
@@ -153,7 +153,7 @@ public static class BulkActions
         ];
     }
 
-    static BulkChoice[] Rights() => GroupAccess.Rights.Select(r => new BulkChoice(SetMailboxAccess.RightName(r), r)).ToArray();
+    static BulkChoice[] Rights() => GroupAccess.Rights.Select(r => new BulkChoice(SetMailboxAccess.RightLabel(r), r)).ToArray();
 
     /// <summary>POP and IMAP first: the ones an admin most often turns off.</summary>
     static BulkChoice[] AppChoices() => EmailApps.All.OrderBy(a => a.Parameter is "PopEnabled" or "ImapEnabled" ? 0 : 1)
@@ -308,30 +308,30 @@ public static class BulkActions
 
         return
         [
-            new("Add a member", "Add one person to every selected group.", "PersonAdd",
+            new("Add a Member", "Add one person to every selected group.", "PersonAdd",
                 (a, _) => Task.FromResult(ForEachGroup(a.Picked!, (g, p) => Join(g, p, GroupRole.Member, true))),
                 pickPlaceholder: "Choose a person: type a name", pickOptions: () => GroupAccess.People(index)),
 
-            new("Remove a member", "Take one person out of every selected group.", "PersonDelete",
+            new("Remove a Member", "Take one person out of every selected group.", "PersonDelete",
                 (a, _) => Task.FromResult(ForEachGroup(a.Picked!, (g, p) => Join(g, p, GroupRole.Member, false))),
                 pickPlaceholder: "Choose a member: type a name",
                 pickOptions: () => MembersOf(selected(), index, g => g.Members), isCaution: true),
 
-            new("Add an owner", "Make one person an owner of every selected group.", "PersonStar",
+            new("Add an Owner", "Make one person an owner of every selected group.", "PersonStar",
                 (a, _) => Task.FromResult(ForEachGroup(a.Picked!, (g, p) => Join(g, p, GroupRole.Owner, true))),
                 pickPlaceholder: "Choose a person: type a name", pickOptions: () => GroupAccess.People(index)),
 
-            new("Remove an owner", "Take one owner off every selected group (a group's last owner stays).", "PersonSubtract",
+            new("Remove an Owner", "Take one owner off every selected group (a group's last owner stays).", "PersonSubtract",
                 (a, _) => Task.FromResult(ForEachGroup(a.Picked!, (g, p) => Join(g, p, GroupRole.Owner, false))),
                 pickPlaceholder: "Choose an owner: type a name",
                 pickOptions: () => MembersOf(selected(), index, g => g.OwnerList), isCaution: true),
 
-            new("Give mailbox access", "Give one person the same right on every selected shared, room or equipment mailbox.", "MailInbox",
+            new("Give Mailbox Access", "Give one person the same right on every selected shared, room or equipment mailbox.", "MailInbox",
                 (a, _) => Task.FromResult(ForEachGroup(a.Picked!, (g, p) => Grant(g, p, (MailboxRight)a.Choice!.Value, true))),
                 pickPlaceholder: "Choose a person: type a name", pickOptions: () => GroupAccess.People(index),
                 choiceLabel: "Right", choices: Rights()),
 
-            new("Remove mailbox access", "Take the same right away from one person on every selected mailbox.", "MailDismiss",
+            new("Remove Mailbox Access", "Take the same right away from one person on every selected mailbox.", "MailDismiss",
                 (a, _) => Task.FromResult(ForEachGroup(a.Picked!, (g, p) => Grant(g, p, (MailboxRight)a.Choice!.Value, false))),
                 pickPlaceholder: "Choose a person with access: type a name",
                 pickOptions: () => MembersOf(selected().Where(g => g.IsMailbox).ToArray(), index, g => g.Members),

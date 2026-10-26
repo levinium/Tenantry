@@ -81,9 +81,9 @@ public sealed partial class GroupsAccessSection : RecordSection, IDisposable
 
     public bool HasNoDelegates => Delegates.Count == 0 && IsDelegatesReady;
 
-    public string GroupsHeading => $"Groups and teams ({Groups.Count:N0})";
+    public string GroupsHeading => $"Groups and Teams ({Groups.Count:N0})";
 
-    public string MailboxesHeading => $"Shared mailboxes they can use ({Mailboxes.Count:N0})";
+    public string MailboxesHeading => $"Shared Mailboxes They Can Use ({Mailboxes.Count:N0})";
 
     // ---- Their own mailbox ----------------------------------------------------------------
 
@@ -94,7 +94,7 @@ public sealed partial class GroupsAccessSection : RecordSection, IDisposable
 
     ChangeTarget OwnMailbox => OwnMailboxGroup is { } g ? GroupAccess.Target(g) : Me;
 
-    public string DelegatesHeading => OwnMailboxGroup is not null ? "Who can use this mailbox" : "Who can use their mailbox";
+    public string DelegatesHeading => OwnMailboxGroup is not null ? "Who Can Use This Mailbox" : "Who Can Use Their Mailbox";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDelegatesReady), nameof(HasNoDelegates))]
@@ -278,7 +278,7 @@ public sealed partial class GroupsAccessSection : RecordSection, IDisposable
         {
             var has = actual.Contains(right);
             var (shown, pending) = GroupAccess.State(_pipeline, mailbox.Id, $"{right}:{person.Id}", has);
-            return new RightToggle(SetMailboxAccess.RightName(right), shown, pending, CanEditHere, CanEditHere ? GroupAccess.RightTip(right) : EditReason,
+            return new RightToggle(SetMailboxAccess.RightLabel(right), shown, pending, CanEditHere, CanEditHere ? GroupAccess.RightTip(right) : EditReason,
                 on => _pipeline!.Stage(new SetMailboxAccess(mailbox, person, right, has, on)));
         }).ToArray();
 

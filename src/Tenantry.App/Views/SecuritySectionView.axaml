@@ -37,7 +37,7 @@
         <StackPanel Spacing="10">
           <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
             <ic:FluentIcon Icon="Key" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1" Classes="h3" Text="Multi-factor sign-in" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="h3" Text="Multi-Factor Sign-In" VerticalAlignment="Center" />
           </Grid>
           <Border Classes="banner warning" IsVisible="{Binding HasMfaWarning}">
             <TextBlock Text="{Binding MfaText}" TextWrapping="Wrap" />
@@ -88,7 +88,7 @@
         <StackPanel Spacing="12">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="ArrowRotateCounterclockwise" FontSize="18" Foreground="{DynamicResource Accent}" />
-            <TextBlock Classes="h3" Text="Reset sign-in" VerticalAlignment="Center" />
+            <TextBlock Classes="h3" Text="Reset Sign-In" VerticalAlignment="Center" />
           </StackPanel>
           <TextBlock Classes="caption" TextWrapping="Wrap"
                      Text="When they should prove who they are again: a lost or new phone, a suspected compromise, someone leaving. Use one or both, in this order; each goes to Pending changes, and pressing again undoes it." />
@@ -96,7 +96,7 @@
           <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="12">
             <TextBlock Classes="h3" Text="1" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Top" />
             <StackPanel Grid.Column="1" Spacing="2">
-              <TextBlock Text="Revoke sessions" FontWeight="SemiBold" />
+              <TextBlock Text="Revoke Sessions" FontWeight="SemiBold" />
               <TextBlock Classes="caption" TextWrapping="Wrap"
                          Text="Signs them out of every app, browser and device, so anything still signed in has to sign in again. Same as Sign out everywhere." />
             </StackPanel>
@@ -107,7 +107,7 @@
           <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="12">
             <TextBlock Classes="h3" Text="2" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Top" />
             <StackPanel Grid.Column="1" Spacing="2">
-              <TextBlock Text="Require re-register multifactor authentication" FontWeight="SemiBold" />
+              <TextBlock Text="Require Re-Register Multi-Factor Authentication" FontWeight="SemiBold" />
               <TextBlock Classes="caption" TextWrapping="Wrap"
                          Text="Removes their MFA methods (Authenticator, phones, passkeys…) but keeps the password. They set MFA up again at their next sign-in." />
             </StackPanel>
@@ -129,9 +129,9 @@
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="A time-limited code they sign in with instead of a password, to set up MFA or a new device. It's shown to you once after applying." />
             <StackPanel Orientation="Horizontal" Spacing="12" IsEnabled="{Binding CanEdit}">
-              <TextBlock Text="Valid for" VerticalAlignment="Center" />
+              <TextBlock Text="Valid For" VerticalAlignment="Center" />
               <ComboBox ItemsSource="{x:Static rec:SecuritySection.TapLifetimes}" SelectedItem="{Binding TapLifetime}" MinWidth="110" />
-              <CheckBox IsChecked="{Binding TapOneTime}" Content="One use only" />
+              <CheckBox IsChecked="{Binding TapOneTime}" Content="One Use Only" />
             </StackPanel>
             <Button HorizontalAlignment="Left" Content="Create a Temporary Access Pass" Command="{Binding CreateTapCommand}" IsEnabled="{Binding CanEdit}"
                     ToolTip.Tip="Adds the pass to Pending changes; it's created and shown once when you apply" />
@@ -145,15 +145,15 @@
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
               <ic:FluentIcon Icon="ShieldError" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
               <TextBlock Grid.Column="1" Classes="h3" Text="Risk" VerticalAlignment="Center" />
-              <c:Badge Grid.Column="2" Text="At risk" Kind="Danger" IsVisible="{Binding IsAtRisk}" />
+              <c:Badge Grid.Column="2" Text="At Risk" Kind="Danger" IsVisible="{Binding IsAtRisk}" />
             </Grid>
             <TextBlock Classes="muted" Text="Checking Identity Protection…" IsVisible="{Binding RiskLoading}" />
             <TextBlock Classes="error" Text="{Binding RiskError}" IsVisible="{Binding HasRiskError}" TextWrapping="Wrap" />
             <TextBlock Classes="value" Text="{Binding RiskText}" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsRiskAvailable}" IsEnabled="{Binding CanEdit}">
-              <Button Classes="danger-outline" Content="Confirm compromised" Command="{Binding ConfirmCompromisedCommand}"
+              <Button Classes="danger-outline" Content="Confirm Compromised" Command="{Binding ConfirmCompromisedCommand}"
                       ToolTip.Tip="Raises their risk to high, so risk policies act on it (added to Pending changes)" />
-              <Button Content="Dismiss risk" Command="{Binding DismissRiskCommand}" IsVisible="{Binding IsAtRisk}"
+              <Button Content="Dismiss Risk" Command="{Binding DismissRiskCommand}" IsVisible="{Binding IsAtRisk}"
                       ToolTip.Tip="You've checked and it's fine (added to Pending changes)" />
             </StackPanel>
             <TextBlock Classes="pendingtext" Text="{Binding RiskPendingText}" IsVisible="{Binding HasRiskPending}" />
@@ -167,7 +167,7 @@
       <StackPanel Spacing="10">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ic:FluentIcon Icon="History" FontSize="18" Foreground="{DynamicResource Accent}" />
-          <TextBlock Classes="h3" Text="Sign-in log" VerticalAlignment="Center" />
+          <TextBlock Classes="h3" Text="Sign-In Log" VerticalAlignment="Center" />
         </StackPanel>
         <!-- Asked of the sign-in log: the period, the type and the result. -->
         <WrapPanel ItemSpacing="10" LineSpacing="8">
@@ -190,7 +190,7 @@
                     ToolTip.Tip="Whether the sign-in needed more than a password" />
           <TextBox Text="{Binding SignInSearch, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True"
                    Width="220" PlaceholderText="Search IP, device, reason…" />
-          <Button Classes="link" Content="Clear filters" Command="{Binding ClearSignInFiltersCommand}" IsVisible="{Binding HasSignInFilters}" VerticalAlignment="Center" />
+          <Button Classes="link" Content="Clear Filters" Command="{Binding ClearSignInFiltersCommand}" IsVisible="{Binding HasSignInFilters}" VerticalAlignment="Center" />
         </WrapPanel>
         <TextBlock Classes="muted" Text="Reading the sign-in log…" IsVisible="{Binding SignInsLoading}" />
         <TextBlock Classes="error" Text="{Binding SignInsError}" IsVisible="{Binding HasSignInsError}" TextWrapping="Wrap" />
@@ -207,7 +207,7 @@
                     <TextBlock Classes="caption" Text="{Binding Where}" />
                     <StackPanel Orientation="Horizontal" Spacing="6">
                       <TextBlock Classes="caption" Text="{Binding Client}" VerticalAlignment="Center" />
-                      <c:Badge Text="Legacy protocol" Kind="Warning" IsVisible="{Binding IsLegacy}" />
+                      <c:Badge Text="Legacy Protocol" Kind="Warning" IsVisible="{Binding IsLegacy}" />
                     </StackPanel>
                     <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap" />
                   </StackPanel>
@@ -228,7 +228,7 @@
         <StackPanel Spacing="10">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="PersonKey" FontSize="18" Foreground="{DynamicResource Accent}" />
-            <TextBlock Classes="h3" Text="Admin roles" VerticalAlignment="Center" />
+            <TextBlock Classes="h3" Text="Admin Roles" VerticalAlignment="Center" />
           </StackPanel>
           <TextBlock Classes="caption" TextWrapping="Wrap" Text="Roles assigned to them directly. Roles that come from a group they're in show on the group." />
           <TextBlock Classes="muted" Text="No admin roles." IsVisible="{Binding HasNoRoles}" />
@@ -270,7 +270,7 @@
         <StackPanel Spacing="10">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="AppsList" FontSize="18" Foreground="{DynamicResource Accent}" />
-            <TextBlock Classes="h3" Text="Apps they've given access to their data" VerticalAlignment="Center" />
+            <TextBlock Classes="h3" Text="Apps They've Given Access to Their Data" VerticalAlignment="Center" />
           </StackPanel>
           <TextBlock Classes="caption" TextWrapping="Wrap"
                      Text="Apps they agreed could act for them, with what each may do. An unfamiliar app reading mail is a common sign of a phishing consent." />
@@ -306,11 +306,11 @@
       <StackPanel Spacing="10">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ic:FluentIcon Icon="ShieldTask" FontSize="18" Foreground="{DynamicResource Accent}" />
-          <TextBlock Classes="h3" Text="Conditional Access policies" VerticalAlignment="Center" />
+          <TextBlock Classes="h3" Text="Conditional Access Policies" VerticalAlignment="Center" />
         </StackPanel>
         <TextBlock Classes="caption" TextWrapping="Wrap"
                    Text="Which policies cover them, judged on who each includes and excludes (them, their groups, their roles). Apps, locations and devices then decide when a policy acts." />
-        <CheckBox IsChecked="{Binding ShowAllPolicies}" Content="Also show policies that don't apply to them" />
+        <CheckBox IsChecked="{Binding ShowAllPolicies}" Content="Also Show Policies That Don't Apply to Them" />
         <TextBlock Classes="muted" Text="Reading the policies…" IsVisible="{Binding PoliciesLoading}" />
         <TextBlock Classes="error" Text="{Binding PoliciesError}" IsVisible="{Binding HasPoliciesError}" TextWrapping="Wrap" />
         <TextBlock Classes="caption" Text="{Binding PoliciesSummary}" />

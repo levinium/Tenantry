@@ -41,7 +41,7 @@ public sealed partial class ConvertMailboxViewModel : ObservableObject
           "(Groups & access) can open it. A shared mailbox needs no license up to 50 GB."
         : $"{_user.DisplayName}'s shared mailbox becomes a user mailbox again, one person's own. It needs a license that includes Exchange Online.";
 
-    public string ActionText => ToShared ? "Convert to a shared mailbox" : "Convert to a user mailbox";
+    public string ActionText => ToShared ? "Convert to a Shared Mailbox" : "Convert to a User Mailbox";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsReady))]
@@ -63,7 +63,7 @@ public sealed partial class ConvertMailboxViewModel : ObservableObject
     public partial bool BlockSignIn { get; set; } = true;
 
     [ObservableProperty]
-    public partial string RemoveLicensesText { get; private set; } = "Also remove their licenses";
+    public partial string RemoveLicensesText { get; private set; } = "Also Remove Their Licenses";
 
     [ObservableProperty]
     public partial bool HasLicensesToRemove { get; private set; }
@@ -90,8 +90,8 @@ public sealed partial class ConvertMailboxViewModel : ObservableObject
             RemoveLicensesText = _direct.Count switch
             {
                 0 => "They have no licenses assigned directly",
-                1 => $"Also remove their license ({_direct[0].Name})",
-                _ => $"Also remove their {_direct.Count} licenses ({string.Join(", ", _direct.Select(a => a.Name))})",
+                1 => $"Also Remove Their License ({_direct[0].Name})",
+                _ => $"Also Remove Their {_direct.Count} Licenses ({string.Join(", ", _direct.Select(a => a.Name))})",
             };
             if (inherited.Length > 0)
                 GroupLicensesText = $"Licenses from groups stay until they leave the group: {string.Join(", ", inherited.Select(a => $"{a.Name} (from {a.AssignedByGroupName})"))}.";

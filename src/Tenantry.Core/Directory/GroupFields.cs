@@ -36,7 +36,7 @@ public static class GroupFields
             ChoiceOrder = [Assigned, Dynamic], Text = g => g.IsDynamic ? Dynamic : Assigned,
         },
         new() { Key = Team, Label = "Team", Kind = FieldKind.Choice, Aliases = ["teams"], ChoiceOrder = [Yes, No], Text = g => g.IsTeam ? Yes : No },
-        new() { Key = Visibility, Label = "Visibility", Kind = FieldKind.Choice, EmptyLabel = "Not set", Text = g => g.Visibility },
+        new() { Key = Visibility, Label = "Visibility", Kind = FieldKind.Choice, EmptyLabel = "Not Set", Text = g => g.Visibility },
         new() { Key = Members, Label = "Members", Kind = FieldKind.Number, Aliases = ["membercount", "count"], Number = g => g.Members.Count },
         new() { Key = Created, Label = "Created", Kind = FieldKind.Date, Aliases = ["createddate"], Date = g => g.CreatedAt },
         new() { Key = Description, Label = "Description", Kind = FieldKind.Text, Searchable = true, Aliases = ["desc"], Text = g => g.Description },

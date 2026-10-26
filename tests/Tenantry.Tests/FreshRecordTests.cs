@@ -24,7 +24,7 @@ public sealed class FreshRecordTests
 
         var changes = RecordChanges.Between(old, fresh);
 
-        Assert.Equal([("title", "Job title", false), ("signin", "Last sign-in", true)], changes.Select(c => (c.Key, c.Label, c.Quiet)));
+        Assert.Equal([("title", "Job Title", false), ("signin", "Last Sign-In", true)], changes.Select(c => (c.Key, c.Label, c.Quiet)));
         Assert.Empty(RecordChanges.Between(old, old with { Licenses = [.. old.Licenses] }));
     }
 
@@ -49,9 +49,9 @@ public sealed class FreshRecordTests
         IReadOnlySet<string>? tinted = null;
         freshness.Highlight += (_, keys) => tinted = keys;
 
-        freshness.Updated([new FieldChange("title", "Job title"), new FieldChange("signin", "Last sign-in", Quiet: true)], DateTimeOffset.Now);
+        freshness.Updated([new FieldChange("title", "Job Title"), new FieldChange("signin", "Last Sign-In", Quiet: true)], DateTimeOffset.Now);
 
-        Assert.Equal("Updated from Microsoft 365: Job title", freshness.Text);
+        Assert.Equal("Updated from Microsoft 365: Job Title", freshness.Text);
         Assert.Equal(["signin", "title"], tinted!.Order());
         for (var i = 0; i < 100 && freshness.State != FreshnessState.UpToDate; i++)
             await Task.Delay(10, Ct);
@@ -63,7 +63,7 @@ public sealed class FreshRecordTests
     {
         var freshness = new RecordFreshness();
 
-        freshness.Updated([new FieldChange("signin", "Last sign-in", Quiet: true)], DateTimeOffset.Now);
+        freshness.Updated([new FieldChange("signin", "Last Sign-In", Quiet: true)], DateTimeOffset.Now);
 
         Assert.Equal(FreshnessState.UpToDate, freshness.State);
     }
@@ -120,7 +120,7 @@ public sealed class FreshRecordTests
 
         Assert.Equal("CFO", page.User.JobTitle);
         Assert.Equal(FreshnessState.Updated, page.Freshness.State);
-        Assert.Contains("Job title", page.Freshness.Text);
+        Assert.Contains("Job Title", page.Freshness.Text);
         Assert.Equal(1, tenant.Refreshes);
     }
 

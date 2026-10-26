@@ -25,9 +25,9 @@ public sealed record AutoReply(AutoReplyState State, DateTimeOffset? Start, Date
 
     public static string AudienceName(AutoReplyAudience audience) => audience switch
     {
-        AutoReplyAudience.None => "Nobody outside the organization",
-        AutoReplyAudience.Known => "Only their contacts outside",
-        _ => "Everyone outside the organization",
+        AutoReplyAudience.None => "Nobody Outside the Organization",
+        AutoReplyAudience.Known => "Only Their Contacts Outside",
+        _ => "Everyone Outside the Organization",
     };
 
     /// <summary>Exchange stores replies as HTML; this is the text a person typed.</summary>
@@ -59,13 +59,13 @@ public sealed record EmailApps(bool Owa, bool Outlook, bool Mobile, bool Pop, bo
     /// <summary>The Set-CASMailbox parameter behind each app, with how it reads to a person.</summary>
     public static readonly IReadOnlyList<(string Parameter, string Name, string Explanation)> All =
     [
-        ("OWAEnabled", "Outlook on the web", "Mail in a browser"),
-        ("MAPIEnabled", "Outlook desktop", "The Outlook app on Windows and Mac"),
-        ("ActiveSyncEnabled", "Mobile mail", "Phones' built-in mail apps (Exchange ActiveSync)"),
+        ("OWAEnabled", "Outlook on the Web", "Mail in a browser"),
+        ("MAPIEnabled", "Outlook Desktop", "The Outlook app on Windows and Mac"),
+        ("ActiveSyncEnabled", "Mobile Mail", "Phones' built-in mail apps (Exchange ActiveSync)"),
         ("EwsEnabled", "Exchange Web Services", "Older apps and add-ins that connect through EWS"),
         ("PopEnabled", "POP", "Older mail apps; often signs in without multi-factor sign-in"),
         ("ImapEnabled", "IMAP", "Older mail apps; often signs in without multi-factor sign-in"),
-        ("SmtpClientAuthenticationDisabled", "SMTP sending", "Devices and apps that send mail by signing in with a password (scanners, older apps)"),
+        ("SmtpClientAuthenticationDisabled", "SMTP Sending", "Devices and apps that send mail by signing in with a password (scanners, older apps)"),
     ];
 
     public bool IsOn(string parameter) => parameter switch

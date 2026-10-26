@@ -49,7 +49,7 @@ public sealed partial class SenderRow(string name, string? detail, string? pendi
 /// </summary>
 public sealed partial class MailSection
 {
-    const string InternalOnly = "Only people in the organization";
+    const string InternalOnly = "Only People in the Organization";
     const string Anyone = "Anyone";
     const long Mb = 1024 * 1024;
 
@@ -66,7 +66,7 @@ public sealed partial class MailSection
         return parts.Length == 0 ? null : "Pending: " + string.Join(" · ", parts);
     }
 
-    static string MbText(long? bytes) => bytes is { } b ? $"{Math.Round((double)b / Mb):0} MB" : "No limit";
+    static string MbText(long? bytes) => bytes is { } b ? $"{Math.Round((double)b / Mb):0} MB" : "No Limit";
 
     void RebuildSettings()
     {
@@ -148,9 +148,9 @@ public sealed partial class MailSection
         var recipientValue = unlimited ? "Unlimited" : count.ToString(CultureInfo.InvariantCulture);
         _pipeline!.StageAll(
         [
-            new SetMailboxValue(Target, "RecipientLimits", "Recipients per message", s.RecipientLimit, recipientValue, JsonValue.Create(recipientValue)),
-            new SetMailboxValue(Target, "MaxSendSize", "Largest message they can send", MbText(s.MaxSendBytes), $"{send} MB", JsonValue.Create($"{send} MB")),
-            new SetMailboxValue(Target, "MaxReceiveSize", "Largest message they can receive", MbText(s.MaxReceiveBytes), $"{receive} MB", JsonValue.Create($"{receive} MB")),
+            new SetMailboxValue(Target, "RecipientLimits", "Recipients per Message", s.RecipientLimit, recipientValue, JsonValue.Create(recipientValue)),
+            new SetMailboxValue(Target, "MaxSendSize", "Largest Message They Can Send", MbText(s.MaxSendBytes), $"{send} MB", JsonValue.Create($"{send} MB")),
+            new SetMailboxValue(Target, "MaxReceiveSize", "Largest Message They Can Receive", MbText(s.MaxReceiveBytes), $"{receive} MB", JsonValue.Create($"{receive} MB")),
         ]);
 
         static int? ParseMb(string text) =>
@@ -170,7 +170,7 @@ public sealed partial class MailSection
             if (!CanEdit || Settings is not { } s || value == OnlyInternal)
                 return;
             // Turning it on stops mail from outside arriving: a caution change.
-            _pipeline!.Stage(new SetMailboxValue(Target, "RequireSenderAuthenticationEnabled", "Who can send to them",
+            _pipeline!.Stage(new SetMailboxValue(Target, "RequireSenderAuthenticationEnabled", "Who Can Send to Them",
                 s.OnlyInternalSenders ? InternalOnly : Anyone, value ? InternalOnly : Anyone, JsonValue.Create(value), Caution: value));
         }
     }
@@ -364,7 +364,7 @@ public sealed partial class MailSection
         {
             if (!CanEdit || Settings is not { } s || value is null || value == RetentionPolicy)
                 return;
-            _pipeline!.Stage(new SetMailboxValue(Target, "RetentionPolicy", "Retention policy", s.RetentionPolicy ?? "None", value, JsonValue.Create(value)));
+            _pipeline!.Stage(new SetMailboxValue(Target, "RetentionPolicy", "Retention Policy", s.RetentionPolicy ?? "None", value, JsonValue.Create(value)));
         }
     }
 

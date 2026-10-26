@@ -146,7 +146,7 @@ public sealed record ResetPassword(ChangeTarget User, bool MustChangeAtNextSignI
     public override ChangeTarget Target => User;
     public override string Key => "password";
     public override string Label => "Password";
-    public override string Before => "Current password";
+    public override string Before => "Current Password";
     public override string After => (Chosen is null ? "A new generated password" : "A password you chose")
         + (MustChangeAtNextSignIn ? " (they change it at next sign-in)" : "");
     public override bool IsCaution => true;
@@ -163,7 +163,7 @@ public sealed record SetLicenseAssigned(ChangeTarget User, string SkuId, string 
     public override ChangeTarget Target => User;
     public override string Key => "license:" + SkuId;
     public override string Label => SkuName;
-    public override string Before => Old ? "Assigned" : "Not assigned";
+    public override string Before => Old ? "Assigned" : "Not Assigned";
     public override string After => New ? "Assigned" : "Removed";
     public override bool IsCaution => Old && !New;
     public override bool IsNoChange => Old == New;
@@ -180,7 +180,7 @@ public sealed record SetLicenseApps(ChangeTarget User, string SkuId, string SkuN
 {
     public override ChangeTarget Target => User;
     public override string Key => "apps:" + SkuId;
-    public override string Label => $"{SkuName} apps";
+    public override string Label => $"{SkuName} Apps";
     public override string Before => Describe(OldDisabled);
     public override string After => Describe(NewDisabled);
     public override bool IsCaution => NewDisabled.Except(OldDisabled).Any();
@@ -188,7 +188,7 @@ public sealed record SetLicenseApps(ChangeTarget User, string SkuId, string SkuN
     public override ChangeOp Since(ChangeOp earlier) => earlier is SetLicenseApps e ? this with { OldDisabled = e.OldDisabled } : this;
 
     string Describe(IReadOnlyList<string> disabled) => disabled.Count == 0
-        ? "All apps on"
+        ? "All Apps On"
         : "Off: " + string.Join(", ", disabled.Select(id => PlanNames.GetValueOrDefault(id, id)).Order(StringComparer.CurrentCulture));
 }
 
@@ -232,7 +232,7 @@ public sealed record SetGroupMembership(ChangeTarget Group, ChangeTarget Person,
     public override ChangeTarget Target => Group;
     public override string Key => $"{Role}:{Person.Id}";
     public override string Label => Role == GroupRole.Owner ? $"Owner {Person.Name}" : $"Member {Person.Name}";
-    public override string Before => Old ? Role.ToString() : $"Not {Article} {Role.ToString().ToLowerInvariant()}";
+    public override string Before => Old ? Role.ToString() : $"Not {Article} {Role}";
     public override string After => New ? Role.ToString() : "Removed";
     public override bool IsCaution => Old && !New;
     public override bool IsNoChange => Old == New;
@@ -252,19 +252,31 @@ public sealed record SetMailboxAccess(ChangeTarget Mailbox, ChangeTarget Person,
 {
     public override ChangeTarget Target => Mailbox;
     public override string Key => $"{Right}:{Person.Id}";
-    public override string Label => $"{RightName(Right)}: {Person.Name}";
-    public override string Before => Old ? "Allowed" : "Not allowed";
+    public override string Label => $"{RightLabel(Right)}: {Person.Name}";
+    public override string Before => Old ? "Allowed" : "Not Allowed";
     public override string After => New ? "Allowed" : "Removed";
     public override bool IsCaution => Old && !New;
     public override bool IsNoChange => Old == New;
     public override IReadOnlyList<ChangeTarget> Guarded => [Mailbox, Person];
     public override ChangeOp Since(ChangeOp earlier) => earlier is SetMailboxAccess e ? this with { Old = e.Old } : this;
 
+    /// <summary>
+    /// The right as the local copy stores it ("Full access, Send as"); also what <c>GroupAccess.RightsOf</c>
+    /// parses, so it stays as it is. Labels on screen use <see cref="RightLabel"/>.
+    /// </summary>
     public static string RightName(MailboxRight right) => right switch
     {
         MailboxRight.FullAccess => "Full access",
         MailboxRight.SendAs => "Send as",
         _ => "Send on behalf",
+    };
+
+    /// <summary>The right as a label on screen (Title Case).</summary>
+    public static string RightLabel(MailboxRight right) => right switch
+    {
+        MailboxRight.FullAccess => "Full Access",
+        MailboxRight.SendAs => "Send As",
+        _ => "Send on Behalf",
     };
 }
 
@@ -287,7 +299,7 @@ public sealed record SetMailAlias(ChangeTarget User, string Address, bool Old, b
 {
     public override ChangeTarget Target => User;
     public override string Key => "alias:" + Address.ToLowerInvariant();
-    public override string Label => $"Email address {Address}";
+    public override string Label => $"Email Address {Address}";
     public override string Before => Old ? "One of their addresses" : "Not one of their addresses";
     public override string After => New ? "Added" : "Removed";
     public override bool IsCaution => Old && !New;
@@ -300,7 +312,7 @@ public sealed record SetPrimaryAddress(ChangeTarget User, string Old, string New
 {
     public override ChangeTarget Target => User;
     public override string Key => "primary";
-    public override string Label => "Primary email address";
+    public override string Label => "Primary Email Address";
     public override string Before => Old;
     public override string After => New;
     public override bool IsCaution => true;
@@ -332,7 +344,7 @@ public sealed record SetAutoReply(ChangeTarget User, Directory.AutoReply Old, Di
 {
     public override ChangeTarget Target => User;
     public override string Key => "autoreply";
-    public override string Label => "Automatic replies";
+    public override string Label => "Automatic Replies";
     public override string Before => Old.Describe();
     public override string After => New.Describe() + (New.State != Directory.AutoReplyState.Off && New.Internal != Old.Internal ? " (new message)" : "");
     public override bool IsNoChange => Old == New;
@@ -344,7 +356,7 @@ public sealed record SetHiddenFromAddressList(ChangeTarget User, bool Old, bool 
 {
     public override ChangeTarget Target => User;
     public override string Key => "gal";
-    public override string Label => "Address list";
+    public override string Label => "Address List";
     public override string Before => Old ? "Hidden" : "Shown";
     public override string After => New ? "Hidden" : "Shown";
     public override bool IsNoChange => Old == New;
@@ -393,7 +405,7 @@ public sealed record SetArchive(ChangeTarget User, bool Old, bool New) : ChangeO
 {
     public override ChangeTarget Target => User;
     public override string Key => "archive";
-    public override string Label => "Online archive";
+    public override string Label => "Online Archive";
     public override string Before => Old ? "On" : "Off";
     public override string After => New ? "On" : "Off (its contents are deleted after 30 days)";
     public override bool IsCaution => Old && !New;
@@ -406,7 +418,7 @@ public sealed record EnableAutoExpandingArchive(ChangeTarget User) : ChangeOp
 {
     public override ChangeTarget Target => User;
     public override string Key => "autoexpand";
-    public override string Label => "Auto-expanding archive";
+    public override string Label => "Auto-Expanding Archive";
     public override string Before => "Off";
     public override string After => "On (can't be turned off again)";
     public override bool IsCaution => true;
@@ -422,7 +434,7 @@ public sealed record SetLitigationHold(ChangeTarget User, bool OldOn, int? OldDa
 {
     public override ChangeTarget Target => User;
     public override string Key => "hold";
-    public override string Label => "Litigation hold";
+    public override string Label => "Litigation Hold";
     public override string Before => Describe(OldOn, OldDays, OldNote);
     public override string After => Describe(NewOn, NewDays, NewNote);
     public override bool IsCaution => true;
@@ -441,8 +453,8 @@ public sealed record SetAllowedSender(ChangeTarget User, ChangeTarget Sender, bo
 {
     public override ChangeTarget Target => User;
     public override string Key => "accept:" + Sender.Id.ToLowerInvariant();
-    public override string Label => $"Allowed sender {Sender.Name}";
-    public override string Before => Old ? "Allowed" : "Not on the list";
+    public override string Label => $"Allowed Sender {Sender.Name}";
+    public override string Before => Old ? "Allowed" : "Not on the List";
     public override string After => New ? "Allowed" : "Removed";
     public override bool IsCaution => Old && !New;
     public override bool IsNoChange => Old == New;
@@ -454,7 +466,7 @@ public sealed record SetSignInAllowed(ChangeTarget User, bool Old, bool New) : C
 {
     public override ChangeTarget Target => User;
     public override string Key => "signin";
-    public override string Label => "Sign-in";
+    public override string Label => "Sign-In";
     public override string Before => Old ? "Allowed" : "Blocked";
     public override string After => New ? "Allowed" : "Blocked";
     public override bool IsCaution => !New;
@@ -470,7 +482,7 @@ public sealed record SetInboxRuleEnabled(ChangeTarget User, string RuleIdentity,
 {
     public override ChangeTarget Target => User;
     public override string Key => "rule:" + RuleIdentity;
-    public override string Label => $"Inbox rule \"{RuleName}\"";
+    public override string Label => $"Inbox Rule \"{RuleName}\"";
     public override string Before => Old ? "On" : "Off";
     public override string After => New ? "On" : "Off";
     public override bool IsNoChange => Old == New;
@@ -483,7 +495,7 @@ public sealed record RemoveInboxRule(ChangeTarget User, string RuleIdentity, str
 {
     public override ChangeTarget Target => User;
     public override string Key => "rule:" + RuleIdentity;
-    public override string Label => $"Inbox rule \"{RuleName}\"";
+    public override string Label => $"Inbox Rule \"{RuleName}\"";
     public override string Before => Was;
     public override string After => "Deleted";
     public override bool IsCaution => true;
@@ -503,8 +515,8 @@ public sealed record SetFolderPermission(ChangeTarget User, string FolderIdentit
 {
     public override ChangeTarget Target => User;
     public override string Key => $"folder:{FolderName.ToLowerInvariant()}:{Person.ToLowerInvariant()}";
-    public override string Label => $"{FolderName} access for {PersonName}";
-    public override string Before => Old is null ? "No access" : Directory.FolderRoles.NameOf(Old);
+    public override string Label => $"{FolderName} Access for {PersonName}";
+    public override string Before => Old is null ? "No Access" : Directory.FolderRoles.NameOf(Old);
     public override string After => New is null ? "Removed" : Directory.FolderRoles.NameOf(New);
     public override bool IsCaution => New is null || string.Equals(New, "None", StringComparison.OrdinalIgnoreCase);
     public override bool IsNoChange => string.Equals(Old, New, StringComparison.OrdinalIgnoreCase);
@@ -568,7 +580,7 @@ public sealed record RestoreDeletedItem(ChangeTarget User, string EntryId, strin
 {
     public override ChangeTarget Target => User;
     public override string Key => "restore:" + EntryId;
-    public override string Label => $"Deleted item \"{Subject}\"";
+    public override string Label => $"Deleted Item \"{Subject}\"";
     public override string Before => "Deleted";
     public override string After => "Restored to its folder";
     public override bool IsNoChange => false;
@@ -583,9 +595,9 @@ public sealed record ConvertMailbox(ChangeTarget User, bool OldShared, bool NewS
 {
     public override ChangeTarget Target => User;
     public override string Key => "mailboxtype";
-    public override string Label => "Mailbox type";
-    public override string Before => OldShared ? "Shared mailbox" : "User mailbox";
-    public override string After => NewShared ? "Shared mailbox" : "User mailbox";
+    public override string Label => "Mailbox Type";
+    public override string Before => OldShared ? "Shared Mailbox" : "User Mailbox";
+    public override string After => NewShared ? "Shared Mailbox" : "User Mailbox";
     public override bool IsCaution => NewShared;
     public override bool IsNoChange => OldShared == NewShared;
     public override ChangeOp Since(ChangeOp earlier) => earlier is ConvertMailbox e ? this with { OldShared = e.OldShared } : this;
@@ -602,7 +614,7 @@ public sealed record RemoveAuthMethod(ChangeTarget User, string MethodId, string
 {
     public override ChangeTarget Target => User;
     public override string Key => "authmethod:" + MethodId;
-    public override string Label => $"Sign-in method {MethodName}";
+    public override string Label => $"Sign-In Method {MethodName}";
     public override string Before => "Registered";
     public override string After => "Removed";
     public override bool IsCaution => true;
@@ -616,8 +628,8 @@ public sealed record AddPhoneMethod(ChangeTarget User, string PhoneType, string 
 {
     public override ChangeTarget Target => User;
     public override string Key => "phone:" + PhoneType;
-    public override string Label => PhoneType switch { "alternateMobile" => "Alternate phone", "office" => "Office phone", _ => "Mobile phone" };
-    public override string Before => "Not set";
+    public override string Label => PhoneType switch { "alternateMobile" => "Alternate Phone", "office" => "Office Phone", _ => "Mobile Phone" };
+    public override string Before => "Not Set";
     public override string After => Number;
     public override bool IsNoChange => Number.Length == 0;
     public override ChangeOp Since(ChangeOp earlier) => this;
@@ -656,7 +668,7 @@ public sealed record RevokeAppConsent(ChangeTarget User, string GrantId, string 
 {
     public override ChangeTarget Target => User;
     public override string Key => "consent:" + GrantId;
-    public override string Label => $"App access {AppName}";
+    public override string Label => $"App Access {AppName}";
     public override string Before => "Allowed";
     public override string After => "Revoked";
     public override bool IsCaution => true;
@@ -673,8 +685,8 @@ public sealed record SetUserRisk(ChangeTarget User, bool Compromised) : ChangeOp
     public override ChangeTarget Target => User;
     public override string Key => "risk";
     public override string Label => "Risk";
-    public override string Before => "At risk";
-    public override string After => Compromised ? "Confirmed compromised (risk high)" : "Dismissed";
+    public override string Before => "At Risk";
+    public override string After => Compromised ? "Confirmed Compromised (Risk High)" : "Dismissed";
     public override bool IsCaution => Compromised;
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;
@@ -688,7 +700,7 @@ public sealed record SetDeviceEnabled(ChangeTarget Device, bool Old, bool New) :
 {
     public override ChangeTarget Target => Device;
     public override string Key => "enabled";
-    public override string Label => "Device sign-in";
+    public override string Label => "Device Sign-In";
     public override string Before => Old ? "Enabled" : "Disabled";
     public override string After => New ? "Enabled" : "Disabled";
     public override bool IsCaution => !New;
@@ -724,13 +736,13 @@ public sealed record RunDeviceAction(ChangeTarget Device, DeviceCommand Command)
         DeviceCommand.Sync => "Sync with Intune",
         DeviceCommand.Restart => "Restart",
         DeviceCommand.Lock => "Lock",
-        DeviceCommand.RotateLocalAdminPassword => "Local admin password",
+        DeviceCommand.RotateLocalAdminPassword => "Local Admin Password",
         DeviceCommand.Retire => "Retire",
         _ => "Wipe",
     };
     public override string Before => Command switch
     {
-        DeviceCommand.RotateLocalAdminPassword => "Current password",
+        DeviceCommand.RotateLocalAdminPassword => "Current Password",
         DeviceCommand.Retire or DeviceCommand.Wipe => "Managed",
         _ => "",
     };
@@ -821,7 +833,7 @@ public abstract record ListEntryChange(ChangeTarget Entry, Directory.ListKind Ki
 public sealed record AddListEntry(ChangeTarget Entry, Directory.ListKind Kind, bool Block, Directory.ListExpiry Expiry, string? Notes,
     string? Infrastructure = null, string? SpoofType = null) : ListEntryChange(Entry, Kind)
 {
-    public override string Before => "Not listed";
+    public override string Before => "Not Listed";
     public override string After => (Block ? "Blocked" : "Allowed") + (Kind == Directory.ListKind.Spoof ? $" from {Infrastructure}" : $", {Expiry.Text}");
     public override bool IsCaution => Block;
     public override bool IsNoChange => false;
@@ -857,8 +869,8 @@ public sealed record SetSenderListed(ChangeTarget Sender, bool Block, string? No
     public override ChangeTarget Target => Sender;
     public override string Key => "listed";
     public override string Label => $"Sender {Sender.Name}";
-    public override string Before => "Not listed";
-    public override string After => Block ? "Blocked" : RemoveAfterDays is { } d ? $"Allowed for {d} days" : "Allowed";
+    public override string Before => "Not Listed";
+    public override string After => Block ? "Blocked" : RemoveAfterDays is { } d ? $"Allowed for {d} Days" : "Allowed";
     public override bool IsCaution => Block;
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;
@@ -878,9 +890,9 @@ public sealed record SetOneDriveAccess(ChangeTarget User, string SiteUrl, string
 
     public override ChangeTarget Target => User;
     public override string Key => "onedrive:" + Login.ToLowerInvariant();
-    public override string Label => $"OneDrive access: {Person.Name}";
-    public override string Before => Old ? "Full access" : "No access";
-    public override string After => New ? "Full access" : "Removed";
+    public override string Label => $"OneDrive Access: {Person.Name}";
+    public override string Before => Old ? "Full Access" : "No Access";
+    public override string After => New ? "Full Access" : "Removed";
     public override bool IsCaution => Old && !New;
     public override bool IsNoChange => Old == New;
     public override IReadOnlyList<ChangeTarget> Guarded => [User, Person];

@@ -33,12 +33,12 @@ public static class FolderRoles
 {
     public static readonly IReadOnlyList<(string Role, string Name, string Explanation)> Calendar =
     [
-        ("Editor", "Can edit", "See and change everything, and add or delete events"),
-        ("Author", "Can edit their own", "See everything, add events, change or delete only their own"),
-        ("Reviewer", "Can view all details", "See every event with its details"),
-        ("LimitedDetails", "Can view titles and locations", "See when they're busy, with each event's title and location"),
-        ("AvailabilityOnly", "Can view when I'm busy", "See only free or busy times"),
-        ("None", "No access", "Can't see the calendar"),
+        ("Editor", "Can Edit", "See and change everything, and add or delete events"),
+        ("Author", "Can Edit Their Own", "See everything, add events, change or delete only their own"),
+        ("Reviewer", "Can View All Details", "See every event with its details"),
+        ("LimitedDetails", "Can View Titles and Locations", "See when they're busy, with each event's title and location"),
+        ("AvailabilityOnly", "Can View When I'm Busy", "See only free or busy times"),
+        ("None", "No Access", "Can't see the calendar"),
     ];
 
     public static string NameOf(string role) =>
@@ -72,8 +72,8 @@ public sealed record DeletedItem(string EntryId, string Subject, string ItemClas
     public string Kind => ItemClass switch
     {
         _ when ItemClass.StartsWith("IPM.Note", StringComparison.OrdinalIgnoreCase) => "Email",
-        _ when ItemClass.StartsWith("IPM.Appointment", StringComparison.OrdinalIgnoreCase) => "Calendar event",
-        _ when ItemClass.StartsWith("IPM.Schedule", StringComparison.OrdinalIgnoreCase) => "Meeting message",
+        _ when ItemClass.StartsWith("IPM.Appointment", StringComparison.OrdinalIgnoreCase) => "Calendar Event",
+        _ when ItemClass.StartsWith("IPM.Schedule", StringComparison.OrdinalIgnoreCase) => "Meeting Message",
         _ when ItemClass.StartsWith("IPM.Contact", StringComparison.OrdinalIgnoreCase) => "Contact",
         _ when ItemClass.StartsWith("IPM.Task", StringComparison.OrdinalIgnoreCase) => "Task",
         _ => "Item",

@@ -164,17 +164,17 @@ public sealed partial class DateFilterEditor : FilterEditorViewModel
 {
     public static IReadOnlyList<DatePreset> Presets { get; } =
     [
-        new("In the last 7 days", DateOp.WithinLastDays, 7),
-        new("In the last 30 days", DateOp.WithinLastDays, 30),
-        new("In the last 90 days", DateOp.WithinLastDays, 90),
-        new("More than 30 days ago", DateOp.OlderThanDays, 30),
-        new("More than 90 days ago", DateOp.OlderThanDays, 90),
-        new("More than 180 days ago", DateOp.OlderThanDays, 180),
-        new("In the last … days", DateOp.WithinLastDays, CustomDays: true),
-        new("More than … days ago", DateOp.OlderThanDays, CustomDays: true),
-        new("Between two dates", DateOp.Between, Range: true),
-        new("Never / no date", DateOp.Never),
-        new("Has any date", DateOp.Any),
+        new("In the Last 7 Days", DateOp.WithinLastDays, 7),
+        new("In the Last 30 Days", DateOp.WithinLastDays, 30),
+        new("In the Last 90 Days", DateOp.WithinLastDays, 90),
+        new("More Than 30 Days Ago", DateOp.OlderThanDays, 30),
+        new("More Than 90 Days Ago", DateOp.OlderThanDays, 90),
+        new("More Than 180 Days Ago", DateOp.OlderThanDays, 180),
+        new("In the Last … Days", DateOp.WithinLastDays, CustomDays: true),
+        new("More Than … Days Ago", DateOp.OlderThanDays, CustomDays: true),
+        new("Between Two Dates", DateOp.Between, Range: true),
+        new("Never / No Date", DateOp.Never),
+        new("Has Any Date", DateOp.Any),
     ];
 
     public DateFilterEditor(FieldOption field, DateCondition? existing) : base(field)

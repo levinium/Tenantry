@@ -19,8 +19,8 @@ public sealed class TenantryChangeRow(ChangeLogEntry entry)
     public string OutcomeText => entry.Outcome switch
     {
         ChangeOutcome.Applied => "Done",
-        ChangeOutcome.AppliedNotYetVisible => "Done, showing soon",
-        ChangeOutcome.Refused => "Stopped by Test mode",
+        ChangeOutcome.AppliedNotYetVisible => "Done, Showing Soon",
+        ChangeOutcome.Refused => "Stopped by Test Mode",
         _ => "Failed",
     };
 

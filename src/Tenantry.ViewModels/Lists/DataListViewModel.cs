@@ -45,7 +45,7 @@ public sealed partial class DataListViewModel : TabViewModel
         };
         NewViewName = "";
         SearchText = "";
-        GroupOptions = [new GroupOption(null, "No grouping"), .. source.FieldOptions.Where(f => f.Kind is FieldKind.Choice or FieldKind.MultiChoice).Select(f => new GroupOption(f.Key, f.Label))];
+        GroupOptions = [new GroupOption(null, "No Grouping"), .. source.FieldOptions.Where(f => f.Kind is FieldKind.Choice or FieldKind.MultiChoice).Select(f => new GroupOption(f.Key, f.Label))];
         SelectedGroup = GroupOptions[0];
         foreach (var v in source.BuiltInViews)
             Views.Add(new SavedViewItem(v) { IsPinned = v.Pinned });
@@ -653,7 +653,7 @@ public sealed partial class DataListViewModel : TabViewModel
     {
         0 => "Sort",
         1 => $"Sort: {LabelOf(_sort[0].Field)}",
-        _ => $"Sort: {_sort.Count} levels",
+        _ => $"Sort: {_sort.Count} Levels",
     };
 
     string LabelOf(string field) => SortFields.FirstOrDefault(f => f.Key == field)?.Label ?? field;
@@ -885,7 +885,7 @@ public sealed partial class DataListViewModel : TabViewModel
     [ObservableProperty]
     public partial bool IsModified { get; private set; }
 
-    public string CurrentViewName => CurrentView is null ? "Custom view" : IsModified ? $"{CurrentView.Name} (changed)" : CurrentView.Name;
+    public string CurrentViewName => CurrentView is null ? "Custom View" : IsModified ? $"{CurrentView.Name} (changed)" : CurrentView.Name;
 
     [ObservableProperty]
     public partial string NewViewName { get; set; }
@@ -963,7 +963,7 @@ public sealed partial class DataListViewModel : TabViewModel
     public partial IReadOnlyList<SavedViewItem> MoreViews { get; private set; } = [];
 
     public bool HasMoreViews => MoreViews.Count > 0;
-    public string MoreViewsText => $"More views ({MoreViews.Count})";
+    public string MoreViewsText => $"More Views ({MoreViews.Count})";
 
     void UpdateViewGroups()
     {
@@ -1113,7 +1113,7 @@ public sealed partial class DataListViewModel : TabViewModel
         var items = new List<RowMenuItem>();
         items.Add(new RowMenuItem("Open", "Open", () => _source.Open(row)));
         if (HasPreview)
-            items.Add(new RowMenuItem("Show in preview", "PanelRight", () => PreviewRow(row)));
+            items.Add(new RowMenuItem("Show in Preview", "PanelRight", () => PreviewRow(row)));
         var actions = _source.Actions(row);
         if (actions.Count > 0)
         {
@@ -1121,14 +1121,14 @@ public sealed partial class DataListViewModel : TabViewModel
             items.AddRange(actions);
         }
         items.Add(RowMenuItem.Separator);
-        items.Add(new RowMenuItem("Copy row", "Copy", CopyText: RowText(row)));
+        items.Add(new RowMenuItem("Copy Row", "Copy", CopyText: RowText(row)));
         foreach (var c in Columns.Where(c => c.IsVisible))
         {
             var value = c.Cell == CellKind.Primary ? c.Text(row) : c.Plain(row);
             if (!string.IsNullOrWhiteSpace(value))
-                items.Add(new RowMenuItem($"Copy {c.Header.ToLowerInvariant()}", "Copy", CopyText: value));
+                items.Add(new RowMenuItem($"Copy {c.Header}", "Copy", CopyText: value));
             if (c.Cell == CellKind.Primary && c.Subtitle(row) is { Length: > 0 } sub)
-                items.Add(new RowMenuItem("Copy address", "Copy", CopyText: sub));
+                items.Add(new RowMenuItem("Copy Address", "Copy", CopyText: sub));
         }
         return items;
     }

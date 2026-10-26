@@ -154,7 +154,7 @@ public sealed class MailTests
         Assert.Equal(2, pipeline.Pending.Count);
         Assert.Equal("Adding", tab.Addresses.Single(a => a.Address == "bo.sales@contoso.example").PendingText);
         Assert.Equal("bo.alias@contoso.example", tab.Addresses[0].Address);
-        Assert.Equal("Becomes primary", tab.Addresses[0].PendingText);
+        Assert.Equal("Becomes Primary", tab.Addresses[0].PendingText);
 
         tab.NewAliasName = "bad name";
         tab.AddAliasCommand.Execute(null);
@@ -217,9 +217,9 @@ public sealed class MailTests
         var hidden = Person("b", Plain with { HiddenFromAddressList = true });
         var noMailbox = Person("c", null);
 
-        var off = await Bulk("Turn forwarding off", forwarding, hidden, noMailbox).PlanAsync(Ct);
-        var show = Bulk("Address list", forwarding, hidden, noMailbox);
-        show.Choice = show.Choices.Single(c => c.Label == "Show in the address list");
+        var off = await Bulk("Turn Forwarding Off", forwarding, hidden, noMailbox).PlanAsync(Ct);
+        var show = Bulk("Address List", forwarding, hidden, noMailbox);
+        show.Choice = show.Choices.Single(c => c.Label == "Show in the Address List");
         var shown = await show.PlanAsync(Ct);
 
         Assert.Equal(("a", "Off"), (off.Changes.Single().Target.Id, off.Changes.Single().After));
@@ -230,8 +230,8 @@ public sealed class MailTests
     [Fact]
     public async Task Bulk_automatic_replies_need_a_message_to_turn_on()
     {
-        var replies = Bulk("Automatic replies", Person("a", Plain), Person("c", null));
-        replies.Choice = replies.Choices.Single(c => c.Label == "Turn on");
+        var replies = Bulk("Automatic Replies", Person("a", Plain), Person("c", null));
+        replies.Choice = replies.Choices.Single(c => c.Label == "Turn On");
 
         Assert.Contains("Write the reply", (await replies.PlanAsync(Ct)).Error);
         replies.Text = "Closed for the holiday";

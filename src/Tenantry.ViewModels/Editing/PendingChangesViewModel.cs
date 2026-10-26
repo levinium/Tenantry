@@ -171,7 +171,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         RevealsChanged();
     }
 
-    public string HeaderText => Count == 0 ? "Pending changes" : $"Pending changes ({Count})";
+    public string HeaderText => Count == 0 ? "Pending Changes" : $"Pending Changes ({Count})";
 
     int CautionCount => Rows.Count(r => r.IsCaution);
 
@@ -209,9 +209,9 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     public partial string? Result { get; private set; }
 
     public string ApplyText =>
-        IsConfirming ? $"Confirm: {CautionCount} {(CautionCount == 1 ? "change takes" : "changes take")} something away"
-        : Count == 1 ? "Apply 1 change"
-        : $"Apply {Count} changes";
+        IsConfirming ? $"Confirm: {CautionCount} {(CautionCount == 1 ? "Change Takes" : "Changes Take")} Something Away"
+        : Count == 1 ? "Apply 1 Change"
+        : $"Apply {Count} Changes";
 
     public bool ApplyIsDanger => IsConfirming;
 
@@ -233,7 +233,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         {
             var results = await _pipeline.ApplyAsync();
             foreach (var (change, result) in results.Where(r => r.Result.Reveal is not null))
-                Reveals.Add(new RevealRow(change is CreateTemporaryAccessPass ? $"Temporary Access Pass for {change.Target.Name}" : $"New password for {change.Target.Name}",
+                Reveals.Add(new RevealRow(change is CreateTemporaryAccessPass ? $"Temporary Access Pass for {change.Target.Name}" : $"New Password for {change.Target.Name}",
                     result.Reveal!, DismissReveal, change.Target));
             AllCopied = false;
             RevealsChanged();

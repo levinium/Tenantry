@@ -76,7 +76,7 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
     public string TypeText => GroupList.TypeBadge(Group.Kind).Text;
     public BadgeKind TypeKind => GroupList.TypeBadge(Group.Kind).Kind;
 
-    public string MembershipText => Group.IsDynamic ? "Dynamic membership" : "Assigned membership";
+    public string MembershipText => Group.IsDynamic ? "Dynamic Membership" : "Assigned Membership";
     public bool ShowMembership => !Group.IsMailbox;
     public bool IsTeam => Group.IsTeam;
     public bool IsMailbox => Group.IsMailbox;
@@ -86,12 +86,12 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
 
     public bool HasAccount => Account is not null;
 
-    public string MembersHeading => Group.IsMailbox ? "People with access" : "Members";
+    public string MembersHeading => Group.IsMailbox ? "People with Access" : "Members";
 
     /// <summary>The owners, members or people with access, editable.</summary>
     public GroupPeopleEditor People { get; }
 
-    public string ManageText => Group.IsMailbox ? "Manage access" : "Manage owners and members";
+    public string ManageText => Group.IsMailbox ? "Manage Access" : "Manage Owners and Members";
 
     public string ManageTip => Group.IsMailbox
         ? "Give or remove Full access, Send as and Send on behalf"
@@ -99,7 +99,7 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
 
     /// <summary>Opens the people editor in a popup (the preview pane's Manage button).</summary>
     [RelayCommand]
-    void ManagePeople() => _openDialog?.Invoke(new DialogViewModel(Group.IsMailbox ? "People with access" : "Owners and members", Group.DisplayName, People));
+    void ManagePeople() => _openDialog?.Invoke(new DialogViewModel(Group.IsMailbox ? "People with Access" : "Owners and Members", Group.DisplayName, People));
 
     /// <summary>"Owned by Ada Lovelace and 1 other" for the preview, or why there's no owner.</summary>
     public string OwnersText
@@ -126,7 +126,7 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
 
     public string Email => Group.Mail ?? "No email address";
     public string Description => string.IsNullOrWhiteSpace(Group.Description) ? "No description" : Group.Description;
-    public string Visibility => Group.Visibility ?? "Not set";
+    public string Visibility => Group.Visibility ?? "Not Set";
     public string CreatedText => Group.CreatedAt?.ToLocalTime().ToString("MMMM d, yyyy") ?? "Unknown";
 
     public IReadOnlyList<MemberRow> Members { get; private set; }

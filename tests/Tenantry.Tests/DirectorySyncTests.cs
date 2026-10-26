@@ -290,8 +290,8 @@ public class DirectorySyncTests
         Assert.False(users["u2"].Mailbox!.IsNearlyFull);
         Assert.Equal(UserFields.NearlyFull, UserFields.All.Single(f => f.Key == UserFields.Storage).Text!(users["u1"]));
         Assert.Equal(UserFields.Hidden, UserFields.All.Single(f => f.Key == UserFields.AddressList).Text!(users["u1"]));
-        Assert.Contains(sync.Areas, a => a.Name == "Automatic replies" && a.LastSyncedAt == Now && a.Every == "Every hour");
-        Assert.Contains(sync.Areas, a => a.Name == "Mailbox sizes" && a.LastSyncedAt == Now && a.Every == "Every 4 hours");
+        Assert.Contains(sync.Areas, a => a.Name == "Automatic Replies" && a.LastSyncedAt == Now && a.Every == "Every Hour");
+        Assert.Contains(sync.Areas, a => a.Name == "Mailbox Sizes" && a.LastSyncedAt == Now && a.Every == "Every 4 Hours");
 
         // Refresh re-reads mailboxes but leaves sizes and replies to their schedule (not due yet);
         // Settings' Check everything now reads them at once.
@@ -308,7 +308,7 @@ public class DirectorySyncTests
         var before = exchange.Calls.Count(c => c.Cmdlet == "Get-MailboxStatistics");
         await sync.SyncAsync(scope: SyncScope.Everything, cancellationToken: Ct);
         Assert.Equal(before, exchange.Calls.Count(c => c.Cmdlet == "Get-MailboxStatistics"));
-        Assert.Equal("Off", sync.Areas.Single(a => a.Name == "Mailbox sizes").Every);
+        Assert.Equal("Off", sync.Areas.Single(a => a.Name == "Mailbox Sizes").Every);
     }
 
     [Fact]

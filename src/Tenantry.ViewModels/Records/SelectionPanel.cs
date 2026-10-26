@@ -161,7 +161,7 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
         var lines = new List<SummaryLine>
         {
             new("Accounts", Counts(users.Select(UserFields.TypeOf), nouns: true)),
-            new("Sign-in", Counts(users.Select(u => u.AccountEnabled ? "allowed" : "blocked"), nouns: false)),
+            new("Sign-In", Counts(users.Select(u => u.AccountEnabled ? "allowed" : "blocked"), nouns: false)),
         };
         // Licenses everyone has, then how many have none.
         var common = users.Length == 0 ? [] : users.Skip(1).Aggregate(users[0].Licenses.ToHashSet(StringComparer.Ordinal),
@@ -356,7 +356,7 @@ public sealed partial class MixedField : ObservableObject
 /// <summary>The selection panel's details: one <see cref="MixedField"/> per detail a bulk edit can set.</summary>
 public sealed partial class BulkDetailsViewModel : ObservableObject, IMixedFieldHost, IDisposable
 {
-    public const string NotSet = "Not set";
+    public const string NotSet = "Not Set";
 
     /// <summary>Above this many people, details outside the list aren't read up front (still editable).</summary>
     const int ReadLimit = 100;
@@ -447,7 +447,7 @@ public sealed partial class BulkDetailsViewModel : ObservableObject, IMixedField
             }
             var distinct = values.Select(v => string.IsNullOrEmpty(v) ? NotSet : v).GroupBy(v => v).OrderByDescending(g => g.Count()).ToArray();
             field.IsMixed = distinct.Length > 1;
-            field.Value = unread > 0 && distinct.Length == 0 ? (IsReading ? "Reading…" : "Not read")
+            field.Value = unread > 0 && distinct.Length == 0 ? (IsReading ? "Reading…" : "Not Read")
                 : distinct.Length == 1 ? distinct[0].Key
                 : "Mixed";
             field.ValuesTip = distinct.Length > 1

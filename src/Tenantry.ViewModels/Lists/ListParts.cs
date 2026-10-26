@@ -104,8 +104,8 @@ public sealed record FilterMenuItem(FieldOption Field, bool IsActive)
 
     public string KindText => Field.Kind switch
     {
-        FieldKind.Choice => "Pick values",
-        FieldKind.MultiChoice => "Pick values",
+        FieldKind.Choice => "Pick Values",
+        FieldKind.MultiChoice => "Pick Values",
         FieldKind.Date => "Date",
         FieldKind.Number => "Number",
         _ => "Text",
@@ -160,15 +160,15 @@ public sealed partial class SortLevelViewModel(IReadOnlyList<FieldOption> fields
 
     public string AscendingText => Field?.Kind switch
     {
-        FieldKind.Date => "Oldest first",
-        FieldKind.Number => "Smallest first",
+        FieldKind.Date => "Oldest First",
+        FieldKind.Number => "Smallest First",
         _ => "A → Z",
     };
 
     public string DescendingText => Field?.Kind switch
     {
-        FieldKind.Date => "Newest first",
-        FieldKind.Number => "Largest first",
+        FieldKind.Date => "Newest First",
+        FieldKind.Number => "Largest First",
         _ => "Z → A",
     };
 
@@ -185,12 +185,12 @@ public sealed partial class SortLevelViewModel(IReadOnlyList<FieldOption> fields
     [NotifyPropertyChangedFor(nameof(LevelText), nameof(Number))]
     public partial int Index { get; set; }
 
-    public string LevelText => Index == 0 ? "Sort by" : "Then by";
+    public string LevelText => Index == 0 ? "Sort By" : "Then By";
 
     public string DirectionText => Field?.Kind switch
     {
-        FieldKind.Date => Descending ? "Newest first" : "Oldest first",
-        FieldKind.Number => Descending ? "Largest first" : "Smallest first",
+        FieldKind.Date => Descending ? "Newest First" : "Oldest First",
+        FieldKind.Number => Descending ? "Largest First" : "Smallest First",
         _ => Descending ? "Z → A" : "A → Z",
     };
 

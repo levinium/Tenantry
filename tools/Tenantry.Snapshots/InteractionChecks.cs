@@ -61,7 +61,7 @@ static class InteractionChecks
             Click(window, wipe);
             var menu = (MenuFlyout)wipe.Flyout!;
             Expect(menu.IsOpen, "the wipe menu opened");
-            Click(MenuItem(menu, m => (m.Header as string ?? "").StartsWith("Erase the whole device", StringComparison.Ordinal)));
+            Click(MenuItem(menu, m => (m.Header as string ?? "").StartsWith("Erase the Whole Device", StringComparison.Ordinal)));
             Expect(!menu.IsOpen, "the wipe menu closed");
             Expect(main.Pending!.Count == 1, "the wipe is in Pending changes");
             window.Close();
@@ -74,7 +74,7 @@ static class InteractionChecks
             main.Pending.TurnOffText = main.TenantName;
             main.Pending.TurnOffTestModeCommand.Execute(null);
             Settle();
-            var access = FindButton(window, b => b.Flyout is Flyout && Labelled(b, "Your access"));
+            var access = FindButton(window, b => b.Flyout is Flyout && Labelled(b, "Your Access"));
             Click(window, access);
             var panel = (Flyout)access.Flyout!;
             Expect(panel.IsOpen, "the Your access panel opened");
@@ -87,7 +87,7 @@ static class InteractionChecks
         Check("Select from a list: Check matching rows keeps the panel open to show the result", () =>
         {
             var (window, main, _) = OpenList();
-            var paste = FindButton(window, b => b.Flyout is Flyout && Labelled(b, "Select from list"));
+            var paste = FindButton(window, b => b.Flyout is Flyout && Labelled(b, "Select from List"));
             Click(window, paste);
             var panel = (Flyout)paste.Flyout!;
             main.Users.PasteText = ((UserSummary)main.Users.Rows[0]).UserPrincipalName + "\nnobody@nowhere.example";
@@ -154,7 +154,7 @@ static class InteractionChecks
             page.SelectedSection = tab;
             tab.LoadAsync().GetAwaiter().GetResult();
             Settle();
-            var radio = window.GetVisualDescendants().OfType<RadioButton>().First(r => r.Content as string == "Changes they made");
+            var radio = window.GetVisualDescendants().OfType<RadioButton>().First(r => r.Content as string == "Changes They Made");
             Click(window, radio);
             Expect(tab.AuditByThem, "the view switched to changes they made");
             Expect(tab.Audit.All(a => a.Party.Length == 0 || a.Party.StartsWith("To ", StringComparison.Ordinal)), "rows name what they changed");

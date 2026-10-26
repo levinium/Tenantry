@@ -43,7 +43,7 @@
                       <c:Badge Text="Managed by Intune" Kind="Info" IsVisible="{Binding IsManaged}" />
                       <c:Badge Text="{Binding ComplianceText}" Kind="{Binding ComplianceKind}" IsVisible="{Binding HasCompliance}" />
                       <c:Badge Text="Disabled" Kind="Danger" IsVisible="{Binding IsDisabled}" />
-                      <c:Badge Text="Not encrypted" Kind="Warning" IsVisible="{Binding IsUnencrypted}" />
+                      <c:Badge Text="Not Encrypted" Kind="Warning" IsVisible="{Binding IsUnencrypted}" />
                     </WrapPanel>
                     <TextBlock Classes="caption" Text="{Binding Detail}" />
                     <TextBlock Classes="caption" Text="{Binding LastText}" />

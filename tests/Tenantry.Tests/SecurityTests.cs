@@ -184,9 +184,9 @@ public sealed class SecurityTests
 
         Assert.IsType<RevokeSessions>(pipeline.Pending[0]);
         Assert.Equal(["a1", "p1"], pipeline.Pending.OfType<RemoveAuthMethod>().Select(m => m.MethodId).Order());
-        Assert.Equal(("Undo revoke sessions", "Undo re-register"), (tab.RevokeText, tab.ReregisterText));
+        Assert.Equal(("Undo Revoke Sessions", "Undo Re-Register"), (tab.RevokeText, tab.ReregisterText));
         // The record's own Sign out everywhere follows the same pending change.
-        Assert.Equal("Undo sign out everywhere", page.SignOutText);
+        Assert.Equal("Undo Sign Out Everywhere", page.SignOutText);
 
         tab.ToggleReregisterCommand.Execute(null);
         tab.ToggleRevokeSessionsCommand.Execute(null);
@@ -206,7 +206,7 @@ public sealed class SecurityTests
         tab.NewPhoneNumber = "+1 206 555 9999";
         Assert.Equal(("office", "+1 2065559999"), (Assert.IsType<AddPhoneMethod>(pipeline.Pending.Single()).PhoneType, ((AddPhoneMethod)pipeline.Pending[0]).Number));
 
-        tab.TapLifetime = "8 hours";
+        tab.TapLifetime = "8 Hours";
         tab.CreateTapCommand.Execute(null);
         Assert.Equal(480, pipeline.Pending.OfType<CreateTemporaryAccessPass>().Single().Minutes);
     }
@@ -247,7 +247,7 @@ public sealed class SecurityTests
         tab.SelectedClient = tab.ClientOptions.Single(o => o.Value == "Legacy: IMAP4");
         Assert.True(Assert.Single(tab.SignIns).IsLegacy);
 
-        tab.SignInKind = "Non-interactive";
+        tab.SignInKind = "Non-Interactive";
         tab.SignInResult = "Failed";
         for (var i = 0; i < 50 && records.LastQuery?.Result != SignInResult.Failed; i++)
             await Task.Delay(10, Ct);
@@ -273,7 +273,7 @@ public sealed class SecurityTests
     {
         var (tab, _, page) = await Tab(SecurityPage.Methods, new UserSecurity(false, true, ["email"], null));
 
-        Assert.Contains(page.Health, h => h.Text == "Admin without MFA" && h.Kind == BadgeKind.Danger);
+        Assert.Contains(page.Health, h => h.Text == "Admin Without MFA" && h.Kind == BadgeKind.Danger);
         Assert.True(tab.HasMfaWarning);
         Assert.Equal("Admin without MFA", tab.Summary);
     }

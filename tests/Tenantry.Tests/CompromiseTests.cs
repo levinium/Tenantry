@@ -91,14 +91,14 @@ public sealed class CompromiseTests
         var (workflow, _) = await Checked();
         var titles = workflow.Findings.Select(f => f.Title).ToArray();
 
-        Assert.Contains("Forwarding mail outside the organization", titles);
-        Assert.Contains("Mailbox rule \"..\" forwards mail to evil@outside.example", titles);
+        Assert.Contains("Forwarding Mail Outside the Organization", titles);
+        Assert.Contains("Mailbox Rule \"..\" Forwards Mail to evil@outside.example", titles);
         Assert.DoesNotContain(titles, t => t.Contains("Newsletters") || t.Contains("Old cleanup")); // moving is fine; a turned-off rule does nothing
-        Assert.Contains("New sign-in method: Mobile phone", titles);
+        Assert.Contains("New Sign-In Method: Mobile phone", titles);
         Assert.DoesNotContain(titles, t => t.Contains("Microsoft Authenticator"));
-        Assert.Contains("App given access recently: Mail Helper Pro", titles);
+        Assert.Contains("App Given Access Recently: Mail Helper Pro", titles);
         Assert.DoesNotContain(titles, t => t.Contains("Old App"));
-        var country = Assert.Single(workflow.Findings, f => f.Title == "Signed in from a new country: NG");
+        var country = Assert.Single(workflow.Findings, f => f.Title == "Signed In from a New Country: NG");
         Assert.False(country.HasFix);
         Assert.All(workflow.Findings.Where(f => f.HasFix), f => Assert.True(f.IsOn));
     }

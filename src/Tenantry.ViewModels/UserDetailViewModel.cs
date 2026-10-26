@@ -68,7 +68,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
 
     public string SecondaryText => _row.SecondaryText;
 
-    public string StatusText => User.AccountEnabled ? "Sign-in allowed" : "Sign-in blocked";
+    public string StatusText => User.AccountEnabled ? "Sign-In Allowed" : "Sign-In Blocked";
     public BadgeKind StatusKind => _row.StatusKind;
 
     public string KindText => _row.KindText;
@@ -82,13 +82,13 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
     public IReadOnlyList<string> Licenses => User.Licenses;
     public bool HasLicenses => User.Licenses.Count > 0;
 
-    public string MailboxText => User.Mailbox is { } m ? $"{m.Type} mailbox" : "No mailbox";
+    public string MailboxText => User.Mailbox is { } m ? $"{m.Type} Mailbox" : "No Mailbox";
 
     public string ForwardingText => User.Mailbox?.Forwarding switch
     {
         ForwardingKind.External => $"Forwarding outside the organization, to {User.Mailbox.ForwardingTo}",
         ForwardingKind.Internal => $"Forwarding to {User.Mailbox.ForwardingTo}",
-        _ => "Not forwarding",
+        _ => "Not Forwarding",
     };
 
     // ---- At a glance ----------------------------------------------------------------------
@@ -101,31 +101,31 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
             var chips = new List<HealthChip>();
             var isPerson = UserFields.TypeOf(User) is UserFields.Member or UserFields.Guest;
             if (!User.AccountEnabled && isPerson)
-                chips.Add(new("Sign-in blocked", BadgeKind.Danger, "This account can't sign in."));
+                chips.Add(new("Sign-In Blocked", BadgeKind.Danger, "This account can't sign in."));
             if (User.Mailbox?.Forwarding == ForwardingKind.External)
-                chips.Add(new("Forwarding outside", BadgeKind.Danger, $"Mail is forwarded to {User.Mailbox.ForwardingTo}, outside the organization."));
+                chips.Add(new("Forwarding Outside", BadgeKind.Danger, $"Mail is forwarded to {User.Mailbox.ForwardingTo}, outside the organization."));
             if (isPerson && User.AccountEnabled)
             {
                 if (User.LastSignIn is null)
-                    chips.Add(new("Never signed in", BadgeKind.Warning, "No sign-in recorded for this account."));
+                    chips.Add(new("Never Signed In", BadgeKind.Warning, "No sign-in recorded for this account."));
                 else if (_now - User.LastSignIn > TimeSpan.FromDays(90))
-                    chips.Add(new("Inactive 90+ days", BadgeKind.Warning, $"Last signed in {LastSignInText}."));
+                    chips.Add(new("Inactive 90+ Days", BadgeKind.Warning, $"Last signed in {LastSignInText}."));
             }
             // From Entra's MFA registration report (synced; absent without Entra ID P1).
             if (isPerson && User.AccountEnabled && User.Security is { MfaRegistered: false } security)
                 chips.Add(security.IsAdmin
-                    ? new("Admin without MFA", BadgeKind.Danger, "Holds an admin role and has no multi-factor sign-in registered.")
-                    : new("No MFA registered", BadgeKind.Warning, "Signs in with a password alone. A Temporary Access Pass (Security & sign-in) lets them set MFA up."));            if (User.Kind == UserKind.Member && isPerson && User.Licenses.Count == 0)
+                    ? new("Admin Without MFA", BadgeKind.Danger, "Holds an admin role and has no multi-factor sign-in registered.")
+                    : new("No MFA Registered", BadgeKind.Warning, "Signs in with a password alone. A Temporary Access Pass (Security & Sign-In) lets them set MFA up."));            if (User.Kind == UserKind.Member && isPerson && User.Licenses.Count == 0)
                 chips.Add(new("Unlicensed", BadgeKind.Warning, "A member account with no licenses: no mailbox, Office apps or OneDrive."));
             if (!isPerson && User.Licenses.Count > 0)
-                chips.Add(new("Licensed mailbox account", BadgeKind.Info, "Shared, room and equipment mailboxes usually need no license (up to 50 GB)."));
+                chips.Add(new("Licensed Mailbox Account", BadgeKind.Info, "Shared, room and equipment mailboxes usually need no license (up to 50 GB)."));
             if (User.Mailbox?.LitigationHold == true)
-                chips.Add(new("Litigation hold", BadgeKind.Info, "Mailbox content is preserved, even if deleted."));
+                chips.Add(new("Litigation Hold", BadgeKind.Info, "Mailbox content is preserved, even if deleted."));
             // From the mailbox itself, once the Mail tab has read it.
             if (MailTab.IsReady && MailTab.IsNearlyFull)
-                chips.Add(new("Mailbox nearly full", BadgeKind.Warning, $"{MailTab.UsedText}. Mail stops arriving when it's full."));
+                chips.Add(new("Mailbox Nearly Full", BadgeKind.Warning, $"{MailTab.UsedText}. Mail stops arriving when it's full."));
             if (MailTab.IsReady && MailTab.IsAutoReplying)
-                chips.Add(new("Automatic reply on", BadgeKind.Info, MailTab.AutoReplyText));
+                chips.Add(new("Automatic Reply On", BadgeKind.Info, MailTab.AutoReplyText));
             return chips;
         }
     }
@@ -191,7 +191,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
     public string PendingSignInText => PendingSignIn is { } p ? $"Pending: sign-in will be {(p.New ? "allowed" : "blocked")}" : "";
 
     /// <summary>"Block sign-in" / "Allow sign-in", or "Undo" when a change is already staged.</summary>
-    public string SignInActionText => HasPendingSignIn ? "Undo sign-in change" : User.AccountEnabled ? "Block sign-in" : "Allow sign-in";
+    public string SignInActionText => HasPendingSignIn ? "Undo Sign-In Change" : User.AccountEnabled ? "Block Sign-In" : "Allow Sign-In";
 
     public string SignInActionTip => !CanEdit ? EditReason
         : HasPendingSignIn ? "Take the sign-in change out of Pending changes"
@@ -215,20 +215,20 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
     void ResetPassword()
     {
         if (CanEdit)
-            _openDialog?.Invoke(new DialogViewModel("Reset password", User.DisplayName,
+            _openDialog?.Invoke(new DialogViewModel("Reset Password", User.DisplayName,
                 new ResetPasswordViewModel(Target, _pipeline!, () => _closeDialog?.Invoke())));
     }
 
     public bool HasMailbox => User.Mailbox is not null;
 
-    public string ConvertMailboxText => User.Mailbox?.Type == "Shared" ? "Convert to a user mailbox…" : "Convert to a shared mailbox…";
+    public string ConvertMailboxText => User.Mailbox?.Type == "Shared" ? "Convert to a User Mailbox…" : "Convert to a Shared Mailbox…";
 
     /// <summary>Opens the Convert mailbox popup (the Actions menu and the Mail tab).</summary>
     [RelayCommand]
     void OpenConvertMailbox()
     {
         if (CanEdit && User.Mailbox is not null)
-            _openDialog?.Invoke(new DialogViewModel("Convert mailbox", User.DisplayName,
+            _openDialog?.Invoke(new DialogViewModel("Convert Mailbox", User.DisplayName,
                 new ConvertMailboxViewModel(User, _records, _pipeline!, () => _closeDialog?.Invoke())));
     }
 
@@ -255,7 +255,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
 
     public bool HasPendingSignOut => _pipeline?.PendingFor(User.Id, "sessions") is not null;
 
-    public string SignOutText => HasPendingSignOut ? "Undo sign out everywhere" : "Sign out everywhere";
+    public string SignOutText => HasPendingSignOut ? "Undo Sign Out Everywhere" : "Sign Out Everywhere";
 
     [RelayCommand]
     void SignOutEverywhere()

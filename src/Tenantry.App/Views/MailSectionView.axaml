@@ -51,7 +51,7 @@
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
               <ic:FluentIcon Icon="Storage" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
               <TextBlock Grid.Column="1" Classes="h3" Text="Storage" VerticalAlignment="Center" />
-              <c:Badge Grid.Column="2" Text="Nearly full" Kind="Danger" IsVisible="{Binding IsNearlyFull}" />
+              <c:Badge Grid.Column="2" Text="Nearly Full" Kind="Danger" IsVisible="{Binding IsNearlyFull}" />
             </Grid>
             <TextBlock Classes="value" Text="{Binding UsedText}" />
             <ProgressBar Classes="storage" Classes.full="{Binding IsNearlyFull}" Value="{Binding UsedPercent}" Maximum="100" Height="8" IsVisible="{Binding HasStorage}" />
@@ -64,7 +64,7 @@
           <StackPanel Spacing="12">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="MailMultiple" FontSize="18" Foreground="{DynamicResource Accent}" />
-              <TextBlock Classes="h3" Text="Email addresses" VerticalAlignment="Center" />
+              <TextBlock Classes="h3" Text="Email Addresses" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="Mail sent to any of these arrives in this mailbox. The primary address is the one people see when they reply." />
@@ -76,7 +76,7 @@
                       <SelectableTextBlock Text="{Binding Address}" VerticalAlignment="Center" />
                       <c:Badge Grid.Column="1" Text="Primary" Kind="Success" IsVisible="{Binding IsPrimary}" VerticalAlignment="Center" />
                       <c:Badge Grid.Column="2" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
-                      <Button Grid.Column="3" Classes="ghost" Content="Make primary" Command="{Binding MakePrimaryCommand}" IsVisible="{Binding CanMakePrimary}"
+                      <Button Grid.Column="3" Classes="ghost" Content="Make Primary" Command="{Binding MakePrimaryCommand}" IsVisible="{Binding CanMakePrimary}"
                               ToolTip.Tip="Make this the address people see (added to Pending changes); the current primary stays as an alias" />
                       <Button Grid.Column="4" Classes="rowaction" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}" IsVisible="{Binding !IsPrimary}"
                               ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
@@ -94,7 +94,7 @@
               <TextBox Text="{Binding NewAliasName}" Width="200" PlaceholderText="New address" />
               <TextBlock Text="@" VerticalAlignment="Center" />
               <ComboBox ItemsSource="{Binding Domains}" SelectedItem="{Binding NewAliasDomain}" MinWidth="220" />
-              <Button Classes="accent" Content="Add address" Command="{Binding AddAliasCommand}" ToolTip.Tip="Add this address (added to Pending changes)" />
+              <Button Classes="accent" Content="Add Address" Command="{Binding AddAliasCommand}" ToolTip.Tip="Add this address (added to Pending changes)" />
             </StackPanel>
             <TextBlock Classes="error" Text="{Binding AliasError}" IsVisible="{Binding HasAliasError}" TextWrapping="Wrap" />
           </StackPanel>
@@ -109,13 +109,13 @@
                 <TextBlock Classes="h3" Text="Forwarding" VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock Classes="value" Text="{Binding ForwardingText}" TextWrapping="Wrap" />
-              <c:Badge Text="Forwarding outside the organization" Kind="Danger" IsVisible="{Binding IsForwardingOutside}" HorizontalAlignment="Left" />
+              <c:Badge Text="Forwarding Outside the Organization" Kind="Danger" IsVisible="{Binding IsForwardingOutside}" HorizontalAlignment="Left" />
               <TextBlock Classes="pendingtext" Text="{Binding ForwardingPendingText}" IsVisible="{Binding HasForwardingPending}" TextWrapping="Wrap" />
               <StackPanel Spacing="8" IsEnabled="{Binding CanEdit}">
-                <ToggleSwitch IsChecked="{Binding ForwardOn}" OnContent="Forward their mail" OffContent="Don't forward" />
+                <ToggleSwitch IsChecked="{Binding ForwardOn}" OnContent="Forward Their Mail" OffContent="Don't Forward" />
                 <StackPanel Spacing="8" IsVisible="{Binding ForwardOn}">
                   <TextBox Text="{Binding ForwardTo, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" PlaceholderText="Forward to (email address)" />
-                  <CheckBox IsChecked="{Binding KeepCopy}" Content="Keep a copy in this mailbox" />
+                  <CheckBox IsChecked="{Binding KeepCopy}" Content="Keep a Copy in This Mailbox" />
                   <Border Classes="banner warning" IsVisible="{Binding ForwardDraftOutside}">
                     <TextBlock TextWrapping="Wrap" FontSize="12"
                                Text="This address is outside the organization. Forwarding outside is how compromised accounts leak mail, and your outbound policy may block it." />
@@ -131,11 +131,11 @@
             <StackPanel Spacing="10">
               <StackPanel Orientation="Horizontal" Spacing="10">
                 <ic:FluentIcon Icon="BookContacts" FontSize="18" Foreground="{DynamicResource Accent}" />
-                <TextBlock Classes="h3" Text="Address list" VerticalAlignment="Center" />
+                <TextBlock Classes="h3" Text="Address List" VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock Classes="caption" TextWrapping="Wrap"
                          Text="Whether this mailbox appears when people look someone up in Outlook or Teams. Hiding it doesn't stop mail arriving." />
-              <ToggleSwitch IsChecked="{Binding ShowInAddressList}" IsEnabled="{Binding CanEdit}" OnContent="Shown in the address list" OffContent="Hidden from the address list"
+              <ToggleSwitch IsChecked="{Binding ShowInAddressList}" IsEnabled="{Binding CanEdit}" OnContent="Shown in the Address List" OffContent="Hidden from the Address List"
                             ToolTip.Tip="Switching adds the change to Pending changes" />
               <TextBlock Classes="pendingtext" Text="{Binding AddressListPendingText}" IsVisible="{Binding HasAddressListPending}" />
             </StackPanel>
@@ -147,7 +147,7 @@
           <StackPanel Spacing="12">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="MailArrowUp" FontSize="18" Foreground="{DynamicResource Accent}" />
-              <TextBlock Classes="h3" Text="Automatic replies" VerticalAlignment="Center" />
+              <TextBlock Classes="h3" Text="Automatic Replies" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Classes="value" Text="{Binding AutoReplyText}" />
             <TextBlock Classes="pendingtext" Text="{Binding AutoReplyPendingText}" IsVisible="{Binding HasAutoReplyPending}" />
@@ -155,7 +155,7 @@
               <StackPanel Orientation="Horizontal" Spacing="16">
                 <RadioButton GroupName="reply" Content="Off" IsChecked="{Binding ReplyOff}" />
                 <RadioButton GroupName="reply" Content="On" IsChecked="{Binding ReplyOn}" />
-                <RadioButton GroupName="reply" Content="Only between these times" IsChecked="{Binding ReplyScheduled}" />
+                <RadioButton GroupName="reply" Content="Only Between These Times" IsChecked="{Binding ReplyScheduled}" />
               </StackPanel>
               <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8" IsVisible="{Binding ReplyScheduled}">
                 <TextBlock Text="From" VerticalAlignment="Center" />
@@ -181,7 +181,7 @@
                       </DataTemplate>
                     </ComboBox.ItemTemplate>
                   </ComboBox>
-                  <CheckBox IsChecked="{Binding SameOutside}" Content="Send them the same reply" />
+                  <CheckBox IsChecked="{Binding SameOutside}" Content="Send Them the Same Reply" />
                   <TextBox Text="{Binding ExternalMessage, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" IsVisible="{Binding ShowExternalMessage}"
                            PlaceholderText="Reply for people outside the organization" />
                 </StackPanel>
@@ -197,7 +197,7 @@
           <StackPanel Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="MailMultiple" FontSize="18" Foreground="{DynamicResource Accent}" />
-              <TextBlock Classes="h3" Text="Mailbox type" VerticalAlignment="Center" />
+              <TextBlock Classes="h3" Text="Mailbox Type" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Classes="value" Text="{Binding MailboxTypeText}" TextWrapping="Wrap" />
             <TextBlock Classes="pendingtext" Text="{Binding MailboxTypePendingText}" IsVisible="{Binding HasMailboxTypePending}" />
@@ -221,11 +221,11 @@
             <TextBlock Classes="value" Text="{Binding LimitsText}" TextWrapping="Wrap" />
             <TextBlock Classes="pendingtext" Text="{Binding LimitsPendingText}" IsVisible="{Binding HasLimitsPending}" TextWrapping="Wrap" />
             <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="8" IsEnabled="{Binding CanEdit}">
-              <TextBlock Text="Recipients per message" VerticalAlignment="Center" />
+              <TextBlock Text="Recipients per Message" VerticalAlignment="Center" />
               <TextBox Grid.Column="1" Text="{Binding RecipientLimitDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" Width="110" ToolTip.Tip="1 to 1,000 (or Unlimited)" />
-              <TextBlock Grid.Row="1" Text="Largest message they can send (MB)" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="1" Text="Largest Message They Can Send (MB)" VerticalAlignment="Center" />
               <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MaxSendDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" Width="110" ToolTip.Tip="1 to 150 MB" />
-              <TextBlock Grid.Row="2" Text="Largest message they can receive (MB)" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="2" Text="Largest Message They Can Receive (MB)" VerticalAlignment="Center" />
               <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding MaxReceiveDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True" Width="110" ToolTip.Tip="1 to 150 MB" />
             </Grid>
             <TextBlock Classes="error" Text="{Binding LimitsError}" IsVisible="{Binding HasLimitsError}" TextWrapping="Wrap" />
@@ -237,10 +237,10 @@
           <StackPanel Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="MailInbox" FontSize="18" Foreground="{DynamicResource Accent}" />
-              <TextBlock Classes="h3" Text="Who can send to them" VerticalAlignment="Center" />
+              <TextBlock Classes="h3" Text="Who Can Send to Them" VerticalAlignment="Center" />
             </StackPanel>
             <ToggleSwitch IsChecked="{Binding OnlyInternal}" IsEnabled="{Binding CanEdit}"
-                          OnContent="Only people in the organization" OffContent="Anyone, including people outside the organization"
+                          OnContent="Only People in the Organization" OffContent="Anyone, Including People Outside the Organization"
                           ToolTip.Tip="Switching adds the change to Pending changes" />
             <TextBlock Classes="pendingtext" Text="{Binding SendersPendingText}" IsVisible="{Binding HasSendersPending}" />
             <TextBlock Classes="caption" Text="{Binding SendersText}" TextWrapping="Wrap" />
@@ -277,7 +277,7 @@
           <StackPanel Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="AppsList" FontSize="18" Foreground="{DynamicResource Accent}" />
-              <TextBlock Classes="h3" Text="Email apps" VerticalAlignment="Center" />
+              <TextBlock Classes="h3" Text="Email Apps" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="The ways their mail can be reached. Turning one off stops apps and devices that use it; each switch adds a change to Pending changes." />
@@ -312,12 +312,12 @@
             <StackPanel Spacing="10">
               <StackPanel Orientation="Horizontal" Spacing="10">
                 <ic:FluentIcon Icon="Archive" FontSize="18" Foreground="{DynamicResource Accent}" />
-                <TextBlock Classes="h3" Text="Online archive" VerticalAlignment="Center" />
+                <TextBlock Classes="h3" Text="Online Archive" VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock Classes="value" Text="{Binding ArchiveText}" TextWrapping="Wrap" />
-              <ToggleSwitch IsChecked="{Binding ArchiveOn}" IsEnabled="{Binding CanEdit}" OnContent="Archive on" OffContent="Archive off"
+              <ToggleSwitch IsChecked="{Binding ArchiveOn}" IsEnabled="{Binding CanEdit}" OnContent="Archive On" OffContent="Archive Off"
                             ToolTip.Tip="Switching adds the change to Pending changes. Turning it off deletes the archive's contents after 30 days." />
-              <Button Classes="ghost" HorizontalAlignment="Left" Content="Let the archive grow automatically…" Command="{Binding EnableAutoExpandingCommand}"
+              <Button Classes="ghost" HorizontalAlignment="Left" Content="Let the Archive Grow Automatically…" Command="{Binding EnableAutoExpandingCommand}"
                       IsVisible="{Binding CanEnableAutoExpanding}"
                       ToolTip.Tip="Auto-expanding archiving adds space as the archive fills, up to 1.5 TB. Microsoft offers no way to turn it off again." />
               <TextBlock Classes="pendingtext" Text="{Binding ArchivePendingText}" IsVisible="{Binding HasArchivePending}" TextWrapping="Wrap" />
@@ -329,7 +329,7 @@
             <StackPanel Spacing="10">
               <StackPanel Orientation="Horizontal" Spacing="10">
                 <ic:FluentIcon Icon="CalendarClock" FontSize="18" Foreground="{DynamicResource Accent}" />
-                <TextBlock Classes="h3" Text="Retention policy" VerticalAlignment="Center" />
+                <TextBlock Classes="h3" Text="Retention Policy" VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock Classes="caption" TextWrapping="Wrap"
                          Text="Exchange's rules for moving old mail to the archive and deleting it. Choosing one adds the change to Pending changes." />
@@ -346,15 +346,15 @@
           <StackPanel Spacing="10">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
               <ic:FluentIcon Icon="Gavel" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
-              <TextBlock Grid.Column="1" Classes="h3" Text="Litigation hold" VerticalAlignment="Center" />
-              <c:Badge Grid.Column="2" Text="On hold" Kind="Warning" IsVisible="{Binding IsOnHold}" />
+              <TextBlock Grid.Column="1" Classes="h3" Text="Litigation Hold" VerticalAlignment="Center" />
+              <c:Badge Grid.Column="2" Text="On Hold" Kind="Warning" IsVisible="{Binding IsOnHold}" />
             </Grid>
             <TextBlock Classes="value" Text="{Binding HoldText}" TextWrapping="Wrap" />
             <TextBlock Classes="caption" TextWrapping="Wrap" Text="Needs Exchange Online Plan 2 (in E3 and E5) or the Exchange Online Archiving add-on." />
             <TextBlock Classes="caption" Text="{Binding HoldNoteText}" IsVisible="{Binding HasHoldNote}" TextWrapping="Wrap" />
             <TextBlock Classes="pendingtext" Text="{Binding HoldPendingText}" IsVisible="{Binding HasHoldPending}" TextWrapping="Wrap" />
             <StackPanel Spacing="8" IsEnabled="{Binding CanEdit}">
-              <ToggleSwitch IsChecked="{Binding HoldOnDraft}" OnContent="Keep everything (hold on)" OffContent="No hold" />
+              <ToggleSwitch IsChecked="{Binding HoldOnDraft}" OnContent="Keep Everything (Hold On)" OffContent="No Hold" />
               <StackPanel Spacing="8" IsVisible="{Binding HoldOnDraft}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <TextBlock Text="Keep items for" VerticalAlignment="Center" />
@@ -377,8 +377,8 @@
           <StackPanel Spacing="10">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
               <ic:FluentIcon Icon="Filter" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
-              <TextBlock Grid.Column="1" Classes="h3" Text="Inbox rules" VerticalAlignment="Center" />
-              <c:Badge Grid.Column="2" Text="A rule forwards mail outside" Kind="Danger" IsVisible="{Binding HasForwardingRule}" />
+              <TextBlock Grid.Column="1" Classes="h3" Text="Inbox Rules" VerticalAlignment="Center" />
+              <c:Badge Grid.Column="2" Text="A Rule Forwards Mail Outside" Kind="Danger" IsVisible="{Binding HasForwardingRule}" />
             </Grid>
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="Rules they (or anyone with access) set up in Outlook. Rules that forward or delete mail are a common sign of a compromised account." />
@@ -393,10 +393,10 @@
                       <StackPanel Spacing="4" VerticalAlignment="Center">
                         <WrapPanel ItemSpacing="6" LineSpacing="4">
                           <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                          <c:Badge Text="Forwards outside the organization" Kind="Danger" IsVisible="{Binding ForwardsOutside}" />
-                          <c:Badge Text="Forwards mail" Kind="Warning" IsVisible="{Binding ForwardsInside}" />
-                          <c:Badge Text="Deletes mail" Kind="Warning" IsVisible="{Binding Deletes}" />
-                          <c:Badge Text="Not working" Kind="Danger" IsVisible="{Binding InError}" />
+                          <c:Badge Text="Forwards Outside the Organization" Kind="Danger" IsVisible="{Binding ForwardsOutside}" />
+                          <c:Badge Text="Forwards Mail" Kind="Warning" IsVisible="{Binding ForwardsInside}" />
+                          <c:Badge Text="Deletes Mail" Kind="Warning" IsVisible="{Binding Deletes}" />
+                          <c:Badge Text="Not Working" Kind="Danger" IsVisible="{Binding InError}" />
                         </WrapPanel>
                         <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
                       </StackPanel>
@@ -423,7 +423,7 @@
           <StackPanel Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="CalendarPerson" FontSize="18" Foreground="{DynamicResource Accent}" />
-              <TextBlock Classes="h3" Text="Calendar sharing" VerticalAlignment="Center" />
+              <TextBlock Classes="h3" Text="Calendar Sharing" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="Who can see or change their calendar. Choosing a level adds the change to Pending changes." />
@@ -476,7 +476,7 @@
           <StackPanel Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="Phone" FontSize="18" Foreground="{DynamicResource Accent}" />
-              <TextBlock Classes="h3" Text="Mobile devices" VerticalAlignment="Center" />
+              <TextBlock Classes="h3" Text="Mobile Devices" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="Phones and tablets that sync their mail. For a lost or stolen phone: block it, then wipe it. A full wipe erases the whole device and asks you to type its name before it's applied." />
@@ -511,9 +511,9 @@
                         </StackPanel>
                         <Button.Flyout>
                           <MenuFlyout Placement="BottomEdgeAlignedRight">
-                            <MenuItem Header="Remove only their work mail and data" Command="{Binding WipeAccountOnlyCommand}"
+                            <MenuItem Header="Remove Only Their Work Mail and Data" Command="{Binding WipeAccountOnlyCommand}"
                                       ToolTip.Tip="Their own photos and apps stay. Needs a recent phone; you type the device's name to confirm." />
-                            <MenuItem Header="Erase the whole device (factory reset)" Command="{Binding WipeCommand}"
+                            <MenuItem Header="Erase the Whole Device (Factory Reset)" Command="{Binding WipeCommand}"
                                       ToolTip.Tip="Everything on it is erased. You type the device's name to confirm." />
                           </MenuFlyout>
                         </Button.Flyout>
@@ -534,7 +534,7 @@
           <StackPanel Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="DeleteDismiss" FontSize="18" Foreground="{DynamicResource Accent}" />
-              <TextBlock Classes="h3" Text="Recover deleted items" VerticalAlignment="Center" />
+              <TextBlock Classes="h3" Text="Recover Deleted Items" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="Items they deleted that Exchange still keeps (usually 14 days after emptying Deleted Items). Restoring puts an item back in the folder it was deleted from." />
@@ -569,7 +569,7 @@
           <StackPanel Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="Search" FontSize="18" Foreground="{DynamicResource Accent}" />
-              <TextBlock Classes="h3" Text="Message trace" VerticalAlignment="Center" />
+              <TextBlock Classes="h3" Text="Message Trace" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="What happened to mail sent to or from this mailbox: delivered, filtered as spam, quarantined or failed. Select a message to see each step." />

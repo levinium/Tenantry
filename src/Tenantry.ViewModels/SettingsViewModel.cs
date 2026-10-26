@@ -33,18 +33,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public static IReadOnlyList<IntervalOption> ChangesOptions { get; } =
     [
-        new(5, "Every 5 minutes"), new(10, "Every 10 minutes"), new(15, "Every 15 minutes"), new(30, "Every 30 minutes"), new(60, "Every hour"),
-        new(0, "Only when the tenant opens, and on Refresh"),
+        new(5, "Every 5 Minutes"), new(10, "Every 10 Minutes"), new(15, "Every 15 Minutes"), new(30, "Every 30 Minutes"), new(60, "Every Hour"),
+        new(0, "Only When the Tenant Opens, and on Refresh"),
     ];
 
     public static IReadOnlyList<IntervalOption> DetailsOptions { get; } =
-        [new(30, "Every 30 minutes"), new(60, "Every hour"), new(240, "Every 4 hours"), new(1440, "Once a day")];
+        [new(30, "Every 30 Minutes"), new(60, "Every Hour"), new(240, "Every 4 Hours"), new(1440, "Once a Day")];
 
     public static IReadOnlyList<IntervalOption> MailboxDetailsOptions { get; } =
-        [new(60, "Every hour"), new(240, "Every 4 hours"), new(1440, "Once a day"), new(0, "Off")];
+        [new(60, "Every Hour"), new(240, "Every 4 Hours"), new(1440, "Once a Day"), new(0, "Off")];
 
     public static IReadOnlyList<IntervalOption> MailboxSizesOptions { get; } =
-        [new(60, "Every hour"), new(240, "Every 4 hours"), new(720, "Every 12 hours"), new(1440, "Once a day"), new(0, "Off")];
+        [new(60, "Every Hour"), new(240, "Every 4 Hours"), new(720, "Every 12 Hours"), new(1440, "Once a Day"), new(0, "Off")];
 
     /// <param name="syncNow">Runs a sync (Everything or StartOver) and updates the lists.</param>
     /// <param name="changed">Called after a setting is saved (the app restarts its timer).</param>
@@ -97,7 +97,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>The option for a stored value; an unknown value (edited by hand) shows as its own option.</summary>
     static IntervalOption Pick(IReadOnlyList<IntervalOption> options, int minutes) =>
-        options.FirstOrDefault(o => o.Minutes == minutes) ?? new IntervalOption(minutes, $"Every {minutes} minutes");
+        options.FirstOrDefault(o => o.Minutes == minutes) ?? new IntervalOption(minutes, $"Every {minutes} Minutes");
 
     [ObservableProperty]
     public partial IntervalOption Changes { get; set; }
@@ -133,7 +133,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     void RefreshAreas()
     {
         Areas = (_sync?.Areas ?? []).Select(a => new SyncAreaRow(a.Name, a.Holds,
-            a.LastSyncedAt is { } at ? $"Updated {Display.Clock(at, _now())}" : "Not read yet", a.Every)).ToArray();
+            a.LastSyncedAt is { } at ? $"Updated {Display.Clock(at, _now())}" : "Not Read Yet", a.Every)).ToArray();
         OnPropertyChanged(nameof(HasAreas));
     }
 

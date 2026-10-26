@@ -169,7 +169,7 @@ public sealed partial class BulkEditorViewModel : ObservableObject
         _ = value?.LoadAsync();
     }
 
-    public string StageText => Selected?.IsCaution == true ? "Add to Pending changes (takes something away)" : "Add to Pending changes";
+    public string StageText => Selected?.IsCaution == true ? "Add to Pending Changes (Takes Something Away)" : "Add to Pending Changes";
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StageCommand))]

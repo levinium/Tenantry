@@ -11,7 +11,7 @@
       <StackPanel Spacing="10">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ic:FluentIcon Icon="Apps" FontSize="18" Foreground="{DynamicResource Accent}" />
-          <TextBlock Classes="h3" Text="Last active" VerticalAlignment="Center" />
+          <TextBlock Classes="h3" Text="Last Active" VerticalAlignment="Center" />
         </StackPanel>
         <TextBlock Classes="muted" Text="Reading Microsoft's usage report…" IsVisible="{Binding AppsLoading}" />
         <TextBlock Classes="error" Text="{Binding AppsError}" IsVisible="{Binding HasAppsError}" TextWrapping="Wrap" />
@@ -42,7 +42,7 @@
       <StackPanel Spacing="10">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ic:FluentIcon Icon="History" FontSize="18" Foreground="{DynamicResource Accent}" />
-          <TextBlock Classes="h3" Text="Changes made in Tenantry" VerticalAlignment="Center" />
+          <TextBlock Classes="h3" Text="Changes Made in Tenantry" VerticalAlignment="Center" />
         </StackPanel>
         <TextBlock Classes="caption" TextWrapping="Wrap"
                    Text="Every change Tenantry applied to them, or to a group or mailbox they were added to or removed from, by anyone using Tenantry on this computer." />
@@ -76,13 +76,13 @@
       <StackPanel Spacing="10">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ic:FluentIcon Icon="DocumentSearch" FontSize="18" Foreground="{DynamicResource Accent}" />
-          <TextBlock Classes="h3" Text="Microsoft 365 audit log" VerticalAlignment="Center" />
+          <TextBlock Classes="h3" Text="Microsoft 365 Audit Log" VerticalAlignment="Center" />
         </StackPanel>
         <TextBlock Classes="caption" TextWrapping="Wrap"
                    Text="Directory changes recorded by Microsoft, from any tool: the admin centers, PowerShell, Tenantry or the person themselves. Newest first." />
         <StackPanel Orientation="Horizontal" Spacing="16">
-          <RadioButton GroupName="AuditDirection" Content="Changes made to them" IsChecked="{Binding AuditAboutThem}" />
-          <RadioButton GroupName="AuditDirection" Content="Changes they made" IsChecked="{Binding AuditByThem}" />
+          <RadioButton GroupName="AuditDirection" Content="Changes Made to Them" IsChecked="{Binding AuditAboutThem}" />
+          <RadioButton GroupName="AuditDirection" Content="Changes They Made" IsChecked="{Binding AuditByThem}" />
         </StackPanel>
         <TextBlock Classes="muted" Text="Reading the audit log…" IsVisible="{Binding AuditLoading}" />
         <TextBlock Classes="error" Text="{Binding AuditError}" IsVisible="{Binding HasAuditError}" TextWrapping="Wrap" />

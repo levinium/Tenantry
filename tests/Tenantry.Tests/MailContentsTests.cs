@@ -135,7 +135,7 @@ public sealed class MailContentsTests
         var results = await pipeline.ApplyAsync(cancellationToken: Ct);
 
         Assert.Empty(executor.Applied);
-        Assert.Contains("Mailbox type", results[1].Result.Detail);
+        Assert.Contains("Mailbox Type", results[1].Result.Detail);
         Assert.Equal(2, pipeline.Pending.Count);
     }
 
@@ -242,7 +242,7 @@ public sealed class MailContentsTests
         tab.Rules[1].DeleteCommand.Execute(null);
 
         Assert.Equal(2, pipeline.Pending.Count);
-        Assert.Equal("Turning off", tab.Rules[0].PendingText);
+        Assert.Equal("Turning Off", tab.Rules[0].PendingText);
         Assert.True(tab.Rules[1].IsDeleting);
         Assert.True(pipeline.Pending.OfType<RemoveInboxRule>().Single().IsCaution);
 
@@ -254,7 +254,7 @@ public sealed class MailContentsTests
     public async Task Calendar_sharing_changes_roles_adds_people_and_keeps_the_built_in_entries()
     {
         var (tab, pipeline, _) = await Tab(MailPage.RulesAndSharing);
-        Assert.Equal(["Everyone in the organization", "zz-tenantry-test-cy"], tab.CalendarSharing.Select(r => r.Name));
+        Assert.Equal(["Everyone in the Organization", "zz-tenantry-test-cy"], tab.CalendarSharing.Select(r => r.Name));
         Assert.False(tab.CalendarSharing[0].CanRemove);
 
         tab.CalendarSharing[1].SelectedRole = SharingRow.Roles.Single(r => r.Role == "Editor");
@@ -290,7 +290,7 @@ public sealed class MailContentsTests
 
         tab.DeletedItems.Single().ToggleCommand.Execute(null);
         Assert.Equal("e1", Assert.IsType<RestoreDeletedItem>(pipeline.Pending.Single()).EntryId);
-        Assert.Equal("Undo restore", tab.DeletedItems.Single().RestoreText);
+        Assert.Equal("Undo Restore", tab.DeletedItems.Single().RestoreText);
 
         tab.DeletedItems.Single().ToggleCommand.Execute(null);
         Assert.Empty(pipeline.Pending);

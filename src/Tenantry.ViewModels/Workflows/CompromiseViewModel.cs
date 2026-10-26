@@ -56,11 +56,11 @@ public sealed partial class CompromiseViewModel : ObservableObject
         _now = now ?? (() => DateTimeOffset.UtcNow);
         Steps =
         [
-            new("password", "Reset the password", "A new password in this tenant's style, shown to you once after applying.", true),
-            new("mustchange", "Ask them to change it when they next sign in", "They choose their own password once you've passed the new one on.", true),
-            new("reregister", "Require MFA to be registered again", "Removes their sign-in methods (not the password), including any the attacker added.", true),
-            new("signout", "Sign out everywhere", "Ends every session, including the attacker's.", true),
-            new("block", "Block sign-in", "Until you've finished looking into it. Allow sign-in again from their page.", false),
+            new("password", "Reset the Password", "A new password in this tenant's style, shown to you once after applying.", true),
+            new("mustchange", "Ask Them to Change It When They Next Sign In", "They choose their own password once you've passed the new one on.", true),
+            new("reregister", "Require MFA to Be Registered Again", "Removes their sign-in methods (not the password), including any the attacker added.", true),
+            new("signout", "Sign Out Everywhere", "Ends every session, including the attacker's.", true),
+            new("block", "Block Sign-In", "Until you've finished looking into it. Allow sign-in again from their page.", false),
         ];
         if (checkNow)
             _ = CheckAsync();
@@ -154,8 +154,8 @@ public sealed partial class CompromiseViewModel : ObservableObject
         {
             var outside = mailbox.Forwarding == ForwardingKind.External;
             lock (findings)
-                findings.Add(new Finding(name, outside ? "Forwarding mail outside the organization" : "Forwarding mail",
-                    $"To {to}.", new SetForwarding(target, to, mailbox.KeepsCopyWhenForwarding, null, false, false), "Turn forwarding off", isOn: outside));
+                findings.Add(new Finding(name, outside ? "Forwarding Mail Outside the Organization" : "Forwarding Mail",
+                    $"To {to}.", new SetForwarding(target, to, mailbox.KeepsCopyWhenForwarding, null, false, false), "Turn Forwarding Off", isOn: outside));
         }
         if (person.Mailbox is not null && _records is IMailboxContents contents)
             tasks.Add(Try("their mailbox rules", async () =>
@@ -164,10 +164,10 @@ public sealed partial class CompromiseViewModel : ObservableObject
                 {
                     if (!rule.Enabled || !(rule.Forwards || rule.Deletes))
                         continue;
-                    var what = rule.Forwards ? $"forwards mail to {string.Join(", ", rule.ForwardsTo)}" : "deletes mail";
+                    var what = rule.Forwards ? $"Forwards Mail to {string.Join(", ", rule.ForwardsTo)}" : "Deletes Mail";
                     lock (findings)
-                        findings.Add(new Finding(name, $"Mailbox rule \"{rule.Name}\" {what}", rule.Description,
-                            new SetInboxRuleEnabled(target, rule.Identity, rule.Name, true, false), "Turn this rule off"));
+                        findings.Add(new Finding(name, $"Mailbox Rule \"{rule.Name}\" {what}", rule.Description,
+                            new SetInboxRuleEnabled(target, rule.Identity, rule.Name, true, false), "Turn This Rule Off"));
                 }
             }));
         if (_records is ISecurityRecords security)
@@ -177,8 +177,8 @@ public sealed partial class CompromiseViewModel : ObservableObject
                 methods = (await security.GetAuthMethodsAsync(person.Id, ct)).Where(m => m.Removable).ToArray();
                 foreach (var m in methods.Where(m => m.Added >= since))
                     lock (findings)
-                        findings.Add(new Finding(name, $"New sign-in method: {m.Kind}", $"Added {m.Added!.Value.ToLocalTime():d MMM, h:mm tt}{(m.Detail is { } d ? $" ({d})" : "")}.",
-                            new RemoveAuthMethod(target, m.Id, m.Segment, m.Kind), "Remove this method"));
+                        findings.Add(new Finding(name, $"New Sign-In Method: {m.Kind}", $"Added {m.Added!.Value.ToLocalTime():d MMM, h:mm tt}{(m.Detail is { } d ? $" ({d})" : "")}.",
+                            new RemoveAuthMethod(target, m.Id, m.Segment, m.Kind), "Remove This Method"));
             }));
             tasks.Add(Try("their sign-ins", async () =>
             {
@@ -195,7 +195,7 @@ public sealed partial class CompromiseViewModel : ObservableObject
                     return; // nothing to compare with: every country would look new
                 foreach (var g in (read.Value ?? []).Where(s => s.When >= since && Country(s) is { } c && !earlier.Contains(c)).GroupBy(s => Country(s)!))
                     lock (findings)
-                        findings.Add(new Finding(name, $"Signed in from a new country: {g.Key}",
+                        findings.Add(new Finding(name, $"Signed In from a New Country: {g.Key}",
                             $"{g.Count()} sign-in{(g.Count() == 1 ? "" : "s")} in the last {RecentDays} days, the first {g.Min(s => s.When).ToLocalTime():d MMM, h:mm tt}" +
                             $"{(g.First().IpAddress is { } ip ? $" from {ip}" : "")}. Not seen in the {SignInDays - RecentDays} days before.", null));
             }));
@@ -208,8 +208,8 @@ public sealed partial class CompromiseViewModel : ObservableObject
                         .Select(a => a.About).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
                     foreach (var c in consents.Where(c => recent.Contains(c.AppName)))
                         lock (findings)
-                            findings.Add(new Finding(name, $"App given access recently: {c.AppName}", $"Can use: {string.Join(", ", c.Scopes.Take(6))}.",
-                                new RevokeAppConsent(target, c.GrantId, c.AppName), "Take away the app's access"));
+                            findings.Add(new Finding(name, $"App Given Access Recently: {c.AppName}", $"Can use: {string.Join(", ", c.Scopes.Take(6))}.",
+                                new RevokeAppConsent(target, c.GrantId, c.AppName), "Take Away the App's Access"));
                 }));
         }
         await Task.WhenAll(tasks);

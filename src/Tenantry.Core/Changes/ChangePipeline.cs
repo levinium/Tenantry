@@ -218,7 +218,7 @@ public sealed record SetTestModeChange(ChangeTarget Tenant, bool Old, bool New) 
 {
     public override ChangeTarget Target => Tenant;
     public override string Key => "testmode";
-    public override string Label => "Test mode";
+    public override string Label => "Test Mode";
     public override string Before => Old ? "On" : "Off";
     public override string After => New ? "On" : "Off";
     public override bool IsNoChange => Old == New;
