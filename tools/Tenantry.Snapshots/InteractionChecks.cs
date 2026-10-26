@@ -161,6 +161,29 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Record Actions menu: Offboard closes the menu, and Add to Pending changes stages the checklist", () =>
+        {
+            var (window, main, page) = OpenRecord();
+            var actions = FindButton(window, b => ToolTip.GetTip(b) as string == "More actions" && b.FindAncestorOfType<UserControl>()?.DataContext == page);
+            Click(window, actions);
+            var menu = (MenuFlyout)actions.Flyout!;
+            Click(MenuItem(menu, m => m.Command == page.OffboardCommand));
+            Expect(!menu.IsOpen, "the Actions menu closed");
+            var workflow = main.Dialog?.Content as Tenantry.ViewModels.Workflows.OffboardingViewModel;
+            Expect(workflow is not null, "the Offboard popup is open");
+            Settle();
+            var stage = FindButton(window, b => b.Content as string == "Add to Pending changes");
+            stage.BringIntoView();
+            Settle();
+            Click(window, stage);
+            for (var i = 0; i < 50 && workflow!.IsPlanning; i++)
+                Settle();
+            Expect(main.Pending!.Count > 3, $"the checklist's changes are in Pending changes (planning {workflow!.IsPlanning}, pending {main.Pending.Count}, " +
+                $"result '{workflow.Result}', notes '{string.Join(" | ", workflow.Notes)}', dialog {main.Dialog?.Content?.GetType().Name})");
+            Expect(main.Pending.Rows.Any(r => r.Change is RevokeSessions), "sign out everywhere is among them");
+            window.Close();
+        });
+
         Console.WriteLine(_failed == 0 ? "ALL INTERACTION CHECKS PASSED" : $"{_failed} INTERACTION CHECK(S) FAILED");
         return _failed == 0 ? 0 : 1;
     }

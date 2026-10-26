@@ -51,7 +51,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         // Several rows checked: the preview pane becomes a selection panel with bulk changes.
         var canEditMany = Evaluate(Capabilities.EditUsers);
         Users.SelectionPanel = (rows, uncheck) =>
-            Records.SelectionPanelViewModel.ForUsers(rows, uncheck, _index, _tenant.Records, _tenant.Changes, canEditMany);
+            Records.SelectionPanelViewModel.ForUsers(rows, uncheck, _index, _tenant.Records, _tenant.Changes, canEditMany, Offboard);
         Groups.SelectionPanel = (rows, uncheck) =>
             Records.SelectionPanelViewModel.ForGroups(rows, uncheck, _index, _tenant.Changes, canEditMany);
 
@@ -419,7 +419,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// <summary>A user's record (page or preview), editable when the tenant and the admin's role allow.</summary>
     UserDetailViewModel NewUserPage(UserSummary user) =>
         Fresh(new UserDetailViewModel(user, _now(), _tenant.Changes, Evaluate(Capabilities.EditUsers), _tenant.Records, ShowDialog, CloseDialog, _index,
-            OpenUser, OpenGroup));
+            OpenUser, OpenGroup, Offboard));
+
+    // ---- Workflows --------------------------------------------------------------------------
+
+    /// <summary>Opens the offboarding checklist for one person or several (record page, selection panel).</summary>
+    public void Offboard(IReadOnlyList<UserSummary> people)
+    {
+        if (_tenant.Changes is not { } pipeline || people.Count == 0 || !Evaluate(Capabilities.EditUsers).IsAvailable)
+            return;
+        var workflow = new Workflows.OffboardingViewModel(people, _index, _tenant.Records, pipeline, TenantName, CloseDialog);
+        ShowDialog(new Records.DialogViewModel(workflow.Heading, workflow.Subtitle, workflow));
+    }
 
     // ---- Permissions ----------------------------------------------------------------------
 

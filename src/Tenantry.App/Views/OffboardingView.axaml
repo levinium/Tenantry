@@ -1,0 +1,115 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:wf="using:Tenantry.ViewModels.Workflows"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.OffboardingView"
+             x:DataType="wf:OffboardingViewModel"
+             x:Name="Root">
+  <UserControl.Resources>
+    <!-- One section of the checklist: its heading, then a ticked or unticked row per step. -->
+    <DataTemplate x:Key="SectionTemplate" x:DataType="wf:WorkflowSection">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="label" Text="{Binding Title}" />
+        <ItemsControl ItemsSource="{Binding Steps}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="wf:WorkflowStep">
+              <Border Classes="valuerow">
+                <StackPanel Spacing="8">
+                  <CheckBox IsChecked="{Binding IsOn}">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </CheckBox>
+                  <!-- The reply's text, under its step -->
+                  <StackPanel Spacing="4" Margin="28,0,0,0">
+                    <StackPanel.IsVisible>
+                      <MultiBinding Converter="{x:Static BoolConverters.And}">
+                        <Binding Path="IsOn" />
+                        <Binding Path="Key" Converter="{x:Static ObjectConverters.Equal}" ConverterParameter="autoreply" />
+                      </MultiBinding>
+                    </StackPanel.IsVisible>
+                    <TextBox Text="{Binding #Root.((wf:OffboardingViewModel)DataContext).ReplyText}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
+                    <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding #Root.((wf:OffboardingViewModel)DataContext).ReplyHelp}" />
+                  </StackPanel>
+                  <!-- Who to forward to, under its step -->
+                  <StackPanel Spacing="4" Margin="28,0,0,0">
+                    <StackPanel.IsVisible>
+                      <MultiBinding Converter="{x:Static BoolConverters.And}">
+                        <Binding Path="IsOn" />
+                        <Binding Path="Key" Converter="{x:Static ObjectConverters.Equal}" ConverterParameter="forward" />
+                      </MultiBinding>
+                    </StackPanel.IsVisible>
+                    <StackPanel DataContext="{Binding #Root.DataContext}" x:DataType="wf:OffboardingViewModel" Spacing="4">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding HasForwardTo}">
+                        <TextBlock Text="{Binding ForwardToText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <Button Grid.Column="1" Classes="rowaction" Command="{Binding ClearForwardToCommand}" ToolTip.Tip="Choose someone else">
+                          <ic:FluentIcon Icon="Dismiss" FontSize="13" />
+                        </Button>
+                      </Grid>
+                      <views:PersonPickerView DataContext="{Binding ForwardPicker}" IsVisible="{Binding !#Root.((wf:OffboardingViewModel)DataContext).HasForwardTo}" />
+                    </StackPanel>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <!-- A checklist, the usual steps ticked; confirming stages one change per item into Pending changes. -->
+  <StackPanel Spacing="16" Width="1040">
+    <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding Intro}" />
+
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="24" IsVisible="{Binding !IsDone}">
+      <ItemsControl ItemsSource="{Binding LeftSections}" ItemTemplate="{StaticResource SectionTemplate}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="16" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+      <ItemsControl Grid.Column="1" ItemsSource="{Binding RightSections}" ItemTemplate="{StaticResource SectionTemplate}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="16" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </Grid>
+
+    <!-- Working, then what happened -->
+    <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsPlanning}">
+      <ProgressBar Classes="working" Width="120" VerticalAlignment="Center" />
+      <TextBlock Classes="muted" Text="{Binding Progress}" VerticalAlignment="Center" />
+    </StackPanel>
+    <Border Classes="banner info" IsVisible="{Binding IsDone}">
+      <TextBlock Text="{Binding Result}" TextWrapping="Wrap" />
+    </Border>
+    <StackPanel Spacing="4" IsVisible="{Binding HasNotes}">
+      <TextBlock Classes="label" Text="WORTH KNOWING" />
+      <ItemsControl ItemsSource="{Binding Notes}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="caption" Text="{Binding}" TextWrapping="Wrap" Margin="0,2" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+
+    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+      <Button Classes="ghost" Content="Cancel" Command="{Binding CloseCommand}" IsVisible="{Binding !IsDone}" />
+      <Button Classes="accent" Content="Add to Pending changes" Command="{Binding StageCommand}" IsVisible="{Binding !IsDone}"
+              ToolTip.Tip="Reads what each person has and adds one change per item to Pending changes. Nothing is sent until you apply them." />
+      <Button Classes="accent" Content="Close" Command="{Binding CloseCommand}" IsVisible="{Binding IsDone}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

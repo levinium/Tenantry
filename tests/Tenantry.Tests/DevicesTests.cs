@@ -45,6 +45,19 @@ public sealed class DevicesTests
     }
 
     [Fact]
+    public async Task Someone_Intune_has_never_seen_has_no_managed_devices_rather_than_an_error()
+    {
+        var http = new FakeHttp()
+            .On(HttpMethod.Get, "/users/u2/registeredDevices", """{"value":[]}""")
+            .On(HttpMethod.Get, "/users/u2/ownedDevices", """{"value":[]}""")
+            .On(HttpMethod.Get, "/users/u2/managedDevices", """{"error":{"code":"ResourceNotFound","message":"An error has occurred"}}""", System.Net.HttpStatusCode.NotFound);
+
+        var read = await Records(http).GetDevicesAsync("u2", Ct);
+
+        Assert.Equal((0, null), (read.Value!.Count, read.Unavailable));
+    }
+
+    [Fact]
     public async Task The_newest_local_admin_password_is_decoded()
     {
         var http = new FakeHttp().On(HttpMethod.Get, "/directory/deviceLocalCredentials/d1", """

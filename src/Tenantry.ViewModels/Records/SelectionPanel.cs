@@ -107,6 +107,7 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
         }
         Summary = _summarize(_rows);
         OnPropertyChanged(nameof(Heading));
+        OnPropertyChanged(nameof(OffboardText));
         OnPropertyChanged(nameof(MoreText));
         OnPropertyChanged(nameof(HasMore));
     }
@@ -115,14 +116,28 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
 
     // ---- The two lists' panels --------------------------------------------------------------
 
+    /// <param name="offboard">Opens the offboarding checklist for the people selected.</param>
     public static SelectionPanelViewModel ForUsers(IReadOnlyList<object> rows, Action<object> uncheck, IDirectoryIndex index, IUserRecords? records,
-        ChangePipeline? pipeline, Availability canEdit) =>
+        ChangePipeline? pipeline, Availability canEdit, Action<IReadOnlyList<UserSummary>>? offboard = null) =>
         new(rows, uncheck, "user", "users",
             r => (((UserSummary)r).DisplayName, ((UserSummary)r).UserPrincipalName),
             SummarizeUsers,
             current => BulkActions.ForUsers(() => current().Cast<UserSummary>().ToArray(), index, records),
             pipeline, canEdit,
-            current => new BulkDetailsViewModel(() => current().Cast<UserSummary>().ToArray(), records, pipeline!));
+            current => new BulkDetailsViewModel(() => current().Cast<UserSummary>().ToArray(), records, pipeline!))
+        {
+            _offboard = offboard is null ? null : rows2 => offboard(rows2.Cast<UserSummary>().ToArray()),
+        };
+
+    Action<IReadOnlyList<object>>? _offboard;
+
+    /// <summary>The workflows for everyone selected (users only).</summary>
+    public bool HasWorkflows => CanEdit && _offboard is not null;
+
+    public string OffboardText => $"Offboard {(_rows.Count == 1 ? "this person" : $"these {_rows.Count:N0} people")}…";
+
+    [RelayCommand]
+    void Offboard() => _offboard?.Invoke(_rows);
 
     public static SelectionPanelViewModel ForGroups(IReadOnlyList<object> rows, Action<object> uncheck, IDirectoryIndex index,
         ChangePipeline? pipeline, Availability canEdit) =>

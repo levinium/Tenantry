@@ -31,6 +31,11 @@ public sealed partial class GraphUserRecords : IDeviceRecords
             intuneProblem = "Intune devices need an Intune role (and an Intune license in the tenant).";
             managed = Task.FromResult(new List<JsonElement>());
         }
+        catch (GraphException e) when (e.Status == HttpStatusCode.NotFound)
+        {
+            // Intune answers "not found" for someone it has never managed a device for (seen live).
+            managed = Task.FromResult(new List<JsonElement>());
+        }
 
         var entra = new Dictionary<string, (JsonElement Device, string Relation)>(StringComparer.OrdinalIgnoreCase);
         foreach (var d in await owned)

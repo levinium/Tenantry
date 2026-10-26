@@ -30,8 +30,10 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
     /// <param name="index">The local copy, for Groups &amp; access and the people pickers.</param>
     public UserDetailViewModel(UserSummary user, DateTimeOffset? now = null, ChangePipeline? pipeline = null, Availability? canEdit = null,
         IUserRecords? records = null, Action<DialogViewModel>? openDialog = null, Action? closeDialog = null,
-        IDirectoryIndex? index = null, Action<UserSummary>? openUser = null, Action<GroupSummary>? openGroup = null)
+        IDirectoryIndex? index = null, Action<UserSummary>? openUser = null, Action<GroupSummary>? openGroup = null,
+        Action<IReadOnlyList<UserSummary>>? offboard = null)
     {
+        _offboard = offboard;
         _now = now ?? DateTimeOffset.Now;
         _pipeline = pipeline;
         _canEdit = canEdit ?? Availability.No("Editing isn't available here");
@@ -228,6 +230,18 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         if (CanEdit && User.Mailbox is not null)
             _openDialog?.Invoke(new DialogViewModel("Convert mailbox", User.DisplayName,
                 new ConvertMailboxViewModel(User, _records, _pipeline!, () => _closeDialog?.Invoke())));
+    }
+
+    readonly Action<IReadOnlyList<UserSummary>>? _offboard;
+
+    public bool CanOffboard => CanEdit && _offboard is not null;
+
+    /// <summary>Opens the offboarding checklist for this person (Actions menu).</summary>
+    [RelayCommand]
+    void Offboard()
+    {
+        if (CanOffboard)
+            _offboard!([User]);
     }
 
     public bool HasPendingSignOut => _pipeline?.PendingFor(User.Id, "sessions") is not null;

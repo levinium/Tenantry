@@ -64,6 +64,11 @@
                   <ic:FluentIcon Icon="SignOut" FontSize="16" />
                 </MenuItem.Icon>
               </MenuItem>
+              <MenuItem Header="Offboard…" Command="{Binding OffboardCommand}" IsVisible="{Binding CanOffboard}">
+                <MenuItem.Icon>
+                  <ic:FluentIcon Icon="PersonArrowRight" FontSize="16" />
+                </MenuItem.Icon>
+              </MenuItem>
             </MenuFlyout>
           </Button.Flyout>
         </Button>

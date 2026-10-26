@@ -241,6 +241,38 @@ The tab only reads:
   looked up by sign-in name. When the tenant conceals names in reports, no row has an `@`, and
   the tab says how to show them.
 
+### Workflows (4d-2)
+
+A workflow is a checklist popup that plans many existing changes at once, then puts them all into
+Pending changes. It adds no new change types, and nothing is sent until the admin applies them.
+Each workflow runs for one person (from the record page's Actions menu) or for everyone selected
+(from the selection panel).
+
+**Offboarding** (`OffboardingViewModel`):
+- **Ticked by default:**
+  - block sign-in, sign out everywhere, reset the password;
+  - remove sign-in methods, admin roles and app consents;
+  - remove them from groups, lists and shared-mailbox access;
+  - set an automatic reply, hide them from the address list;
+  - convert the mailbox to shared, then remove direct licenses.
+- **Unticked:** forward their mail, give the manager the mailbox or the OneDrive, retire their
+  Intune devices.
+- **The account is never deleted.**
+- **Reads:** the planner reads only what ticked steps need, four people at a time: methods, roles,
+  consents, licenses, mailbox, manager, OneDrive and devices. Group memberships come from one pass
+  over the local copy.
+- **Order:** changes are listed person by person in a safe order. License removals `DependsOn` the
+  conversion, so a failed conversion keeps the license.
+- **What's skipped, with a note:** dynamic groups, a group they're the only owner of, missing
+  managers, and anything that couldn't be read.
+- **Automatic reply:** filled in per person from `{name}`, `{first name}`, `{organization}` and
+  `{manager}`. With no manager set, `{manager}` becomes "us".
+- **Confirming:** the tray's usual second click. There's no typed confirmation (Mark, 2026-10-26).
+
+**Passwords:** generated passwords follow the tenant's `PasswordStyle` (Settings › Passwords; kept
+in `password-style.json`). After a bulk reset, the tray offers Copy all, Save as file (CSV) and Done
+with all. Passwords are still never stored.
+
 ## Write guard and Test mode
 
 - **What it allows:** while a tenant is in Test mode, only objects whose **address** starts with

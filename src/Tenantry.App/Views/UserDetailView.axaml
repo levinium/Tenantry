@@ -76,6 +76,13 @@
                     <ic:FluentIcon Icon="MailMultiple" FontSize="16" />
                   </MenuItem.Icon>
                 </MenuItem>
+                <Separator IsVisible="{Binding CanOffboard}" />
+                <MenuItem Header="Offboard…" Command="{Binding OffboardCommand}" IsVisible="{Binding CanOffboard}"
+                          ToolTip.Tip="A checklist of what happens when someone leaves; everything goes to Pending changes for review">
+                  <MenuItem.Icon>
+                    <ic:FluentIcon Icon="PersonArrowRight" FontSize="16" />
+                  </MenuItem.Icon>
+                </MenuItem>
               </MenuFlyout>
             </Button.Flyout>
           </Button>

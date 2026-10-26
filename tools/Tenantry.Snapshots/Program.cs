@@ -396,6 +396,12 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "user-onedrive-light", height: 1000);
         editing.Pending.DiscardAllCommand.Execute(null);
 
+        // Offboarding: the checklist popup.
+        page.OffboardCommand.Execute(null);
+        Settle();
+        Render(editing, "user-offboard-light", height: 1700);
+        editing.CloseDialog();
+
         // Activity: last active per app, Tenantry's changes, Microsoft's audit log.
         var activity = page.Sections.OfType<Tenantry.ViewModels.Records.ActivitySection>().Single();
         page.SelectedSection = activity;
