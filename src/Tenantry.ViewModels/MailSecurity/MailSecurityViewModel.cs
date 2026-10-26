@@ -34,9 +34,9 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     public static IReadOnlyList<MailSecurityPage> Pages { get; } =
     [
         new("quarantine", "Quarantine", "ShieldError"),
-        new("trace", "Message trace", "MailSearch"),
-        new("rules", "Mail flow rules", "ArrowRouting", "Every mail flow rule in plain words, with a full editor for conditions, exceptions and actions."),
-        new("lists", "Block and allow lists", "ShieldProhibited"),
+        new("trace", "Message Trace", "MailSearch"),
+        new("rules", "Mail Flow Rules", "ArrowRouting", "Every mail flow rule in plain words, with a full editor for conditions, exceptions and actions."),
+        new("lists", "Block and Allow Lists", "ShieldProhibited"),
     ];
 
     public MailSecurityViewModel(IMailSecurity? records, ChangePipeline? pipeline, Availability canEdit, IListStateStore? listState, Func<DateTimeOffset>? now = null)
@@ -72,7 +72,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         SelectedPage = Pages[0];
     }
 
-    public override string Title => "Mail & security";
+    public override string Title => "Mail & Security";
 
     public override bool CanClose => false;
 
@@ -130,7 +130,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     // ---- Quarantine ---------------------------------------------------------------------------
 
     public static IReadOnlyList<TraceRange> QuarantineRanges { get; } =
-        [new(1, "Last 24 hours"), new(7, "Last 7 days"), new(14, "Last 14 days"), new(30, "Last 30 days")];
+        [new(1, "Last 24 Hours"), new(7, "Last 7 Days"), new(14, "Last 14 Days"), new(30, "Last 30 Days")];
 
     [ObservableProperty]
     public partial TraceRange QuarantineRange { get; set; } = QuarantineRanges[^1];
@@ -148,7 +148,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     // ---- Message trace ------------------------------------------------------------------------
 
     public static IReadOnlyList<TraceRange> TraceRanges { get; } =
-        [new(1, "1 day"), new(2, "2 days"), new(7, "7 days"), new(TraceSearch.MaxDays, "10 days (the most per search)")];
+        [new(1, "1 Day"), new(2, "2 Days"), new(7, "7 Days"), new(TraceSearch.MaxDays, "10 Days (the Most per Search)")];
 
     [ObservableProperty]
     public partial DateTime TraceStart { get; set; }
@@ -165,10 +165,10 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     [ObservableProperty]
     public partial string TraceSubject { get; set; } = "";
 
-    public static IReadOnlyList<string> TraceStatusChoices { get; } = ["Any status", .. MailSecurityLists.TraceStatuses.Select(MailSecurityLists.StatusText)];
+    public static IReadOnlyList<string> TraceStatusChoices { get; } = ["Any Status", .. MailSecurityLists.TraceStatuses.Select(MailSecurityLists.StatusText)];
 
     [ObservableProperty]
-    public partial string TraceStatus { get; set; } = "Any status";
+    public partial string TraceStatus { get; set; } = "Any Status";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasTraceNote))]

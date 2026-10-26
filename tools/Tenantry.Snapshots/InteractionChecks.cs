@@ -172,7 +172,7 @@ static class InteractionChecks
             var workflow = main.Dialog?.Content as Tenantry.ViewModels.Workflows.OffboardingViewModel;
             Expect(workflow is not null, "the Offboard popup is open");
             Settle();
-            var stage = FindButton(window, b => b.Content as string == "Add to Pending changes");
+            var stage = FindButton(window, b => b.Content as string == "Add to Pending Changes");
             stage.BringIntoView();
             Settle();
             Click(window, stage);
@@ -197,7 +197,7 @@ static class InteractionChecks
             for (var i = 0; i < 50 && workflow!.IsChecking; i++)
                 Settle();
             Expect(!workflow!.IsChecking, "the check finished");
-            var stage = FindButton(window, b => b.Content as string == "Add to Pending changes");
+            var stage = FindButton(window, b => b.Content as string == "Add to Pending Changes");
             stage.BringIntoView();
             Settle();
             Click(window, stage);

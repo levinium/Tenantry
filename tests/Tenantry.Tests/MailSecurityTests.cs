@@ -32,7 +32,7 @@ public sealed class MailSecurityTests
 
         var message = Assert.Single(await Records(exchange).GetQuarantineAsync(30, Ct));
 
-        Assert.Equal(("High-confidence phishing", true, 2, MailSecurityLists.Q.Held), (message.ReasonText, message.IsDangerous, message.Recipients.Count, MailSecurityLists.StatusOf(message)));
+        Assert.Equal(("High-Confidence Phishing", true, 2, MailSecurityLists.Q.Held), (message.ReasonText, message.IsDangerous, message.Recipients.Count, MailSecurityLists.StatusOf(message)));
         Assert.Contains("\"PageSize\":1000", exchange.Calls[0].Parameters);
     }
 
@@ -116,7 +116,7 @@ public sealed class MailSecurityTests
         preview.ReleaseCommand.Execute(null);
         preview.AllowSender = true;
         Assert.True(Assert.IsType<ReleaseQuarantined>(Assert.Single(pipeline.Pending)).AllowSender);
-        Assert.Equal("Undo release", preview.ReleaseText);
+        Assert.Equal("Undo Release", preview.ReleaseText);
         preview.ReleaseCommand.Execute(null);
         Assert.Empty(pipeline.Pending);
 

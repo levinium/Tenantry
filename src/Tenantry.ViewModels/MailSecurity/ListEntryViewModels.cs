@@ -86,8 +86,8 @@ public sealed partial class AddListEntriesViewModel : ObservableObject
 
     /// <summary>Blocks can last for ever; Microsoft removes allows after a time (45 days after they last match, by default).</summary>
     public IReadOnlyList<ExpiryOption> ExpiryOptions => Action.Value
-        ? [new(ExpiryChoice.Never, "Never expires"), new(ExpiryChoice.OnDate, "Until a date")]
-        : [new(ExpiryChoice.AfterLastUse, "45 days after it last matches (Microsoft's default)"), new(ExpiryChoice.OnDate, "Until a date")];
+        ? [new(ExpiryChoice.Never, "Never Expires"), new(ExpiryChoice.OnDate, "Until a Date")]
+        : [new(ExpiryChoice.AfterLastUse, "45 Days After It Last Matches (Microsoft's Default)"), new(ExpiryChoice.OnDate, "Until a Date")];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsOnDate))]
@@ -225,7 +225,7 @@ public sealed partial class ListEntryPreviewViewModel : ObservableObject, IDispo
 
     public bool HasPending => PendingText is not null;
 
-    public string RemoveText => Pending is RemoveListEntry ? "Undo remove" : "Remove from the list";
+    public string RemoveText => Pending is RemoveListEntry ? "Undo Remove" : "Remove from the List";
 
     [RelayCommand]
     void Remove()
@@ -239,8 +239,8 @@ public sealed partial class ListEntryPreviewViewModel : ObservableObject, IDispo
     }
 
     public IReadOnlyList<ExpiryOption> ExpiryOptions => Entry.Block
-        ? [new(ExpiryChoice.Never, "Never expires"), new(ExpiryChoice.OnDate, "Until a date")]
-        : [new(ExpiryChoice.AfterLastUse, "45 days after it last matches"), new(ExpiryChoice.OnDate, "Until a date")];
+        ? [new(ExpiryChoice.Never, "Never Expires"), new(ExpiryChoice.OnDate, "Until a Date")]
+        : [new(ExpiryChoice.AfterLastUse, "45 Days After It Last Matches"), new(ExpiryChoice.OnDate, "Until a Date")];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsOnDate))]

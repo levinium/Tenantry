@@ -942,6 +942,20 @@
     <Setter Property="Padding" Value="14,0" />
   </Style>
 
+  <!-- Pages within one area or record tab (Mail & Security's Quarantine, Message Trace…): tabs,
+       with an underline on the open one and a rule beneath the strip, so they read as separate
+       pages rather than filters. -->
+  <Style Selector="TabStrip.pagetabs">
+    <Setter Property="BorderBrush" Value="{DynamicResource Divider}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="TabStrip.pagetabs TabStripItem">
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="MinHeight" Value="40" />
+    <Setter Property="Padding" Value="14,0" />
+  </Style>
+
   <!-- Status pills -->
   <!-- Spinner: a quarter arc turning over a faint ring -->
   <Style Selector="Ellipse.spintrack">

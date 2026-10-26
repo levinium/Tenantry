@@ -151,7 +151,7 @@ public sealed partial class LicensesSection : RecordSection, IDisposable
     }
 
     public override string Key => "licenses";
-    public override string Title => "Licenses & apps";
+    public override string Title => "Licenses & Apps";
     public override string Icon => "Apps";
     public override string FreshKeys => "license,licensecount";
 

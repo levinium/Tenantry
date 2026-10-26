@@ -107,7 +107,7 @@
 
     <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
       <Button Classes="ghost" Content="Cancel" Command="{Binding CloseCommand}" IsVisible="{Binding !IsDone}" />
-      <Button Classes="accent" Content="Add to Pending changes" Command="{Binding StageCommand}" IsVisible="{Binding !IsDone}"
+      <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding StageCommand}" IsVisible="{Binding !IsDone}"
               ToolTip.Tip="Reads what each person has and adds one change per item to Pending changes. Nothing is sent until you apply them." />
       <Button Classes="accent" Content="Close" Command="{Binding CloseCommand}" IsVisible="{Binding IsDone}" />
     </StackPanel>

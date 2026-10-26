@@ -23,15 +23,15 @@ public sealed record QuarantinedMessage(
     public string ReasonText => Reason switch
     {
         "Spam" => "Spam",
-        "HighConfSpam" => "High-confidence spam",
+        "HighConfSpam" => "High-Confidence Spam",
         "Phish" => "Phishing",
-        "HighConfPhish" => "High-confidence phishing",
+        "HighConfPhish" => "High-Confidence Phishing",
         "Malware" => "Malware",
-        "Bulk" => "Bulk mail",
-        "TransportRule" => "Mail flow rule",
+        "Bulk" => "Bulk Mail",
+        "TransportRule" => "Mail Flow Rule",
         "SPOMalware" => "Malware in SharePoint or OneDrive",
-        "FileTypeBlock" => "Blocked file type",
-        "DataLossPrevention" => "Data loss prevention",
+        "FileTypeBlock" => "Blocked File Type",
+        "DataLossPrevention" => "Data Loss Prevention",
         _ => Reason,
     };
 

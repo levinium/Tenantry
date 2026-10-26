@@ -22,8 +22,8 @@ public static class MailSecurityLists
 
         public const string Held = "Held";
         public const string Released = "Released";
-        public const string Requested = "Release requested";
-        public const string Denied = "Release denied";
+        public const string Requested = "Release Requested";
+        public const string Denied = "Release Denied";
     }
 
     public static string StatusOf(QuarantinedMessage m) => m.ReleaseStatus.ToUpperInvariant() switch
@@ -34,7 +34,7 @@ public static class MailSecurityLists
         _ => Q.Held,
     };
 
-    static readonly string[] Reasons = ["Phishing", "High-confidence phishing", "Malware", "Spam", "High-confidence spam", "Bulk mail", "Mail flow rule"];
+    static readonly string[] Reasons = ["Phishing", "High-Confidence Phishing", "Malware", "Spam", "High-Confidence Spam", "Bulk Mail", "Mail Flow Rule"];
 
     public static IReadOnlyList<Field<QuarantinedMessage>> QuarantineFields { get; } =
     [
@@ -57,10 +57,10 @@ public static class MailSecurityLists
     public static IReadOnlyList<SavedView> QuarantineViews { get; } =
     [
         View("held", "Held", true, new ChoiceCondition(Q.Status, [Q.Held], [])),
-        View("requested", "Release requested", true, new ChoiceCondition(Q.Status, [Q.Requested], [])),
-        View("phish", "Phishing", true, new ChoiceCondition(Q.Reason, ["Phishing", "High-confidence phishing"], [])),
+        View("requested", "Release Requested", true, new ChoiceCondition(Q.Status, [Q.Requested], [])),
+        View("phish", "Phishing", true, new ChoiceCondition(Q.Reason, ["Phishing", "High-Confidence Phishing"], [])),
         View("malware", "Malware", true, new ChoiceCondition(Q.Reason, ["Malware", "Malware in SharePoint or OneDrive"], [])),
-        View("spam", "Spam and bulk", true, new ChoiceCondition(Q.Reason, ["Spam", "High-confidence spam", "Bulk mail"], [])),
+        View("spam", "Spam and Bulk", true, new ChoiceCondition(Q.Reason, ["Spam", "High-Confidence Spam", "Bulk Mail"], [])),
         View("released", "Released", false, new ChoiceCondition(Q.Status, [Q.Released], [])),
         View("all", "All", false),
     ];
@@ -137,16 +137,16 @@ public static class MailSecurityLists
         new() { Key = L.Kind, Label = "Kind", Kind = FieldKind.Choice, Aliases = ["type"], ChoiceOrder = Kinds, Text = e => e.KindText },
         new() { Key = L.Action, Label = "Action", Kind = FieldKind.Choice, ChoiceOrder = [L.Blocked, L.Allowed], Text = e => e.Block ? L.Blocked : L.Allowed },
         new() { Key = L.Expires, Label = "Expires", Kind = FieldKind.Date, EmptyLabel = "Never", Date = e => e.Expires },
-        new() { Key = L.ExpiresInDays, Label = "Days until it expires", Kind = FieldKind.Number, Aliases = ["daysleft"], Number = DaysLeft },
-        new() { Key = L.LastUsed, Label = "Last matched", Kind = FieldKind.Date, Aliases = ["used"], Date = e => e.LastUsed },
+        new() { Key = L.ExpiresInDays, Label = "Days Until It Expires", Kind = FieldKind.Number, Aliases = ["daysleft"], Number = DaysLeft },
+        new() { Key = L.LastUsed, Label = "Last Matched", Kind = FieldKind.Date, Aliases = ["used"], Date = e => e.LastUsed },
         new() { Key = L.Notes, Label = "Notes", Kind = FieldKind.Text, Searchable = true, Aliases = ["note"], Text = e => e.Notes },
-        new() { Key = L.ModifiedBy, Label = "Changed by", Kind = FieldKind.Text, Searchable = true, Aliases = ["by"], Text = e => e.ModifiedBy },
+        new() { Key = L.ModifiedBy, Label = "Changed By", Kind = FieldKind.Text, Searchable = true, Aliases = ["by"], Text = e => e.ModifiedBy },
         new() { Key = L.Added, Label = "Added", Kind = FieldKind.Date, Aliases = ["created"], Date = e => e.Created },
-        new() { Key = L.Source, Label = "Added from", Kind = FieldKind.Choice, EmptyLabel = "Not recorded", Text = e => e.Source switch
+        new() { Key = L.Source, Label = "Added From", Kind = FieldKind.Choice, EmptyLabel = "Not Recorded", Text = e => e.Source switch
             {
-                "Submission" => "A reported message",
+                "Submission" => "A Reported Message",
                 "Tenant" => "Admin",
-                "AdvancedDelivery" => "Advanced delivery",
+                "AdvancedDelivery" => "Advanced Delivery",
                 var other => other,
             } },
     ];
@@ -163,18 +163,18 @@ public static class MailSecurityLists
         EntryView("all", "All", true),
         EntryView("blocked", "Blocked", true, new ChoiceCondition(L.Action, [L.Blocked], [])),
         EntryView("allowed", "Allowed", true, new ChoiceCondition(L.Action, [L.Allowed], [])),
-        EntryView("expiring", "Expiring within 7 days", true, new NumberCondition(L.ExpiresInDays, null, 7)),
-        EntryView("senders", "Senders and domains", false, IsKind(ListKind.Sender)),
+        EntryView("expiring", "Expiring Within 7 Days", true, new NumberCondition(L.ExpiresInDays, null, 7)),
+        EntryView("senders", "Senders and Domains", false, IsKind(ListKind.Sender)),
         EntryView("urls", "Links", false, IsKind(ListKind.Url)),
         EntryView("files", "Files", false, IsKind(ListKind.File)),
-        EntryView("ips", "IP addresses", false, IsKind(ListKind.IP)),
-        EntryView("spoof", "Spoofed senders", false, IsKind(ListKind.Spoof)),
+        EntryView("ips", "IP Addresses", false, IsKind(ListKind.IP)),
+        EntryView("spoof", "Spoofed Senders", false, IsKind(ListKind.Spoof)),
     ];
 
     public static ListDefinition<ListEntry> Entries(Func<ListEntry, object> preview) => new()
     {
         Key = "allowblock",
-        Title = "Block and allow lists",
+        Title = "Block and Allow Lists",
         Noun = "entries",
         Fields = EntryFields,
         Id = e => $"{e.Kind}:{e.Identity}",
@@ -190,8 +190,8 @@ public static class MailSecurityLists
             new() { Key = L.Action, Header = "Action", Cell = CellKind.Badge, MinWidth = 100, DefaultWidth = 110,
                 Badge = e => e.Block ? (L.Blocked, BadgeKind.Danger) : (L.Allowed, BadgeKind.Success) },
             new() { Key = L.Expires, Header = "Expires", Cell = CellKind.Text, MinWidth = 150, DefaultWidth = 180, Text = e => e.ExpiryText },
-            new() { Key = L.LastUsed, Header = "Last matched", Cell = CellKind.Date, MinWidth = 130, DefaultWidth = 140, Date = e => e.LastUsed, EmptyText = "Not yet" },
-            new() { Key = L.ModifiedBy, Header = "Changed by", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 200, DefaultVisible = false, Text = e => e.ModifiedBy },
+            new() { Key = L.LastUsed, Header = "Last Matched", Cell = CellKind.Date, MinWidth = 130, DefaultWidth = 140, Date = e => e.LastUsed, EmptyText = "Not Yet" },
+            new() { Key = L.ModifiedBy, Header = "Changed By", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 200, DefaultVisible = false, Text = e => e.ModifiedBy },
             new() { Key = L.Added, Header = "Added", Cell = CellKind.Date, MinWidth = 120, DefaultWidth = 130, DefaultVisible = false, Date = e => e.Created },
         ],
     };
@@ -213,8 +213,8 @@ public static class MailSecurityLists
 
     public static string StatusText(string status) => status switch
     {
-        "FilteredAsSpam" => "Filtered as spam",
-        "GettingStatus" => "Getting status",
+        "FilteredAsSpam" => "Filtered as Spam",
+        "GettingStatus" => "Getting Status",
         _ => status,
     };
 
@@ -238,7 +238,7 @@ public static class MailSecurityLists
     [
         TraceView("all", "All"),
         TraceView("failed", "Failed", "Failed"),
-        TraceView("quarantined", "Quarantined or spam", "Quarantined", "FilteredAsSpam"),
+        TraceView("quarantined", "Quarantined or Spam", "Quarantined", "FilteredAsSpam"),
         TraceView("pending", "Pending", "Pending", "GettingStatus"),
         TraceView("delivered", "Delivered", "Delivered"),
     ];
@@ -254,7 +254,7 @@ public static class MailSecurityLists
     public static ListDefinition<TracedMessage> Trace(Func<TracedMessage, object> preview) => new()
     {
         Key = "trace",
-        Title = "Message trace",
+        Title = "Message Trace",
         Noun = "messages",
         Fields = TraceFields,
         Id = m => m.TraceId + "|" + m.Recipient,

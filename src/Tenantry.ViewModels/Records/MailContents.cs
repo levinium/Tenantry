@@ -202,12 +202,12 @@ public sealed partial class MailSection
 {
     public static IReadOnlyList<MailPageItem> Pages { get; } =
     [
-        new(MailPage.Delivery, "Addresses & delivery", "MailInbox"),
-        new(MailPage.Limits, "Limits & apps", "Gauge"),
-        new(MailPage.Retention, "Archive & holds", "Archive"),
-        new(MailPage.RulesAndSharing, "Rules & sharing", "Filter"),
-        new(MailPage.Devices, "Mobile devices", "Phone"),
-        new(MailPage.Recovery, "Recovery & trace", "History"),
+        new(MailPage.Delivery, "Addresses & Delivery", "MailInbox"),
+        new(MailPage.Limits, "Limits & Apps", "Gauge"),
+        new(MailPage.Retention, "Archive & Holds", "Archive"),
+        new(MailPage.RulesAndSharing, "Rules & Sharing", "Filter"),
+        new(MailPage.Devices, "Mobile Devices", "Phone"),
+        new(MailPage.Recovery, "Recovery & Trace", "History"),
     ];
 
     [ObservableProperty]

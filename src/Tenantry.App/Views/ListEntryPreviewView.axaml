@@ -32,7 +32,7 @@
       <CalendarDatePicker SelectedDate="{Binding ExpiryDate}" IsVisible="{Binding IsOnDate}" Width="180" HorizontalAlignment="Left" />
       <TextBlock Classes="label" Text="NOTE" Margin="0,4,0,0" />
       <TextBox Text="{Binding NotesDraft}" PlaceholderText="Why it's on the list" />
-      <Button Content="Save expiry and note" Command="{Binding SaveDetailsCommand}" HorizontalAlignment="Left"
+      <Button Content="Save Expiry and Note" Command="{Binding SaveDetailsCommand}" HorizontalAlignment="Left"
               ToolTip.Tip="Added to Pending changes" />
       <TextBlock Classes="caption" Text="{Binding Message}" IsVisible="{Binding HasMessage}" />
     </StackPanel>

@@ -90,7 +90,7 @@
 
     <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
       <Button Classes="ghost" Content="Cancel" Command="{Binding CloseCommand}" />
-      <Button Classes="accent" Content="Add to Pending changes" Command="{Binding StageCommand}"
+      <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding StageCommand}"
               ToolTip.Tip="Adds the ticked fixes and steps to Pending changes. Nothing is sent until you apply them." />
     </StackPanel>
   </StackPanel>

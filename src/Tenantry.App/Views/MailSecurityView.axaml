@@ -9,21 +9,21 @@
              x:DataType="ms:MailSecurityViewModel">
   <DockPanel>
     <!-- The area's pages -->
-    <ListBox DockPanel.Dock="Top" Classes="chips" Margin="0,8,0,10" ItemsSource="{x:Static ms:MailSecurityViewModel.Pages}" SelectedItem="{Binding SelectedPage}">
-      <ListBox.ItemsPanel>
+    <TabStrip DockPanel.Dock="Top" Classes="pagetabs" Margin="0,8,0,10" ItemsSource="{x:Static ms:MailSecurityViewModel.Pages}" SelectedItem="{Binding SelectedPage}">
+      <TabStrip.ItemsPanel>
         <ItemsPanelTemplate>
-          <WrapPanel ItemSpacing="8" LineSpacing="8" />
+          <WrapPanel />
         </ItemsPanelTemplate>
-      </ListBox.ItemsPanel>
-      <ListBox.ItemTemplate>
+      </TabStrip.ItemsPanel>
+      <TabStrip.ItemTemplate>
         <DataTemplate x:DataType="ms:MailSecurityPage">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="15" VerticalAlignment="Center" />
             <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
           </StackPanel>
         </DataTemplate>
-      </ListBox.ItemTemplate>
-    </ListBox>
+      </TabStrip.ItemTemplate>
+    </TabStrip>
 
     <!-- Quarantine: how far back, then the list -->
     <DockPanel IsVisible="{Binding ShowQuarantine}">
@@ -87,7 +87,7 @@
         <Button Classes="accent" Command="{Binding ToggleAddCommand}" ToolTip.Tip="Block or allow senders, domains, links, files or IP addresses">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="Add" FontSize="14" />
-            <TextBlock Text="Add entries" />
+            <TextBlock Text="Add Entries" />
           </StackPanel>
         </Button>
         <Button Classes="ghost" Command="{Binding RefreshEntriesCommand}" ToolTip.Tip="Read the lists again">

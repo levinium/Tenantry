@@ -129,7 +129,7 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
             _pipeline!.Stage(new ReleaseQuarantined(Target, Message.Sender, Message.Recipients, value));
     }
 
-    public string ReleaseText => Pending is ReleaseQuarantined ? "Undo release" : "Release";
+    public string ReleaseText => Pending is ReleaseQuarantined ? "Undo Release" : "Release";
 
     [RelayCommand]
     void Release()
@@ -142,7 +142,7 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
             _pipeline!.Stage(new ReleaseQuarantined(Target, Message.Sender, Message.Recipients, AllowSender));
     }
 
-    public string DeleteText => Pending is DeleteQuarantined ? "Undo delete" : "Delete";
+    public string DeleteText => Pending is DeleteQuarantined ? "Undo Delete" : "Delete";
 
     [RelayCommand]
     void Delete()
@@ -161,7 +161,7 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
 
     public bool IsBlockPending => PendingBlock is not null;
 
-    public string BlockText => IsBlockPending ? "Undo block" : "Block the sender";
+    public string BlockText => IsBlockPending ? "Undo Block" : "Block the Sender";
 
     [RelayCommand]
     void BlockSender()

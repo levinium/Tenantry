@@ -52,7 +52,7 @@ public sealed partial class GroupsAccessSection : RecordSection, IDisposable
     }
 
     public override string Key => "groups";
-    public override string Title => "Groups & access";
+    public override string Title => "Groups & Access";
     public override string Icon => "People";
 
     bool CanEditHere => _pipeline is not null && _canEdit.IsAvailable;

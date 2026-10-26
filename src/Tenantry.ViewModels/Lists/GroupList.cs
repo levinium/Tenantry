@@ -10,7 +10,7 @@ namespace Tenantry.ViewModels.Lists;
 /// </summary>
 public static class GroupList
 {
-    public const string AreaTitle = "Groups & shared mailboxes";
+    public const string AreaTitle = "Groups & Shared Mailboxes";
 
     static readonly ListQuery ByName = ListQuery.Empty with { Sort = [new SortLevel(F.Name)] };
     static readonly HashSet<string> PinnedByDefault = ["all", "m365", "security", "distribution", "shared"];

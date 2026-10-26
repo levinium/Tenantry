@@ -63,10 +63,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         [
             new NavSection("users", "Users", readUsers.Reason),
             new NavSection("groups", GroupList.AreaTitle, readUsers.Reason),
-            new NavSection("mail", "Mail & security", MailSecurity is null ? "Mail & security needs Exchange Online" : mailSecurity.Reason),
+            new NavSection("mail", "Mail & Security", MailSecurity is null ? "Mail & Security needs Exchange Online" : mailSecurity.Reason),
             new NavSection("sharepoint", "SharePoint & OneDrive", Later),
             new NavSection("devices", "Devices", Later),
-            new NavSection("security", "Security & compliance", Later),
+            new NavSection("security", "Security & Compliance", Later),
         ];
         Tabs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasRecordTabs));
         CheckPreviewsWhenTheySettle();

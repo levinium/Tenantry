@@ -104,7 +104,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
     }
 
     public override string Key => "security";
-    public override string Title => "Security & sign-in";
+    public override string Title => "Security & Sign-In";
     public override string Icon => "ShieldLock";
     public override string FreshKeys => "mfa,admin,status";
 
@@ -129,9 +129,9 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
     public static IReadOnlyList<SecurityPageItem> Pages { get; } =
     [
-        new(SecurityPage.Methods, "Sign-in methods", "Key"),
-        new(SecurityPage.SignIns, "Sign-in log", "History"),
-        new(SecurityPage.Access, "Roles & app access", "PersonKey"),
+        new(SecurityPage.Methods, "Sign-In Methods", "Key"),
+        new(SecurityPage.SignIns, "Sign-In Log", "History"),
+        new(SecurityPage.Access, "Roles & App Access", "PersonKey"),
         new(SecurityPage.ConditionalAccess, "Conditional Access", "ShieldTask"),
     ];
 

@@ -15,21 +15,21 @@
     </Border>
 
     <!-- The tab's pages. -->
-    <ListBox Classes="chips" ItemsSource="{x:Static rec:SecuritySection.Pages}" SelectedItem="{Binding SelectedPageItem}">
-      <ListBox.ItemsPanel>
+    <TabStrip Classes="pagetabs" ItemsSource="{x:Static rec:SecuritySection.Pages}" SelectedItem="{Binding SelectedPageItem}">
+      <TabStrip.ItemsPanel>
         <ItemsPanelTemplate>
-          <WrapPanel ItemSpacing="8" LineSpacing="8" />
+          <WrapPanel />
         </ItemsPanelTemplate>
-      </ListBox.ItemsPanel>
-      <ListBox.ItemTemplate>
+      </TabStrip.ItemsPanel>
+      <TabStrip.ItemTemplate>
         <DataTemplate x:DataType="rec:SecurityPageItem">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="15" VerticalAlignment="Center" />
             <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
           </StackPanel>
         </DataTemplate>
-      </ListBox.ItemTemplate>
-    </ListBox>
+      </TabStrip.ItemTemplate>
+    </TabStrip>
 
     <!-- Sign-in methods -->
     <StackPanel Spacing="12" IsVisible="{Binding ShowMethods}">

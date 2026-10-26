@@ -32,7 +32,7 @@
               ToolTip.Tip="Shown as plain text, so nothing in it loads or runs. Microsoft records each preview.">
         <StackPanel Orientation="Horizontal" Spacing="6">
           <ic:FluentIcon Icon="Eye" FontSize="14" />
-          <TextBlock Text="Show the message" />
+          <TextBlock Text="Show the Message" />
         </StackPanel>
       </Button>
       <TextBlock Classes="muted" Text="Reading the message…" IsVisible="{Binding IsLoadingBody}" />
@@ -59,7 +59,7 @@
       <StackPanel Spacing="6" IsVisible="{Binding CanRelease}">
         <Button Classes="accent" Content="{Binding ReleaseText}" Command="{Binding ReleaseCommand}" HorizontalAlignment="Left"
                 ToolTip.Tip="Delivers it to every recipient (added to Pending changes)" />
-        <CheckBox IsChecked="{Binding AllowSender}" Content="Also allow this sender from now on" />
+        <CheckBox IsChecked="{Binding AllowSender}" Content="Also Allow This Sender from Now On" />
       </StackPanel>
       <WrapPanel ItemSpacing="8" LineSpacing="8">
         <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}"

@@ -43,8 +43,8 @@ public sealed record ListEntry(
     public string KindText => AllowBlock.KindName(Kind);
 
     public string ExpiryText => Expires is { } at ? $"Until {at.ToLocalTime():d MMM yyyy}"
-        : RemoveAfterDays is { } d ? $"{d} days after last use"
-        : "Never expires";
+        : RemoveAfterDays is { } d ? $"{d} Days After Last Use"
+        : "Never Expires";
 }
 
 /// <summary>When a new or changed entry stops applying.</summary>
@@ -57,18 +57,18 @@ public sealed record ListExpiry(DateTimeOffset? On = null, int? AfterLastUseDays
     /// <summary>Microsoft removes an allowed entry 45 days after it last matched.</summary>
     public static readonly ListExpiry AllowDefault = new(AfterLastUseDays: 45);
 
-    public string Text => On is { } at ? $"until {at.ToLocalTime():d MMM yyyy}" : AfterLastUseDays is { } d ? $"{d} days after last use" : "never expires";
+    public string Text => On is { } at ? $"until {at.ToLocalTime():d MMM yyyy}" : AfterLastUseDays is { } d ? $"{d} Days After Last Use" : "never expires";
 }
 
 public static partial class AllowBlock
 {
     public static string KindName(ListKind kind) => kind switch
     {
-        ListKind.Sender => "Sender or domain",
+        ListKind.Sender => "Sender or Domain",
         ListKind.Url => "Link (URL)",
         ListKind.File => "File",
-        ListKind.IP => "IP address",
-        _ => "Spoofed sender",
+        ListKind.IP => "IP Address",
+        _ => "Spoofed Sender",
     };
 
     /// <summary>Exchange's ListType for each kind (spoofed senders have cmdlets of their own).</summary>
