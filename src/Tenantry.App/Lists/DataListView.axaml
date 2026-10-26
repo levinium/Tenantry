@@ -39,7 +39,7 @@
                 <TextBox x:Name="NewViewNameBox" Text="{Binding NewViewName}" PlaceholderText="View name, e.g. Finance staff" />
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                   <Button Content="Manage views…" Click="OnManageViews" />
-                  <Button Classes="accent" Content="Save" Click="OnSaveView" />
+                  <Button Classes="accent staysopen" Content="Save" Click="OnSaveView" />
                 </StackPanel>
               </StackPanel>
             </Flyout>
@@ -157,7 +157,7 @@
                                Text="Paste names or email addresses, one per line or separated by commas or semicolons. Matching rows in the list (with its current filters) are checked." />
                     <TextBox Text="{Binding PasteText}" AcceptsReturn="True" TextWrapping="Wrap" Height="140"
                              PlaceholderText="ada@contoso.com&#10;bo@contoso.com; cy@contoso.com" />
-                    <Button Classes="accent" HorizontalAlignment="Left" Command="{Binding SelectFromPasteCommand}" Content="Check matching rows" />
+                    <Button Classes="accent staysopen" HorizontalAlignment="Left" Command="{Binding SelectFromPasteCommand}" Content="Check matching rows" />
                     <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding PasteResult}"
                                IsVisible="{Binding PasteResult, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                   </StackPanel>

@@ -10,7 +10,12 @@ namespace Tenantry.App;
 
 public partial class App : Application
 {
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+        // Every pop-up closes when a button inside it is clicked (see FlyoutDismiss).
+        Controls.FlyoutDismiss.Register();
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {

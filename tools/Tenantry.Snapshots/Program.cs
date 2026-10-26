@@ -54,7 +54,9 @@ if (args.Contains("--behavior-check"))
     Console.WriteLine($"box text '{box.Text}'; focused {box.IsFocused}; before pause '{beforePause}'; after {waited.ElapsedMilliseconds} ms '{probe.Text}'");
     var passed = beforePause == "" && probe.Text == "25";
     Console.WriteLine(passed ? "IDLE CHECK PASSED" : "IDLE CHECK FAILED");
-    return passed ? 0 : 1;
+    // Then every pop-up that triggers an action, clicked through for real.
+    var interactions = InteractionChecks.Run();
+    return passed && interactions == 0 ? 0 : 1;
 }
 
 var demoTenant = new TenantConnector().ConnectDemo();
