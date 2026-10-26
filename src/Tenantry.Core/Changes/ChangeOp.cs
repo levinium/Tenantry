@@ -51,9 +51,7 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetDeviceEnabled), "setDeviceEnabled")]
 [JsonDerivedType(typeof(RunDeviceAction), "runDeviceAction")]
 [JsonDerivedType(typeof(SecretViewed), "secretViewed")]
-[JsonDerivedType(typeof(SetOneDriveAccess), "setOneDriveAccess")]
-[JsonDerivedType(typeof(SetUpOneDrive), "setUpOneDrive")]
-public abstract record ChangeOp
+[JsonDerivedType(typeof(SetOneDriveAccess), "setOneDriveAccess")]public abstract record ChangeOp
 {
     [JsonIgnore]
     public abstract ChangeTarget Target { get; }
@@ -781,16 +779,4 @@ public sealed record SetOneDriveAccess(ChangeTarget User, string SiteUrl, string
     public override bool IsNoChange => Old == New;
     public override IReadOnlyList<ChangeTarget> Guarded => [User, Person];
     public override ChangeOp Since(ChangeOp earlier) => earlier is SetOneDriveAccess e ? this with { Old = e.Old } : this;
-}
-
-/// <summary>Creates their OneDrive now, instead of when they first open it. SharePoint has it ready within minutes.</summary>
-public sealed record SetUpOneDrive(ChangeTarget User) : ChangeOp
-{
-    public override ChangeTarget Target => User;
-    public override string Key => "onedrive-setup";
-    public override string Label => "OneDrive";
-    public override string Before => "Not set up";
-    public override string After => "Set up (ready within a few minutes)";
-    public override bool IsNoChange => false;
-    public override ChangeOp Since(ChangeOp earlier) => this;
 }

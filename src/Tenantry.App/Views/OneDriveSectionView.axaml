@@ -27,12 +27,21 @@
           <TextBlock Classes="h3" Text="No OneDrive yet" VerticalAlignment="Center" />
         </StackPanel>
         <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding NotSetUpText}" />
-        <WrapPanel ItemSpacing="8" LineSpacing="8">
-          <Button Content="{Binding SetUpText}" Command="{Binding SetUpCommand}" IsVisible="{Binding CanSetUp}"
-                  ToolTip.Tip="Asks SharePoint to create it now (added to Pending changes)" />
-          <Button Content="Check again" Command="{Binding CheckAgainCommand}" IsVisible="{Binding IsSettingUp}"
-                  ToolTip.Tip="Look for it again" />
-        </WrapPanel>
+        <StackPanel Spacing="10" IsVisible="{Binding HasLicense}">
+          <Border Classes="valuerow">
+            <SelectableTextBlock Classes="code" Text="{Binding SetUpCommandText}" TextWrapping="Wrap" />
+          </Border>
+          <WrapPanel ItemSpacing="8" LineSpacing="8">
+            <Button Command="{Binding CopySetUpCommandCommand}" ToolTip.Tip="Copy the command, to paste into SharePoint Online PowerShell">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Copy" FontSize="14" />
+                <TextBlock Text="Copy command" IsVisible="{Binding !CommandCopied}" />
+                <TextBlock Text="Copied" IsVisible="{Binding CommandCopied}" />
+              </StackPanel>
+            </Button>
+            <Button Content="Check again" Command="{Binding CheckAgainCommand}" ToolTip.Tip="Look for their OneDrive again" />
+          </WrapPanel>
+        </StackPanel>
       </StackPanel>
     </Border>
 

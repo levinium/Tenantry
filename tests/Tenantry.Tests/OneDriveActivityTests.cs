@@ -62,22 +62,6 @@ public sealed class OneDriveActivityTests
     }
 
     [Fact]
-    public async Task Setting_up_a_OneDrive_calls_the_profile_loader()
-    {
-        var http = new FakeHttp()
-            .On(HttpMethod.Get, "/sites/root", Root)
-            .On(HttpMethod.Post, "ProcessQuery", """[{"SchemaVersion":"15.0.0.0","ErrorInfo":null},2,{},3,[]]""");
-        var executor = new GraphChangeExecutor(Graph(http), new MemoryEntityStore(), NoDelay.Instance, sharePoint: SharePoint(http));
-
-        var result = await executor.ApplyAsync(new SetUpOneDrive(new ChangeTarget("user", "u2", "Bo", "zz-tenantry-test-bo@contoso.example")), Ct);
-
-        Assert.Equal(ChangeOutcome.Applied, result.Outcome);
-        var body = http.Requests[1].Body!;
-        Assert.Contains("Name=\"GetProfileLoader\" TypeId=\"{9c42543a-91b3-4902-b2fe-14ccdefb6e2b}\"", body);
-        Assert.Contains("<Object Type=\"String\">zz-tenantry-test-bo@contoso.example</Object>", body);
-    }
-
-    [Fact]
     public async Task Access_changes_are_read_back_from_the_admin_list()
     {
         var http = new FakeHttp()
@@ -186,24 +170,25 @@ public sealed class OneDriveActivityTests
     static SiteAdmin AdminOf(UserSummary u) => new(SetOneDriveAccess.LoginFor(u.UserPrincipalName), u.DisplayName, null, u.UserPrincipalName);
 
     [Fact]
-    public async Task A_missing_OneDrive_can_be_set_up_when_they_have_a_license()
+    public async Task A_missing_OneDrive_offers_the_set_up_command_and_finds_it_once_it_exists()
     {
-        var (page, pipeline, _) = Page();
+        var (page, _, records) = Page();
         var tab = page.Sections.OfType<OneDriveSection>().Single();
         await tab.LoadAsync(Ct);
 
         Assert.True(tab.IsNotSetUp);
-        Assert.True(tab.CanSetUp);
-        tab.SetUpCommand.Execute(null);
-        Assert.IsType<SetUpOneDrive>(Assert.Single(pipeline.Pending));
-        Assert.Equal("Undo set up", tab.SetUpText);
-        tab.SetUpCommand.Execute(null);
-        Assert.Empty(pipeline.Pending);
+        Assert.True(tab.HasLicense);
+        Assert.Equal("Request-SPOPersonalSite -UserEmails \"zz-tenantry-test-bo@contoso.example\"", tab.SetUpCommandText);
+
+        records.Drive = new OneDriveInfo("https://contoso-my.sharepoint.com/personal/bo", "site-2", 0, 1L << 40, 0, "normal", null);
+        tab.CheckAgainCommand.Execute(null);
+        await Task.Yield();
+        Assert.True(tab.HasDrive);
 
         var (unlicensedPage, _, _) = Page(Ada);
         var unlicensed = unlicensedPage.Sections.OfType<OneDriveSection>().Single();
         await unlicensed.LoadAsync(Ct);
-        Assert.False(unlicensed.CanSetUp);
+        Assert.False(unlicensed.HasLicense);
     }
 
     [Fact]

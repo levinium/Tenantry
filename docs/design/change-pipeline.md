@@ -206,12 +206,18 @@ reads the SharePoint host once from Graph `sites/root`.
 | Change | Sent as | Read back | Caution |
 |---|---|---|---|
 | Give someone full access, or take it away | CSOM `Tenant.SetSiteAdmin(siteUrl, loginName, bool)` | `POST _api/SPO.Tenant/GetSiteAdministrators?siteId='…'` | when taking away |
-| Set up their OneDrive now | CSOM `ProfileLoader.GetProfileLoader().CreatePersonalSiteEnqueueBulk([upn])` | none: SharePoint builds it within minutes | no |
 
 - **CSOM over HTTP:** an XML request posted to `_vti_bin/client.svc/ProcessQuery`. The answer is
   a JSON array: a header with `ErrorInfo` when SharePoint refused, then each action's id followed
-  by its result. Type IDs: Tenant `{268004ae-ef6b-4e9b-8425-127220d84719}`, ProfileLoader
-  `{9c42543a-91b3-4902-b2fe-14ccdefb6e2b}`, read from the CSOM assemblies' metadata.
+  by its result. The Tenant type ID `{268004ae-ef6b-4e9b-8425-127220d84719}` was read from the
+  CSOM assemblies' metadata.
+- **Setting up a OneDrive isn't possible from Tenantry.** SharePoint refused
+  `ProfileLoader.CreatePersonalSiteEnqueueBulk` and `Tenant.RequestPersonalSites` with "Attempted
+  to perform an unauthorized operation". The calls were made by a Global Administrator, with both
+  token audiences, and the target was allowed to sign in. Microsoft's own module
+  (`Request-SPOPersonalSite`) succeeded for the same admin, so SharePoint keeps this action for
+  Microsoft's tools. For a OneDrive that doesn't exist yet, the tab shows that command with a Copy
+  button and a Check again button.
 - **Who has access:** `GetSiteAdministrators` lists the owner and everyone given full access
   (email, loginName, name, userPrincipalName). Files shared one by one aren't listed.
 - **Login names:** people are sent as `i:0#.f|membership|{upn}`. Removing someone sends their
@@ -219,11 +225,6 @@ reads the SharePoint host once from Graph `sites/root`.
   too, outside Test mode.
 - **Write guard:** both the OneDrive's owner and the person given or losing access must be test
   objects.
-- **Live status:** reads (drive, site admins, personal-site URL) work. Setting up a OneDrive was
-  refused with "Attempted to perform an unauthorized operation" by both `CreatePersonalSiteEnqueueBulk`
-  and `Tenant.RequestPersonalSites`. It failed with either token audience, even though the
-  admin is an active SharePoint Administrator, and the cause isn't known yet. Giving and
-  removing access is unit-tested only, until a test user has a OneDrive.
 - **`GetPersonalSiteUrl`:** this also works, and answers with a `Person.aspx` profile page when
   there is no OneDrive. The tab uses Graph instead, which gives the quota in the same read.
 

@@ -69,10 +69,6 @@ public sealed partial class DemoUserRecords : IOneDriveRecords, IActivityRecords
                 return new ApplyResult(ChangeOutcome.Applied);
             case SetOneDriveAccess:
                 return new ApplyResult(ChangeOutcome.Failed, "They have no OneDrive.");
-            case SetUpOneDrive s:
-                // Ready at once in the demo; the real thing takes a few minutes.
-                _drives.Remove(s.User.Id);
-                return new ApplyResult(ChangeOutcome.Applied, "Requested; SharePoint usually has it ready within a few minutes.");
             default:
                 return null;
         }

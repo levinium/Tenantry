@@ -25,8 +25,8 @@ public sealed class OneDriveAccessRow(string name, string? detail, bool isOwner,
 /// <summary>
 /// The OneDrive tab (4d-1): storage used against the quota, a link to open it, and who can open
 /// all of it. Giving someone access (a manager taking over a leaver's files) and taking it away go
-/// through Pending changes. A OneDrive is made the first time its owner opens it; one that isn't
-/// there yet can be set up from here.
+/// through Pending changes. A OneDrive is made the first time its owner opens it; for one that
+/// isn't there yet, the tab offers the PowerShell command that sets it up.
 /// </summary>
 public sealed partial class OneDriveSection : RecordSection, IDisposable
 {
@@ -103,8 +103,6 @@ public sealed partial class OneDriveSection : RecordSection, IDisposable
             Unavailable = read.Unavailable;
             Drive = read.Value;
             _loaded = true;
-            if (Drive is not null)
-                IsSettingUp = false;
             Summary = Drive is { } d ? (d.Used is { } used ? $"{MailDetails.Size(used)} used" : "Set up") + (d.IsNearlyFull ? " · nearly full" : "")
                 : Unavailable is null ? "Not set up yet" : "Can't be read";
         }
@@ -116,7 +114,6 @@ public sealed partial class OneDriveSection : RecordSection, IDisposable
         {
             IsLoading = false;
             OnPropertyChanged(nameof(IsNotSetUp));
-            OnPropertyChanged(nameof(SetUpText));
         }
         if (Drive is not null)
             await LoadAdminsAsync(cancellationToken);
@@ -172,38 +169,28 @@ public sealed partial class OneDriveSection : RecordSection, IDisposable
 
     // ---- Not set up yet ---------------------------------------------------------------------
 
-    bool IsSetUpPending => _pipeline?.PendingFor(_user.Id, "onedrive-setup") is not null;
-
-    /// <summary>Set up was applied: SharePoint is building it, and Check again looks for it.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(NotSetUpText), nameof(CanSetUp))]
-    public partial bool IsSettingUp { get; private set; }
-
     public bool HasLicense => _user.Licenses.Count > 0;
 
-    public string NotSetUpText => IsSettingUp
-        ? "SharePoint is setting it up. It's usually ready within a few minutes."
-        : HasLicense
-            ? "Microsoft 365 creates a OneDrive the first time they open it. You can set it up now, for example so a manager can have their files before they start."
-            : "They have no license, and a OneDrive needs one that includes it.";
+    // SharePoint refuses "set up a OneDrive" from any app but Microsoft's own tools (see
+    // SharePointAdmin), so the tab hands over the PowerShell command instead.
+    public string NotSetUpText => HasLicense
+        ? "Microsoft 365 creates a OneDrive the first time they open it. To set it up sooner (for example so a manager can have their files), run this in SharePoint Online PowerShell; SharePoint only accepts this from Microsoft's own tools. It's ready within a few minutes."
+        : "They have no license, and a OneDrive needs one that includes it.";
 
-    public bool CanSetUp => CanEdit && HasLicense && !IsSettingUp;
+    public string SetUpCommandText => $"Request-SPOPersonalSite -UserEmails \"{_user.UserPrincipalName}\"";
+
+    [ObservableProperty]
+    public partial bool CommandCopied { get; private set; }
+
+    [RelayCommand]
+    void CopySetUpCommand()
+    {
+        Platform.CopyText(SetUpCommandText);
+        CommandCopied = true;
+    }
 
     [RelayCommand]
     void CheckAgain() => Reload();
-
-    public string SetUpText => IsSetUpPending ? "Undo set up" : "Set up OneDrive now";
-
-    [RelayCommand]
-    void SetUp()
-    {
-        if (!CanSetUp)
-            return;
-        if (_pipeline!.PendingFor(_user.Id, "onedrive-setup") is { } pending)
-            _pipeline.Unstage(pending);
-        else
-            _pipeline.Stage(new SetUpOneDrive(Target));
-    }
 
     // ---- Who can open it --------------------------------------------------------------------
 
@@ -306,19 +293,12 @@ public sealed partial class OneDriveSection : RecordSection, IDisposable
 
     // ---- Pipeline ---------------------------------------------------------------------------
 
-    void OnPendingChanged(object? sender, EventArgs e)
-    {
-        RebuildAccess();
-        OnPropertyChanged(nameof(SetUpText));
-    }
+    void OnPendingChanged(object? sender, EventArgs e) => RebuildAccess();
 
     void OnApplied(object? sender, IReadOnlyList<ChangeOp> applied)
     {
-        if (!applied.Any(c => c.Target.Id == _user.Id && c is SetOneDriveAccess or SetUpOneDrive))
-            return;
-        if (applied.Any(c => c.Target.Id == _user.Id && c is SetUpOneDrive))
-            IsSettingUp = true;
-        Reload();
+        if (applied.Any(c => c.Target.Id == _user.Id && c is SetOneDriveAccess))
+            Reload();
     }
 
     public void Dispose()

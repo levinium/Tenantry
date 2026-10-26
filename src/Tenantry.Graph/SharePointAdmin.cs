@@ -17,15 +17,20 @@ public sealed class SharePointException(HttpStatusCode status, string message) :
 /// <summary>
 /// The SharePoint admin site (<c>{tenant}-admin.sharepoint.com</c>): what Graph can't do for
 /// OneDrive. Who holds admin rights on a site comes from the admin REST API
-/// (<c>SPO.Tenant/GetSiteAdministrators</c>); giving or taking rights and setting up a OneDrive
-/// go through CSOM (<c>client.svc/ProcessQuery</c>), the same calls Set-SPOUser and
-/// Request-SPOPersonalSite make. One token for the tenant's SharePoint covers the admin site.
+/// (<c>SPO.Tenant/GetSiteAdministrators</c>); giving or taking rights goes through CSOM
+/// (<c>client.svc/ProcessQuery</c>), the call Set-SPOUser makes. One token for the tenant's
+/// SharePoint covers the admin site.
 /// </summary>
+/// <remarks>
+/// Setting up a OneDrive (ProfileLoader.CreatePersonalSiteEnqueueBulk, Tenant.RequestPersonalSites)
+/// is refused for this app even for a Global Administrator ("Attempted to perform an unauthorized
+/// operation"), while Microsoft's own module (Request-SPOPersonalSite) succeeds for the same admin:
+/// SharePoint keeps that action for Microsoft's tools. The OneDrive tab offers the command instead.
+/// </remarks>
 public sealed class SharePointAdmin(HttpClient http, ITokenSource tokens, GraphClient graph,
     Func<TimeSpan, CancellationToken, Task>? delay = null)
 {
     const string TenantTypeId = "{268004ae-ef6b-4e9b-8425-127220d84719}";
-    const string ProfileLoaderTypeId = "{9c42543a-91b3-4902-b2fe-14ccdefb6e2b}";
 
     readonly Func<TimeSpan, CancellationToken, Task> _delay = delay ?? Task.Delay;
     string? _host;
@@ -84,13 +89,6 @@ public sealed class SharePointAdmin(HttpClient http, ITokenSource tokens, GraphC
             $"<ObjectPath Id=\"2\" ObjectPathId=\"1\" /><Method Name=\"SetSiteAdmin\" Id=\"3\" ObjectPathId=\"1\"><Parameters>{Text(siteUrl)}" +
             $"{Text(loginName)}<Parameter Type=\"Boolean\">{(isAdmin ? "true" : "false")}</Parameter></Parameters></Method>",
             $"<Constructor Id=\"1\" TypeId=\"{TenantTypeId}\" />", cancellationToken);
-
-    /// <summary>Asks SharePoint to create their OneDrive now rather than on first sign-in. It's ready within minutes.</summary>
-    public Task RequestOneDriveAsync(string userPrincipalName, CancellationToken cancellationToken = default) =>
-        ProcessQueryAsync(
-            "<ObjectPath Id=\"2\" ObjectPathId=\"1\" /><Method Name=\"CreatePersonalSiteEnqueueBulk\" Id=\"3\" ObjectPathId=\"1\"><Parameters>" +
-            $"<Parameter Type=\"Array\"><Object Type=\"String\">{SecurityElement.Escape(userPrincipalName)}</Object></Parameter></Parameters></Method>",
-            $"<StaticMethod Id=\"1\" Name=\"GetProfileLoader\" TypeId=\"{ProfileLoaderTypeId}\" />", cancellationToken);
 
     static string Text(string value) => $"<Parameter Type=\"String\">{SecurityElement.Escape(value)}</Parameter>";
 

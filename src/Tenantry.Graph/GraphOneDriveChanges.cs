@@ -29,22 +29,4 @@ public sealed partial class GraphChangeExecutor
         }
         return new ApplyResult(ChangeOutcome.AppliedNotYetVisible, "SharePoint accepted the change but still shows the old access; it usually appears within a minute.");
     }
-
-    /// <summary>SharePoint queues the new OneDrive; there's nothing to read back until it's built.</summary>
-    async Task<ApplyResult> SetUpOneDriveAsync(SetUpOneDrive change, CancellationToken cancellationToken)
-    {
-        if (sharePoint is null)
-            return new ApplyResult(ChangeOutcome.Failed, NoSharePoint);
-        if (change.User.Address is not { Length: > 0 } upn)
-            return new ApplyResult(ChangeOutcome.Failed, "This account has no sign-in name to set a OneDrive up for.");
-        try
-        {
-            await sharePoint.RequestOneDriveAsync(upn, cancellationToken);
-        }
-        catch (SharePointException e)
-        {
-            return new ApplyResult(ChangeOutcome.Failed, e.Message);
-        }
-        return new ApplyResult(ChangeOutcome.Applied, "Requested; SharePoint usually has it ready within a few minutes.");
-    }
 }
