@@ -67,6 +67,9 @@
     <DataTemplate DataType="ms:TracePreviewViewModel">
       <views:TracePreviewView />
     </DataTemplate>
+    <DataTemplate DataType="ms:ListEntryPreviewViewModel">
+      <views:ListEntryPreviewView />
+    </DataTemplate>
   </Application.DataTemplates>
 
   <Application.Resources>

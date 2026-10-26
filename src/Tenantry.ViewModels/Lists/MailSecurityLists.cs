@@ -105,6 +105,97 @@ public static class MailSecurityLists
         ],
     };
 
+    // ---- Block and allow lists --------------------------------------------------------------
+
+    public static class L
+    {
+        public const string Value = "value";
+        public const string Kind = "kind";
+        public const string Action = "action";
+        public const string Expires = "expires";
+        public const string ExpiresInDays = "expiresin";
+        public const string LastUsed = "lastused";
+        public const string Notes = "notes";
+        public const string ModifiedBy = "modifiedby";
+        public const string Added = "added";
+        public const string Source = "source";
+
+        public const string Blocked = "Blocked";
+        public const string Allowed = "Allowed";
+    }
+
+    static readonly string[] Kinds = Enum.GetValues<ListKind>().Select(AllowBlock.KindName).ToArray();
+
+    /// <summary>Whole days until the entry expires (0 = today); null when it has no date.</summary>
+    public static Func<DateTimeOffset> Today { get; set; } = () => DateTimeOffset.Now;
+
+    static double? DaysLeft(ListEntry e) => e.Expires is { } at ? Math.Max(0, Math.Floor((at - Today()).TotalDays)) : null;
+
+    public static IReadOnlyList<Field<ListEntry>> EntryFields { get; } =
+    [
+        new() { Key = L.Value, Label = "Entry", Kind = FieldKind.Text, Searchable = true, Aliases = ["sender", "domain", "url", "hash", "ip"], Text = e => e.Value },
+        new() { Key = L.Kind, Label = "Kind", Kind = FieldKind.Choice, Aliases = ["type"], ChoiceOrder = Kinds, Text = e => e.KindText },
+        new() { Key = L.Action, Label = "Action", Kind = FieldKind.Choice, ChoiceOrder = [L.Blocked, L.Allowed], Text = e => e.Block ? L.Blocked : L.Allowed },
+        new() { Key = L.Expires, Label = "Expires", Kind = FieldKind.Date, EmptyLabel = "Never", Date = e => e.Expires },
+        new() { Key = L.ExpiresInDays, Label = "Days until it expires", Kind = FieldKind.Number, Aliases = ["daysleft"], Number = DaysLeft },
+        new() { Key = L.LastUsed, Label = "Last matched", Kind = FieldKind.Date, Aliases = ["used"], Date = e => e.LastUsed },
+        new() { Key = L.Notes, Label = "Notes", Kind = FieldKind.Text, Searchable = true, Aliases = ["note"], Text = e => e.Notes },
+        new() { Key = L.ModifiedBy, Label = "Changed by", Kind = FieldKind.Text, Searchable = true, Aliases = ["by"], Text = e => e.ModifiedBy },
+        new() { Key = L.Added, Label = "Added", Kind = FieldKind.Date, Aliases = ["created"], Date = e => e.Created },
+        new() { Key = L.Source, Label = "Added from", Kind = FieldKind.Choice, EmptyLabel = "Not recorded", Text = e => e.Source switch
+            {
+                "Submission" => "A reported message",
+                "Tenant" => "Admin",
+                "AdvancedDelivery" => "Advanced delivery",
+                var other => other,
+            } },
+    ];
+
+    static readonly ListQuery ByEntry = ListQuery.Empty with { Sort = [new SortLevel(L.Kind), new SortLevel(L.Value)] };
+
+    static SavedView EntryView(string id, string name, bool pinned, params Condition[] where) =>
+        new(id, name, ByEntry with { Where = ConditionGroup.All(where) }, BuiltIn: true, Pinned: pinned);
+
+    static ChoiceCondition IsKind(ListKind kind) => new(L.Kind, [AllowBlock.KindName(kind)], []);
+
+    public static IReadOnlyList<SavedView> EntryViews { get; } =
+    [
+        EntryView("all", "All", true),
+        EntryView("blocked", "Blocked", true, new ChoiceCondition(L.Action, [L.Blocked], [])),
+        EntryView("allowed", "Allowed", true, new ChoiceCondition(L.Action, [L.Allowed], [])),
+        EntryView("expiring", "Expiring within 7 days", true, new NumberCondition(L.ExpiresInDays, null, 7)),
+        EntryView("senders", "Senders and domains", false, IsKind(ListKind.Sender)),
+        EntryView("urls", "Links", false, IsKind(ListKind.Url)),
+        EntryView("files", "Files", false, IsKind(ListKind.File)),
+        EntryView("ips", "IP addresses", false, IsKind(ListKind.IP)),
+        EntryView("spoof", "Spoofed senders", false, IsKind(ListKind.Spoof)),
+    ];
+
+    public static ListDefinition<ListEntry> Entries(Func<ListEntry, object> preview) => new()
+    {
+        Key = "allowblock",
+        Title = "Block and allow lists",
+        Noun = "entries",
+        Fields = EntryFields,
+        Id = e => $"{e.Kind}:{e.Identity}",
+        Views = EntryViews,
+        SearchHint = "Search entries and notes… or try action:blocked kind:link",
+        Preview = preview,
+        Columns =
+        [
+            new() { Key = L.Value, Header = "Entry", Cell = CellKind.Primary, MinWidth = 280, DefaultWidth = 360,
+                Text = e => e.Value, Subtitle = e => e.Kind == ListKind.Spoof ? $"Sent by {e.Infrastructure}" : e.Notes,
+                Initials = e => e.Kind switch { ListKind.Sender => "@", ListKind.Url => "↗", ListKind.File => "F", ListKind.IP => "IP", _ => "S" } },
+            new() { Key = L.Kind, Header = "Kind", Cell = CellKind.Text, MinWidth = 140, DefaultWidth = 160, Text = e => e.KindText },
+            new() { Key = L.Action, Header = "Action", Cell = CellKind.Badge, MinWidth = 100, DefaultWidth = 110,
+                Badge = e => e.Block ? (L.Blocked, BadgeKind.Danger) : (L.Allowed, BadgeKind.Success) },
+            new() { Key = L.Expires, Header = "Expires", Cell = CellKind.Text, MinWidth = 150, DefaultWidth = 180, Text = e => e.ExpiryText },
+            new() { Key = L.LastUsed, Header = "Last matched", Cell = CellKind.Date, MinWidth = 130, DefaultWidth = 140, Date = e => e.LastUsed, EmptyText = "Not yet" },
+            new() { Key = L.ModifiedBy, Header = "Changed by", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 200, DefaultVisible = false, Text = e => e.ModifiedBy },
+            new() { Key = L.Added, Header = "Added", Cell = CellKind.Date, MinWidth = 120, DefaultWidth = 130, DefaultVisible = false, Date = e => e.Created },
+        ],
+    };
+
     // ---- Message trace ----------------------------------------------------------------------
 
     public static class T

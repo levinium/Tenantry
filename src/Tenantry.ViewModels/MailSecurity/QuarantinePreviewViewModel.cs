@@ -155,9 +155,11 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
             _pipeline!.Stage(new DeleteQuarantined(Target, Message.Sender, Message.Recipients));
     }
 
-    ChangeTarget SenderTarget => new("sender", Message.Sender, Message.Sender, Message.Sender);
+    ChangeTarget SenderTarget => ListEntryChange.TargetFor(ListKind.Sender, Message.Sender);
 
-    public bool IsBlockPending => _pipeline?.PendingFor(Message.Sender, "listed") is not null;
+    ChangeOp? PendingBlock => _pipeline?.PendingFor(SenderTarget.Id, "entry");
+
+    public bool IsBlockPending => PendingBlock is not null;
 
     public string BlockText => IsBlockPending ? "Undo block" : "Block the sender";
 
@@ -166,10 +168,10 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
     {
         if (!CanEdit || Message.Sender.Length == 0)
             return;
-        if (_pipeline!.PendingFor(Message.Sender, "listed") is { } pending)
-            _pipeline.Unstage(pending);
+        if (PendingBlock is { } pending)
+            _pipeline!.Unstage(pending);
         else
-            _pipeline.Stage(new SetSenderListed(SenderTarget, true, $"Blocked from quarantine: \"{Message.Subject}\""));
+            _pipeline!.Stage(new AddListEntry(SenderTarget, ListKind.Sender, true, ListExpiry.Never, $"Blocked from quarantine: \"{Message.Subject}\""));
     }
 
     void OnPendingChanged(object? sender, EventArgs e)

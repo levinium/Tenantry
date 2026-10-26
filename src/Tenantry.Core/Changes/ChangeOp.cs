@@ -54,7 +54,10 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetOneDriveAccess), "setOneDriveAccess")]
 [JsonDerivedType(typeof(ReleaseQuarantined), "releaseQuarantined")]
 [JsonDerivedType(typeof(DeleteQuarantined), "deleteQuarantined")]
-[JsonDerivedType(typeof(SetSenderListed), "setSenderListed")]public abstract record ChangeOp
+[JsonDerivedType(typeof(SetSenderListed), "setSenderListed")]
+[JsonDerivedType(typeof(AddListEntry), "addListEntry")]
+[JsonDerivedType(typeof(RemoveListEntry), "removeListEntry")]
+[JsonDerivedType(typeof(UpdateListEntry), "updateListEntry")]public abstract record ChangeOp
 {
     [JsonIgnore]
     public abstract ChangeTarget Target { get; }
@@ -797,8 +800,55 @@ public sealed record DeleteQuarantined(ChangeTarget Message, string Sender, IRea
 }
 
 /// <summary>
-/// Adds a sender (an address or a whole domain) to the Tenant Allow/Block List as blocked, or
-/// allowed. Mail from a blocked sender goes to quarantine.
+/// An entry on the Tenant Allow/Block List (5b). Its target is the value itself (Kind "listentry",
+/// Address the value), so in Test mode only values starting with the test marker can change.
+/// </summary>
+/// <param name="Entry">Kind "listentry": Id "{kind}:{value}", Name and Address the value.</param>
+public abstract record ListEntryChange(ChangeTarget Entry, Directory.ListKind Kind) : ChangeOp
+{
+    public override ChangeTarget Target => Entry;
+    public override string Key => "entry";
+    public override string Label => $"{Directory.AllowBlock.KindName(Kind)} {Entry.Name}";
+    public override ChangeOp Since(ChangeOp earlier) => this;
+
+    public static ChangeTarget TargetFor(Directory.ListKind kind, string value) =>
+        new("listentry", $"{kind}:{value.ToLowerInvariant()}", value, value);
+}
+
+/// <summary>Adds an entry: blocked (mail, links or files matching it are stopped) or allowed.</summary>
+/// <param name="Infrastructure">Spoofed senders only: the sending infrastructure.</param>
+/// <param name="SpoofType">Spoofed senders only: "External" or "Internal".</param>
+public sealed record AddListEntry(ChangeTarget Entry, Directory.ListKind Kind, bool Block, Directory.ListExpiry Expiry, string? Notes,
+    string? Infrastructure = null, string? SpoofType = null) : ListEntryChange(Entry, Kind)
+{
+    public override string Before => "Not listed";
+    public override string After => (Block ? "Blocked" : "Allowed") + (Kind == Directory.ListKind.Spoof ? $" from {Infrastructure}" : $", {Expiry.Text}");
+    public override bool IsCaution => Block;
+    public override bool IsNoChange => false;
+}
+
+/// <summary>Takes an entry off the list.</summary>
+public sealed record RemoveListEntry(ChangeTarget Entry, Directory.ListKind Kind, string Identity, bool WasBlocked) : ListEntryChange(Entry, Kind)
+{
+    public override string Before => WasBlocked ? "Blocked" : "Allowed";
+    public override string After => "Removed";
+    public override bool IsCaution => !WasBlocked;
+    public override bool IsNoChange => false;
+}
+
+/// <summary>Changes an entry's expiry or notes (senders, links, files, IPs).</summary>
+public sealed record UpdateListEntry(ChangeTarget Entry, Directory.ListKind Kind, string Identity, Directory.ListExpiry OldExpiry, Directory.ListExpiry NewExpiry,
+    string? OldNotes, string? NewNotes) : ListEntryChange(Entry, Kind)
+{
+    public override string Before => $"{OldExpiry.Text}{(string.IsNullOrEmpty(OldNotes) ? "" : $"; note \"{OldNotes}\"")}";
+    public override string After => $"{NewExpiry.Text}{(string.IsNullOrEmpty(NewNotes) ? "" : $"; note \"{NewNotes}\"")}";
+    public override bool IsNoChange => OldExpiry == NewExpiry && (OldNotes ?? "") == (NewNotes ?? "");
+    public override ChangeOp Since(ChangeOp earlier) => earlier is UpdateListEntry e ? this with { OldExpiry = e.OldExpiry, OldNotes = e.OldNotes } : this;
+}
+
+/// <summary>
+/// Kept so older change-log entries still read: quarantine's "Block the sender" now stages
+/// <see cref="AddListEntry"/>. Adds a sender to the Tenant Allow/Block List as blocked, or allowed.
 /// </summary>
 /// <param name="Sender">Kind "sender": Id and Address are the address or domain.</param>
 /// <param name="RemoveAfterDays">Allowed entries expire (Microsoft's rule); null keeps a block for good.</param>

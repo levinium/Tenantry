@@ -317,8 +317,31 @@ their preview pane holds the actions. Rows have no record page, so `HasRecordPag
   it through for this cmdlet (`SearchLimitedCmdlets`). For every other cmdlet the runner pages
   itself; without the exception, a trace stopped at 1,000 (seen live). Each message's steps come
   from `Get-MessageTraceDetailV2`.
-- **Coming next:** block and allow lists (5b), the mail flow rules list (5c), and the rule editor
-  (5d, built from the catalog in docs/research/transport-rule-catalog.json).
+- **Coming next:** the mail flow rules list (5c) and the rule editor (5d, built from the catalog
+  in docs/research/transport-rule-catalog.json).
+
+### Block and allow lists (5b)
+
+The page lists every Tenant Allow/Block List entry in one live list: senders and domains, links,
+files (SHA256), IPv6 addresses and spoofed senders. "Add entries" takes one or many values
+pasted at once. Each value is checked for its kind's format and against what's already listed,
+and becomes one change. Lines that can't be added stay in the box with the reason.
+
+| Change | Sent as | Read back | Caution |
+|---|---|---|---|
+| Add an entry (senders, links, files, IPs) | `New-TenantAllowBlockListItems -ListType Sender\|Url\|FileHash\|IP -Block\|-Allow`, with `-NoExpiration`, `-ExpirationDate` or `-RemoveAfter 45` | `Get-TenantAllowBlockListItems -Entry` | when blocking |
+| Add a spoofed sender | `New-TenantAllowBlockListSpoofItems -SpoofedUser -SendingInfrastructure -SpoofType -Action` | `Get-TenantAllowBlockListSpoofItems` | when blocking |
+| Change an entry's expiry or note | `Set-TenantAllowBlockListItems -Ids` | its notes | no |
+| Remove an entry | `Remove-TenantAllowBlockListItems -Ids` or `Remove-TenantAllowBlockListSpoofItems -Ids` | it's gone | when it was an allow |
+
+- **Expiry:** blocks default to never expiring. Allows default to 45 days after they last match,
+  Microsoft's own rule. Either can run until a date instead.
+- **Write guard:** the entry's value is its target's address, so in Test mode only values starting
+  with the test marker can change.
+- **Quarantine's "Block the sender"** now stages an `AddListEntry`. `SetSenderListed` stays only so
+  older change-log entries still read.
+- **Live test (2026-10-26):** block, note change and remove for a made-up test sender and link,
+  all read back, and nothing left behind.
 
 ## Write guard and Test mode
 

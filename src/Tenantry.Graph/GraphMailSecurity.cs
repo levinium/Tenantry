@@ -61,6 +61,30 @@ public sealed partial class GraphUserRecords : IMailSecurity
             List(r, "Attachment").ToArray());
     }
 
+    /// <summary>The four list types and the spoofed senders, read together.</summary>
+    public async Task<IReadOnlyList<ListEntry>> GetListEntriesAsync(CancellationToken cancellationToken = default)
+    {
+        ListKind[] kinds = [ListKind.Sender, ListKind.Url, ListKind.File, ListKind.IP];
+        var reads = kinds.Select(async kind => (kind, rows: await Run("Get-TenantAllowBlockListItems", new() { ["ListType"] = AllowBlock.ListType(kind) }, cancellationToken))).ToArray();
+        var spoof = Run("Get-TenantAllowBlockListSpoofItems", new(), cancellationToken);
+        var entries = new List<ListEntry>();
+        foreach (var (kind, rows) in await Task.WhenAll(reads))
+            entries.AddRange(rows.Select(r => new ListEntry(
+                Str(r, "Identity") ?? "", kind, Str(r, "Value") ?? "",
+                string.Equals(Str(r, "Action"), "Block", StringComparison.OrdinalIgnoreCase),
+                Str(r, "Notes") is { Length: > 0 } notes ? notes : null,
+                Date(r, "ExpirationDate"),
+                r.TryGetProperty("RemoveAfter", out var after) && after.ValueKind == JsonValueKind.Number ? after.GetInt32() : null,
+                Date(r, "LastUsedDate"), Date(r, "CreatedDateTime"), Date(r, "LastModifiedDateTime"),
+                Str(r, "ModifiedBy"), Str(r, "ListSubType"))));
+        entries.AddRange((await spoof).Select(r => new ListEntry(
+            Str(r, "Identity") ?? "", ListKind.Spoof, Str(r, "SpoofedUser") ?? "",
+            string.Equals(Str(r, "Action"), "Block", StringComparison.OrdinalIgnoreCase),
+            null, null, null, Date(r, "LastUsedDate"), Date(r, "CreatedDateTime"), Date(r, "LastModifiedDateTime"), Str(r, "ModifiedBy"), null,
+            Str(r, "SendingInfrastructure"), Str(r, "SpoofType"))));
+        return entries.OrderBy(e => e.Kind).ThenBy(e => e.Value, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
     public async Task<IReadOnlyList<TracedMessage>> TraceAsync(TraceSearch search, CancellationToken cancellationToken = default)
     {
         var parameters = new Dictionary<string, object?>

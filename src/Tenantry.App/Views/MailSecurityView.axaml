@@ -3,6 +3,7 @@
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
              xmlns:conv="using:Tenantry.App.Converters"
              xmlns:listviews="using:Tenantry.App.Lists"
+             xmlns:views="using:Tenantry.App.Views"
              xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.MailSecurityView"
              x:DataType="ms:MailSecurityViewModel">
@@ -74,6 +75,32 @@
         </StackPanel>
       </Border>
       <ContentControl Content="{Binding Trace}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+
+    <!-- Block and allow lists: add entries (a panel that opens), then every entry -->
+    <DockPanel IsVisible="{Binding ShowLists}">
+      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
+        <Button Classes="accent" Command="{Binding ToggleAddCommand}" ToolTip.Tip="Block or allow senders, domains, links, files or IP addresses">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Add" FontSize="14" />
+            <TextBlock Text="Add entries" />
+          </StackPanel>
+        </Button>
+        <Button Classes="ghost" Command="{Binding RefreshEntriesCommand}" ToolTip.Tip="Read the lists again">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+            <TextBlock Text="Refresh" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+      <Border DockPanel.Dock="Top" Classes="card" Margin="0,0,0,8" IsVisible="{Binding IsAddOpen}">
+        <views:AddListEntriesView DataContext="{Binding AddEntries}" />
+      </Border>
+      <ContentControl Content="{Binding Entries}">
         <ContentControl.DataTemplates>
           <listviews:ListViewCache />
         </ContentControl.DataTemplates>

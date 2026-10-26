@@ -453,6 +453,19 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             for (var i = 0; i < 20; i++)
                 Settle();
             Render(editing, "mail-trace-light", height: 1000);
+
+            // Block and allow lists: the Add panel with a bad line, and an entry previewed.
+            mailArea.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages[3];
+            for (var i = 0; i < 50 && mailArea.Entries.IsLoading; i++)
+                Settle();
+            mailArea.IsAddOpen = true;
+            mailArea.AddEntries.Values = "phish@lookalike.example\nnot valid";
+            mailArea.AddEntries.Notes = "Reported by the front desk";
+            mailArea.AddEntries.StageCommand.Execute(null);
+            mailArea.Entries.PreviewRow(mailArea.Entries.Rows.Cast<ListEntry>().First(e => !e.Block));
+            Settle();
+            Render(editing, "mail-lists-light", height: 1200);
+            editing.Pending.DiscardAllCommand.Execute(null);
             editing.SelectedSection = editing.Sections[0];
         }
 

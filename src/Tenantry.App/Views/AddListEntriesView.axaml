@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             x:Class="Tenantry.App.Views.AddListEntriesView"
+             x:DataType="ms:AddListEntriesViewModel">
+  <StackPanel Spacing="12">
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+    </Border>
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="24" IsEnabled="{Binding CanEdit}">
+      <!-- What to add -->
+      <StackPanel Spacing="10">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="label" Text="KIND" />
+            <ComboBox ItemsSource="{x:Static ms:AddListEntriesViewModel.Kinds}" SelectedItem="{Binding Kind}" HorizontalAlignment="Stretch" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Spacing="4">
+            <TextBlock Classes="label" Text="ACTION" />
+            <ComboBox ItemsSource="{x:Static ms:AddListEntriesViewModel.Actions}" SelectedItem="{Binding Action}" MinWidth="120" />
+          </StackPanel>
+        </Grid>
+        <TextBlock Classes="caption" Text="{Binding KindHelp}" TextWrapping="Wrap" />
+        <StackPanel Spacing="4">
+          <TextBlock Classes="label" Text="ENTRIES" />
+          <TextBox Text="{Binding Values}" PlaceholderText="{Binding Placeholder}" AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="110" MaxHeight="200" />
+          <TextBlock Classes="caption" Text="Paste as many as you like, one per line." />
+        </StackPanel>
+      </StackPanel>
+
+      <!-- How long, and why -->
+      <StackPanel Grid.Column="1" Spacing="10">
+        <StackPanel Spacing="4" IsVisible="{Binding HasExpiry}">
+          <TextBlock Classes="label" Text="EXPIRES" />
+          <ComboBox ItemsSource="{Binding ExpiryOptions}" SelectedItem="{Binding Expiry}" HorizontalAlignment="Stretch" />
+          <CalendarDatePicker SelectedDate="{Binding ExpiryDate}" IsVisible="{Binding IsOnDate}" Width="180" HorizontalAlignment="Left" />
+        </StackPanel>
+        <StackPanel Spacing="4" IsVisible="{Binding HasExpiry}">
+          <TextBlock Classes="label" Text="NOTE (OPTIONAL)" />
+          <TextBox Text="{Binding Notes}" PlaceholderText="Why: a ticket number, what it was" />
+        </StackPanel>
+        <StackPanel Spacing="4" IsVisible="{Binding IsSpoof}">
+          <TextBlock Classes="label" Text="SENDING INFRASTRUCTURE" />
+          <TextBox Text="{Binding Infrastructure}" PlaceholderText="The domain or IP range the mail really comes from" />
+          <TextBlock Classes="label" Text="SPOOFING" Margin="0,6,0,0" />
+          <ComboBox ItemsSource="{x:Static ms:AddListEntriesViewModel.SpoofTypes}" SelectedItem="{Binding SpoofType}" MinWidth="140" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Internal: mail claiming to be from your own domains. External: from other domains." />
+        </StackPanel>
+      </StackPanel>
+    </Grid>
+
+    <StackPanel Spacing="2" IsVisible="{Binding HasProblems}">
+      <TextBlock Classes="label" Text="NOT ADDED" />
+      <ItemsControl ItemsSource="{Binding Problems}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="error" Text="{Binding}" TextWrapping="Wrap" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Classes="caption" Text="The lines that weren't added are left in the box to fix." TextWrapping="Wrap" />
+    </StackPanel>
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+      <TextBlock Classes="pendingtext" Text="{Binding Result}" IsVisible="{Binding HasResult}" VerticalAlignment="Center" />
+      <Button Grid.Column="1" Classes="accent" Content="Add to Pending changes" Command="{Binding StageCommand}" IsEnabled="{Binding CanEdit}"
+              ToolTip.Tip="One change per entry goes to Pending changes. Nothing is sent until you apply them." />
+    </Grid>
+  </StackPanel>
+</UserControl>

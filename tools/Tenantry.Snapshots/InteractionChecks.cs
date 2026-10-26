@@ -227,6 +227,28 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Block and allow lists: Add entries opens the panel, and its button stages the typed entries", () =>
+        {
+            var (window, main, _) = OpenList();
+            var area = main.MailSecurity!;
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "lists" }));
+            for (var i = 0; i < 50 && area.Entries.IsLoading; i++)
+                Settle();
+            Expect(area.Entries.Total > 0, "the lists were read when the page opened");
+            Click(window, FindButton(window, b => b.Command == area.ToggleAddCommand));
+            Expect(area.IsAddOpen, "the Add panel opened");
+            area.AddEntries.Values = "zz-tenantry-test-spam@bad.example";
+            Settle();
+            var add = FindButton(window, b => b.Command == area.AddEntries.StageCommand);
+            add.BringIntoView();
+            Settle();
+            Click(window, add);
+            Expect(main.Pending!.Rows.Any(r => r.Change is AddListEntry), "the entry is in Pending changes");
+            window.Close();
+        });
+
         Console.WriteLine(_failed == 0 ? "ALL INTERACTION CHECKS PASSED" : $"{_failed} INTERACTION CHECK(S) FAILED");
         return _failed == 0 ? 0 : 1;
     }

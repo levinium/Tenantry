@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Tenantry.Core.Changes;
+using Tenantry.Core.Directory;
 
 namespace Tenantry.Graph;
 
@@ -27,6 +28,72 @@ public sealed partial class GraphChangeExecutor
     Task<ApplyResult> DeleteQuarantinedAsync(DeleteQuarantined change, CancellationToken cancellationToken) =>
         RunCheckedAsync("Delete-QuarantineMessage", new() { ["Identity"] = change.Message.Id, ["Confirm"] = false },
             ct => ReadQuarantined(change.Message.Id, ct), rows => rows.Count == 0, cancellationToken);
+
+    static void AddExpiry(Dictionary<string, object?> parameters, ListExpiry expiry)
+    {
+        if (expiry.On is { } on)
+            parameters["ExpirationDate"] = on.UtcDateTime.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        else if (expiry.AfterLastUseDays is { } days)
+            parameters["RemoveAfter"] = days;
+        else
+            parameters["NoExpiration"] = true;
+    }
+
+    Task<IReadOnlyList<JsonElement>> ReadEntry(ListKind kind, string value, CancellationToken ct) => kind == ListKind.Spoof
+        ? Read("Get-TenantAllowBlockListSpoofItems", new(), ct)
+        : Read("Get-TenantAllowBlockListItems", new() { ["ListType"] = AllowBlock.ListType(kind), ["Entry"] = value }, ct);
+
+    static bool Matches(JsonElement row, ListKind kind, string value) =>
+        kind != ListKind.Spoof
+        || row.TryGetProperty("SpoofedUser", out var user) && string.Equals(user.GetString(), value, StringComparison.OrdinalIgnoreCase);
+
+    Task<ApplyResult> AddListEntryAsync(AddListEntry change, CancellationToken cancellationToken)
+    {
+        var value = change.Entry.Name;
+        string cmdlet;
+        Dictionary<string, object?> parameters;
+        if (change.Kind == ListKind.Spoof)
+        {
+            cmdlet = "New-TenantAllowBlockListSpoofItems";
+            parameters = new()
+            {
+                ["Identity"] = "Default", ["SpoofedUser"] = value, ["SendingInfrastructure"] = change.Infrastructure,
+                ["SpoofType"] = change.SpoofType ?? "External", ["Action"] = change.Block ? "Block" : "Allow",
+            };
+        }
+        else
+        {
+            cmdlet = "New-TenantAllowBlockListItems";
+            parameters = new() { ["ListType"] = AllowBlock.ListType(change.Kind), ["Entries"] = new[] { value } };
+            parameters[change.Block ? "Block" : "Allow"] = true;
+            AddExpiry(parameters, change.Expiry);
+            if (change.Notes is { Length: > 0 } notes)
+                parameters["Notes"] = notes;
+        }
+        return RunCheckedAsync(cmdlet, parameters, ct => ReadEntry(change.Kind, value, ct),
+            rows => rows.Any(r => Matches(r, change.Kind, value) && r.TryGetProperty("Action", out var a)
+                                  && string.Equals(a.GetString(), change.Block ? "Block" : "Allow", StringComparison.OrdinalIgnoreCase)),
+            cancellationToken);
+    }
+
+    Task<ApplyResult> RemoveListEntryAsync(RemoveListEntry change, CancellationToken cancellationToken) =>
+        change.Kind == ListKind.Spoof
+            ? RunCheckedAsync("Remove-TenantAllowBlockListSpoofItems", new() { ["Identity"] = "Default", ["Ids"] = new[] { change.Identity } },
+                ct => ReadEntry(change.Kind, change.Entry.Name, ct), rows => !rows.Any(r => Matches(r, change.Kind, change.Entry.Name)), cancellationToken)
+            : RunCheckedAsync("Remove-TenantAllowBlockListItems", new() { ["ListType"] = AllowBlock.ListType(change.Kind), ["Ids"] = new[] { change.Identity } },
+                ct => ReadEntry(change.Kind, change.Entry.Name, ct), rows => rows.Count == 0, cancellationToken);
+
+    Task<ApplyResult> UpdateListEntryAsync(UpdateListEntry change, CancellationToken cancellationToken)
+    {
+        var parameters = new Dictionary<string, object?> { ["ListType"] = AllowBlock.ListType(change.Kind), ["Ids"] = new[] { change.Identity } };
+        if (change.NewExpiry != change.OldExpiry)
+            AddExpiry(parameters, change.NewExpiry);
+        if ((change.NewNotes ?? "") != (change.OldNotes ?? ""))
+            parameters["Notes"] = change.NewNotes ?? "";
+        return RunCheckedAsync("Set-TenantAllowBlockListItems", parameters, ct => ReadEntry(change.Kind, change.Entry.Name, ct),
+            rows => rows.Any(r => (r.TryGetProperty("Notes", out var n) ? n.GetString() ?? "" : "") == (change.NewNotes ?? "")),
+            cancellationToken);
+    }
 
     Task<ApplyResult> SetSenderListedAsync(SetSenderListed change, CancellationToken cancellationToken)
     {

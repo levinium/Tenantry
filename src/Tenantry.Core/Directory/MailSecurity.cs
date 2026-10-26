@@ -61,4 +61,7 @@ public interface IMailSecurity
     Task<IReadOnlyList<TracedMessage>> TraceAsync(TraceSearch search, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<TraceEvent>> TraceDetailAsync(TracedMessage message, CancellationToken cancellationToken = default);
+
+    /// <summary>Every entry on the Tenant Allow/Block List: senders, links, files, IPs and spoofed senders.</summary>
+    Task<IReadOnlyList<ListEntry>> GetListEntriesAsync(CancellationToken cancellationToken = default);
 }

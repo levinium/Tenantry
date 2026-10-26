@@ -36,7 +36,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         new("quarantine", "Quarantine", "ShieldError"),
         new("trace", "Message trace", "MailSearch"),
         new("rules", "Mail flow rules", "ArrowRouting", "Every mail flow rule in plain words, with a full editor for conditions, exceptions and actions."),
-        new("lists", "Block and allow lists", "ShieldProhibited", "Blocked and allowed senders, domains, links and files."),
+        new("lists", "Block and allow lists", "ShieldProhibited"),
     ];
 
     public MailSecurityViewModel(IMailSecurity? records, ChangePipeline? pipeline, Availability canEdit, IListStateStore? listState, Func<DateTimeOffset>? now = null)
@@ -49,7 +49,19 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         Trace = DataListViewModel.Create(
             MailSecurityLists.Trace(m => new TracePreviewViewModel(m, records)),
             LoadTraceAsync, _ => { }, listState, _now);
-        foreach (var list in new[] { Quarantine, Trace })
+        Entries = DataListViewModel.Create(
+            MailSecurityLists.Entries(e => new ListEntryPreviewViewModel(e, pipeline, canEdit)),
+            LoadEntriesAsync, _ => { }, listState, _now);
+        AddEntries = new AddListEntriesViewModel(pipeline, canEdit, () => _entries, _now);
+        if (pipeline is not null)
+            pipeline.Applied += (_, applied) =>
+            {
+                if (applied.Any(c => c is ListEntryChange) && _entriesRead)
+                    _ = Entries.ReloadAsync(busyText: "Reading the lists again…");
+                if (applied.Any(c => c is QuarantineChange) && _quarantineRead)
+                    _ = Quarantine.ReloadAsync();
+            };
+        foreach (var list in new[] { Quarantine, Trace, Entries })
         {
             list.PrimaryAction = null;
             list.HasRecordPages = false;
@@ -68,25 +80,52 @@ public sealed partial class MailSecurityViewModel : TabViewModel
 
     public DataListViewModel Trace { get; }
 
+    public DataListViewModel Entries { get; }
+
+    public AddListEntriesViewModel AddEntries { get; }
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(IsPlannedPage))]
+    [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(IsPlannedPage))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     public bool ShowQuarantine => SelectedPage.Key == "quarantine";
     public bool ShowTrace => SelectedPage.Key == "trace";
+    public bool ShowLists => SelectedPage.Key == "lists";
     public bool IsPlannedPage => SelectedPage.IsPlanned;
 
     bool _quarantineRead;
+    bool _entriesRead;
 
     partial void OnSelectedPageChanged(MailSecurityPage value)
     {
-        // Quarantine reads when first shown; trace waits for a search.
+        // Quarantine and the lists read when first shown; trace waits for a search.
         if (value.Key == "quarantine" && !_quarantineRead)
         {
             _quarantineRead = true;
             _ = Quarantine.LoadAsync();
         }
+        if (value.Key == "lists" && !_entriesRead)
+        {
+            _entriesRead = true;
+            _ = Entries.LoadAsync();
+        }
     }
+
+    // ---- Block and allow lists ----------------------------------------------------------------
+
+    IReadOnlyList<ListEntry> _entries = [];
+
+    async Task<IReadOnlyList<ListEntry>> LoadEntriesAsync(CancellationToken cancellationToken) =>
+        _entries = _records is null ? [] : await _records.GetListEntriesAsync(cancellationToken);
+
+    [RelayCommand]
+    Task RefreshEntries() => Entries.ReloadAsync(busyText: "Reading the block and allow lists…");
+
+    [ObservableProperty]
+    public partial bool IsAddOpen { get; set; }
+
+    [RelayCommand]
+    void ToggleAdd() => IsAddOpen = !IsAddOpen;
 
     // ---- Quarantine ---------------------------------------------------------------------------
 

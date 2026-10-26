@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.ListEntryPreviewView"
+             x:DataType="ms:ListEntryPreviewViewModel">
+  <StackPanel Spacing="14">
+    <StackPanel Spacing="6">
+      <SelectableTextBlock Classes="h3" Text="{Binding Value}" TextWrapping="Wrap" />
+      <WrapPanel ItemSpacing="6" LineSpacing="4">
+        <c:Badge Text="{Binding ActionText}" Kind="{Binding ActionKind}" />
+        <c:Badge Text="{Binding KindText}" Kind="Neutral" />
+      </WrapPanel>
+      <TextBlock Classes="caption" Text="{Binding InfrastructureText}" IsVisible="{Binding IsSpoof}" TextWrapping="Wrap" />
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Text="{Binding ExpiryText}" />
+      <TextBlock Classes="caption" Text="{Binding LastUsedText}" />
+      <TextBlock Classes="caption" Text="{Binding AddedText}" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <Border Classes="divider" />
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+    </Border>
+    <TextBlock Classes="pendingtext" Text="{Binding PendingText}" IsVisible="{Binding HasPending}" TextWrapping="Wrap" />
+
+    <!-- Expiry and note (not for spoofed senders: Exchange keeps neither) -->
+    <StackPanel Spacing="8" IsVisible="{Binding CanChangeDetails}">
+      <TextBlock Classes="label" Text="EXPIRES" />
+      <ComboBox ItemsSource="{Binding ExpiryOptions}" SelectedItem="{Binding Expiry}" HorizontalAlignment="Stretch" />
+      <CalendarDatePicker SelectedDate="{Binding ExpiryDate}" IsVisible="{Binding IsOnDate}" Width="180" HorizontalAlignment="Left" />
+      <TextBlock Classes="label" Text="NOTE" Margin="0,4,0,0" />
+      <TextBox Text="{Binding NotesDraft}" PlaceholderText="Why it's on the list" />
+      <Button Content="Save expiry and note" Command="{Binding SaveDetailsCommand}" HorizontalAlignment="Left"
+              ToolTip.Tip="Added to Pending changes" />
+      <TextBlock Classes="caption" Text="{Binding Message}" IsVisible="{Binding HasMessage}" />
+    </StackPanel>
+
+    <Button Classes="danger-outline" Content="{Binding RemoveText}" Command="{Binding RemoveCommand}" IsVisible="{Binding CanEdit}" HorizontalAlignment="Left"
+            ToolTip.Tip="Takes it off the list (added to Pending changes)" />
+  </StackPanel>
+</UserControl>
