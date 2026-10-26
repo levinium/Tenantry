@@ -53,13 +53,13 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         _now = now ?? (() => DateTimeOffset.Now);
         Quarantine = DataListViewModel.Create(
             MailSecurityLists.Quarantine(m => new QuarantinePreviewViewModel(m, records, pipeline, canEdit)),
-            LoadQuarantineAsync, _ => { }, listState, _now);
+            LoadQuarantineAsync, row => OpenQuarantined((QuarantinedMessage)row), listState, _now);
         Trace = DataListViewModel.Create(
             MailSecurityLists.Trace(m => new TracePreviewViewModel(m, records)),
             LoadTraceAsync, _ => { }, listState, _now);
         Entries = DataListViewModel.Create(
             MailSecurityLists.Entries(e => new ListEntryPreviewViewModel(e, pipeline, canEdit)),
-            LoadEntriesAsync, _ => { }, listState, _now);
+            LoadEntriesAsync, row => OpenEntry((ListEntry)row), listState, _now);
         AddEntries = new AddListEntriesViewModel(pipeline, canEdit, () => _entries, _now);
         Rules = DataListViewModel.Create(
             MailSecurityLists.Rules(r => new RulePreviewViewModel(r, _rules.Count, pipeline, canEdit, CanOpenEditor ? EditRule : null)),
@@ -80,7 +80,10 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             list.HasRecordPages = false;
         }
         // A rule opens as its own page: the editor, read-only for an admin who can't change rules.
+        // Quarantined messages and block/allow entries open as pages too; a trace result has nothing more than its preview.
         Rules.HasRecordPages = CanOpenRulePage;
+        Quarantine.HasRecordPages = _tabs is not null;
+        Entries.HasRecordPages = _tabs is not null;
         Trace.EmptyText = "Choose what to look for above, then press Search.";
         Quarantine.EmptyText = "Nothing in quarantine matches these filters.";
         TraceStart = _now().Date.AddDays(-1);
@@ -98,6 +101,9 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     public DataListViewModel Entries { get; }
 
     public DataListViewModel Rules { get; }
+
+    /// <summary>Every list in the area, for preferences shared across lists.</summary>
+    public IEnumerable<DataListViewModel> Lists => [Quarantine, Trace, Entries, Rules];
 
     public AddListEntriesViewModel AddEntries { get; }
 
@@ -158,6 +164,22 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         if (!CanOpenEditor)
             return;
         _tabs!.OpenTab(_ => false, () => RuleEditorViewModel.New(_pipeline, _canEdit, _rules, e => _tabs.CloseTab(e)));
+    }
+
+    /// <summary>Opens a quarantined message as its own page, or switches to it.</summary>
+    public void OpenQuarantined(QuarantinedMessage message)
+    {
+        var key = "quarantine:" + message.Identity;
+        _tabs?.OpenTab(t => t is MailRecordPageViewModel p && p.Key == key,
+            () => new MailRecordPageViewModel(key, $"Quarantine: {message.Subject}", new QuarantinePreviewViewModel(message, _records, _pipeline, _canEdit)));
+    }
+
+    /// <summary>Opens a block or allow entry as its own page, or switches to it.</summary>
+    public void OpenEntry(ListEntry entry)
+    {
+        var key = "entry:" + entry.Identity;
+        _tabs?.OpenTab(t => t is MailRecordPageViewModel p && p.Key == key,
+            () => new MailRecordPageViewModel(key, $"{(entry.Block ? "Blocked" : "Allowed")}: {entry.Value}", new ListEntryPreviewViewModel(entry, _pipeline, _canEdit)));
     }
 
     /// <summary>A rule's page needs somewhere to open and somewhere to read it from.</summary>

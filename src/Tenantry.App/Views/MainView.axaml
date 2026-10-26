@@ -389,6 +389,9 @@
           <DataTemplate DataType="ms:RuleEditorViewModel">
             <views:RuleEditorView />
           </DataTemplate>
+          <DataTemplate DataType="ms:MailRecordPageViewModel">
+            <views:MailRecordPageView />
+          </DataTemplate>
         </TabControl.DataTemplates>
       </TabControl>
     </DockPanel>

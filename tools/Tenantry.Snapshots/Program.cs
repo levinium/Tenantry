@@ -440,6 +440,13 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
             Render(editing, "mail-quarantine-light", height: 1000);
             editing.Pending.DiscardAllCommand.Execute(null);
+            // A quarantined message as its own page, with the message shown.
+            mailArea.OpenQuarantined(mailArea.Quarantine.Rows.Cast<QuarantinedMessage>().First(m => m.Reason == "Malware"));
+            var heldPage = (Tenantry.ViewModels.MailSecurity.QuarantinePreviewViewModel)((Tenantry.ViewModels.MailSecurity.MailRecordPageViewModel)editing.SelectedTab!).Content;
+            heldPage.ShowMessageCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            Settle();
+            Render(editing, "mail-quarantine-page-light", height: 1000);
+            editing.SelectedTab = mailArea;
             mailArea.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages[1];
             // Before searching, then mid-search (the wheel), then the results.
             Settle();

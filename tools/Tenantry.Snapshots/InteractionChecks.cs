@@ -324,6 +324,47 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Quarantine and block/allow lists: clicking a name opens it as its own page", () =>
+        {
+            var (window, main, _) = OpenList();
+            var area = main.MailSecurity!;
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            Settle();
+            for (var i = 0; i < 50 && area.Quarantine.IsLoading; i++)
+                Settle();
+            var held = area.Quarantine.Rows.Cast<QuarantinedMessage>().First();
+            Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, held)));
+            Expect(main.SelectedTab is Tenantry.ViewModels.MailSecurity.MailRecordPageViewModel { Content: Tenantry.ViewModels.MailSecurity.QuarantinePreviewViewModel },
+                "the message's page opened");
+            Settle();
+            Expect(window.GetVisualDescendants().OfType<Tenantry.App.Views.QuarantinePreviewView>().Any(v => v.IsEffectivelyVisible), "the page shows the message");
+
+            main.SelectedTab = area;
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "lists" }));
+            for (var i = 0; i < 50 && area.Entries.IsLoading; i++)
+                Settle();
+            var entry = area.Entries.Rows.Cast<ListEntry>().First();
+            Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, entry)));
+            Expect(main.SelectedTab is Tenantry.ViewModels.MailSecurity.MailRecordPageViewModel { Content: Tenantry.ViewModels.MailSecurity.ListEntryPreviewViewModel },
+                "the entry's page opened");
+            window.Close();
+        });
+
+        Check("Preview pane: turning it off in one list turns it off in every list", () =>
+        {
+            var (window, main, _) = OpenList();
+            var area = main.MailSecurity!;
+            var was = main.Users.IsPreviewOpen;
+            main.Users.IsPreviewOpen = !was;
+            Settle();
+            Expect(area.Lists.All(l => !l.HasPreview || l.IsPreviewOpen == !was) && main.Groups.IsPreviewOpen == !was, "every list followed the users list");
+            area.Quarantine.IsPreviewOpen = was;
+            Settle();
+            Expect(main.Users.IsPreviewOpen == was && area.Rules.IsPreviewOpen == was, "and the other way round");
+            window.Close();
+        });
+
         Check("Mail Flow Rules: clicking a rule's name opens it as its own page", () =>
         {
             var (window, main, _) = OpenList();
