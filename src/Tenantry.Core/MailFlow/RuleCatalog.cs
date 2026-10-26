@@ -36,10 +36,22 @@ public sealed record RulePartDef(
     IReadOnlyDictionary<string, string> Fixed,
     string Availability,
     bool Terminal,
-    string? Notes)
+    string? Notes,
+    bool Advanced = false)
 {
     /// <summary>Usable in Exchange Online (current or legacy).</summary>
     public bool IsAvailable => Availability is "exo" or "legacy";
+
+    /// <summary>Why it can't be used here, from the catalog's availability notes; null when it can.</summary>
+    public string? UnavailableReason => Availability switch
+    {
+        "exo" or "legacy" => null,
+        "reserved" => "Reserved by Microsoft for its own use in Exchange Online",
+        "dlpOnPremOnly" => "Only works with on-premises Exchange data loss prevention",
+        "edgeOnly" => "Only works on an on-premises Edge Transport server",
+        "deprecated" => "Retired by Microsoft",
+        _ => "Not available in Exchange Online",
+    };
 
     /// <summary>The parameter for this part where it's used: the ExceptIf one for exceptions.</summary>
     public string ParameterFor(RulePartKind kind) => kind == RulePartKind.Exception ? ExceptParameter ?? Parameter : Parameter;
@@ -94,7 +106,7 @@ public sealed class RuleCatalog
     static RulePartDef Part(JsonElement e, RulePartKind kind) => new(
         kind,
         Str(e, "group") ?? "",
-        Str(e, "eac") ?? Str(e, "parameter") ?? "",
+        Str(e, "label") ?? Str(e, "eac") ?? Str(e, "parameter") ?? "",
         Str(e, "parameter") ?? "",
         Str(e, "exceptParameter"),
         Str(e, "valueType") ?? "string",
@@ -110,7 +122,9 @@ public sealed class RuleCatalog
             : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
         Str(e, "availability") ?? "exo",
         e.TryGetProperty("terminal", out var t) && t.ValueKind == JsonValueKind.True,
-        Str(e, "notes"));
+        Str(e, "notes"),
+        // Not offered in the admin center, or superseded: listed with the rest, marked Advanced.
+        !(e.TryGetProperty("eacVisible", out var visible) && visible.ValueKind == JsonValueKind.True) || Str(e, "availability") == "legacy");
 
     static RulePropertyDef Property(JsonElement e) => new(
         Str(e, "name") ?? "",

@@ -1270,7 +1270,8 @@
       "availability": "exo",
       "eacVisible": false,
       "senderAddressLocationApplies": false,
-      "notes": "Matches SCL >= value. Listed as applicable to Exchange Online by the cmdlet but absent from the Exchange Online conditions page/EAC (Exchange Server EAC calls it 'The message properties > include an SCL greater than or equal to'). In Exchange Online SCL doesn't determine the verdict, and rules may run before SCL is final; treat as advanced/unreliable."
+      "notes": "Matches SCL >= value. Listed as applicable to Exchange Online by the cmdlet but absent from the Exchange Online conditions page/EAC (Exchange Server EAC calls it 'The message properties > include an SCL greater than or equal to'). In Exchange Online SCL doesn't determine the verdict, and rules may run before SCL is final; treat as advanced/unreliable.",
+      "label": "The spam confidence level (SCL) is greater than or equal to"
     },
     {
       "group": "Cmdlet only",
@@ -1770,7 +1771,8 @@
       "availability": "exo",
       "eacVisible": false,
       "terminal": false,
-      "notes": "Cloud only, cmdlet only. Decrypts attachments that were encrypted before attaching. Requires RemoveOMEv2 $true in the same rule."
+      "notes": "Cloud only, cmdlet only. Decrypts attachments that were encrypted before attaching. Requires RemoveOMEv2 $true in the same rule.",
+      "label": "Remove encryption from attachments"
     },
     {
       "group": "Prepend the subject",
@@ -1921,7 +1923,8 @@
       "availability": "edgeOnly",
       "eacVisible": false,
       "terminal": false,
-      "notes": "Edge Transport only (on-premises). Disconnects the sending server with SMTP code 400-500."
+      "notes": "Edge Transport only (on-premises). Disconnects the sending server with SMTP code 400-500.",
+      "label": "Reject the message with an SMTP status code"
     },
     {
       "group": "Not available in Exchange Online",
@@ -1935,7 +1938,8 @@
       "availability": "edgeOnly",
       "eacVisible": false,
       "terminal": false,
-      "notes": "Edge Transport only. Ends the SMTP session silently."
+      "notes": "Edge Transport only. Ends the SMTP session silently.",
+      "label": "Disconnect the sending server"
     },
     {
       "group": "Not available in Exchange Online",
@@ -1949,7 +1953,8 @@
       "availability": "edgeOnly",
       "eacVisible": false,
       "terminal": false,
-      "notes": "Edge Transport only. Writes Application event 4000 (MSExchange Messaging Policies)."
+      "notes": "Edge Transport only. Writes Application event 4000 (MSExchange Messaging Policies).",
+      "label": "Write an entry to the event log"
     },
     {
       "group": "Not available in Exchange Online",
@@ -1970,7 +1975,8 @@
       "availability": "deprecated",
       "eacVisible": false,
       "terminal": false,
-      "notes": "Exchange 2013 only, deprecated. Use IncidentReportContent AttachOriginalMail."
+      "notes": "Exchange 2013 only, deprecated. Use IncidentReportContent AttachOriginalMail.",
+      "label": "Include the original message in incident reports"
     }
   ],
   "properties": [

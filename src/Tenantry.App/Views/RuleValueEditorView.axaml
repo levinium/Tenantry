@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:mf="using:Tenantry.Core.MailFlow"
+             x:Class="Tenantry.App.Views.RuleValueEditorView"
+             x:DataType="ms:RuleValueEditor">
+  <!-- One value of a rule, shaped by its kind: a box, a list (one per line), a choice, a size, a date or a switch. -->
+  <StackPanel Spacing="4">
+    <TextBlock Classes="label" Text="{Binding Label}">
+      <TextBlock.IsVisible>
+        <MultiBinding Converter="{x:Static BoolConverters.And}">
+          <Binding Path="!IsSwitch" />
+          <Binding Path="Label" Converter="{x:Static StringConverters.IsNotNullOrEmpty}" />
+        </MultiBinding>
+      </TextBlock.IsVisible>
+    </TextBlock>
+    <TextBox IsVisible="{Binding IsText}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" />
+    <TextBox IsVisible="{Binding IsLongText}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" />
+    <TextBox IsVisible="{Binding IsLines}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="64" MaxHeight="220" />
+    <TextBox IsVisible="{Binding IsNumber}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" Width="160" HorizontalAlignment="Left" />
+    <ComboBox IsVisible="{Binding IsChoice}" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" MinWidth="240" PlaceholderText="Choose…">
+      <ComboBox.ItemTemplate>
+        <DataTemplate x:DataType="mf:RuleChoice">
+          <TextBlock Text="{Binding Label}" />
+        </DataTemplate>
+      </ComboBox.ItemTemplate>
+    </ComboBox>
+    <ItemsControl IsVisible="{Binding IsChoices}" ItemsSource="{Binding MultiChoices}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel ItemSpacing="12" LineSpacing="2" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="ms:CheckChoice">
+          <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" />
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <StackPanel IsVisible="{Binding IsSize}" Orientation="Horizontal" Spacing="8">
+      <NumericUpDown Value="{Binding SizeAmount}" Minimum="0" Increment="1" FormatString="0.##" Width="150" PlaceholderText="Size" />
+      <ComboBox ItemsSource="{x:Static ms:RuleValueEditor.SizeUnits}" SelectedItem="{Binding SizeUnit}" MinWidth="80" />
+    </StackPanel>
+    <CalendarDatePicker IsVisible="{Binding IsDate}" SelectedDate="{Binding Date}" Width="180" HorizontalAlignment="Left" PlaceholderText="No date" />
+    <CheckBox IsVisible="{Binding IsSwitch}" IsChecked="{Binding IsOn}" Content="{Binding Label}" />
+    <TextBlock Classes="caption" Text="{Binding NamesHint}" IsVisible="{Binding HasNamesHint}" TextWrapping="Wrap" />
+    <TextBlock Classes="caption" Foreground="{DynamicResource BadgeDangerFg}" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
+  </StackPanel>
+</UserControl>

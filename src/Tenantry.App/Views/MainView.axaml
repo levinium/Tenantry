@@ -386,6 +386,9 @@
           <DataTemplate DataType="ms:MailSecurityViewModel">
             <views:MailSecurityView />
           </DataTemplate>
+          <DataTemplate DataType="ms:RuleEditorViewModel">
+            <views:RuleEditorView />
+          </DataTemplate>
         </TabControl.DataTemplates>
       </TabControl>
     </DockPanel>

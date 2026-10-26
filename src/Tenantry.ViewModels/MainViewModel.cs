@@ -9,7 +9,7 @@ using Tenantry.ViewModels.Lists;
 
 namespace Tenantry.ViewModels;
 
-public sealed partial class MainViewModel : ObservableObject, IDisposable, ISyncStatus, Workflows.IWorkflowLauncher
+public sealed partial class MainViewModel : ObservableObject, IDisposable, ISyncStatus, Workflows.IWorkflowLauncher, ITabHost
 {
     const string Later = "Coming in a later release";
 
@@ -58,7 +58,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         var readUsers = Evaluate(Capabilities.ReadUsers);
         var mailSecurity = Evaluate(Capabilities.ManageMailSecurity);
         if (tenant.Records is IMailSecurity mail)
-            MailSecurity = new MailSecurity.MailSecurityViewModel(mail, tenant.Changes, mailSecurity, tenant.ListState, _now);
+            MailSecurity = new MailSecurity.MailSecurityViewModel(mail, tenant.Changes, mailSecurity, tenant.ListState, _now, this);
         Sections =
         [
             new NavSection("users", "Users", readUsers.Reason),
@@ -629,8 +629,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         public GroupSummary? Group(string id) => _groups.GetValueOrDefault(id);
     }
 
+    public void OpenTab(Func<TabViewModel, bool> existing, Func<TabViewModel> create)
+    {
+        var tab = Tabs.FirstOrDefault(existing);
+        if (tab is null)
+        {
+            tab = create();
+            Tabs.Add(tab);
+        }
+        SelectedTab = tab;
+    }
+
     [RelayCommand]
-    void CloseTab(TabViewModel tab)
+    public void CloseTab(TabViewModel tab)
     {
         if (!tab.CanClose)
             return;

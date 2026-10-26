@@ -38,6 +38,20 @@ public class ChangePipelineTests
     }
 
     [Fact]
+    public async Task A_request_that_times_out_fails_that_change_and_the_rest_still_apply()
+    {
+        var (pipeline, executor, _) = Pipeline(testMode: false, c => c is SetSignInAllowed ? throw new TaskCanceledException("timed out") : new ApplyResult(ChangeOutcome.Applied));
+        pipeline.Stage(new SetSignInAllowed(Real, true, false));
+        pipeline.Stage(new SetUserText(Real, "department", "Department", "Finance", "IT"));
+
+        var results = await pipeline.ApplyAsync(cancellationToken: Ct);
+
+        Assert.Equal([ChangeOutcome.Failed, ChangeOutcome.Applied], results.Select(r => r.Result.Outcome));
+        Assert.Contains("didn't answer in time", results[0].Result.Detail);
+        Assert.Equal(2, executor.Applied.Count);
+    }
+
+    [Fact]
     public void Restaging_keeps_the_original_before_and_staging_back_drops_the_change()
     {
         var (pipeline, _, _) = Pipeline(testMode: false);

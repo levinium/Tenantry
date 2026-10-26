@@ -67,4 +67,7 @@ public interface IMailSecurity
 
     /// <summary>Every mail flow rule, in the order they run.</summary>
     Task<IReadOnlyList<MailFlowRule>> GetRulesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>One rule with every setting, read fresh, for the rule editor.</summary>
+    Task<MailFlow.RuleDraft> GetRuleDraftAsync(string identity, CancellationToken cancellationToken = default);
 }

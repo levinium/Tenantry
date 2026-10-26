@@ -61,4 +61,30 @@ public static class Display
 
     public static string Exact(DateTimeOffset? when) =>
         when?.ToLocalTime().ToString("f", CultureInfo.CurrentCulture) ?? "Never signed in";
+
+    /// <summary>Short words that stay lower case in a title unless they start it.</summary>
+    static readonly HashSet<string> MinorWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "a", "an", "and", "as", "at", "but", "by", "for", "from", "if", "in", "into", "nor", "of", "on", "or", "so", "the", "to", "via", "with",
+    };
+
+    /// <summary>
+    /// "set the message header to this value" → "Set the Message Header to This Value". Words already
+    /// carrying capitals ("SCL", "(SCL)", and "To" in "the To box") are names and stay as they are.
+    /// </summary>
+    public static string TitleCase(string text)
+    {
+        var words = text.Split(' ');
+        for (var i = 0; i < words.Length; i++)
+        {
+            var word = words[i];
+            var letter = word.IndexOf(word.FirstOrDefault(char.IsLetter));
+            if (letter < 0 || word.Skip(letter + 1).Any(char.IsUpper) || i > 0 && char.IsUpper(word[letter]))
+                continue;
+            words[i] = i > 0 && i < words.Length - 1 && MinorWords.Contains(word)
+                ? word.ToLowerInvariant()
+                : word[..letter] + char.ToUpperInvariant(word[letter]) + word[(letter + 1)..];
+        }
+        return string.Join(' ', words);
+    }
 }

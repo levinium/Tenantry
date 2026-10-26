@@ -169,14 +169,54 @@ public static class RuleCodec
     {
         var parameters = new Dictionary<string, JsonNode?>(StringComparer.OrdinalIgnoreCase)
         {
-            [line.Def.ParameterFor(line.Kind)] = line.Def.ValueType == "none" ? JsonValue.Create(true) : line.Value?.DeepClone(),
+            [line.Def.ParameterFor(line.Kind)] = line.Def.ValueType == "none" ? JsonValue.Create(true) : Send(line.Value, line.Def.ValueType),
         };
         foreach (var (k, v) in line.Def.Fixed)
             parameters[k] = JsonValue.Create(v);
         foreach (var extra in line.Def.Extras)
             if (line.Extras.TryGetValue(extra.Parameter, out var value) && value is not null)
-                parameters[RulePartDef.ExtraParameterFor(extra, line.Kind)] = value.DeepClone();
+                parameters[RulePartDef.ExtraParameterFor(extra, line.Kind)] = Send(value, extra.ValueType);
         return parameters;
+    }
+
+    /// <summary>A value as Exchange takes it: a size as its byte count in text (Exchange reads plain digits as bytes).</summary>
+    static JsonNode? Send(JsonNode? value, string valueType) =>
+        valueType == "size" && value is JsonValue v && v.TryGetValue<long>(out var bytes)
+            ? JsonValue.Create(bytes.ToString(CultureInfo.InvariantCulture))
+            : value?.DeepClone();
+
+    /// <summary>
+    /// The rule as Get-TransportRule would show it: its parameters, name, mode, state and the
+    /// settings Tenantry keeps untouched. Reading it back gives the same draft.
+    /// </summary>
+    public static JsonObject ToExchange(RuleDraft draft)
+    {
+        var rule = new JsonObject();
+        foreach (var (k, v) in draft.Kept)
+            rule[k] = JsonNode.Parse(v.GetRawText());
+        foreach (var (k, v) in Parameters(draft))
+            rule[k] = v;
+        rule["Name"] = draft.Name;
+        rule["Mode"] = MailFlowRule.ExchangeMode(draft.Mode);
+        rule["State"] = draft.Enabled ? "Enabled" : "Disabled";
+        if (draft.Identity is { } identity)
+            rule["Guid"] = identity;
+        return rule;
+    }
+
+    /// <summary>A draft with Set-TransportRule <paramref name="changes"/> applied (null or false clears).</summary>
+    public static RuleDraft Apply(RuleDraft draft, IEnumerable<KeyValuePair<string, JsonNode?>> changes)
+    {
+        var rule = ToExchange(draft);
+        foreach (var (k, v) in changes)
+        {
+            if (v is null || v is JsonValue flag && flag.GetValueKind() == JsonValueKind.False)
+                rule.Remove(k);
+            else
+                rule[k] = v.DeepClone();
+        }
+        using var document = JsonDocument.Parse(rule.ToJsonString());
+        return Read(document.RootElement.Clone());
     }
 
     /// <summary>
@@ -253,8 +293,10 @@ public static class RuleCodec
             _ => actual.GetRawText(),
         };
         var want = expected.GetValueKind() == JsonValueKind.String ? expected.GetValue<string>() : expected.ToJsonString();
+        // Sizes go out as bytes ("10485760") and come back as "10 MB (10,485,760 bytes)".
         return string.Equals(text, want, StringComparison.OrdinalIgnoreCase)
-               || expected is JsonValue n && n.TryGetValue<long>(out var bytes) && MailDetails.ParseBytes(text) == bytes;
+               || want.Length > 0 && want.All(char.IsAsciiDigit) && MailDetails.ParseBytes(text) is { } bytes
+                  && bytes.ToString(CultureInfo.InvariantCulture) == want;
     }
 
     static string? Text(JsonElement e, string name) =>
@@ -279,22 +321,41 @@ public static class RuleCodec
         }
     }
 
+    /// <summary>A value with fixed choices reads as the choice's label ("Outside the organization").</summary>
+    static string Describe(JsonNode? value, string valueType, IReadOnlyList<RuleChoice> choices)
+    {
+        if (choices.Count > 0 && value is JsonValue v)
+        {
+            var raw = v.GetValueKind() == JsonValueKind.String ? v.GetValue<string>() : v.ToJsonString();
+            if (choices.FirstOrDefault(c => string.Equals(c.Value, raw, StringComparison.OrdinalIgnoreCase)) is { } choice)
+                return $"'{choice.Label}'";
+        }
+        // A disclaimer or notification reads as its text, without the HTML.
+        if (valueType == "html" && value is JsonValue html && html.GetValueKind() == JsonValueKind.String)
+            return $"'{PlainText.FromHtml(html.GetValue<string>()).Trim()}'";
+        return Describe(value, valueType);
+    }
+
     /// <summary>One line in plain words: "The sender is 'pat@contoso.com'".</summary>
     public static string Describe(RuleLine line)
     {
-        var text = line.Def.ValueType == "none" ? line.Def.Label : $"{line.Def.Label} {Describe(line.Value, line.Def.ValueType)}";
+        var text = line.Def.ValueType == "none" ? line.Def.Label : $"{line.Def.Label} {Describe(line.Value, line.Def.ValueType, line.Def.Choices)}";
         foreach (var extra in line.Def.Extras)
             if (line.Extras.TryGetValue(extra.Parameter, out var v) && v is not null)
-                text += $" ({Describe(v, extra.ValueType)})";
+                text += $" ({Describe(v, extra.ValueType, extra.Choices)})";
         return text;
     }
 
     /// <summary>The whole rule in a sentence, for Pending Changes and the editor's summary.</summary>
     public static string Summary(RuleDraft draft)
     {
-        var when = draft.Conditions.Count == 0 ? "every message" : string.Join(" and ", draft.Conditions.Select(Describe));
-        var except = draft.Exceptions.Count == 0 ? "" : $", except when {string.Join(" or ", draft.Exceptions.Select(Describe))}";
-        var then = draft.Actions.Count == 0 ? "do nothing" : string.Join("; ", draft.Actions.Select(Describe));
+        var when = draft.Conditions.Count == 0 ? "every message" : string.Join(" and ", draft.Conditions.Select(l => Lower(Describe(l))));
+        var except = draft.Exceptions.Count == 0 ? "" : $", except when {string.Join(" or ", draft.Exceptions.Select(l => Lower(Describe(l))))}";
+        var then = draft.Actions.Count == 0 ? "do nothing" : string.Join("; ", draft.Actions.Select(l => Lower(Describe(l))));
         return string.Create(CultureInfo.InvariantCulture, $"When {when}{except}: {then}.");
     }
+
+    /// <summary>Mid-sentence case: "The sender is" → "the sender is"; "SCL…" stays.</summary>
+    static string Lower(string text) =>
+        text.Length > 1 && char.IsUpper(text[0]) && char.IsLower(text[1]) ? char.ToLowerInvariant(text[0]) + text[1..] : text;
 }

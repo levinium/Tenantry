@@ -270,6 +270,70 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Rule editor: New Rule opens a tab; a starter, the action list and typing put the rule in Pending changes; Done closes it", () =>
+        {
+            var (window, main, _) = OpenList();
+            var area = main.MailSecurity!;
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "rules" }));
+            for (var i = 0; i < 50 && area.Rules.IsLoading; i++)
+                Settle();
+            Click(window, FindButton(window, b => b.Command == area.NewRuleCommand));
+            var editor = main.SelectedTab as Tenantry.ViewModels.MailSecurity.RuleEditorViewModel ?? throw new InvalidOperationException("no editor tab opened");
+            Settle();
+            Click(window, FindButton(window, b => b.DataContext is Tenantry.ViewModels.MailSecurity.RuleStarter { Title: "Blank Rule" }));
+            Expect(editor.IsReady, "the blank rule is showing");
+            editor.Name = "zz-tenantry-test-editor";
+            var addAction = FindButton(window, b => b.Command == editor.TogglePickerCommand && b.CommandParameter is Tenantry.Core.MailFlow.RulePartKind.Action);
+            addAction.BringIntoView();
+            Settle();
+            Click(window, addAction);
+            Expect(editor.IsActionPickerOpen, "the action list opened");
+            editor.ActionPicker.Search = "prepend the subject";
+            Settle();
+            var pick = FindButton(window, b => b.DataContext is Tenantry.ViewModels.MailSecurity.RulePickerItem { Def.Parameter: "PrependSubject" });
+            pick.BringIntoView();
+            Settle();
+            Click(window, pick);
+            Expect(editor.Actions.Count == 1 && !editor.IsActionPickerOpen, "the action was added and the list closed");
+            var box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.DataContext == editor.Actions[0].Main);
+            box.Text = "[TEST] ";
+            Settle();
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateRule), "the new rule is in Pending changes");
+            var done = FindButton(window, b => b.Command == editor.DoneCommand);
+            done.BringIntoView();
+            Settle();
+            Click(window, done);
+            Expect(!main.Tabs.Contains(editor), "Done closed the editor");
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateRule), "the rule stayed in Pending changes");
+            window.Close();
+        });
+
+        Check("Rule editor: Edit Rule in the preview opens the rule, read from Exchange, in a tab", () =>
+        {
+            var (window, main, _) = OpenList();
+            var area = main.MailSecurity!;
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "rules" }));
+            for (var i = 0; i < 50 && area.Rules.IsLoading; i++)
+                Settle();
+            area.Rules.PreviewRow(area.Rules.Rows.Cast<MailFlowRule>().First());
+            Settle();
+            var preview = (Tenantry.ViewModels.MailSecurity.RulePreviewViewModel)area.Rules.PreviewModel!;
+            var edit = FindButton(window, b => b.Command == preview.EditCommand);
+            edit.BringIntoView();
+            Settle();
+            Click(window, edit);
+            var editor = main.SelectedTab as Tenantry.ViewModels.MailSecurity.RuleEditorViewModel ?? throw new InvalidOperationException("no editor tab opened");
+            for (var i = 0; i < 50 && editor.IsLoading; i++)
+                Settle();
+            Expect(editor.IsReady && editor.Conditions.Count > 0 && editor.Actions.Count > 0, "the rule's lines are showing");
+            Click(window, FindButton(window, b => b.Command == editor.DoneCommand));
+            window.Close();
+        });
+
         Console.WriteLine(_failed == 0 ? "ALL INTERACTION CHECKS PASSED" : $"{_failed} INTERACTION CHECK(S) FAILED");
         return _failed == 0 ? 0 : 1;
     }

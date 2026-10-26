@@ -373,6 +373,39 @@ cleared settings must be unset, set ones set with the same number of values, sin
   location, recipient address type, error action, sub-type); edits start from what Exchange returns,
   so they are never sent by accident.
 
+### Rule editor (5d-2)
+
+New Rule (on the Mail Flow Rules page) and Edit Rule (in a rule's preview) open the editor in its
+own tab. Edit reads the rule fresh from Exchange (`IMailSecurity.GetRuleDraftAsync`); if an edit is
+already in Pending Changes, the editor carries on from it.
+
+- **Starters:** a new rule begins from a template (blank, outside-sender warning, risky
+  attachments, disclaimer, trusted partner, copy mail, approval, outside auto-forwarding). Every new
+  rule starts in Test mode, placed after every other rule unless the admin picks "before".
+- **The sentence:** When… (all must match), Except When… (any one excuses), Then…. Each line has the
+  input its catalog value type needs (`RuleValues.InputFor`): a box, one entry per line, a choice, a
+  pick-several list, a size with its unit, a date or a switch, plus companion values (a header's
+  value, a disclaimer's fallback). Values are checked as they're typed: patterns compile and stay
+  within 128 characters, domains, IP ranges, status codes, `Property:values` lines.
+- **Add a part:** every condition and action, grouped as the admin center groups them and
+  searchable. Advanced parts are marked; parts that can't work in Exchange Online are listed, greyed,
+  with the reason. A part already in the rule (and the second disclaimer) can't be added twice.
+- **In plain words:** the rule as a sentence, kept up to date, with what still needs fixing.
+- **Pending Changes:** while the rule has no problems it sits in Pending Changes, replaced as it's
+  edited: `CreateRule` for a new rule, `UpdateRule` (only the changes) plus `SetRuleMode` for an
+  existing one. Done closes the tab and leaves the changes there; Discard Changes takes them out.
+  Once they're applied the editor closes itself.
+- **More Settings:** start and stop dates, stop processing more rules, where to match the sender
+  address, what to do if the rule can't be checked, audit severity. Unset choices show Exchange's
+  default. Settings from a newer Exchange are shown read-only and kept.
+- **Live test (2026-10-26):** the editor itself (as the app drives it) made a test rule from Blank
+  (off, Test mode, mail to the test user, adds a header), which landed last in the order; reopened
+  it with Edit, added an exception (attachment size), changed the header value and turned on stop
+  processing; each step read back, the editor closed after each apply, and the rule was deleted. A
+  read-only round-trip of every rule stayed clean.
+- **Timeouts:** a request that times out now fails just that change ("Microsoft didn't answer in
+  time"); before, it surfaced as a cancellation and stopped the whole apply.
+
 ### Block and allow lists (5b)
 
 The page lists every Tenant Allow/Block List entry in one live list: senders and domains, links,

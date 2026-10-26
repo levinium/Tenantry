@@ -91,6 +91,12 @@ public sealed partial class GraphUserRecords : IMailSecurity
         return rows.Select(ToMailFlowRule).OrderBy(r => r.Priority).ToArray();
     }
 
+    public async Task<Core.MailFlow.RuleDraft> GetRuleDraftAsync(string identity, CancellationToken cancellationToken = default)
+    {
+        var rows = await Run("Get-TransportRule", new() { ["Identity"] = identity }, cancellationToken);
+        return rows.Count == 1 ? Core.MailFlow.RuleCodec.Read(rows[0]) : throw new InvalidOperationException("That rule isn't there any more.");
+    }
+
     public static MailFlowRule ToMailFlowRule(JsonElement r)
     {
         var (conditions, exceptions, actions) = MailFlowRule.ParseDescription(Str(r, "Description"));

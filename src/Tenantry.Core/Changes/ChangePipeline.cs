@@ -171,9 +171,10 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
                 {
                     result = await executor.ApplyAsync(change, cancellationToken);
                 }
-                catch (Exception e) when (e is not OperationCanceledException)
+                // A request that timed out also surfaces as a cancellation; only the caller's own cancel stops the batch.
+                catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
                 {
-                    result = new ApplyResult(ChangeOutcome.Failed, e.Message);
+                    result = new ApplyResult(ChangeOutcome.Failed, e is OperationCanceledException ? "Microsoft didn't answer in time. Check the result, then try again." : e.Message);
                 }
             }
             log.Add(new ChangeLogEntry(Guid.NewGuid().ToString("N"), _now(), account, change, result.Outcome, result.Detail));

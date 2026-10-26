@@ -63,7 +63,7 @@ public sealed class RuleCodecTests
         Assert.Equal(expected.Order(StringComparer.Ordinal), parameters.Keys.Order(StringComparer.Ordinal));
         foreach (var name in expected.Where(n => n != "AttachmentSizeOver"))
             Assert.True(JsonNode.DeepEquals(JsonNode.Parse(original.GetProperty(name).GetRawText()), parameters[name]), name);
-        Assert.Equal(10_485_760, parameters["AttachmentSizeOver"]!.GetValue<long>());
+        Assert.Equal("10485760", parameters["AttachmentSizeOver"]!.GetValue<string>());
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public sealed class RuleCodecTests
         var sent = Assert.Single(exchange.Calls, c => c.Cmdlet == "New-TransportRule").Parameters;
         Assert.Contains("\"Name\":\"zz-tenantry-test-new\"", sent);
         Assert.Contains("\"Mode\":\"Audit\"", sent);
-        Assert.Contains("\"AttachmentSizeOver\":10485760", sent);
+        Assert.Contains("\"AttachmentSizeOver\":\"10485760\"", sent);
     }
 
     [Fact]

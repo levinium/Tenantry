@@ -39,9 +39,17 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         new("lists", "Block and Allow Lists", "ShieldProhibited"),
     ];
 
-    public MailSecurityViewModel(IMailSecurity? records, ChangePipeline? pipeline, Availability canEdit, IListStateStore? listState, Func<DateTimeOffset>? now = null)
+    readonly ChangePipeline? _pipeline;
+    readonly Availability _canEdit;
+    readonly ITabHost? _tabs;
+
+    public MailSecurityViewModel(IMailSecurity? records, ChangePipeline? pipeline, Availability canEdit, IListStateStore? listState, Func<DateTimeOffset>? now = null,
+        ITabHost? tabs = null)
     {
         _records = records;
+        _pipeline = pipeline;
+        _canEdit = canEdit;
+        _tabs = tabs;
         _now = now ?? (() => DateTimeOffset.Now);
         Quarantine = DataListViewModel.Create(
             MailSecurityLists.Quarantine(m => new QuarantinePreviewViewModel(m, records, pipeline, canEdit)),
@@ -54,7 +62,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             LoadEntriesAsync, _ => { }, listState, _now);
         AddEntries = new AddListEntriesViewModel(pipeline, canEdit, () => _entries, _now);
         Rules = DataListViewModel.Create(
-            MailSecurityLists.Rules(r => new RulePreviewViewModel(r, _rules.Count, pipeline, canEdit)),
+            MailSecurityLists.Rules(r => new RulePreviewViewModel(r, _rules.Count, pipeline, canEdit, CanOpenEditor ? EditRule : null)),
             LoadRulesAsync, _ => { }, listState, _now);
         if (pipeline is not null)
             pipeline.Applied += (_, applied) =>
@@ -134,6 +142,30 @@ public sealed partial class MailSecurityViewModel : TabViewModel
 
     [RelayCommand]
     Task RefreshRules() => Rules.ReloadAsync(busyText: "Reading the mail flow rules…");
+
+    /// <summary>The editor opens in a tab; it needs somewhere to open and an admin who can change rules.</summary>
+    public bool CanOpenEditor => _tabs is not null && _records is not null && _pipeline is not null && _canEdit.IsAvailable;
+
+    public string NewRuleTip => CanOpenEditor
+        ? "Start a new rule from a template or from scratch. New rules start in Test mode."
+        : _canEdit.Reason ?? "This tenant can't be edited";
+
+    [RelayCommand]
+    void NewRule()
+    {
+        if (!CanOpenEditor)
+            return;
+        _tabs!.OpenTab(_ => false, () => RuleEditorViewModel.New(_pipeline, _canEdit, _rules, e => _tabs.CloseTab(e)));
+    }
+
+    /// <summary>Opens the rule in the editor, or switches to its tab if it's already open.</summary>
+    public void EditRule(MailFlowRule rule)
+    {
+        if (!CanOpenEditor)
+            return;
+        _tabs!.OpenTab(t => t is RuleEditorViewModel e && e.RuleIdentity == rule.Identity,
+            () => RuleEditorViewModel.Edit(rule, ct => _records!.GetRuleDraftAsync(rule.Identity, ct), _pipeline, _canEdit, _rules, e => _tabs.CloseTab(e)));
+    }
 
     // ---- Block and allow lists ----------------------------------------------------------------
 

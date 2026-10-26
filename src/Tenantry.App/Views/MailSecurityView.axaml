@@ -84,8 +84,8 @@
     <!-- Mail flow rules: in the order they run -->
     <DockPanel IsVisible="{Binding ShowRules}">
       <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
-        <Button Classes="accent" IsEnabled="False" ToolTip.ShowOnDisabled="True"
-                ToolTip.Tip="Creating and editing rules arrives with the rule editor, the next Mail &amp; Security update">
+        <Button Classes="accent" Command="{Binding NewRuleCommand}" IsEnabled="{Binding CanOpenEditor}" ToolTip.ShowOnDisabled="True"
+                ToolTip.Tip="{Binding NewRuleTip}">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="Add" FontSize="14" />
             <TextBlock Text="New Rule" />

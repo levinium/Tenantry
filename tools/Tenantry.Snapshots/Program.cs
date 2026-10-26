@@ -464,6 +464,28 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Render(editing, "mail-rules-light", height: 1000);
             editing.Pending.DiscardAllCommand.Execute(null);
 
+            // The rule editor: the starters, a starter with blanks still to fill and the action list open, then an existing rule.
+            mailArea.NewRuleCommand.Execute(null);
+            var newRule = (Tenantry.ViewModels.MailSecurity.RuleEditorViewModel)editing.SelectedTab!;
+            Settle();
+            Render(editing, "rule-editor-starters-light", height: 1000);
+            newRule.StartCommand.Execute(Tenantry.ViewModels.MailSecurity.RuleStarters.All.Single(s => s.Title == "Copy Mail to Someone"));
+            newRule.Conditions[0].Main!.Text = "pat@northgate.example";
+            newRule.TogglePickerCommand.Execute(Tenantry.Core.MailFlow.RulePartKind.Action);
+            newRule.ActionPicker.Search = "recipients";
+            Settle();
+            Render(editing, "rule-editor-new-light", height: 1700);
+            newRule.DiscardCommand.Execute(null);
+            mailArea.EditRule(mailArea.Rules.Rows.Cast<MailFlowRule>().First());
+            var existing = (Tenantry.ViewModels.MailSecurity.RuleEditorViewModel)editing.SelectedTab!;
+            for (var i = 0; i < 50 && existing.IsLoading; i++)
+                Settle();
+            existing.ShowMoreSettings = true;
+            existing.Conditions[0].Main!.SelectedChoice = existing.Conditions[0].Main!.Choices.First(c => c.Value == "InOrganization");
+            Settle();
+            Render(editing, "rule-editor-edit-light", height: 1900);
+            existing.DiscardCommand.Execute(null);
+
             // Block and allow lists: the Add panel with a bad line, and an entry previewed.
             mailArea.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages[3];
             for (var i = 0; i < 50 && mailArea.Entries.IsLoading; i++)

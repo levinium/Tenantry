@@ -17,12 +17,15 @@ public sealed partial class RulePreviewViewModel : ObservableObject, IDisposable
     readonly Availability _canEdit;
     readonly int _ruleCount;
 
-    public RulePreviewViewModel(MailFlowRule rule, int ruleCount, ChangePipeline? pipeline, Availability canEdit)
+    readonly Action<MailFlowRule>? _edit;
+
+    public RulePreviewViewModel(MailFlowRule rule, int ruleCount, ChangePipeline? pipeline, Availability canEdit, Action<MailFlowRule>? edit = null)
     {
         Rule = rule;
         _ruleCount = ruleCount;
         _pipeline = pipeline;
         _canEdit = canEdit;
+        _edit = edit;
         _mode = Modes.First(m => m.Value == rule.Mode);
         if (_pipeline is not null)
             _pipeline.Changed += OnPendingChanged;
@@ -74,6 +77,12 @@ public sealed partial class RulePreviewViewModel : ObservableObject, IDisposable
     }
 
     public bool HasPending => PendingText is not null;
+
+    public bool CanOpenEditor => CanEdit && _edit is not null;
+
+    /// <summary>Opens the full editor in its own tab.</summary>
+    [RelayCommand]
+    void Edit() => _edit?.Invoke(Rule);
 
     public string EnableText => Pending("enabled") is not null ? "Undo" : Rule.Enabled ? "Turn Off" : "Turn On";
 

@@ -1,5 +1,8 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Tenantry.Core.Changes;
 using Tenantry.Core.Directory;
+using Tenantry.Core.MailFlow;
 
 namespace Tenantry.Demo;
 
@@ -108,61 +111,104 @@ public sealed partial class DemoUserRecords : IMailSecurity
     public Task<IReadOnlyList<ListEntry>> GetListEntriesAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<ListEntry>>(ListEntries().ToArray());
 
-    List<MailFlowRule>? _flowRules;
+    /// <summary>The demo's rules in the order they run, each held as a full draft (every setting), as Exchange would return it.</summary>
+    List<(RuleDraft Draft, DateTimeOffset Changed)>? _flowRules;
 
-    List<MailFlowRule> FlowRules()
+    List<(RuleDraft Draft, DateTimeOffset Changed)> FlowRules()
     {
         if (_flowRules is not null)
             return _flowRules;
         var now = DateTimeOffset.UtcNow;
-        MailFlowRule Rule(int priority, string name, bool on, RuleMode mode, string[] conditions, string[] exceptions, string[] actions, string? comments = null) =>
-            new($"demo-r-{priority}", name, priority, on, mode, conditions, exceptions, actions, comments, null, null, now.AddDays(-priority * 17 - 3), "admin@northgate.example");
-        _flowRules =
+        var catalog = RuleCatalog.Instance;
+        RuleLine Line(RulePartKind kind, string parameter, JsonNode value, string? location = null, params (string Extra, JsonNode Value)[] extras)
+        {
+            var def = catalog.For(kind).First(d => d.Parameter == parameter && (location is null || d.Fixed.GetValueOrDefault("ApplyHtmlDisclaimerLocation") == location));
+            var line = new RuleLine(def, kind) { Value = value };
+            foreach (var (extra, v) in extras)
+                line.Extras[extra] = v;
+            return line;
+        }
+        RuleDraft Rule(int number, string name, bool on, RuleMode mode, RuleLine[] conditions, RuleLine[] exceptions, RuleLine[] actions, string? comments = null)
+        {
+            var draft = new RuleDraft { Identity = $"demo-r-{number}", Name = name, Enabled = on, Mode = mode };
+            draft.Conditions.AddRange(conditions);
+            draft.Exceptions.AddRange(exceptions);
+            draft.Actions.AddRange(actions);
+            if (comments is not null)
+                draft.Settings["Comments"] = comments;
+            return draft;
+        }
+        const RulePartKind When = RulePartKind.Condition, Except = RulePartKind.Exception, Then = RulePartKind.Action;
+        RuleDraft[] rules =
         [
             Rule(0, "External sender warning", true, RuleMode.Enforce,
-                ["Is received from 'Outside the organization'"], ["Is sent to 'billing@northgate.example'"],
-                ["Prepend the subject of the message with '[EXTERNAL] '", "Apply HTML disclaimer: 'This message came from outside Northgate.'"],
+                [Line(When, "FromScope", "NotInOrganization")], [Line(Except, "SentTo", new JsonArray("billing@northgate.example"))],
+                [Line(Then, "PrependSubject", "[EXTERNAL] "),
+                 Line(Then, "ApplyHtmlDisclaimerText", "<p>This message came from outside Northgate.</p>", "Prepend", ("ApplyHtmlDisclaimerFallbackAction", "Wrap"))],
                 "Helps staff spot phishing."),
             Rule(1, "Block executable attachments", true, RuleMode.Enforce,
-                ["Any attachment's file extension matches 'exe' or 'js' or 'vbs' or 'scr'"], [],
-                ["Reject the message with the explanation 'Executable attachments aren't allowed.'"]),
+                [Line(When, "AttachmentExtensionMatchesWords", new JsonArray("exe", "js", "vbs", "scr"))], [],
+                [Line(Then, "RejectMessageReasonText", "Executable attachments aren't allowed.")]),
             Rule(2, "Copy finance mail to auditors", true, RuleMode.Test,
-                ["Is sent to a member of group 'finance@northgate.example'", "The subject or message body includes 'invoice' or 'wire transfer'"], [],
-                ["Blind carbon copy (Bcc) the message to 'auditors@northgate.example'"], "Trial: checking matches before enforcing."),
+                [Line(When, "SentToMemberOf", new JsonArray("finance@northgate.example")), Line(When, "SubjectOrBodyContainsWords", new JsonArray("invoice", "wire transfer"))], [],
+                [Line(Then, "BlindCopyTo", new JsonArray("auditors@northgate.example"))], "Trial: checking matches before enforcing."),
             Rule(3, "Board confidentiality footer", false, RuleMode.Enforce,
-                ["Is sent to a member of group 'board@northgate.example'"], [],
-                ["Append the disclaimer 'Confidential: board members only.'"]),
+                [Line(When, "SentToMemberOf", new JsonArray("board@northgate.example"))], [],
+                [Line(Then, "ApplyHtmlDisclaimerText", "Confidential: board members only.", "Append", ("ApplyHtmlDisclaimerFallbackAction", "Wrap"))]),
             Rule(4, "Bypass spam filtering for the payroll provider", true, RuleMode.Enforce,
-                ["Sender's address domain portion belongs to any of these domains: 'payroll.example'"], [],
-                ["Set the spam confidence level (SCL) to '-1'"]),
+                [Line(When, "SenderDomainIs", new JsonArray("payroll.example"))], [],
+                [Line(Then, "SetSCL", "-1")]),
         ];
+        _flowRules = rules.Select((r, i) => (r, now.AddDays(-i * 17 - 3))).ToList();
         return _flowRules;
     }
 
+    static MailFlowRule Summarize(RuleDraft d, int priority, DateTimeOffset changed) =>
+        new(d.Identity!, d.Name, priority, d.Enabled, d.Mode,
+            d.Conditions.Select(RuleCodec.Describe).ToArray(), d.Exceptions.Select(RuleCodec.Describe).ToArray(), d.Actions.Select(RuleCodec.Describe).ToArray(),
+            d.Settings.GetValueOrDefault("Comments")?.ToString(), null, null, changed, "admin@northgate.example");
+
     public Task<IReadOnlyList<MailFlowRule>> GetRulesAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<MailFlowRule>>(FlowRules().OrderBy(r => r.Priority).ToArray());
+        Task.FromResult<IReadOnlyList<MailFlowRule>>(FlowRules().Select((r, i) => Summarize(r.Draft, i, r.Changed)).ToArray());
+
+    public Task<RuleDraft> GetRuleDraftAsync(string identity, CancellationToken cancellationToken = default) =>
+        FlowRules().FirstOrDefault(r => r.Draft.Identity == identity) is { Draft: not null } found
+            ? Task.FromResult(found.Draft.Clone())
+            : Task.FromException<RuleDraft>(new InvalidOperationException("That rule isn't there any more."));
 
     ApplyResult? ApplyRule(ChangeOp change)
     {
         var rules = FlowRules();
-        var at = change is RuleChange rc ? rules.FindIndex(r => r.Identity == rc.Rule.Id) : -1;
+        var at = change is RuleChange rc ? rules.FindIndex(r => r.Draft.Identity == rc.Rule.Id) : -1;
+        var now = DateTimeOffset.UtcNow;
         switch (change)
         {
             case SetRuleEnabled e when at >= 0:
-                rules[at] = rules[at] with { Enabled = e.New };
+                rules[at].Draft.Enabled = e.New;
                 break;
             case SetRuleMode m when at >= 0:
-                rules[at] = rules[at] with { Mode = m.New };
+                rules[at].Draft.Mode = m.New;
                 break;
             case SetRulePriority p when at >= 0:
                 var moving = rules[at];
-                var ordered = rules.OrderBy(r => r.Priority).Where(r => r.Identity != moving.Identity).ToList();
-                ordered.Insert(Math.Clamp(p.New, 0, ordered.Count), moving);
-                _flowRules = ordered.Select((r, i) => r with { Priority = i }).ToList();
+                rules.RemoveAt(at);
+                rules.Insert(Math.Clamp(p.New, 0, rules.Count), moving);
                 break;
             case RemoveRule when at >= 0:
                 rules.RemoveAt(at);
-                _flowRules = rules.OrderBy(r => r.Priority).Select((r, i) => r with { Priority = i }).ToList();
+                break;
+            case CreateRule c:
+                var parameters = (JsonObject)JsonNode.Parse(c.Parameters)!;
+                var priority = parameters["Priority"]?.GetValue<int>() ?? 0;
+                parameters["Name"] = c.Rule.Name;
+                parameters["Guid"] = $"demo-r-{Guid.NewGuid():N}";
+                parameters["State"] = parameters["Enabled"]?.GetValue<bool>() == false ? "Disabled" : "Enabled";
+                using (var document = JsonDocument.Parse(parameters.ToJsonString()))
+                    rules.Insert(Math.Clamp(priority, 0, rules.Count), (RuleCodec.Read(document.RootElement.Clone()), now));
+                break;
+            case UpdateRule u when at >= 0:
+                var changes = (JsonObject)JsonNode.Parse(u.Changes)!;
+                rules[at] = (RuleCodec.Apply(rules[at].Draft, changes), now);
                 break;
             case RuleChange:
                 return new ApplyResult(ChangeOutcome.Failed, "That rule isn't there any more.");

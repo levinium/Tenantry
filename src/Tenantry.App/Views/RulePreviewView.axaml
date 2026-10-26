@@ -46,6 +46,13 @@
     </Border>
     <StackPanel Spacing="10" IsVisible="{Binding CanEdit}">
       <TextBlock Classes="pendingtext" Text="{Binding PendingText}" IsVisible="{Binding HasPending}" TextWrapping="Wrap" />
+      <Button Classes="accent" Command="{Binding EditCommand}" IsVisible="{Binding CanOpenEditor}" HorizontalAlignment="Left"
+              ToolTip.Tip="Open the rule in the editor: change what it checks, its exceptions, what it does and its settings">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="Edit" FontSize="14" />
+          <TextBlock Text="Edit Rule" />
+        </StackPanel>
+      </Button>
       <Button Content="{Binding EnableText}" Command="{Binding ToggleEnabledCommand}" HorizontalAlignment="Left"
               ToolTip.Tip="A rule that's off checks nothing (added to Pending changes)" />
       <StackPanel Spacing="4">
