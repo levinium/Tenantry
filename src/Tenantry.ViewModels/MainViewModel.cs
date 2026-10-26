@@ -233,7 +233,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         if (_tenant.SyncSettings is not { } store)
             return;
         ShowDialog(new Records.DialogViewModel("Settings", TenantName,
-            new SettingsViewModel(TenantName, store, _tenant.Sync, SyncNowAsync, StartChecking, _now, this), Footnote: null));
+            new SettingsViewModel(TenantName, store, _tenant.Sync, SyncNowAsync, StartChecking, _now, this, _tenant.PasswordStyle), Footnote: null));
     }
 
     /// <summary>Settings' "Check everything now" and "Download everything again".</summary>

@@ -4,8 +4,11 @@ using Tenantry.Core.Directory;
 namespace Tenantry.Demo;
 
 /// <summary>Applies changes to the demo tenant's generated people, in memory. Nothing is sent anywhere.</summary>
-public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRecords? records = null) : IChangeExecutor
+public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRecords? records = null, Func<PasswordStyle>? passwordStyle = null)
+    : IChangeExecutor
 {
+    PasswordStyle PasswordStyle => passwordStyle?.Invoke() ?? PasswordStyle.Default;
+
     public async Task<ApplyResult> ApplyAsync(ChangeOp change, CancellationToken cancellationToken = default)
     {
         // A person's own mailbox isn't a row in Groups: its delegates live with the records.
@@ -52,7 +55,7 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
                 })),
             SetLicenseApps a => Remember(() => records?.RememberApps(a.User.Id, a.SkuId, a.NewDisabled)),
             RemoveAppAssignment r => Remember(() => records?.RememberRemovedApp(r.AssignmentId)),
-            ResetPassword r => r.Chosen is null ? new ApplyResult(ChangeOutcome.Applied, Reveal: TemporaryPassword.Create()) : new ApplyResult(ChangeOutcome.Applied, "Password set (demo)."),
+            ResetPassword r => r.Chosen is null ? new ApplyResult(ChangeOutcome.Applied, Reveal: PasswordStyle.Create()) : new ApplyResult(ChangeOutcome.Applied, "Password set (demo)."),
             RevokeSessions => new ApplyResult(ChangeOutcome.Applied, "Signed out of every session (demo)."),
             SetManager m => Remember(() => records?.RememberManager(m.User.Id, m.NewId)),
             SetGroupMembership m => Done(directory.UpdateGroup(m.Group.Id, g => m.Role == GroupRole.Owner

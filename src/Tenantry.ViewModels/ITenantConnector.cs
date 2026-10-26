@@ -22,7 +22,8 @@ public sealed record ConnectedTenant(
     IUserRecords? Records = null,
     IReadOnlyList<string>? MissingPermissions = null,
     Func<IProgress<string>, CancellationToken, Task<IReadOnlyList<string>>>? UpdatePermissions = null,
-    ISyncSettingsStore? SyncSettings = null);
+    ISyncSettingsStore? SyncSettings = null,
+    Tenantry.Core.Changes.IPasswordStyleStore? PasswordStyle = null);
 
 /// <summary>The outcome of the automatic setup.</summary>
 public sealed record SetupOutcome(TenantProfile Profile, bool Reused, IReadOnlyList<string> Unresolved);

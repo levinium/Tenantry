@@ -424,14 +424,15 @@ public class ChangePipelineTests
     }
 
     [Fact]
-    public void Temporary_passwords_are_readable_and_meet_complexity()
+    public void Default_passwords_are_readable_and_meet_complexity()
     {
-        var passwords = Enumerable.Range(0, 200).Select(_ => TemporaryPassword.Create()).ToArray();
+        var passwords = Enumerable.Range(0, 200).Select(_ => PasswordStyle.Default.Create()).ToArray();
 
         Assert.All(passwords, p =>
         {
-            Assert.Matches("^([A-Z][a-z][2-9][a-z]-){3}[A-Z][a-z][2-9][a-z]$", p);
-            Assert.DoesNotContain(p, c => "0O1lI".Contains(c));
+            Assert.Matches("^([A-Za-z0-9]{4}-){3}[A-Za-z0-9]{4}$", p);
+            Assert.DoesNotContain(p, c => "0Oo1lI5S2Z".Contains(c));
+            Assert.Null(TemporaryPassword.Problem(p));
         });
         Assert.Equal(passwords.Length, passwords.Distinct().Count());
     }

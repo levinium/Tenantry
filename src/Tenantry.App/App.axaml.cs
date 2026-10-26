@@ -28,12 +28,31 @@ public partial class App : Application
             window.RememberPlacement(new WindowPlacementStore());
             Platform.OpenUrl = url => _ = window.Launcher.LaunchUriAsync(new Uri(url));
             Platform.CopyText = text => _ = CopyAsync(window, text);
+            Platform.SaveCsv = (name, csv) => SaveCsvAsync(window, name, csv);
             desktop.MainWindow = window;
             // Once the window is up (so a browser sign-in has something to return to).
             window.Opened += async (_, _) => await shell.StartAsync();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    static async Task<bool> SaveCsvAsync(MainWindow window, string suggestedName, string csv)
+    {
+        var file = await window.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+        {
+            Title = "Save as a CSV file",
+            SuggestedFileName = suggestedName,
+            DefaultExtension = "csv",
+            FileTypeChoices = [new Avalonia.Platform.Storage.FilePickerFileType("CSV file") { Patterns = ["*.csv"] }],
+        });
+        if (file is null)
+            return false;
+        await using var stream = await file.OpenWriteAsync();
+        // UTF-8 with a byte-order mark, so Excel reads names with accents correctly.
+        await using var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+        await writer.WriteAsync(csv);
+        return true;
     }
 
     static async Task CopyAsync(MainWindow window, string text)

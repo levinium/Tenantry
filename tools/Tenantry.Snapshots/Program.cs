@@ -483,6 +483,19 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         editing.Pending.ApplyCommand.ExecuteAsync(null).GetAwaiter().GetResult();
         editing.Pending.ApplyCommand.ExecuteAsync(null).GetAwaiter().GetResult();
         Render(editing, "password-reveal-light");
+
+        // Several reset at once: Copy all, Save as file, Done with all.
+        foreach (var other in editing.Users.Rows.Cast<UserSummary>().Skip(3).Take(2))
+        {
+            editing.OpenUser(other);
+            Settle();
+            ((UserDetailViewModel)editing.SelectedTab!).ResetPasswordCommand.Execute(null);
+            ((Tenantry.ViewModels.Records.ResetPasswordViewModel)editing.Dialog!.Content).StageCommand.Execute(null);
+        }
+        editing.Pending.ApplyCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        editing.Pending.ApplyCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        Render(editing, "password-reveal-many-light", height: 1100);
+        editing.Pending.DismissAllRevealsCommand.Execute(null);
     }
 
     // A synced tenant: the sidebar shows when the local copy was last brought up to date.
@@ -495,6 +508,10 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     // Settings: how often each part of the local copy is read, and when it last was.
     synced.OpenSettingsCommand.Execute(null);
     Render(synced, $"settings-{suffix}");
+    // Settings › Passwords: the tenant's password style, with an example.
+    var settings = (SettingsViewModel)synced.Dialog!.Content;
+    settings.SelectedArea = settings.SettingsAreas.Single(a => a.Key == "passwords");
+    Render(synced, $"settings-passwords-{suffix}");
     synced.CloseDialog();
 
     // Mid-sync: the spinning icon, the step, the moving bar and the background line; then Settings showing it.

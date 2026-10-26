@@ -265,8 +265,30 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <!-- Temporary passwords: shown once, never stored; copy, pass on, dismiss. -->
-          <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Reveals}" Margin="0,10,0,0" IsVisible="{Binding HasReveals}">
+          <!-- Temporary passwords: shown once, never stored; copy, pass on, dismiss. Several at once (a bulk reset) can be copied or saved together. -->
+          <Border DockPanel.Dock="Top" Classes="banner info" Margin="0,10,0,0" IsVisible="{Binding HasManyReveals}">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+              <TextBlock Text="{Binding RevealsHeader}" TextWrapping="Wrap" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Command="{Binding CopyAllRevealsCommand}" VerticalAlignment="Center"
+                      ToolTip.Tip="Copy every name, sign-in name and password (pastes into a spreadsheet)">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <ic:FluentIcon Icon="Copy" FontSize="14" />
+                  <TextBlock Text="Copy all" IsVisible="{Binding !AllCopied}" />
+                  <TextBlock Text="Copied" IsVisible="{Binding AllCopied}" />
+                </StackPanel>
+              </Button>
+              <Button Grid.Column="2" Command="{Binding SaveRevealsCommand}" VerticalAlignment="Center" ToolTip.Tip="Save them as a CSV file. Keep it somewhere safe and delete it when done.">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <ic:FluentIcon Icon="Save" FontSize="14" />
+                  <TextBlock Text="Save as file…" />
+                </StackPanel>
+              </Button>
+              <Button Grid.Column="3" Content="Done with all" Command="{Binding DismissAllRevealsCommand}" VerticalAlignment="Center"
+                      ToolTip.Tip="Remove every password from the screen" />
+            </Grid>
+          </Border>
+          <ScrollViewer DockPanel.Dock="Top" MaxHeight="300" IsVisible="{Binding HasReveals}">
+          <ItemsControl ItemsSource="{Binding Reveals}" Margin="0,10,0,0">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="ed:RevealRow">
                 <Border Classes="pending" Margin="0,0,0,6" Padding="12,8">
@@ -293,6 +315,7 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          </ScrollViewer>
           <ScrollViewer IsVisible="{Binding IsOpen}" MaxHeight="260" Margin="0,10,0,0">
             <ItemsControl ItemsSource="{Binding Rows}">
               <ItemsControl.ItemTemplate>

@@ -7,7 +7,7 @@
              x:DataType="vm:SettingsViewModel">
   <!-- Areas down the left (Sync for now), the chosen area's settings on the right. -->
   <Grid ColumnDefinitions="180,Auto,*" Width="960">
-    <ListBox Classes="nav" ItemsSource="{x:Static vm:SettingsViewModel.SettingsAreas}" SelectedItem="{Binding SelectedArea}" VerticalAlignment="Top">
+    <ListBox Classes="nav" ItemsSource="{Binding SettingsAreas}" SelectedItem="{Binding SelectedArea}" VerticalAlignment="Top">
       <ListBox.ItemTemplate>
         <DataTemplate x:DataType="vm:SettingsArea">
           <StackPanel Orientation="Horizontal" Spacing="10" ToolTip.Tip="{Binding Description}">
@@ -133,5 +133,66 @@
         </ItemsControl>
       </StackPanel>
     </StackPanel>
+
+    <!-- Passwords -->
+    <Panel Grid.Column="2" IsVisible="{Binding IsPasswordsArea}">
+    <StackPanel Spacing="18" DataContext="{Binding Passwords}" x:DataType="vm:PasswordStyleViewModel">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="h2" Text="Passwords" />
+        <TextBlock Classes="caption" TextWrapping="Wrap"
+                   Text="How Tenantry makes new passwords when it resets one, for this tenant. You can still type your own password when resetting one person. Saved as you change it." />
+      </StackPanel>
+
+      <!-- What they'll look like -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="EXAMPLE" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" IsVisible="{Binding !HasProblem}">
+            <SelectableTextBlock Classes="code" FontSize="18" Text="{Binding Example}" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Content="Another example" Command="{Binding NewExampleCommand}" VerticalAlignment="Center" />
+          </Grid>
+          <TextBlock Text="{Binding Description}" TextWrapping="Wrap" IsVisible="{Binding !HasProblem}" />
+          <Border Classes="banner error" IsVisible="{Binding HasProblem}">
+            <TextBlock Text="{Binding Problem}" TextWrapping="Wrap" />
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="14">
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="Length" FontWeight="SemiBold" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Characters, not counting dashes. 16 or more is strong." />
+        </StackPanel>
+        <NumericUpDown Grid.Column="1" Value="{Binding Length}" Minimum="{Binding MinLength}" Maximum="{Binding MaxLength}" Increment="1" FormatString="0"
+                       Width="140" HorizontalAlignment="Left" VerticalAlignment="Center" />
+
+        <StackPanel Grid.Row="1" Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="Letters" FontWeight="SemiBold" />
+        </StackPanel>
+        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{x:Static vm:PasswordStyleViewModel.LetterChoices}" SelectedItem="{Binding Letters}" MinWidth="320" VerticalAlignment="Center" />
+
+        <StackPanel Grid.Row="2" Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="Numbers" FontWeight="SemiBold" />
+        </StackPanel>
+        <CheckBox Grid.Row="2" Grid.Column="1" Content="Include numbers (0–9)" IsChecked="{Binding Numbers}" VerticalAlignment="Center" />
+
+        <StackPanel Grid.Row="3" Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="Symbols" FontWeight="SemiBold" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Some symbols take several taps to find on a phone keyboard." />
+        </StackPanel>
+        <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{x:Static vm:PasswordStyleViewModel.SymbolChoices}" SelectedItem="{Binding Symbols}" MinWidth="320" VerticalAlignment="Center" />
+
+        <StackPanel Grid.Row="4" Spacing="2" VerticalAlignment="Top">
+          <TextBlock Text="Easier to read out" FontWeight="SemiBold" />
+        </StackPanel>
+        <StackPanel Grid.Row="4" Grid.Column="1" Spacing="8">
+          <CheckBox Content="Split into groups of four with dashes, like Kp7r-Xw3n" IsChecked="{Binding Groups}" />
+          <CheckBox Content="Leave out characters that look alike (0 and O, 1 and l, 5 and S)" IsChecked="{Binding AvoidLookAlikes}" />
+        </StackPanel>
+      </Grid>
+
+      <Button Content="Go back to Tenantry's standard style" Command="{Binding UseDefaultCommand}" IsVisible="{Binding !IsDefault}" HorizontalAlignment="Left" />
+    </StackPanel>
+    </Panel>
   </Grid>
 </UserControl>

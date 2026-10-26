@@ -57,11 +57,14 @@ public sealed partial class TypedConfirmRow(ChangeOp change, Action changed) : O
 /// Something to show the admin once after applying (a temporary password): with a Copy button,
 /// kept only until dismissed, never stored or logged.
 /// </summary>
-public sealed partial class RevealRow(string label, string secret, Action<RevealRow> dismiss) : ObservableObject
+/// <param name="person">Who it's for, and their sign-in name (for Copy all and the CSV).</param>
+public sealed partial class RevealRow(string label, string secret, Action<RevealRow> dismiss, ChangeTarget? person = null) : ObservableObject
 {
     public string Label { get; } = label;
 
     public string Secret { get; } = secret;
+
+    public ChangeTarget? Person { get; } = person;
 
     [ObservableProperty]
     public partial bool Copied { get; private set; }
@@ -109,6 +112,50 @@ public sealed partial class PendingChangesViewModel : ObservableObject
 
     public bool HasReveals => Reveals.Count > 0;
 
+    /// <summary>Two or more passwords (a bulk reset): copy or save them all at once.</summary>
+    public bool HasManyReveals => Reveals.Count > 1;
+
+    public string RevealsHeader => $"{Reveals.Count} new passwords. Shown once and never stored: copy or save them now, then pass each on securely.";
+
+    [ObservableProperty]
+    public partial bool AllCopied { get; private set; }
+
+    /// <summary>One line per person: name, sign-in name and password, separated by tabs (pastes into a spreadsheet).</summary>
+    [RelayCommand]
+    void CopyAllReveals()
+    {
+        Platform.CopyText(string.Join(Environment.NewLine, Reveals.Select(r => string.Join('\t', r.Person?.Name ?? r.Label, r.Person?.Address ?? "", r.Secret))));
+        AllCopied = true;
+    }
+
+    [RelayCommand]
+    async Task SaveReveals()
+    {
+        var csv = new System.Text.StringBuilder("Name,Sign-in name,Password\r\n");
+        foreach (var r in Reveals)
+            csv.Append(Csv(r.Person?.Name ?? r.Label)).Append(',').Append(Csv(r.Person?.Address ?? "")).Append(',').Append(Csv(r.Secret)).Append("\r\n");
+        await Platform.SaveCsv($"new-passwords-{DateTime.Now:yyyy-MM-dd-HHmm}.csv", csv.ToString());
+    }
+
+    // Always quoted, never altered: a password must arrive exactly as set.
+    static string Csv(string value) => "\"" + value.Replace("\"", "\"\"") + "\"";
+
+    [RelayCommand]
+    void DismissAllReveals()
+    {
+        Reveals.Clear();
+        AllCopied = false;
+        RevealsChanged();
+    }
+
+    void RevealsChanged()
+    {
+        OnPropertyChanged(nameof(HasReveals));
+        OnPropertyChanged(nameof(HasManyReveals));
+        OnPropertyChanged(nameof(RevealsHeader));
+        OnPropertyChanged(nameof(IsVisible));
+    }
+
     public int Count => Rows.Count;
 
     public bool HasChanges => Count > 0;
@@ -121,8 +168,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     void DismissReveal(RevealRow row)
     {
         Reveals.Remove(row);
-        OnPropertyChanged(nameof(HasReveals));
-        OnPropertyChanged(nameof(IsVisible));
+        RevealsChanged();
     }
 
     public string HeaderText => Count == 0 ? "Pending changes" : $"Pending changes ({Count})";
@@ -187,9 +233,10 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         {
             var results = await _pipeline.ApplyAsync();
             foreach (var (change, result) in results.Where(r => r.Result.Reveal is not null))
-                Reveals.Add(new RevealRow(change is CreateTemporaryAccessPass ? $"Temporary Access Pass for {change.Target.Name}" : $"Temporary password for {change.Target.Name}", result.Reveal!, DismissReveal));
-            OnPropertyChanged(nameof(HasReveals));
-            OnPropertyChanged(nameof(IsVisible));
+                Reveals.Add(new RevealRow(change is CreateTemporaryAccessPass ? $"Temporary Access Pass for {change.Target.Name}" : $"New password for {change.Target.Name}",
+                    result.Reveal!, DismissReveal, change.Target));
+            AllCopied = false;
+            RevealsChanged();
             _problems.Clear();
             foreach (var (change, result) in results.Where(r => !r.Result.Succeeded))
                 _problems[change] = result.Detail ?? result.Outcome.ToString();

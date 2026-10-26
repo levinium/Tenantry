@@ -49,10 +49,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="syncNow">Runs a sync (Everything or StartOver) and updates the lists.</param>
     /// <param name="changed">Called after a setting is saved (the app restarts its timer).</param>
     /// <param name="status">The sync as it happens (the sidebar's), so Settings shows a sync already running.</param>
+    /// <param name="passwordStyle">The tenant's password style (the Passwords area); none hides the area.</param>
     public SettingsViewModel(string tenantName, ISyncSettingsStore store, ITenantSync? sync, Func<SyncScope, Task> syncNow, Action changed,
-        Func<DateTimeOffset>? now = null, ISyncStatus? status = null)
+        Func<DateTimeOffset>? now = null, ISyncStatus? status = null, Tenantry.Core.Changes.IPasswordStyleStore? passwordStyle = null)
     {
         TenantName = tenantName;
+        Passwords = passwordStyle is null ? null : new PasswordStyleViewModel(passwordStyle);
+        SettingsAreas = Passwords is null ? [SyncArea] : [SyncArea, PasswordsArea];
+        SelectedArea = SyncArea;
         _store = store;
         _sync = sync;
         _syncNow = syncNow;
@@ -73,17 +77,23 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public string TenantName { get; }
 
-    /// <summary>Settings' areas, down the left. Sync is the only one so far.</summary>
-    public static IReadOnlyList<SettingsArea> SettingsAreas { get; } =
-    [
-        new("sync", "Sync", "ArrowSync", "How often this tenant's local copy is brought up to date"),
-    ];
+    static readonly SettingsArea SyncArea = new("sync", "Sync", "ArrowSync", "How often this tenant's local copy is brought up to date");
+
+    static readonly SettingsArea PasswordsArea = new("passwords", "Passwords", "Password", "How Tenantry makes new passwords for this tenant");
+
+    /// <summary>Settings' areas, down the left.</summary>
+    public IReadOnlyList<SettingsArea> SettingsAreas { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSyncArea))]
-    public partial SettingsArea SelectedArea { get; set; } = SettingsAreas[0];
+    [NotifyPropertyChangedFor(nameof(IsSyncArea), nameof(IsPasswordsArea))]
+    public partial SettingsArea SelectedArea { get; set; }
 
     public bool IsSyncArea => SelectedArea.Key == "sync";
+
+    public bool IsPasswordsArea => SelectedArea.Key == "passwords";
+
+    /// <summary>The Passwords area; null when the tenant has no password style to set.</summary>
+    public PasswordStyleViewModel? Passwords { get; }
 
     /// <summary>The option for a stored value; an unknown value (edited by hand) shows as its own option.</summary>
     static IntervalOption Pick(IReadOnlyList<IntervalOption> options, int minutes) =>

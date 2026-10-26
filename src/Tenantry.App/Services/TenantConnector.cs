@@ -64,6 +64,7 @@ public sealed class TenantConnector : ITenantConnector
         var account = tokens.Account ?? "";
         var exchange = new RestCmdletRunner(Http, NoRedirectHttp, tokens, profile.TenantId);
         var sharePoint = new SharePointAdmin(Http, tokens, graph);
+        var passwordStyle = new JsonPasswordStyleStore(folder);
         var syncSettings = new Tenantry.Core.Directory.JsonSyncSettingsStore(folder);
         return new ConnectedTenant(profile.DisplayName, account, new CachedTenantDirectory(entities, profile.DisplayName), context,
             MissingPermissions: missing,
@@ -93,10 +94,11 @@ public sealed class TenantConnector : ITenantConnector
             ListState: new JsonListStateStore(folder),
             Sync: new DirectorySync(graph, entities, exchange, settings: syncSettings.Load),
             Resources: entities,
-            Changes: new ChangePipeline(new GraphChangeExecutor(graph, entities, exchange: exchange, sharePoint: sharePoint), new ChangeLog(entities),
-                new JsonTestModeStore(folder, TestModeByDefault), account),
+            Changes: new ChangePipeline(new GraphChangeExecutor(graph, entities, exchange: exchange, sharePoint: sharePoint, passwordStyle: passwordStyle.Load),
+                new ChangeLog(entities), new JsonTestModeStore(folder, TestModeByDefault), account),
             Records: new GraphUserRecords(graph, entities, exchange, sharePoint),
-            SyncSettings: syncSettings);
+            SyncSettings: syncSettings,
+            PasswordStyle: passwordStyle);
     }
 
     /// <summary>How long to wait before each re-check of newly granted permissions (about 90 s in all).</summary>
@@ -141,6 +143,7 @@ public sealed class TenantConnector : ITenantConnector
     {
         var directory = new DemoTenantDirectory();
         var records = new DemoUserRecords(directory);
+        var passwordStyle = new MemoryPasswordStyleStore();
         var account = $"admin@{DemoTenantDirectory.Domain}";
         return new ConnectedTenant(
             "Northgate (demo)",
@@ -152,9 +155,10 @@ public sealed class TenantConnector : ITenantConnector
                 OperatingSystem.IsWindows()),
             IsDemo: true,
             // Demo edits change the generated people in memory; nothing real, so no Test mode.
-            Changes: new ChangePipeline(new DemoChangeExecutor(directory, records), new ChangeLog(new MemoryEntityStore()),
+            Changes: new ChangePipeline(new DemoChangeExecutor(directory, records, passwordStyle.Load), new ChangeLog(new MemoryEntityStore()),
                 new MemoryTestModeStore(false), account),
-            Records: records);
+            Records: records,
+            PasswordStyle: passwordStyle);
     }
 
     public async Task<SetupOutcome> SetUpAutomaticallyAsync(IProgress<string> progress, CancellationToken cancellationToken = default)

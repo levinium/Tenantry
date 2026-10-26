@@ -16,10 +16,11 @@ namespace Tenantry.Graph;
 /// <remarks>
 /// Distribution lists, mail-enabled security groups and mailbox permissions change through
 /// Exchange (<paramref name="exchange"/>), and OneDrive access through the SharePoint admin site
-/// (<paramref name="sharePoint"/>); without them, those changes fail with a reason.
+/// (<paramref name="sharePoint"/>); without them, those changes fail with a reason. Passwords it
+/// makes follow the tenant's <paramref name="passwordStyle"/> (read at each reset).
 /// </remarks>
 public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore store, Func<TimeSpan, CancellationToken, Task>? delay = null,
-    ICmdletRunner? exchange = null, SharePointAdmin? sharePoint = null) : IChangeExecutor
+    ICmdletRunner? exchange = null, SharePointAdmin? sharePoint = null, Func<PasswordStyle>? passwordStyle = null) : IChangeExecutor
 {
     const string DirectoryObjects = "https://graph.microsoft.com/v1.0/directoryObjects/";
 
@@ -95,7 +96,7 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
     /// </summary>
     async Task<ApplyResult> ResetPasswordAsync(ResetPassword reset, CancellationToken cancellationToken)
     {
-        var password = reset.Chosen ?? TemporaryPassword.Create();
+        var password = reset.Chosen ?? (passwordStyle?.Invoke() ?? PasswordStyle.Default).Create();
         try
         {
             await graph.PatchAsync($"users/{reset.User.Id}", new JsonObject
