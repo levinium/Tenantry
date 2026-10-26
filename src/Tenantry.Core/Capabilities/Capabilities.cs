@@ -33,6 +33,10 @@ public static class Capabilities
         [ConditionalAccessAdministrator, SecurityAdministrator],
         EntraP1, EntraP1Label);
 
+    /// <summary>Mail & security: quarantine, message trace, mail flow rules, block and allow lists.</summary>
+    public static readonly Capability ManageMailSecurity = new("mail.security", "Manage mail security (quarantine, rules, block lists)",
+        [ExchangeAdministrator, SecurityAdministrator]);
+
     public static IReadOnlyList<Capability> All { get; } =
-        [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageConditionalAccess];
+        [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess];
 }

@@ -34,6 +34,8 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             return new ApplyResult(ChangeOutcome.Applied);
         if (records is not null && records.ApplyOneDrive(change) is { } oneDrive)
             return oneDrive;
+        if (records is not null && records.ApplyMailSecurity(change) is { } mailSecurity)
+            return mailSecurity;
         if (change is ConvertMailbox convert)
             return Mailbox(convert.User.Id, m => m with { Type = convert.NewShared ? "Shared" : "User" })
                    ?? new ApplyResult(ChangeOutcome.Failed, "That person has no mailbox.");

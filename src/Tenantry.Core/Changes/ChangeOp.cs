@@ -51,7 +51,10 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetDeviceEnabled), "setDeviceEnabled")]
 [JsonDerivedType(typeof(RunDeviceAction), "runDeviceAction")]
 [JsonDerivedType(typeof(SecretViewed), "secretViewed")]
-[JsonDerivedType(typeof(SetOneDriveAccess), "setOneDriveAccess")]public abstract record ChangeOp
+[JsonDerivedType(typeof(SetOneDriveAccess), "setOneDriveAccess")]
+[JsonDerivedType(typeof(ReleaseQuarantined), "releaseQuarantined")]
+[JsonDerivedType(typeof(DeleteQuarantined), "deleteQuarantined")]
+[JsonDerivedType(typeof(SetSenderListed), "setSenderListed")]public abstract record ChangeOp
 {
     [JsonIgnore]
     public abstract ChangeTarget Target { get; }
@@ -754,6 +757,59 @@ public sealed record SecretViewed(ChangeTarget Device, string What) : ChangeOp
     public override string Label => What;
     public override string Before => "Hidden";
     public override string After => "Shown to you";
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+// ---- Mail & security (5a) -------------------------------------------------------------------
+
+/// <summary>
+/// A quarantined message, released to its recipients or deleted. The write guard judges each
+/// recipient: in Test mode only mail addressed to test objects can be touched.
+/// </summary>
+/// <param name="Message">Kind "quarantine": Id is Exchange's identity, Name the subject.</param>
+public abstract record QuarantineChange(ChangeTarget Message, string Sender, IReadOnlyList<string> Recipients) : ChangeOp
+{
+    public override ChangeTarget Target => Message;
+    public override string Key => "quarantine";
+    public override IReadOnlyList<ChangeTarget> Guarded => [.. Recipients.Select(r => new ChangeTarget("mailbox", r, r, r))];
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Releases a quarantined message to its recipients and, when asked, allows its sender from now on.</summary>
+public sealed record ReleaseQuarantined(ChangeTarget Message, string Sender, IReadOnlyList<string> Recipients, bool AllowSender)
+    : QuarantineChange(Message, Sender, Recipients)
+{
+    public override string Label => $"Quarantined \"{Message.Name}\"";
+    public override string Before => "Held";
+    public override string After => AllowSender ? $"Released, and {Sender} allowed from now on" : "Released to its recipients";
+}
+
+/// <summary>Deletes a quarantined message for good: a caution change.</summary>
+public sealed record DeleteQuarantined(ChangeTarget Message, string Sender, IReadOnlyList<string> Recipients)
+    : QuarantineChange(Message, Sender, Recipients)
+{
+    public override string Label => $"Quarantined \"{Message.Name}\"";
+    public override string Before => "Held";
+    public override string After => "Deleted";
+    public override bool IsCaution => true;
+}
+
+/// <summary>
+/// Adds a sender (an address or a whole domain) to the Tenant Allow/Block List as blocked, or
+/// allowed. Mail from a blocked sender goes to quarantine.
+/// </summary>
+/// <param name="Sender">Kind "sender": Id and Address are the address or domain.</param>
+/// <param name="RemoveAfterDays">Allowed entries expire (Microsoft's rule); null keeps a block for good.</param>
+public sealed record SetSenderListed(ChangeTarget Sender, bool Block, string? Notes, int? RemoveAfterDays = null) : ChangeOp
+{
+    public override ChangeTarget Target => Sender;
+    public override string Key => "listed";
+    public override string Label => $"Sender {Sender.Name}";
+    public override string Before => "Not listed";
+    public override string After => Block ? "Blocked" : RemoveAfterDays is { } d ? $"Allowed for {d} days" : "Allowed";
+    public override bool IsCaution => Block;
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;
 }

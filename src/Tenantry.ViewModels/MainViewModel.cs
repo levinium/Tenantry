@@ -56,11 +56,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             Records.SelectionPanelViewModel.ForGroups(rows, uncheck, _index, _tenant.Changes, canEditMany);
 
         var readUsers = Evaluate(Capabilities.ReadUsers);
+        var mailSecurity = Evaluate(Capabilities.ManageMailSecurity);
+        if (tenant.Records is IMailSecurity mail)
+            MailSecurity = new MailSecurity.MailSecurityViewModel(mail, tenant.Changes, mailSecurity, tenant.ListState, _now);
         Sections =
         [
             new NavSection("users", "Users", readUsers.Reason),
             new NavSection("groups", GroupList.AreaTitle, readUsers.Reason),
-            new NavSection("mail", "Mail & security", Later),
+            new NavSection("mail", "Mail & security", MailSecurity is null ? "Mail & security needs Exchange Online" : mailSecurity.Reason),
             new NavSection("sharepoint", "SharePoint & OneDrive", Later),
             new NavSection("devices", "Devices", Later),
             new NavSection("security", "Security & compliance", Later),
@@ -88,8 +91,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     public DataListViewModel Groups { get; }
 
+    /// <summary>Mail &amp; security (quarantine, message trace…); null when the tenant has no Exchange reads.</summary>
+    public MailSecurity.MailSecurityViewModel? MailSecurity { get; }
+
     /// <summary>Lists in sidebar order, so each sidebar entry maps to one list tab.</summary>
     IEnumerable<(string Section, DataListViewModel List)> AreaLists => [("users", Users), ("groups", Groups)];
+
+    /// <summary>Each sidebar entry's tab: the lists, then areas with pages of their own.</summary>
+    IEnumerable<(string Section, TabViewModel Tab)> AreaTabs =>
+        AreaLists.Select(a => (a.Section, (TabViewModel)a.List)).Concat(MailSecurity is null ? [] : [("mail", (TabViewModel)MailSecurity)]);
 
     async Task<IReadOnlyList<UserSummary>> LoadUsersAsync(CancellationToken cancellationToken)
     {
@@ -387,15 +397,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// </summary>
     partial void OnSelectedSectionChanged(NavSection? value)
     {
-        foreach (var (section, list) in AreaLists)
+        foreach (var (section, tab) in AreaTabs)
         {
             if (value?.Key != section)
                 continue;
             if (Tabs.Count == 0)
-                Tabs.Add(list);
-            else if (Tabs[0] != list)
-                Tabs[0] = list;
-            SelectedTab = list;
+                Tabs.Add(tab);
+            else if (Tabs[0] != tab)
+                Tabs[0] = tab;
+            SelectedTab = tab;
         }
     }
 

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
              xmlns:lists="using:Tenantry.ViewModels.Lists"
              xmlns:listviews="using:Tenantry.App.Lists"
              xmlns:views="using:Tenantry.App.Views"
@@ -381,6 +382,9 @@
           </DataTemplate>
           <DataTemplate DataType="vm:GroupDetailViewModel">
             <views:GroupDetailView />
+          </DataTemplate>
+          <DataTemplate DataType="ms:MailSecurityViewModel">
+            <views:MailSecurityView />
           </DataTemplate>
         </TabControl.DataTemplates>
       </TabControl>

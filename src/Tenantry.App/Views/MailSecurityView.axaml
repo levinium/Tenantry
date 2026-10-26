@@ -1,0 +1,92 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:listviews="using:Tenantry.App.Lists"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.MailSecurityView"
+             x:DataType="ms:MailSecurityViewModel">
+  <DockPanel>
+    <!-- The area's pages -->
+    <ListBox DockPanel.Dock="Top" Classes="chips" Margin="0,8,0,10" ItemsSource="{x:Static ms:MailSecurityViewModel.Pages}" SelectedItem="{Binding SelectedPage}">
+      <ListBox.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel ItemSpacing="8" LineSpacing="8" />
+        </ItemsPanelTemplate>
+      </ListBox.ItemsPanel>
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="ms:MailSecurityPage">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="15" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+
+    <!-- Quarantine: how far back, then the list -->
+    <DockPanel IsVisible="{Binding ShowQuarantine}">
+      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
+        <TextBlock Classes="caption" Text="Quarantined in the" VerticalAlignment="Center" />
+        <ComboBox ItemsSource="{x:Static ms:MailSecurityViewModel.QuarantineRanges}" SelectedItem="{Binding QuarantineRange}" MinWidth="160" />
+        <Button Classes="ghost" Command="{Binding RefreshQuarantineCommand}" ToolTip.Tip="Read the quarantine again">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+            <TextBlock Text="Refresh" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+      <ContentControl Content="{Binding Quarantine}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+
+    <!-- Message trace: the search, then the results -->
+    <DockPanel IsVisible="{Binding ShowTrace}">
+      <Border DockPanel.Dock="Top" Classes="card" Margin="0,0,0,8">
+        <StackPanel Spacing="10">
+          <Grid ColumnDefinitions="Auto,Auto,*,*,*,Auto,Auto" ColumnSpacing="10" RowDefinitions="Auto,Auto" RowSpacing="4">
+            <TextBlock Classes="label" Text="FROM" />
+            <TextBlock Grid.Column="1" Classes="label" Text="FOR" />
+            <TextBlock Grid.Column="2" Classes="label" Text="SENDER" />
+            <TextBlock Grid.Column="3" Classes="label" Text="RECIPIENT" />
+            <TextBlock Grid.Column="4" Classes="label" Text="SUBJECT CONTAINS" />
+            <TextBlock Grid.Column="5" Classes="label" Text="STATUS" />
+            <CalendarDatePicker Grid.Row="1" SelectedDate="{Binding TraceStart}" DisplayDateStart="{Binding EarliestTraceDay}" DisplayDateEnd="{Binding LatestTraceDay}"
+                                Width="150" ToolTip.Tip="Message trace goes back 90 days" />
+            <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{x:Static ms:MailSecurityViewModel.TraceRanges}" SelectedItem="{Binding TraceLength}" MinWidth="130" />
+            <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding TraceSender}" PlaceholderText="Any sender" />
+            <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding TraceRecipient}" PlaceholderText="Any recipient" />
+            <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding TraceSubject}" PlaceholderText="Any subject" />
+            <ComboBox Grid.Row="1" Grid.Column="5" ItemsSource="{x:Static ms:MailSecurityViewModel.TraceStatusChoices}" SelectedItem="{Binding TraceStatus}" MinWidth="150" />
+            <Button Grid.Row="1" Grid.Column="6" Classes="accent" Command="{Binding SearchTraceCommand}" IsDefault="True">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Search" FontSize="14" />
+                <TextBlock Text="Search" />
+              </StackPanel>
+            </Button>
+          </Grid>
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="Searches every mailbox in the organization, up to 10 days at a time and as far back as 90 days. Choose a message to see each step it went through." />
+          <TextBlock Classes="caption" Text="{Binding TraceNote}" IsVisible="{Binding HasTraceNote}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+      <ContentControl Content="{Binding Trace}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+
+    <!-- Pages still to come -->
+    <Border Classes="card" IsVisible="{Binding IsPlannedPage}" VerticalAlignment="Top" HorizontalAlignment="Left" MaxWidth="640">
+      <StackPanel Spacing="8">
+        <TextBlock Classes="h3" Text="{Binding SelectedPage.Title}" />
+        <TextBlock TextWrapping="Wrap" Text="{Binding SelectedPage.Planned}" />
+        <TextBlock Classes="caption" Text="Coming in the next Mail &amp; security update." />
+      </StackPanel>
+    </Border>
+  </DockPanel>
+</UserControl>

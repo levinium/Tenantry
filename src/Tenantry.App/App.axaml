@@ -3,6 +3,7 @@
              xmlns:rec="using:Tenantry.ViewModels.Records"
              xmlns:vm="using:Tenantry.ViewModels"
              xmlns:wf="using:Tenantry.ViewModels.Workflows"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
              xmlns:views="using:Tenantry.App.Views"
              x:Class="Tenantry.App.App"
              Name="Tenantry"
@@ -59,6 +60,12 @@
     </DataTemplate>
     <DataTemplate DataType="wf:CompromiseViewModel">
       <views:CompromiseView />
+    </DataTemplate>
+    <DataTemplate DataType="ms:QuarantinePreviewViewModel">
+      <views:QuarantinePreviewView />
+    </DataTemplate>
+    <DataTemplate DataType="ms:TracePreviewViewModel">
+      <views:TracePreviewView />
     </DataTemplate>
   </Application.DataTemplates>
 

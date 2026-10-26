@@ -206,6 +206,27 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Mail & security: the sidebar opens it, the Message trace chip switches page, Search fills the list", () =>
+        {
+            var (window, main, _) = OpenList();
+            var area = main.MailSecurity!;
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            Settle();
+            Expect(main.SelectedTab == area, "the Mail & security tab is showing");
+            for (var i = 0; i < 50 && area.Quarantine.IsLoading; i++)
+                Settle();
+            Expect(area.Quarantine.Total > 0, "quarantine read when first shown");
+            var chip = window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "trace" });
+            Click(window, chip);
+            Expect(area.ShowTrace, "the Message trace page is showing");
+            var search = FindButton(window, b => b.Command == area.SearchTraceCommand);
+            Click(window, search);
+            for (var i = 0; i < 50 && area.Trace.IsLoading; i++)
+                Settle();
+            Expect(area.Trace.Total > 0, "the search filled the list");
+            window.Close();
+        });
+
         Console.WriteLine(_failed == 0 ? "ALL INTERACTION CHECKS PASSED" : $"{_failed} INTERACTION CHECK(S) FAILED");
         return _failed == 0 ? 0 : 1;
     }

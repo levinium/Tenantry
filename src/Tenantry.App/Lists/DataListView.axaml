@@ -789,7 +789,7 @@
       <DockPanel>
         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="16,12,8,8">
           <TextBlock Classes="label" VerticalAlignment="Center" Text="{Binding PaneTitle}" />
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding ExpandPreviewCommand}" IsVisible="{Binding !HasSelection}"
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding ExpandPreviewCommand}" IsVisible="{Binding ShowOpenRecord}"
                   IsEnabled="{Binding CanExpandPreview}" ToolTip.Tip="Open the full record in a tab">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowMaximize" FontSize="14" />

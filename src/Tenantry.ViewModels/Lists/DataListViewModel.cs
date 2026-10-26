@@ -78,7 +78,7 @@ public sealed partial class DataListViewModel : TabViewModel
 
     /// <summary>Every checked row (the grid's selection); the preview follows <see cref="SelectedRow"/>.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SelectionCount), nameof(HasSelection), nameof(IsPaneVisible), nameof(PaneTitle), nameof(CanExpandPreview))]
+    [NotifyPropertyChangedFor(nameof(SelectionCount), nameof(HasSelection), nameof(IsPaneVisible), nameof(PaneTitle), nameof(CanExpandPreview), nameof(ShowOpenRecord))]
     public partial IReadOnlyList<object> SelectedRows { get; set; } = [];
 
     public int SelectionCount => SelectedRows.Count;
@@ -1067,6 +1067,23 @@ public sealed partial class DataListViewModel : TabViewModel
 
     [RelayCommand]
     public void OpenRow(object row) => _source.Open(row);
+
+    /// <summary>
+    /// Whether rows open as record pages. Lists of things with nothing more to show than the
+    /// preview (a quarantined message, a trace result) turn this off, hiding "Open full record".
+    /// </summary>
+    public bool HasRecordPages
+    {
+        get;
+        set
+        {
+            field = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowOpenRecord));
+        }
+    } = true;
+
+    public bool ShowOpenRecord => HasRecordPages && !HasSelection;
 
     [RelayCommand]
     public void OpenSelected()

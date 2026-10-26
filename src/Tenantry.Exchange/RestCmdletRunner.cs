@@ -58,9 +58,12 @@ public sealed class RestCmdletRunner : ICmdletRunner
         // The service reads ResultSize as a PAGE size, not a total: Get-Mailbox -ResultSize 2
         // came back two at a time, one page per two mailboxes (spike, 2026-10-20). So the
         // limit is applied here, as the module does, and the server is sent page sizes only.
+        // Except where ResultSize limits the search itself and nothing is paged (message trace:
+        // without it, the service stops at 1,000; seen live 2026-10-26).
+        var searchLimited = SearchLimitedCmdlets.Contains(cmdlet);
         var limit = ResultLimit(parameters);
         var sent = parameters?
-            .Where(p => !p.Key.Equals("ResultSize", StringComparison.OrdinalIgnoreCase))
+            .Where(p => searchLimited || !p.Key.Equals("ResultSize", StringComparison.OrdinalIgnoreCase))
             .ToDictionary(p => p.Key, p => p.Value) ?? new Dictionary<string, object?>();
         var pageSize = limit is { } n ? Math.Min(n, MaxPageSize) : MaxPageSize;
 
@@ -105,6 +108,9 @@ public sealed class RestCmdletRunner : ICmdletRunner
             .Select(name => parameters.FirstOrDefault(p => p.Key.Equals(name, StringComparison.OrdinalIgnoreCase)).Value as string)
             .Select(value => value?.Split(':', '\\')[0])
             .FirstOrDefault(value => value is not null && value.Contains('@'));
+
+    /// <summary>Cmdlets whose ResultSize is a search limit the service needs to see, not a page size.</summary>
+    static readonly HashSet<string> SearchLimitedCmdlets = new(StringComparer.OrdinalIgnoreCase) { "Get-MessageTraceV2" };
 
     /// <summary>The caller's ResultSize as a number, or null for "Unlimited" or none.</summary>
     internal static int? ResultLimit(IReadOnlyDictionary<string, object?>? parameters)

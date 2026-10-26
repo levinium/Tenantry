@@ -291,6 +291,35 @@ Each workflow runs for one person (from the record page's Actions menu) or for e
 in `password-style.json`). After a bulk reset, the tray offers Copy all, Save as file (CSV) and Done
 with all. Passwords are still never stored.
 
+### Mail & security (5a)
+
+The sidebar's Mail & security area is one tab (`MailSecurityViewModel`) with page chips. The
+Quarantine and Message trace pages are live lists: they are read from Exchange when shown, not
+kept in the local copy. They use the usual list framework (views, filters, columns, export), and
+their preview pane holds the actions. Rows have no record page, so `HasRecordPages = false` hides
+"Open full record".
+
+| Change | Sent as | Read back | Caution |
+|---|---|---|---|
+| Release a quarantined message (optionally allowing its sender) | `Release-QuarantineMessage -ReleaseToAll [-AllowSender]` | `Get-QuarantineMessage -Identity`: `ReleaseStatus` is RELEASED | no |
+| Delete a quarantined message | `Delete-QuarantineMessage` | it's gone | yes |
+| Block or allow a sender | `New-TenantAllowBlockListItems -ListType Sender`: blocks never expire; allows are removed 45 days after last use | `Get-TenantAllowBlockListItems -Entry` | when blocking |
+
+- **Write guard:**
+  - A quarantine change is guarded on every recipient, so in Test mode only mail addressed to
+    test objects can be released or deleted.
+  - A sender listing is guarded on the sender's address.
+- **Previews are plain text:** a quarantined message's body comes from `Preview-QuarantineMessage`
+  and is shown through `PlainText.FromHtml`. Scripts, styles and images are dropped, and links
+  show their address, so nothing in a malicious message loads or runs.
+- **Message trace:** `Get-MessageTraceV2` searches up to 10 days at a time, up to 90 days back,
+  with at most 5,000 results. Its `ResultSize` is a real search limit, so `RestCmdletRunner` sends
+  it through for this cmdlet (`SearchLimitedCmdlets`). For every other cmdlet the runner pages
+  itself; without the exception, a trace stopped at 1,000 (seen live). Each message's steps come
+  from `Get-MessageTraceDetailV2`.
+- **Coming next:** block and allow lists (5b), the mail flow rules list (5c), and the rule editor
+  (5d, built from the catalog in docs/research/transport-rule-catalog.json).
+
 ## Write guard and Test mode
 
 - **What it allows:** while a tenant is in Test mode, only objects whose **address** starts with

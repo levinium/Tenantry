@@ -86,7 +86,10 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         SetUserRisk r => await SetUserRiskAsync(r, cancellationToken),
         SetDeviceEnabled d => await SetDeviceEnabledAsync(d, cancellationToken),
         RunDeviceAction a => await RunDeviceActionAsync(a, cancellationToken),
-        SetOneDriveAccess a => await SetOneDriveAccessAsync(a, cancellationToken),        _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
+        SetOneDriveAccess a => await SetOneDriveAccessAsync(a, cancellationToken),
+        ReleaseQuarantined r => await ReleaseQuarantinedAsync(r, cancellationToken),
+        DeleteQuarantined d => await DeleteQuarantinedAsync(d, cancellationToken),
+        SetSenderListed s => await SetSenderListedAsync(s, cancellationToken),        _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 
     /// <summary>

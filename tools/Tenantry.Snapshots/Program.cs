@@ -425,6 +425,30 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Settle();
         Render(editing, "user-activity-light", height: 1300);
 
+        // Mail & security: quarantine with a phishing message previewed and being released; then a message trace.
+        if (editing.MailSecurity is { } mailArea)
+        {
+            editing.SelectedSection = editing.Sections.Single(s => s.Key == "mail");
+            for (var i = 0; i < 50 && mailArea.Quarantine.IsLoading; i++)
+                Settle();
+            var held = mailArea.Quarantine.Rows.Cast<QuarantinedMessage>().First(m => m.Reason == "Phish" && !m.IsReleased);
+            mailArea.Quarantine.PreviewRow(held);
+            var heldPreview = (Tenantry.ViewModels.MailSecurity.QuarantinePreviewViewModel)mailArea.Quarantine.PreviewModel!;
+            heldPreview.ShowMessageCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            heldPreview.AllowSender = true;
+            heldPreview.ReleaseCommand.Execute(null);
+            Settle();
+            Render(editing, "mail-quarantine-light", height: 1000);
+            editing.Pending.DiscardAllCommand.Execute(null);
+            mailArea.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages[1];
+            mailArea.SearchTraceCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            mailArea.Trace.PreviewRow(mailArea.Trace.Rows.Cast<TracedMessage>().First(m => m.Status == "Failed"));
+            for (var i = 0; i < 20; i++)
+                Settle();
+            Render(editing, "mail-trace-light", height: 1000);
+            editing.SelectedSection = editing.Sections[0];
+        }
+
         // Groups & access: their groups (one membership being removed), a group being searched for.
         editing.Groups.LoadAsync().GetAwaiter().GetResult();
         page.Update(page.User);
