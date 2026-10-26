@@ -54,6 +54,8 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             list.PrimaryAction = null;
             list.HasRecordPages = false;
         }
+        Trace.EmptyText = "Choose what to look for above, then press Search.";
+        Quarantine.EmptyText = "Nothing in quarantine matches these filters.";
         TraceStart = _now().Date.AddDays(-1);
         SelectedPage = Pages[0];
     }
@@ -94,13 +96,15 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     [ObservableProperty]
     public partial TraceRange QuarantineRange { get; set; } = QuarantineRanges[^1];
 
-    partial void OnQuarantineRangeChanged(TraceRange value) => _ = Quarantine.ReloadAsync();
+    partial void OnQuarantineRangeChanged(TraceRange value) => _ = Quarantine.ReloadAsync(busyText: QuarantineBusy);
+
+    string QuarantineBusy => $"Reading quarantine ({QuarantineRange.Label.ToLowerInvariant()})…";
 
     async Task<IReadOnlyList<QuarantinedMessage>> LoadQuarantineAsync(CancellationToken cancellationToken) =>
         _records is null ? [] : await _records.GetQuarantineAsync(QuarantineRange.Days, cancellationToken);
 
     [RelayCommand]
-    Task RefreshQuarantine() => Quarantine.ReloadAsync();
+    Task RefreshQuarantine() => Quarantine.ReloadAsync(busyText: QuarantineBusy);
 
     // ---- Message trace ------------------------------------------------------------------------
 
@@ -159,7 +163,8 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     {
         _search = CurrentSearch();
         TraceNote = null;
-        await Trace.ReloadAsync();
+        Trace.EmptyText = "No messages match this search.";
+        await Trace.ReloadAsync(busyText: "Searching message trace… This can take up to a minute for a busy day.");
         if (Trace.Total >= TraceSearch.MaxResults)
             TraceNote = $"Showing the first {TraceSearch.MaxResults:N0} messages: narrow the search (a sender, recipient or shorter range) to see the rest.";
     }

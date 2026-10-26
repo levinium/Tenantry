@@ -208,6 +208,10 @@ public sealed partial class DataListViewModel : TabViewModel
 
     public int Total => _source.Total;
     public bool IsEmpty => !IsLoading && Rows.Count == 0;
+
+    /// <summary>What an empty list says. A list filled by a search (message trace) says how to start one.</summary>
+    [ObservableProperty]
+    public partial string EmptyText { get; set; } = "Nothing matches these filters.";
     public string CountText => Rows.Count == Total ? $"{Total:N0} {_source.Noun}" : $"{Rows.Count:N0} of {Total:N0} {_source.Noun}";
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
@@ -241,8 +245,14 @@ public sealed partial class DataListViewModel : TabViewModel
     /// Re-reads the rows after a background sync without disturbing the screen: search, filters,
     /// sort, columns, the selected row and the open preview all stay as they are.
     /// </summary>
-    public async Task ReloadAsync(CancellationToken cancellationToken = default)
+    /// <param name="busyText">
+    /// Shows the loading wheel with this message while reading: for reloads the admin asked for
+    /// (a search, a refresh) and is waiting on. Background reloads leave it null and stay quiet.
+    /// </param>
+    public async Task ReloadAsync(CancellationToken cancellationToken = default, string? busyText = null)
     {
+        if (busyText is not null)
+            ShowLoading(busyText);
         try
         {
             await _source.LoadAsync(cancellationToken);
@@ -251,6 +261,11 @@ public sealed partial class DataListViewModel : TabViewModel
         {
             LoadError = Friendly.Message(e);
             return;
+        }
+        finally
+        {
+            if (busyText is not null)
+                ShowLoading(null);
         }
         LoadError = null;
         OnPropertyChanged(nameof(Total));

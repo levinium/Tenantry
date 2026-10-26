@@ -762,7 +762,6 @@
         </DockPanel>
       </Border>
 
-      <TextBlock DockPanel.Dock="Top" Classes="muted" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" Text="{Binding LoadingText}" />
       <Border DockPanel.Dock="Top" Classes="banner error" Margin="0,0,0,8" IsVisible="{Binding LoadError, Converter={x:Static ObjectConverters.IsNotNull}}">
         <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
       </Border>
@@ -775,10 +774,23 @@
           <DataGrid x:Name="Grid" Theme="{StaticResource TopScrollDataGrid}"
                     IsReadOnly="True" CanUserSortColumns="False" CanUserResizeColumns="True" CanUserReorderColumns="True"
                     FrozenColumnCount="3" SelectionMode="Extended" />
-          <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+          <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" MaxWidth="420">
             <ic:FluentIcon Icon="Search" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource TextMuted}" />
-            <TextBlock Classes="muted" HorizontalAlignment="Center" Text="Nothing matches these filters." />
+            <TextBlock Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Text="{Binding EmptyText}" />
             <Button HorizontalAlignment="Center" Content="Clear filters" Command="{Binding ClearFiltersCommand}" IsVisible="{Binding HasFilters}" />
+          </StackPanel>
+          <!-- Reading: a spinning wheel and what's happening, over the list (it stays visible behind, faded). -->
+          <Border IsVisible="{Binding IsLoading}" Background="{DynamicResource CardBg}" Opacity="0.85" />
+          <StackPanel IsVisible="{Binding IsLoading}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="420">
+            <Panel Width="36" Height="36" HorizontalAlignment="Center">
+              <Ellipse Classes="spintrack" />
+              <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                <Arc.RenderTransform>
+                  <RotateTransform />
+                </Arc.RenderTransform>
+              </Arc>
+            </Panel>
+            <TextBlock HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Text="{Binding LoadingText}" />
           </StackPanel>
         </Grid>
       </Border>

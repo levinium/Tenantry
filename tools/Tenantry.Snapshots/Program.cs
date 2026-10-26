@@ -441,6 +441,13 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Render(editing, "mail-quarantine-light", height: 1000);
             editing.Pending.DiscardAllCommand.Execute(null);
             mailArea.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages[1];
+            // Before searching, then mid-search (the wheel), then the results.
+            Settle();
+            Render(editing, "mail-trace-empty-light", height: 900);
+            mailArea.Trace.ShowLoading("Searching message trace… This can take up to a minute for a busy day.");
+            Settle();
+            Render(editing, "mail-trace-searching-light", height: 900);
+            mailArea.Trace.ShowLoading(null);
             mailArea.SearchTraceCommand.ExecuteAsync(null).GetAwaiter().GetResult();
             mailArea.Trace.PreviewRow(mailArea.Trace.Rows.Cast<TracedMessage>().First(m => m.Status == "Failed"));
             for (var i = 0; i < 20; i++)
