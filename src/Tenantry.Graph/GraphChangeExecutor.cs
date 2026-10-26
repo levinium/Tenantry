@@ -15,10 +15,11 @@ namespace Tenantry.Graph;
 /// </summary>
 /// <remarks>
 /// Distribution lists, mail-enabled security groups and mailbox permissions change through
-/// Exchange (<paramref name="exchange"/>); without it, those changes fail with a reason.
+/// Exchange (<paramref name="exchange"/>), and OneDrive access through the SharePoint admin site
+/// (<paramref name="sharePoint"/>); without them, those changes fail with a reason.
 /// </remarks>
 public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore store, Func<TimeSpan, CancellationToken, Task>? delay = null,
-    ICmdletRunner? exchange = null) : IChangeExecutor
+    ICmdletRunner? exchange = null, SharePointAdmin? sharePoint = null) : IChangeExecutor
 {
     const string DirectoryObjects = "https://graph.microsoft.com/v1.0/directoryObjects/";
 
@@ -84,6 +85,8 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         SetUserRisk r => await SetUserRiskAsync(r, cancellationToken),
         SetDeviceEnabled d => await SetDeviceEnabledAsync(d, cancellationToken),
         RunDeviceAction a => await RunDeviceActionAsync(a, cancellationToken),
+        SetOneDriveAccess a => await SetOneDriveAccessAsync(a, cancellationToken),
+        SetUpOneDrive s => await SetUpOneDriveAsync(s, cancellationToken),
         _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 

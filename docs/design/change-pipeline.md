@@ -194,6 +194,52 @@ and their Intune devices (managed, by primary user).
 
   So these changes are covered by unit tests. The write guard refuses them on any device whose
   name doesn't start with the test marker.
+
+### OneDrive (4d-1)
+
+Graph reads the drive (`users/{id}/drive`: quota, web address, site ID); a 404 means no OneDrive
+yet. Graph can't change who has access to a OneDrive, so `SharePointAdmin` calls the tenant's
+SharePoint admin site (`{tenant}-admin.sharepoint.com`). It uses one token for the tenant's
+SharePoint (`https://{tenant}.sharepoint.com/.default`), which covers the admin site too, and it
+reads the SharePoint host once from Graph `sites/root`.
+
+| Change | Sent as | Read back | Caution |
+|---|---|---|---|
+| Give someone full access, or take it away | CSOM `Tenant.SetSiteAdmin(siteUrl, loginName, bool)` | `POST _api/SPO.Tenant/GetSiteAdministrators?siteId='…'` | when taking away |
+| Set up their OneDrive now | CSOM `ProfileLoader.GetProfileLoader().CreatePersonalSiteEnqueueBulk([upn])` | none: SharePoint builds it within minutes | no |
+
+- **CSOM over HTTP:** an XML request posted to `_vti_bin/client.svc/ProcessQuery`. The answer is
+  a JSON array: a header with `ErrorInfo` when SharePoint refused, then each action's id followed
+  by its result. Type IDs: Tenant `{268004ae-ef6b-4e9b-8425-127220d84719}`, ProfileLoader
+  `{9c42543a-91b3-4902-b2fe-14ccdefb6e2b}`, read from the CSOM assemblies' metadata.
+- **Who has access:** `GetSiteAdministrators` lists the owner and everyone given full access
+  (email, loginName, name, userPrincipalName). Files shared one by one aren't listed.
+- **Login names:** people are sent as `i:0#.f|membership|{upn}`. Removing someone sends their
+  login exactly as the admin list gave it, so non-person admins (a role's claim) can be removed
+  too, outside Test mode.
+- **Write guard:** both the OneDrive's owner and the person given or losing access must be test
+  objects.
+- **Live status:** reads (drive, site admins, personal-site URL) work. Setting up a OneDrive was
+  refused with "Attempted to perform an unauthorized operation" by both `CreatePersonalSiteEnqueueBulk`
+  and `Tenant.RequestPersonalSites`. It failed with either token audience, even though the
+  admin is an active SharePoint Administrator, and the cause isn't known yet. Giving and
+  removing access is unit-tested only, until a test user has a OneDrive.
+- **`GetPersonalSiteUrl`:** this also works, and answers with a `Person.aspx` profile page when
+  there is no OneDrive. The tab uses Graph instead, which gives the quota in the same read.
+
+### Activity (4d-1)
+
+The tab only reads:
+- **Tenantry's own change log:** entries whose `Guarded` targets include the person. That covers
+  changes to them and changes adding or removing them from a group or mailbox.
+- **Microsoft's directory audit log:** `auditLogs/directoryAudits`, filtered with
+  `targetResources/any(t:t/id eq '{id}')` for changes made to them, or
+  `initiatedBy/user/id eq '{id}'` for changes they made. It shows the newest 100.
+- **Last activity per app:** the beta `reports/getOffice365ActiveUserDetail(period='D30')` as
+  JSON (v1.0 only sends CSV). It covers every user at once, so it's read once per 30 minutes and
+  looked up by sign-in name. When the tenant conceals names in reports, no row has an `@`, and
+  the tab says how to show them.
+
 ## Write guard and Test mode
 
 - **What it allows:** while a tenant is in Test mode, only objects whose **address** starts with
@@ -240,4 +286,5 @@ mode, because nothing in it is real.
   skips with the reason. `ChangePipeline.StageAll` stages them together and raises `Changed`
   once. Pending changes are indexed by (target, key), so screens can look up a slot without
   scanning the tray.
-- **Next:** a Change log area.
+- **4d-1:** the OneDrive and Activity tabs (above).
+- **Next:** workflows (offboarding, compromised account), then a Change log area.

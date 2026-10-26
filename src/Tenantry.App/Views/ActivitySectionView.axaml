@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.ActivitySectionView"
+             x:DataType="rec:ActivitySection">
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <!-- Last activity per app -->
+    <Border Classes="card">
+      <StackPanel Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="Apps" FontSize="18" Foreground="{DynamicResource Accent}" />
+          <TextBlock Classes="h3" Text="Last active" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Classes="muted" Text="Reading Microsoft's usage report…" IsVisible="{Binding AppsLoading}" />
+        <TextBlock Classes="error" Text="{Binding AppsError}" IsVisible="{Binding HasAppsError}" TextWrapping="Wrap" />
+        <TextBlock Classes="muted" Text="{Binding AppsUnavailable}" IsVisible="{Binding HasAppsUnavailable}" TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding Apps}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemSpacing="8" LineSpacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:AppActivityRow">
+              <Border Classes="valuerow" MinWidth="180">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="{Binding App}" FontWeight="SemiBold" />
+                  <TextBlock Classes="caption" Text="{Binding LastText}" Classes.muted="{Binding !IsActive}" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Classes="caption" Text="{Binding AppsNote}" IsVisible="{Binding HasAppsNote}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <!-- Changes made in Tenantry -->
+    <Border Classes="card" IsVisible="{Binding HasChangeLog}">
+      <StackPanel Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="History" FontSize="18" Foreground="{DynamicResource Accent}" />
+          <TextBlock Classes="h3" Text="Changes made in Tenantry" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Classes="caption" TextWrapping="Wrap"
+                   Text="Every change Tenantry applied to them, or to a group or mailbox they were added to or removed from, by anyone using Tenantry on this computer." />
+        <TextBlock Classes="muted" Text="None yet." IsVisible="{Binding HasNoChanges}" />
+        <ItemsControl ItemsSource="{Binding Changes}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:TenantryChangeRow">
+              <Border Classes="valuerow">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding What}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <SelectableTextBlock Text="{Binding Change}" TextWrapping="Wrap" />
+                    <TextBlock Classes="caption" TextWrapping="Wrap">
+                      <Run Text="{Binding When}" />
+                      <Run Text=" · " />
+                      <Run Text="{Binding Who}" />
+                    </TextBlock>
+                    <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <c:Badge Grid.Column="1" Text="{Binding OutcomeText}" Kind="{Binding OutcomeKind}" VerticalAlignment="Top" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
+    <!-- Microsoft's audit log -->
+    <Border Classes="card">
+      <StackPanel Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="DocumentSearch" FontSize="18" Foreground="{DynamicResource Accent}" />
+          <TextBlock Classes="h3" Text="Microsoft 365 audit log" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Classes="caption" TextWrapping="Wrap"
+                   Text="Directory changes recorded by Microsoft, from any tool: the admin centers, PowerShell, Tenantry or the person themselves. Newest first." />
+        <StackPanel Orientation="Horizontal" Spacing="16">
+          <RadioButton GroupName="AuditDirection" Content="Changes made to them" IsChecked="{Binding AuditAboutThem}" />
+          <RadioButton GroupName="AuditDirection" Content="Changes they made" IsChecked="{Binding AuditByThem}" />
+        </StackPanel>
+        <TextBlock Classes="muted" Text="Reading the audit log…" IsVisible="{Binding AuditLoading}" />
+        <TextBlock Classes="error" Text="{Binding AuditError}" IsVisible="{Binding HasAuditError}" TextWrapping="Wrap" />
+        <TextBlock Classes="muted" Text="{Binding AuditUnavailable}" IsVisible="{Binding HasAuditUnavailable}" TextWrapping="Wrap" />
+        <TextBlock Classes="muted" Text="{Binding AuditEmptyText}" IsVisible="{Binding HasNoAudit}" TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding Audit}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:AuditRow">
+              <Border Classes="valuerow">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Activity}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Classes="caption" TextWrapping="Wrap">
+                      <Run Text="{Binding When}" />
+                      <Run Text=" · " />
+                      <Run Text="{Binding Party}" />
+                    </TextBlock>
+                    <TextBlock Classes="caption" Text="{Binding Reason}" IsVisible="{Binding HasReason}" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <c:Badge Grid.Column="1" Text="Failed" Kind="Danger" IsVisible="{Binding Failed}" VerticalAlignment="Top" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

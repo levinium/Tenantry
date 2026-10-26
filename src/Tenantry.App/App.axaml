@@ -47,6 +47,12 @@
     <DataTemplate DataType="rec:GroupsAccessSection">
       <views:GroupsAccessSectionView />
     </DataTemplate>
+    <DataTemplate DataType="rec:OneDriveSection">
+      <views:OneDriveSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:ActivitySection">
+      <views:ActivitySectionView />
+    </DataTemplate>
   </Application.DataTemplates>
 
   <Application.Resources>

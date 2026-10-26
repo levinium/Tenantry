@@ -124,6 +124,43 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("OneDrive tab: picking a person adds an Adding row, and its undo button takes it back out", () =>
+        {
+            var (window, main, page) = OpenRecord(p =>
+            {
+                var tab = p.Sections.OfType<OneDriveSection>().Single();
+                tab.LoadAsync().GetAwaiter().GetResult();
+                return tab.HasDrive;
+            });
+            var tab = page.Sections.OfType<OneDriveSection>().Single();
+            page.SelectedSection = tab;
+            Settle();
+            tab.AccessPicker.Query = "a";
+            Settle();
+            var pick = FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == tab.AccessPicker);
+            var name = ((Tenantry.ViewModels.Editing.PickOption)pick.DataContext!).Name;
+            Click(window, pick);
+            Expect(main.Pending!.Count == 1, "the access change is in Pending changes");
+            Expect(tab.Access.Any(r => r.Name == name && r.PendingText == "Adding"), "the person shows as Adding");
+            Click(window, FindButton(window, b => b.DataContext is OneDriveAccessRow r && r.Name == name && b.Command == r.RemoveCommand));
+            Expect(main.Pending.Count == 0, "undo took it back out");
+            window.Close();
+        });
+
+        Check("Activity tab: choosing Changes they made reads the audit log the other way", () =>
+        {
+            var (window, _, page) = OpenRecord();
+            var tab = page.Sections.OfType<ActivitySection>().Single();
+            page.SelectedSection = tab;
+            tab.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var radio = window.GetVisualDescendants().OfType<RadioButton>().First(r => r.Content as string == "Changes they made");
+            Click(window, radio);
+            Expect(tab.AuditByThem, "the view switched to changes they made");
+            Expect(tab.Audit.All(a => a.Party.Length == 0 || a.Party.StartsWith("To ", StringComparison.Ordinal)), "rows name what they changed");
+            window.Close();
+        });
+
         Console.WriteLine(_failed == 0 ? "ALL INTERACTION CHECKS PASSED" : $"{_failed} INTERACTION CHECK(S) FAILED");
         return _failed == 0 ? 0 : 1;
     }
@@ -170,13 +207,22 @@ static class InteractionChecks
         return (window, main, shell);
     }
 
-    /// <summary>The same, with a person's record page open.</summary>
-    static (MainWindow Window, MainViewModel Main, UserDetailViewModel Page) OpenRecord()
+    /// <summary>The same, with a person's record page open: the third person, or the first that <paramref name="suits"/>.</summary>
+    static (MainWindow Window, MainViewModel Main, UserDetailViewModel Page) OpenRecord(Func<UserDetailViewModel, bool>? suits = null)
     {
         var (window, main, _) = OpenList();
-        main.OpenUser((UserSummary)main.Users.Rows[2]);
-        Settle();
-        var page = (UserDetailViewModel)main.SelectedTab!;
+        IEnumerable<object> candidates = suits is null ? [main.Users.Rows[2]] : main.Users.Rows.Cast<object>();
+        UserDetailViewModel? page = null;
+        foreach (var row in candidates)
+        {
+            main.OpenUser((UserSummary)row);
+            Settle();
+            page = (UserDetailViewModel)main.SelectedTab!;
+            if (suits is null || suits(page))
+                break;
+        }
+        if (page is null)
+            throw new InvalidOperationException("no suitable record");
         page.MailTab.LoadAsync().GetAwaiter().GetResult();
         Settle();
         return (window, main, page);

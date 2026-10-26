@@ -63,6 +63,7 @@ public sealed class TenantConnector : ITenantConnector
         var entities = OpenLocalCopy(profile.Id, folder);
         var account = tokens.Account ?? "";
         var exchange = new RestCmdletRunner(Http, NoRedirectHttp, tokens, profile.TenantId);
+        var sharePoint = new SharePointAdmin(Http, tokens, graph);
         var syncSettings = new Tenantry.Core.Directory.JsonSyncSettingsStore(folder);
         return new ConnectedTenant(profile.DisplayName, account, new CachedTenantDirectory(entities, profile.DisplayName), context,
             MissingPermissions: missing,
@@ -92,9 +93,9 @@ public sealed class TenantConnector : ITenantConnector
             ListState: new JsonListStateStore(folder),
             Sync: new DirectorySync(graph, entities, exchange, settings: syncSettings.Load),
             Resources: entities,
-            Changes: new ChangePipeline(new GraphChangeExecutor(graph, entities, exchange: exchange), new ChangeLog(entities),
+            Changes: new ChangePipeline(new GraphChangeExecutor(graph, entities, exchange: exchange, sharePoint: sharePoint), new ChangeLog(entities),
                 new JsonTestModeStore(folder, TestModeByDefault), account),
-            Records: new GraphUserRecords(graph, entities, exchange),
+            Records: new GraphUserRecords(graph, entities, exchange, sharePoint),
             SyncSettings: syncSettings);
     }
 

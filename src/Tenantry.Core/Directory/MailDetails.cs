@@ -150,6 +150,7 @@ public sealed record MailDetails(
     /// <summary>"3.1 GB", "820 MB".</summary>
     public static string Size(long bytes) => bytes switch
     {
+        >= 1L << 40 => $"{bytes / (double)(1L << 40):0.##} TB",
         >= 1L << 30 => $"{bytes / (double)(1L << 30):0.#} GB",
         >= 1L << 20 => $"{bytes / (double)(1L << 20):0} MB",
         >= 1L << 10 => $"{bytes / (double)(1L << 10):0} KB",

@@ -160,12 +160,10 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         new LicensesSection(User, _records, _pipeline, _canEdit),
         new GroupsAccessSection(User, _index, _pipeline, _canEdit, _records, _openGroup, _openUser),
         new MailSection(User, _records, _pipeline, _canEdit, _index, OpenConvertMailbox),
-        new PlannedSection("onedrive", "OneDrive", "Cloud", "update 4d",
-            ["Storage used against the quota", "Open their OneDrive", "Give someone (a manager) access"]),
+        new OneDriveSection(User, _records as IOneDriveRecords, _pipeline, _canEdit, _index),
         new SecuritySection(User, _records as ISecurityRecords, _pipeline, _canEdit),
         new DevicesSection(User, _records as IDeviceRecords, _pipeline, _canEdit),
-        new PlannedSection("activity", "Activity", "History", "update 4d",
-            ["Every change made to them in Tenantry", "Microsoft 365 audit log for this person", "Last activity in mail, OneDrive and Teams"]),
+        new ActivitySection(User, _records as IActivityRecords, _pipeline),
     ];
 
     /// <summary>Opens a tab's editor in a popup (the preview pane's Manage buttons).</summary>

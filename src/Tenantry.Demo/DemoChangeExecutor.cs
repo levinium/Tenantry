@@ -28,9 +28,13 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
         if (records is not null && records.ApplyDevice(change))
             return new ApplyResult(ChangeOutcome.Applied);
         if (records is not null && records.ApplySecurity(change))
-            return new ApplyResult(ChangeOutcome.Applied);        if (change is ConvertMailbox convert)
+            return new ApplyResult(ChangeOutcome.Applied);
+        if (records is not null && records.ApplyOneDrive(change) is { } oneDrive)
+            return oneDrive;
+        if (change is ConvertMailbox convert)
             return Mailbox(convert.User.Id, m => m with { Type = convert.NewShared ? "Shared" : "User" })
-                   ?? new ApplyResult(ChangeOutcome.Failed, "That person has no mailbox.");        if (change is SetUserText text)
+                   ?? new ApplyResult(ChangeOutcome.Failed, "That person has no mailbox.");
+        if (change is SetUserText text)
             records?.Remember(text.User.Id, text.Property, Empty(text.New));
         var result = change switch
         {

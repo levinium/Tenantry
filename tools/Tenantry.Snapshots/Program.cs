@@ -385,6 +385,24 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Settle();
         Render(editing, "user-devices-key-light", height: 1100);
 
+        // OneDrive: storage and who has access, with a colleague being given access.
+        var oneDrive = page.Sections.OfType<Tenantry.ViewModels.Records.OneDriveSection>().Single();
+        page.SelectedSection = oneDrive;
+        oneDrive.LoadAsync().GetAwaiter().GetResult();
+        oneDrive.AccessPicker.Query = "a";
+        if (oneDrive.AccessPicker.Results.FirstOrDefault() is { } colleague)
+            oneDrive.AccessPicker.PickCommand.Execute(colleague);
+        Settle();
+        Render(editing, "user-onedrive-light", height: 1000);
+        editing.Pending.DiscardAllCommand.Execute(null);
+
+        // Activity: last active per app, Tenantry's changes, Microsoft's audit log.
+        var activity = page.Sections.OfType<Tenantry.ViewModels.Records.ActivitySection>().Single();
+        page.SelectedSection = activity;
+        activity.LoadAsync().GetAwaiter().GetResult();
+        Settle();
+        Render(editing, "user-activity-light", height: 1300);
+
         // Groups & access: their groups (one membership being removed), a group being searched for.
         editing.Groups.LoadAsync().GetAwaiter().GetResult();
         page.Update(page.User);

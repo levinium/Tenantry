@@ -1,0 +1,110 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.OneDriveSectionView"
+             x:DataType="rec:OneDriveSection">
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </StackPanel>
+    </Border>
+    <TextBlock Classes="muted" Text="Reading their OneDrive…" IsVisible="{Binding IsLoading}" />
+    <Border Classes="banner error" IsVisible="{Binding HasError}">
+      <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
+    </Border>
+    <TextBlock Classes="muted" Text="{Binding Unavailable}" IsVisible="{Binding HasUnavailable}" TextWrapping="Wrap" />
+
+    <!-- Not there yet -->
+    <Border Classes="card" IsVisible="{Binding IsNotSetUp}">
+      <StackPanel Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="Cloud" FontSize="18" Foreground="{DynamicResource Accent}" />
+          <TextBlock Classes="h3" Text="No OneDrive yet" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding NotSetUpText}" />
+        <WrapPanel ItemSpacing="8" LineSpacing="8">
+          <Button Content="{Binding SetUpText}" Command="{Binding SetUpCommand}" IsVisible="{Binding CanSetUp}"
+                  ToolTip.Tip="Asks SharePoint to create it now (added to Pending changes)" />
+          <Button Content="Check again" Command="{Binding CheckAgainCommand}" IsVisible="{Binding IsSettingUp}"
+                  ToolTip.Tip="Look for it again" />
+        </WrapPanel>
+      </StackPanel>
+    </Border>
+
+    <StackPanel Spacing="12" IsVisible="{Binding HasDrive}">
+      <!-- Storage -->
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+            <ic:FluentIcon Icon="Storage" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="h3" Text="Storage" VerticalAlignment="Center" />
+            <c:Badge Grid.Column="2" Text="Nearly full" Kind="Danger" IsVisible="{Binding IsNearlyFull}" />
+          </Grid>
+          <TextBlock Classes="value" Text="{Binding UsedText}" />
+          <ProgressBar Classes="storage" Classes.full="{Binding IsNearlyFull}" Value="{Binding UsedPercent}" Maximum="100" Height="8" IsVisible="{Binding HasQuota}" />
+          <TextBlock Classes="caption" Text="{Binding DeletedText}" IsVisible="{Binding HasDeleted}" />
+          <TextBlock Classes="caption" Text="{Binding LastChangedText}" />
+          <WrapPanel ItemSpacing="8" LineSpacing="8">
+            <Button Command="{Binding OpenCommand}" ToolTip.Tip="Opens it in your browser. You see its files only if you have access.">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Open" FontSize="14" />
+                <TextBlock Text="Open OneDrive" />
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding CopyLinkCommand}" ToolTip.Tip="Copy its address">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Copy" FontSize="14" />
+                <TextBlock Text="Copy link" IsVisible="{Binding !Copied}" />
+                <TextBlock Text="Copied" IsVisible="{Binding Copied}" />
+              </StackPanel>
+            </Button>
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Who can open it -->
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="PeopleLock" FontSize="18" Foreground="{DynamicResource Accent}" />
+            <TextBlock Classes="h3" Text="Who can open all of it" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="The owner, and anyone given full access: for example a manager taking over the files of someone who has left. Files they share one by one aren't listed here." />
+          <TextBlock Classes="muted" Text="Reading who has access…" IsVisible="{Binding AccessLoading}" />
+          <TextBlock Classes="error" Text="{Binding AccessError}" IsVisible="{Binding HasAccessError}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding Access}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="rec:OneDriveAccessRow">
+                <Border Classes="valuerow">
+                  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                      <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" />
+                    </StackPanel>
+                    <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding IsPending}" VerticalAlignment="Center" />
+                    <Button Grid.Column="2" Classes="rowaction" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}"
+                            ToolTip.Tip="{Binding RemoveText}" VerticalAlignment="Center">
+                      <Panel>
+                        <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !IsPending}" />
+                        <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding IsPending}" />
+                      </Panel>
+                    </Button>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Panel IsEnabled="{Binding CanGrant}" IsVisible="{Binding CanEdit}">
+            <views:PersonPickerView DataContext="{Binding AccessPicker}" MaxWidth="440" HorizontalAlignment="Left" />
+          </Panel>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

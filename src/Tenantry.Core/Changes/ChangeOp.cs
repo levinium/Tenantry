@@ -51,6 +51,8 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetDeviceEnabled), "setDeviceEnabled")]
 [JsonDerivedType(typeof(RunDeviceAction), "runDeviceAction")]
 [JsonDerivedType(typeof(SecretViewed), "secretViewed")]
+[JsonDerivedType(typeof(SetOneDriveAccess), "setOneDriveAccess")]
+[JsonDerivedType(typeof(SetUpOneDrive), "setUpOneDrive")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -754,6 +756,41 @@ public sealed record SecretViewed(ChangeTarget Device, string What) : ChangeOp
     public override string Label => What;
     public override string Before => "Hidden";
     public override string After => "Shown to you";
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+// ---- OneDrive (4d-1) ------------------------------------------------------------------------
+
+/// <summary>
+/// Gives someone full access to their OneDrive (admin rights on the site: a manager taking over a
+/// leaver's files), or takes it away. Taking it away is a caution change.
+/// </summary>
+/// <param name="Login">SharePoint's sign-in name for the person (what the change is sent with).</param>
+public sealed record SetOneDriveAccess(ChangeTarget User, string SiteUrl, string SiteId, ChangeTarget Person, string Login, bool Old, bool New) : ChangeOp
+{
+    /// <summary>SharePoint's sign-in name for a person in the organization.</summary>
+    public static string LoginFor(string userPrincipalName) => "i:0#.f|membership|" + userPrincipalName;
+
+    public override ChangeTarget Target => User;
+    public override string Key => "onedrive:" + Login.ToLowerInvariant();
+    public override string Label => $"OneDrive access: {Person.Name}";
+    public override string Before => Old ? "Full access" : "No access";
+    public override string After => New ? "Full access" : "Removed";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override IReadOnlyList<ChangeTarget> Guarded => [User, Person];
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetOneDriveAccess e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>Creates their OneDrive now, instead of when they first open it. SharePoint has it ready within minutes.</summary>
+public sealed record SetUpOneDrive(ChangeTarget User) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "onedrive-setup";
+    public override string Label => "OneDrive";
+    public override string Before => "Not set up";
+    public override string After => "Set up (ready within a few minutes)";
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;
 }
