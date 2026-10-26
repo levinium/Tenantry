@@ -402,6 +402,22 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "user-offboard-light", height: 1700);
         editing.CloseDialog();
 
+        // Compromised account: warning signs found, with their fixes, and the response.
+        // A demo person with warning signs, so the findings show.
+        foreach (var candidate in editing.Users.Rows.Cast<UserSummary>().Take(25))
+        {
+            editing.RespondToCompromise([candidate]);
+            var response = (Tenantry.ViewModels.Workflows.CompromiseViewModel)editing.Dialog!.Content;
+            for (var i = 0; i < 50 && response.IsChecking; i++)
+                Settle();
+            if (response.Findings.Count > 0)
+                break;
+            editing.CloseDialog();
+        }
+        Settle();
+        Render(editing, "user-compromise-light", height: 1300);
+        editing.CloseDialog();
+
         // Activity: last active per app, Tenantry's changes, Microsoft's audit log.
         var activity = page.Sections.OfType<Tenantry.ViewModels.Records.ActivitySection>().Single();
         page.SelectedSection = activity;

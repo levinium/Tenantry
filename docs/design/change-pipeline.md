@@ -269,6 +269,24 @@ Each workflow runs for one person (from the record page's Actions menu) or for e
   `{manager}`. With no manager set, `{manager}` becomes "us".
 - **Confirming:** the tray's usual second click. There's no typed confirmation (Mark, 2026-10-26).
 
+**Compromised-account response** (`CompromiseViewModel`):
+- **Checks first:** on opening, it reads each person's possible warning signs and lists them:
+
+  | Warning sign | How it's found | Fix offered |
+  |---|---|---|
+  | An enabled mailbox rule that forwards or deletes mail | inbox rules | Turn this rule off (ticked) |
+  | Mailbox forwarding | the local copy | Turn forwarding off (ticked only when it goes outside the organization) |
+  | A sign-in method added in the last 7 days | authentication methods | Remove this method (ticked) |
+  | An app consent from the last 7 days | "Consent to application" in the audit log, matched by app name (grants carry no date) | Take away the app's access (ticked) |
+  | A sign-in from a country new in the last 7 days | the sign-in log, compared with the 23 days before | none: shown so the admin can look into it |
+
+- **The response itself:** reset the password (they must change it at next sign-in, both ticked),
+  require MFA to be registered again (removes every method but the password), sign out
+  everywhere. Block sign-in is offered unticked. There's no Temporary Access Pass step (Mark,
+  2026-10-26).
+- **Duplicates:** a fix already covered by the response, such as a new method that
+  re-registering removes anyway, isn't staged twice.
+
 **Passwords:** generated passwords follow the tenant's `PasswordStyle` (Settings › Passwords; kept
 in `password-style.json`). After a bulk reset, the tray offers Copy all, Save as file (CSV) and Done
 with all. Passwords are still never stored.

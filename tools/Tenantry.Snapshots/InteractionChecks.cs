@@ -184,6 +184,28 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Record Actions menu: Respond to a compromised account checks, then Add to Pending changes stages and closes", () =>
+        {
+            var (window, main, page) = OpenRecord();
+            var actions = FindButton(window, b => ToolTip.GetTip(b) as string == "More actions" && b.FindAncestorOfType<UserControl>()?.DataContext == page);
+            Click(window, actions);
+            var menu = (MenuFlyout)actions.Flyout!;
+            Click(MenuItem(menu, m => m.Command == page.RespondToCompromiseCommand));
+            Expect(!menu.IsOpen, "the Actions menu closed");
+            var workflow = main.Dialog?.Content as Tenantry.ViewModels.Workflows.CompromiseViewModel;
+            Expect(workflow is not null, "the response popup is open");
+            for (var i = 0; i < 50 && workflow!.IsChecking; i++)
+                Settle();
+            Expect(!workflow!.IsChecking, "the check finished");
+            var stage = FindButton(window, b => b.Content as string == "Add to Pending changes");
+            stage.BringIntoView();
+            Settle();
+            Click(window, stage);
+            Expect(main.Dialog is null, "the popup closed");
+            Expect(main.Pending!.Rows.Any(r => r.Change is ResetPassword) && main.Pending.Rows.Any(r => r.Change is RevokeSessions), "the response is in Pending changes");
+            window.Close();
+        });
+
         Console.WriteLine(_failed == 0 ? "ALL INTERACTION CHECKS PASSED" : $"{_failed} INTERACTION CHECK(S) FAILED");
         return _failed == 0 ? 0 : 1;
     }

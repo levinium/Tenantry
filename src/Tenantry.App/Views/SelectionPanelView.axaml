@@ -76,6 +76,13 @@
           <TextBlock Text="{Binding OffboardText}" VerticalAlignment="Center" />
         </StackPanel>
       </Button>
+      <Button Command="{Binding RespondToCompromiseCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+              ToolTip.Tip="Checks for warning signs, then secures the accounts; everything goes to Pending changes for review">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <ic:FluentIcon Icon="ShieldError" FontSize="16" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding RespondText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+        </StackPanel>
+      </Button>
     </StackPanel>
 
     <!-- Details: the shared value, or "Mixed"; edit to set it for everyone -->

@@ -108,6 +108,7 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
         Summary = _summarize(_rows);
         OnPropertyChanged(nameof(Heading));
         OnPropertyChanged(nameof(OffboardText));
+        OnPropertyChanged(nameof(RespondText));
         OnPropertyChanged(nameof(MoreText));
         OnPropertyChanged(nameof(HasMore));
     }
@@ -116,9 +117,9 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
 
     // ---- The two lists' panels --------------------------------------------------------------
 
-    /// <param name="offboard">Opens the offboarding checklist for the people selected.</param>
+    /// <param name="workflows">Opens a workflow (offboarding, compromise response) for the people selected.</param>
     public static SelectionPanelViewModel ForUsers(IReadOnlyList<object> rows, Action<object> uncheck, IDirectoryIndex index, IUserRecords? records,
-        ChangePipeline? pipeline, Availability canEdit, Action<IReadOnlyList<UserSummary>>? offboard = null) =>
+        ChangePipeline? pipeline, Availability canEdit, Workflows.IWorkflowLauncher? workflows = null) =>
         new(rows, uncheck, "user", "users",
             r => (((UserSummary)r).DisplayName, ((UserSummary)r).UserPrincipalName),
             SummarizeUsers,
@@ -126,18 +127,25 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
             pipeline, canEdit,
             current => new BulkDetailsViewModel(() => current().Cast<UserSummary>().ToArray(), records, pipeline!))
         {
-            _offboard = offboard is null ? null : rows2 => offboard(rows2.Cast<UserSummary>().ToArray()),
+            _workflows = workflows,
         };
 
-    Action<IReadOnlyList<object>>? _offboard;
+    Workflows.IWorkflowLauncher? _workflows;
 
     /// <summary>The workflows for everyone selected (users only).</summary>
-    public bool HasWorkflows => CanEdit && _offboard is not null;
+    public bool HasWorkflows => CanEdit && _workflows is not null;
 
-    public string OffboardText => $"Offboard {(_rows.Count == 1 ? "this person" : $"these {_rows.Count:N0} people")}…";
+    string Who => _rows.Count == 1 ? "this person" : $"these {_rows.Count:N0} people";
+
+    public string OffboardText => $"Offboard {Who}…";
+
+    public string RespondText => $"Respond: {(_rows.Count == 1 ? "this account" : $"these {_rows.Count:N0} accounts")} may be compromised…";
 
     [RelayCommand]
-    void Offboard() => _offboard?.Invoke(_rows);
+    void Offboard() => _workflows?.Offboard(_rows.Cast<UserSummary>().ToArray());
+
+    [RelayCommand]
+    void RespondToCompromise() => _workflows?.RespondToCompromise(_rows.Cast<UserSummary>().ToArray());
 
     public static SelectionPanelViewModel ForGroups(IReadOnlyList<object> rows, Action<object> uncheck, IDirectoryIndex index,
         ChangePipeline? pipeline, Availability canEdit) =>

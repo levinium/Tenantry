@@ -31,9 +31,9 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
     public UserDetailViewModel(UserSummary user, DateTimeOffset? now = null, ChangePipeline? pipeline = null, Availability? canEdit = null,
         IUserRecords? records = null, Action<DialogViewModel>? openDialog = null, Action? closeDialog = null,
         IDirectoryIndex? index = null, Action<UserSummary>? openUser = null, Action<GroupSummary>? openGroup = null,
-        Action<IReadOnlyList<UserSummary>>? offboard = null)
+        Workflows.IWorkflowLauncher? workflows = null)
     {
-        _offboard = offboard;
+        _workflows = workflows;
         _now = now ?? DateTimeOffset.Now;
         _pipeline = pipeline;
         _canEdit = canEdit ?? Availability.No("Editing isn't available here");
@@ -232,16 +232,25 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
                 new ConvertMailboxViewModel(User, _records, _pipeline!, () => _closeDialog?.Invoke())));
     }
 
-    readonly Action<IReadOnlyList<UserSummary>>? _offboard;
+    readonly Workflows.IWorkflowLauncher? _workflows;
 
-    public bool CanOffboard => CanEdit && _offboard is not null;
+    /// <summary>The workflows (Offboard, Respond to a compromise) are in the Actions menu.</summary>
+    public bool CanOffboard => CanEdit && _workflows is not null;
 
-    /// <summary>Opens the offboarding checklist for this person (Actions menu).</summary>
+    /// <summary>Opens the offboarding checklist for this person.</summary>
     [RelayCommand]
     void Offboard()
     {
         if (CanOffboard)
-            _offboard!([User]);
+            _workflows!.Offboard([User]);
+    }
+
+    /// <summary>Opens the compromised-account response for this person.</summary>
+    [RelayCommand]
+    void RespondToCompromise()
+    {
+        if (CanOffboard)
+            _workflows!.RespondToCompromise([User]);
     }
 
     public bool HasPendingSignOut => _pipeline?.PendingFor(User.Id, "sessions") is not null;

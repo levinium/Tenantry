@@ -57,6 +57,9 @@
     <DataTemplate DataType="wf:OffboardingViewModel">
       <views:OffboardingView />
     </DataTemplate>
+    <DataTemplate DataType="wf:CompromiseViewModel">
+      <views:CompromiseView />
+    </DataTemplate>
   </Application.DataTemplates>
 
   <Application.Resources>

@@ -1,0 +1,97 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:wf="using:Tenantry.ViewModels.Workflows"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.CompromiseView"
+             x:DataType="wf:CompromiseViewModel">
+  <!-- What was found (each with its fix ticked), then the response itself; all staged into Pending changes. -->
+  <StackPanel Spacing="16" Width="1040">
+    <TextBlock Classes="caption" TextWrapping="Wrap"
+               Text="Everything ticked is added to Pending changes for review. Nothing changes in Microsoft 365 until you apply them." />
+
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="24">
+      <!-- What was found -->
+      <StackPanel Spacing="8">
+        <TextBlock Classes="label" Text="WARNING SIGNS" />
+        <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsChecking}">
+          <ProgressBar Classes="working" Width="120" VerticalAlignment="Center" />
+          <TextBlock Classes="muted" Text="{Binding Progress}" VerticalAlignment="Center" />
+        </StackPanel>
+        <Border Classes="valuerow" IsVisible="{Binding HasNoFindings}">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+            <ic:FluentIcon Icon="CheckmarkCircle" FontSize="16" Foreground="{DynamicResource BadgeSuccessFg}" VerticalAlignment="Top" />
+            <TextBlock Grid.Column="1" Classes="caption" Text="{Binding NoFindingsText}" TextWrapping="Wrap" />
+          </Grid>
+        </Border>
+        <ItemsControl ItemsSource="{Binding Findings}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="wf:Finding">
+              <Border Classes="valuerow">
+                <StackPanel Spacing="6">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                    <ic:FluentIcon Icon="Warning" FontSize="15" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" />
+                    <StackPanel Grid.Column="1" Spacing="2">
+                      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" TextWrapping="Wrap">
+                        <Run Text="{Binding Person}" />
+                        <Run Text=" · " />
+                        <Run Text="{Binding Detail}" />
+                      </TextBlock>
+                    </StackPanel>
+                  </Grid>
+                  <CheckBox IsChecked="{Binding IsOn}" IsVisible="{Binding HasFix}" Margin="23,0,0,0">
+                    <TextBlock Text="{Binding FixText}" TextWrapping="Wrap" />
+                  </CheckBox>
+                  <TextBlock Classes="caption" Text="Look into it: nothing to undo here, but it may explain how they got in." TextWrapping="Wrap"
+                             IsVisible="{Binding !HasFix}" Margin="23,0,0,0" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <ItemsControl ItemsSource="{Binding CheckNotes}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Classes="caption" Text="{Binding}" TextWrapping="Wrap" Margin="0,2" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <!-- The response -->
+      <StackPanel Grid.Column="1" Spacing="8">
+        <TextBlock Classes="label" Text="SECURE THE ACCOUNT" />
+        <ItemsControl ItemsSource="{Binding Steps}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="wf:WorkflowStep">
+              <Border Classes="valuerow">
+                <CheckBox IsChecked="{Binding IsOn}">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </CheckBox>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Grid>
+
+    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+      <Button Classes="ghost" Content="Cancel" Command="{Binding CloseCommand}" />
+      <Button Classes="accent" Content="Add to Pending changes" Command="{Binding StageCommand}"
+              ToolTip.Tip="Adds the ticked fixes and steps to Pending changes. Nothing is sent until you apply them." />
+    </StackPanel>
+  </StackPanel>
+</UserControl>
