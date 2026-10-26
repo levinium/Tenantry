@@ -339,7 +339,39 @@ All Rules, On, Off and In Test Mode.
 - **Live test (2026-10-26):** a test rule (off, Test mode, matching only mail to the test user,
   adding a header) was turned on, switched mode and back, moved and moved back, turned off and
   deleted. Every step read back, and nothing was left behind.
-- **Creating and editing rules** comes with the rule editor (5d).
+- **Creating and editing rules** is the rule editor's job (5d, below).
+
+### Rule engine (5d-1)
+
+The editor works on a `RuleDraft` (`Tenantry.Core/MailFlow`), built from the rule catalog
+(`docs/research/transport-rule-catalog.json`, embedded in Tenantry.Core so there is one copy).
+
+- **Reading:** `RuleCodec.Read` turns `Get-TransportRule` output into lines (conditions, exceptions,
+  actions: each a catalog entry, its value and its companion values) and rule settings. Sizes become
+  byte counts. Disclaimer actions that share a parameter are told apart by their fixed values
+  (append or prepend). Anything Tenantry doesn't know is kept in `Kept`: shown read-only, never sent.
+- **New rules:** `NewRuleParameters` sends everything the draft sets, plus `-Mode` (Test by default)
+  and `-Enabled:$false` when it starts off.
+- **Edits:** `Changes(original, edited)` sends only what changed. Removed values go as null, switches
+  as false. A line with any change is sent whole, because Exchange needs paired values together (a
+  header's value needs its name).
+
+| Change | Sent as | Read back | Caution |
+|---|---|---|---|
+| New rule | `New-TransportRule` | every sent setting shows | when it starts in Enforce |
+| Edit | `Set-TransportRule` with the changes | each changed setting set or cleared as asked | when it switches to Enforce |
+
+Read-back is lenient where Exchange rewrites input (case, one value as a list, addresses resolved):
+cleared settings must be unset, set ones set with the same number of values, single values equal.
+
+- **Round-trip check (2026-10-26, read-only):** every rule in the test tenant read into a draft and
+  back gave exactly Exchange's settings, and re-reading gave no changes. Only metadata was skipped.
+- **Live test (2026-10-26):** the guard refused a rule not named for testing. A test rule (off, Test
+  mode, mail to the test user, adds a header) was created, edited (words changed, exception and
+  action added, header value changed, stop processing on), edited again (those cleared, renamed) and
+  deleted. Every step read back. Exchange fills in four defaults on a new rule (sender address
+  location, recipient address type, error action, sub-type); edits start from what Exchange returns,
+  so they are never sent by accident.
 
 ### Block and allow lists (5b)
 

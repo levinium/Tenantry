@@ -5,6 +5,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Licensing\license-names.json" LogicalName="Tenantry.Core.Licensing.license-names.json" />
+    <!-- The mail flow rule catalog, embedded from the research file itself so there's one copy. -->
+    <EmbeddedResource Include="..\..\docs\research\transport-rule-catalog.json" LogicalName="Tenantry.Core.MailFlow.transport-rule-catalog.json" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,8 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Tenantry.Core.Changes;
 using Tenantry.Core.Directory;
+using Tenantry.Core.MailFlow;
 
 namespace Tenantry.Graph;
 
@@ -116,6 +118,39 @@ public sealed partial class GraphChangeExecutor
     Task<ApplyResult> RemoveRuleAsync(RemoveRule change, CancellationToken cancellationToken) =>
         RunCheckedAsync("Remove-TransportRule", new() { ["Identity"] = change.Rule.Id, ["Confirm"] = false },
             ct => ReadRule(change.Rule.Id, ct), rows => rows.Count == 0, cancellationToken);
+
+    static Dictionary<string, object?> RuleParameters(string json) =>
+        JsonNode.Parse(json) is JsonObject o ? o.ToDictionary(p => p.Key, p => (object?)p.Value?.DeepClone(), StringComparer.OrdinalIgnoreCase) : [];
+
+    static ApplyResult? NotAsAsked(IReadOnlyList<JsonElement> rows, IEnumerable<KeyValuePair<string, JsonNode?>> expected) =>
+        rows.Count == 1 && RuleCodec.Mismatches(rows[0], expected) is { Count: > 0 } wrong
+            ? new ApplyResult(ChangeOutcome.Failed, $"Exchange saved the rule, but these settings didn't read back as asked: {string.Join(", ", wrong)}.")
+            : null;
+
+    async Task<ApplyResult> CreateRuleAsync(CreateRule change, CancellationToken cancellationToken)
+    {
+        var parameters = RuleParameters(change.Parameters);
+        parameters["Name"] = change.Rule.Name;
+        var result = await RunCheckedAsync("New-TransportRule", parameters, ct => ReadRule(change.Rule.Name, ct), rows => rows.Count == 1, cancellationToken);
+        if (result.Outcome != ChangeOutcome.Applied)
+            return result;
+        var expected = (JsonObject)JsonNode.Parse(change.Parameters)!;
+        expected.Remove("Mode");
+        expected.Remove("Enabled");
+        return NotAsAsked(await ReadRule(change.Rule.Name, cancellationToken), expected) ?? result;
+    }
+
+    async Task<ApplyResult> UpdateRuleAsync(UpdateRule change, CancellationToken cancellationToken)
+    {
+        var parameters = RuleParameters(change.Changes);
+        parameters["Identity"] = change.Rule.Id;
+        var result = await RunCheckedAsync("Set-TransportRule", parameters, ct => ReadRule(change.Rule.Id, ct), rows => rows.Count == 1, cancellationToken);
+        if (result.Outcome != ChangeOutcome.Applied)
+            return result;
+        var expected = (JsonObject)JsonNode.Parse(change.Changes)!;
+        expected.Remove("Mode");
+        return NotAsAsked(await ReadRule(change.Rule.Id, cancellationToken), expected) ?? result;
+    }
 
     Task<ApplyResult> SetSenderListedAsync(SetSenderListed change, CancellationToken cancellationToken)
     {

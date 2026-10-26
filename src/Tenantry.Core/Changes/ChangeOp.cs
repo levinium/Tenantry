@@ -61,7 +61,10 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetRuleEnabled), "setRuleEnabled")]
 [JsonDerivedType(typeof(SetRuleMode), "setRuleMode")]
 [JsonDerivedType(typeof(SetRulePriority), "setRulePriority")]
-[JsonDerivedType(typeof(RemoveRule), "removeRule")]public abstract record ChangeOp
+[JsonDerivedType(typeof(RemoveRule), "removeRule")]
+[JsonDerivedType(typeof(CreateRule), "createRule")]
+[JsonDerivedType(typeof(UpdateRule), "updateRule")]
+public abstract record ChangeOp
 {
     [JsonIgnore]
     public abstract ChangeTarget Target { get; }
@@ -921,6 +924,37 @@ public sealed record RemoveRule(ChangeTarget Rule, string Was) : RuleChange(Rule
     public override string After => "Deleted";
     public override bool IsCaution => true;
     public override bool IsNoChange => false;
+}
+
+/// <summary>A new rule from the editor (5d). New rules normally start in Test mode; one that starts in Enforce is a caution change.</summary>
+/// <param name="Rule">Kind "rule": Id and Name are the new rule's name (Exchange gives it an identity when it's made).</param>
+/// <param name="Parameters">Every New-TransportRule parameter except Name, as a JSON object.</param>
+/// <param name="Sentence">The rule in a sentence, for the review.</param>
+/// <param name="Enforces">Starts in Enforce mode.</param>
+public sealed record CreateRule(ChangeTarget Rule, string Parameters, string Sentence, bool Enforces) : RuleChange(Rule)
+{
+    public override string Key => "create";
+    public override string Label => $"New Mail Flow Rule \"{Rule.Name}\"";
+    public override string Before => "None";
+    public override string After => Sentence;
+    public override bool IsCaution => Enforces;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>An edit from the editor (5d): only the parameters that changed; cleared ones are null (switches false).</summary>
+/// <param name="Rule">Kind "rule": Id is Exchange's identity, Name the rule's name before the edit.</param>
+/// <param name="Changes">Set-TransportRule parameters as a JSON object.</param>
+/// <param name="Enforces">The edit switches the rule to Enforce.</param>
+public sealed record UpdateRule(ChangeTarget Rule, string Changes, string OldSummary, string NewSummary, bool Enforces) : RuleChange(Rule)
+{
+    public override string Key => "edit";
+    public override string Label => $"Mail Flow Rule \"{Rule.Name}\"";
+    public override string Before => OldSummary;
+    public override string After => NewSummary;
+    public override bool IsCaution => Enforces;
+    public override bool IsNoChange => Changes is "{}" or "";
+    public override ChangeOp Since(ChangeOp earlier) => earlier is UpdateRule e ? this with { OldSummary = e.OldSummary } : this;
 }
 
 /// <summary>
