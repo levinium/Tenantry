@@ -70,6 +70,9 @@
     <DataTemplate DataType="ms:ListEntryPreviewViewModel">
       <views:ListEntryPreviewView />
     </DataTemplate>
+    <DataTemplate DataType="ms:RulePreviewViewModel">
+      <views:RulePreviewView />
+    </DataTemplate>
   </Application.DataTemplates>
 
   <Application.Resources>

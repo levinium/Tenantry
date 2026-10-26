@@ -64,4 +64,7 @@ public interface IMailSecurity
 
     /// <summary>Every entry on the Tenant Allow/Block List: senders, links, files, IPs and spoofed senders.</summary>
     Task<IReadOnlyList<ListEntry>> GetListEntriesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Every mail flow rule, in the order they run.</summary>
+    Task<IReadOnlyList<MailFlowRule>> GetRulesAsync(CancellationToken cancellationToken = default);
 }

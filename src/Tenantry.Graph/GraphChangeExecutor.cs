@@ -92,7 +92,11 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         SetSenderListed s => await SetSenderListedAsync(s, cancellationToken),
         AddListEntry a => await AddListEntryAsync(a, cancellationToken),
         RemoveListEntry r => await RemoveListEntryAsync(r, cancellationToken),
-        UpdateListEntry u => await UpdateListEntryAsync(u, cancellationToken),        _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
+        UpdateListEntry u => await UpdateListEntryAsync(u, cancellationToken),
+        SetRuleEnabled e => await SetRuleEnabledAsync(e, cancellationToken),
+        SetRuleMode m => await SetRuleModeAsync(m, cancellationToken),
+        SetRulePriority p => await SetRulePriorityAsync(p, cancellationToken),
+        RemoveRule r => await RemoveRuleAsync(r, cancellationToken),        _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 
     /// <summary>

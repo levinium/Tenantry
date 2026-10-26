@@ -320,6 +320,27 @@ their preview pane holds the actions. Rows have no record page, so `HasRecordPag
 - **Coming next:** the mail flow rules list (5c) and the rule editor (5d, built from the catalog
   in docs/research/transport-rule-catalog.json).
 
+### Mail flow rules (5c)
+
+The page lists every transport rule in the order rules run (`Get-TransportRule -ResultSize Unlimited`).
+Each rule is described in Exchange's own plain words: its `Description`, split by
+`MailFlowRule.ParseDescription` into When, Except When and Then, with Title Case labels. Views:
+All Rules, On, Off and In Test Mode.
+
+| Change | Sent as | Read back | Caution |
+|---|---|---|---|
+| Turn on or off | `Enable-TransportRule` / `Disable-TransportRule` | `State` | when turning off |
+| Enforce or Test | `Set-TransportRule -Mode Enforce\|Audit\|AuditAndNotify` | `Mode` | when switching to Enforce |
+| Move in the order | `Set-TransportRule -Priority`; Exchange shifts the others | `Priority` | no |
+| Delete | `Remove-TransportRule` | it's gone | yes |
+
+- **Write guard:** rules have no address, so the guard judges the rule's name. In Test mode only
+  rules named `zz-tenantry-test-…` can change.
+- **Live test (2026-10-26):** a test rule (off, Test mode, matching only mail to the test user,
+  adding a header) was turned on, switched mode and back, moved and moved back, turned off and
+  deleted. Every step read back, and nothing was left behind.
+- **Creating and editing rules** comes with the rule editor (5d).
+
 ### Block and allow lists (5b)
 
 The page lists every Tenant Allow/Block List entry in one live list: senders and domains, links,

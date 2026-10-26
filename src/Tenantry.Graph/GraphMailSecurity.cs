@@ -85,6 +85,28 @@ public sealed partial class GraphUserRecords : IMailSecurity
         return entries.OrderBy(e => e.Kind).ThenBy(e => e.Value, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
+    public async Task<IReadOnlyList<MailFlowRule>> GetRulesAsync(CancellationToken cancellationToken = default)
+    {
+        var rows = await Run("Get-TransportRule", new() { ["ResultSize"] = "Unlimited" }, cancellationToken);
+        return rows.Select(ToMailFlowRule).OrderBy(r => r.Priority).ToArray();
+    }
+
+    public static MailFlowRule ToMailFlowRule(JsonElement r)
+    {
+        var (conditions, exceptions, actions) = MailFlowRule.ParseDescription(Str(r, "Description"));
+        return new MailFlowRule(
+            Str(r, "Guid") ?? Str(r, "Identity") ?? "",
+            Str(r, "Name") ?? "",
+            r.TryGetProperty("Priority", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetInt32() : 0,
+            !string.Equals(Str(r, "State"), "Disabled", StringComparison.OrdinalIgnoreCase),
+            MailFlowRule.ParseMode(Str(r, "Mode")),
+            conditions, exceptions, actions,
+            Str(r, "Comments") is { Length: > 0 } comments ? comments : null,
+            Date(r, "ActivationDate"), Date(r, "ExpiryDate"),
+            Date(r, "WhenChanged") ?? Date(r, "WhenChangedUTC"),
+            Str(r, "LastModifiedBy") is { Length: > 0 } by ? by : null);
+    }
+
     public async Task<IReadOnlyList<TracedMessage>> TraceAsync(TraceSearch search, CancellationToken cancellationToken = default)
     {
         var parameters = new Dictionary<string, object?>

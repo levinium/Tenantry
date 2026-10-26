@@ -108,9 +108,75 @@ public sealed partial class DemoUserRecords : IMailSecurity
     public Task<IReadOnlyList<ListEntry>> GetListEntriesAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<ListEntry>>(ListEntries().ToArray());
 
+    List<MailFlowRule>? _flowRules;
+
+    List<MailFlowRule> FlowRules()
+    {
+        if (_flowRules is not null)
+            return _flowRules;
+        var now = DateTimeOffset.UtcNow;
+        MailFlowRule Rule(int priority, string name, bool on, RuleMode mode, string[] conditions, string[] exceptions, string[] actions, string? comments = null) =>
+            new($"demo-r-{priority}", name, priority, on, mode, conditions, exceptions, actions, comments, null, null, now.AddDays(-priority * 17 - 3), "admin@northgate.example");
+        _flowRules =
+        [
+            Rule(0, "External sender warning", true, RuleMode.Enforce,
+                ["Is received from 'Outside the organization'"], ["Is sent to 'billing@northgate.example'"],
+                ["Prepend the subject of the message with '[EXTERNAL] '", "Apply HTML disclaimer: 'This message came from outside Northgate.'"],
+                "Helps staff spot phishing."),
+            Rule(1, "Block executable attachments", true, RuleMode.Enforce,
+                ["Any attachment's file extension matches 'exe' or 'js' or 'vbs' or 'scr'"], [],
+                ["Reject the message with the explanation 'Executable attachments aren't allowed.'"]),
+            Rule(2, "Copy finance mail to auditors", true, RuleMode.Test,
+                ["Is sent to a member of group 'finance@northgate.example'", "The subject or message body includes 'invoice' or 'wire transfer'"], [],
+                ["Blind carbon copy (Bcc) the message to 'auditors@northgate.example'"], "Trial: checking matches before enforcing."),
+            Rule(3, "Board confidentiality footer", false, RuleMode.Enforce,
+                ["Is sent to a member of group 'board@northgate.example'"], [],
+                ["Append the disclaimer 'Confidential: board members only.'"]),
+            Rule(4, "Bypass spam filtering for the payroll provider", true, RuleMode.Enforce,
+                ["Sender's address domain portion belongs to any of these domains: 'payroll.example'"], [],
+                ["Set the spam confidence level (SCL) to '-1'"]),
+        ];
+        return _flowRules;
+    }
+
+    public Task<IReadOnlyList<MailFlowRule>> GetRulesAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<MailFlowRule>>(FlowRules().OrderBy(r => r.Priority).ToArray());
+
+    ApplyResult? ApplyRule(ChangeOp change)
+    {
+        var rules = FlowRules();
+        var at = change is RuleChange rc ? rules.FindIndex(r => r.Identity == rc.Rule.Id) : -1;
+        switch (change)
+        {
+            case SetRuleEnabled e when at >= 0:
+                rules[at] = rules[at] with { Enabled = e.New };
+                break;
+            case SetRuleMode m when at >= 0:
+                rules[at] = rules[at] with { Mode = m.New };
+                break;
+            case SetRulePriority p when at >= 0:
+                var moving = rules[at];
+                var ordered = rules.OrderBy(r => r.Priority).Where(r => r.Identity != moving.Identity).ToList();
+                ordered.Insert(Math.Clamp(p.New, 0, ordered.Count), moving);
+                _flowRules = ordered.Select((r, i) => r with { Priority = i }).ToList();
+                break;
+            case RemoveRule when at >= 0:
+                rules.RemoveAt(at);
+                _flowRules = rules.OrderBy(r => r.Priority).Select((r, i) => r with { Priority = i }).ToList();
+                break;
+            case RuleChange:
+                return new ApplyResult(ChangeOutcome.Failed, "That rule isn't there any more.");
+            default:
+                return null;
+        }
+        return new ApplyResult(ChangeOutcome.Applied);
+    }
+
     /// <summary>Applies a quarantine change to the demo; null when it isn't one.</summary>
     public ApplyResult? ApplyMailSecurity(ChangeOp change)
     {
+        if (change is RuleChange)
+            return ApplyRule(change);
         switch (change)
         {
             case ReleaseQuarantined r when _quarantine is not null:

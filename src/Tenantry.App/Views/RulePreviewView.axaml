@@ -1,0 +1,83 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.RulePreviewView"
+             x:DataType="ms:RulePreviewViewModel">
+  <UserControl.Resources>
+    <!-- One part of the rule ("When", "Except When", "Then"): a label and its lines. -->
+    <DataTemplate x:Key="RuleLine" x:DataType="x:String">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+        <TextBlock Text="•" Foreground="{DynamicResource TextMuted}" />
+        <SelectableTextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" />
+      </Grid>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <StackPanel Spacing="14">
+    <StackPanel Spacing="6">
+      <TextBlock Classes="h3" Text="{Binding Name}" TextWrapping="Wrap" />
+      <WrapPanel ItemSpacing="6" LineSpacing="4">
+        <c:Badge Text="{Binding StateText}" Kind="{Binding StateKind}" />
+        <c:Badge Text="{Binding ModeText}" Kind="{Binding ModeKind}" />
+      </WrapPanel>
+      <TextBlock Classes="caption" Text="{Binding OrderText}" />
+    </StackPanel>
+
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="WHEN" />
+      <ItemsControl ItemsSource="{Binding Conditions}" ItemTemplate="{StaticResource RuleLine}" />
+    </StackPanel>
+    <StackPanel Spacing="4" IsVisible="{Binding HasExceptions}">
+      <TextBlock Classes="label" Text="EXCEPT WHEN" />
+      <ItemsControl ItemsSource="{Binding Exceptions}" ItemTemplate="{StaticResource RuleLine}" />
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="THEN" />
+      <ItemsControl ItemsSource="{Binding Actions}" ItemTemplate="{StaticResource RuleLine}" />
+    </StackPanel>
+    <TextBlock Classes="caption" Text="{Binding Comments}" IsVisible="{Binding HasComments}" TextWrapping="Wrap" FontStyle="Italic" />
+    <TextBlock Classes="caption" Text="{Binding DatesText}" TextWrapping="Wrap" />
+
+    <Border Classes="divider" />
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+    </Border>
+    <StackPanel Spacing="10" IsVisible="{Binding CanEdit}">
+      <TextBlock Classes="pendingtext" Text="{Binding PendingText}" IsVisible="{Binding HasPending}" TextWrapping="Wrap" />
+      <Button Content="{Binding EnableText}" Command="{Binding ToggleEnabledCommand}" HorizontalAlignment="Left"
+              ToolTip.Tip="A rule that's off checks nothing (added to Pending changes)" />
+      <StackPanel Spacing="4">
+        <TextBlock Classes="label" Text="MODE" />
+        <ComboBox ItemsSource="{x:Static ms:RulePreviewViewModel.Modes}" SelectedItem="{Binding Mode}" HorizontalAlignment="Stretch"
+                  ToolTip.Tip="Test records which mail would match, without acting on it: try a rule there before enforcing it" />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <TextBlock Classes="label" Text="ORDER" />
+        <WrapPanel ItemSpacing="6" LineSpacing="6">
+          <Button Command="{Binding MoveToTopCommand}" IsEnabled="{Binding CanMoveUp}" ToolTip.Tip="Run it first">
+            <ic:FluentIcon Icon="ArrowUpload" FontSize="14" />
+          </Button>
+          <Button Command="{Binding MoveUpCommand}" IsEnabled="{Binding CanMoveUp}" ToolTip.Tip="Run it one place earlier">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowUp" FontSize="14" />
+              <TextBlock Text="Move Up" />
+            </StackPanel>
+          </Button>
+          <Button Command="{Binding MoveDownCommand}" IsEnabled="{Binding CanMoveDown}" ToolTip.Tip="Run it one place later">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowDown" FontSize="14" />
+              <TextBlock Text="Move Down" />
+            </StackPanel>
+          </Button>
+          <Button Command="{Binding MoveToBottomCommand}" IsEnabled="{Binding CanMoveDown}" ToolTip.Tip="Run it last">
+            <ic:FluentIcon Icon="ArrowDownload" FontSize="14" />
+          </Button>
+        </WrapPanel>
+      </StackPanel>
+      <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}" HorizontalAlignment="Left"
+              ToolTip.Tip="Deletes the rule for good (added to Pending changes)" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

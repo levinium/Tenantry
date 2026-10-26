@@ -105,6 +105,77 @@ public static class MailSecurityLists
         ],
     };
 
+    // ---- Mail flow rules --------------------------------------------------------------------
+
+    public static class R
+    {
+        public const string Order = "order";
+        public const string Name = "name";
+        public const string State = "state";
+        public const string Mode = "mode";
+        public const string Does = "does";
+        public const string When = "when";
+        public const string Changed = "changed";
+        public const string ChangedBy = "changedby";
+
+        public const string On = "On";
+        public const string Off = "Off";
+    }
+
+    public static IReadOnlyList<Field<MailFlowRule>> RuleFields { get; } =
+    [
+        new() { Key = R.Order, Label = "Order", Kind = FieldKind.Number, Aliases = ["priority"], Number = r => r.Priority + 1 },
+        new() { Key = R.Name, Label = "Name", Kind = FieldKind.Text, Searchable = true, Text = r => r.Name },
+        new() { Key = R.State, Label = "State", Kind = FieldKind.Choice, ChoiceOrder = [R.On, R.Off], Text = r => r.Enabled ? R.On : R.Off },
+        new() { Key = R.Mode, Label = "Mode", Kind = FieldKind.Choice, ChoiceOrder = Enum.GetValues<RuleMode>().Select(MailFlowRule.ModeName).ToArray(),
+            Text = r => MailFlowRule.ModeName(r.Mode) },
+        new() { Key = R.When, Label = "When", Kind = FieldKind.Text, Searchable = true, Aliases = ["if", "condition"], Text = r => string.Join("; ", r.Conditions) },
+        new() { Key = R.Does, Label = "What It Does", Kind = FieldKind.Text, Searchable = true, Aliases = ["action", "then"], Text = r => string.Join("; ", r.Actions) },
+        new() { Key = R.Changed, Label = "Changed", Kind = FieldKind.Date, Date = r => r.Changed },
+        new() { Key = R.ChangedBy, Label = "Changed By", Kind = FieldKind.Text, Searchable = true, Aliases = ["by"], Text = r => r.ChangedBy },
+    ];
+
+    static readonly ListQuery InOrder = ListQuery.Empty with { Sort = [new SortLevel(R.Order)] };
+
+    static SavedView RuleView(string id, string name, params Condition[] where) =>
+        new(id, name, InOrder with { Where = ConditionGroup.All(where) }, BuiltIn: true, Pinned: true);
+
+    public static IReadOnlyList<SavedView> RuleViews { get; } =
+    [
+        RuleView("all", "All Rules"),
+        RuleView("on", "On", new ChoiceCondition(R.State, [R.On], [])),
+        RuleView("off", "Off", new ChoiceCondition(R.State, [R.Off], [])),
+        RuleView("testing", "In Test Mode", new ChoiceCondition(R.Mode, [MailFlowRule.ModeName(RuleMode.Test), MailFlowRule.ModeName(RuleMode.TestWithPolicyTips)], [])),
+    ];
+
+    public static ListDefinition<MailFlowRule> Rules(Func<MailFlowRule, object> preview) => new()
+    {
+        Key = "rules",
+        Title = "Mail Flow Rules",
+        Noun = "rules",
+        Fields = RuleFields,
+        Id = r => r.Identity,
+        Views = RuleViews,
+        SearchHint = "Search names, conditions and actions… or try state:off mode:test",
+        Preview = preview,
+        Columns =
+        [
+            // The rule's circle already shows its place in the order; the column is there for those who want it.
+            new() { Key = R.Order, Header = "Order", Cell = CellKind.Number, MinWidth = 80, DefaultWidth = 90, DefaultVisible = false, Number = r => r.Priority + 1 },
+            new() { Key = R.Name, Header = "Rule", Cell = CellKind.Primary, MinWidth = 260, DefaultWidth = 320,
+                Text = r => r.Name, Subtitle = r => r.Conditions.FirstOrDefault() is { } first ? $"When it {Lower(first)}" : "Every message",
+                Initials = r => (r.Priority + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            new() { Key = R.State, Header = "State", Cell = CellKind.Badge, MinWidth = 80, DefaultWidth = 90,
+                Badge = r => r.Enabled ? (R.On, BadgeKind.Success) : (R.Off, BadgeKind.Neutral) },
+            new() { Key = R.Mode, Header = "Mode", Cell = CellKind.Badge, MinWidth = 120, DefaultWidth = 170,
+                Badge = r => (MailFlowRule.ModeName(r.Mode), r.Mode == RuleMode.Enforce ? BadgeKind.Info : BadgeKind.Warning) },
+            new() { Key = R.Does, Header = "What It Does", Cell = CellKind.Text, MinWidth = 220, DefaultWidth = 360, Text = r => string.Join("; ", r.Actions) },
+            new() { Key = R.Changed, Header = "Changed", Cell = CellKind.Date, MinWidth = 120, DefaultWidth = 130, DefaultVisible = false, Date = r => r.Changed },
+        ],
+    };
+
+    static string Lower(string text) => text.Length == 0 ? text : char.ToLowerInvariant(text[0]) + text[1..];
+
     // ---- Block and allow lists --------------------------------------------------------------
 
     public static class L

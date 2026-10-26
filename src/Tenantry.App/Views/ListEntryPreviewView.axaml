@@ -6,7 +6,7 @@
              x:DataType="ms:ListEntryPreviewViewModel">
   <StackPanel Spacing="14">
     <StackPanel Spacing="6">
-      <SelectableTextBlock Classes="h3" Text="{Binding Value}" TextWrapping="Wrap" />
+      <TextBlock Classes="h3" Text="{Binding Value}" TextWrapping="Wrap" />
       <WrapPanel ItemSpacing="6" LineSpacing="4">
         <c:Badge Text="{Binding ActionText}" Kind="{Binding ActionKind}" />
         <c:Badge Text="{Binding KindText}" Kind="Neutral" />

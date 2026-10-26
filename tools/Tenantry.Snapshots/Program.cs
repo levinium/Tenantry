@@ -454,6 +454,16 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
                 Settle();
             Render(editing, "mail-trace-light", height: 1000);
 
+            // Mail flow rules: a rule in Test mode previewed, being moved up.
+            mailArea.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages[2];
+            for (var i = 0; i < 50 && mailArea.Rules.IsLoading; i++)
+                Settle();
+            mailArea.Rules.PreviewRow(mailArea.Rules.Rows.Cast<MailFlowRule>().First(r => r.Mode == RuleMode.Test));
+            ((Tenantry.ViewModels.MailSecurity.RulePreviewViewModel)mailArea.Rules.PreviewModel!).MoveUpCommand.Execute(null);
+            Settle();
+            Render(editing, "mail-rules-light", height: 1000);
+            editing.Pending.DiscardAllCommand.Execute(null);
+
             // Block and allow lists: the Add panel with a bad line, and an entry previewed.
             mailArea.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages[3];
             for (var i = 0; i < 50 && mailArea.Entries.IsLoading; i++)

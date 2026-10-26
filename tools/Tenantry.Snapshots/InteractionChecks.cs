@@ -249,6 +249,27 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Mail Flow Rules: the tab reads the rules, and the preview's Turn Off stages the change", () =>
+        {
+            var (window, main, _) = OpenList();
+            var area = main.MailSecurity!;
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "rules" }));
+            for (var i = 0; i < 50 && area.Rules.IsLoading; i++)
+                Settle();
+            Expect(area.Rules.Total > 0, "the rules were read");
+            area.Rules.PreviewRow(area.Rules.Rows.Cast<MailFlowRule>().First(r => r.Enabled));
+            Settle();
+            var preview = (Tenantry.ViewModels.MailSecurity.RulePreviewViewModel)area.Rules.PreviewModel!;
+            var off = FindButton(window, b => b.Command == preview.ToggleEnabledCommand);
+            off.BringIntoView();
+            Settle();
+            Click(window, off);
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetRuleEnabled { New: false }), "turning it off is in Pending changes");
+            window.Close();
+        });
+
         Console.WriteLine(_failed == 0 ? "ALL INTERACTION CHECKS PASSED" : $"{_failed} INTERACTION CHECK(S) FAILED");
         return _failed == 0 ? 0 : 1;
     }

@@ -35,7 +35,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     [
         new("quarantine", "Quarantine", "ShieldError"),
         new("trace", "Message Trace", "MailSearch"),
-        new("rules", "Mail Flow Rules", "ArrowRouting", "Every mail flow rule in plain words, with a full editor for conditions, exceptions and actions."),
+        new("rules", "Mail Flow Rules", "ArrowRouting"),
         new("lists", "Block and Allow Lists", "ShieldProhibited"),
     ];
 
@@ -53,15 +53,20 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             MailSecurityLists.Entries(e => new ListEntryPreviewViewModel(e, pipeline, canEdit)),
             LoadEntriesAsync, _ => { }, listState, _now);
         AddEntries = new AddListEntriesViewModel(pipeline, canEdit, () => _entries, _now);
+        Rules = DataListViewModel.Create(
+            MailSecurityLists.Rules(r => new RulePreviewViewModel(r, _rules.Count, pipeline, canEdit)),
+            LoadRulesAsync, _ => { }, listState, _now);
         if (pipeline is not null)
             pipeline.Applied += (_, applied) =>
             {
                 if (applied.Any(c => c is ListEntryChange) && _entriesRead)
                     _ = Entries.ReloadAsync(busyText: "Reading the lists again…");
+                if (applied.Any(c => c is RuleChange) && _rulesRead)
+                    _ = Rules.ReloadAsync(busyText: "Reading the rules again…");
                 if (applied.Any(c => c is QuarantineChange) && _quarantineRead)
                     _ = Quarantine.ReloadAsync();
             };
-        foreach (var list in new[] { Quarantine, Trace, Entries })
+        foreach (var list in new[] { Quarantine, Trace, Entries, Rules })
         {
             list.PrimaryAction = null;
             list.HasRecordPages = false;
@@ -82,19 +87,23 @@ public sealed partial class MailSecurityViewModel : TabViewModel
 
     public DataListViewModel Entries { get; }
 
+    public DataListViewModel Rules { get; }
+
     public AddListEntriesViewModel AddEntries { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(IsPlannedPage))]
+    [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(ShowRules), nameof(IsPlannedPage))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     public bool ShowQuarantine => SelectedPage.Key == "quarantine";
     public bool ShowTrace => SelectedPage.Key == "trace";
     public bool ShowLists => SelectedPage.Key == "lists";
+    public bool ShowRules => SelectedPage.Key == "rules";
     public bool IsPlannedPage => SelectedPage.IsPlanned;
 
     bool _quarantineRead;
     bool _entriesRead;
+    bool _rulesRead;
 
     partial void OnSelectedPageChanged(MailSecurityPage value)
     {
@@ -104,12 +113,27 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             _quarantineRead = true;
             _ = Quarantine.LoadAsync();
         }
+        if (value.Key == "rules" && !_rulesRead)
+        {
+            _rulesRead = true;
+            _ = Rules.LoadAsync();
+        }
         if (value.Key == "lists" && !_entriesRead)
         {
             _entriesRead = true;
             _ = Entries.LoadAsync();
         }
     }
+
+    // ---- Mail flow rules ----------------------------------------------------------------------
+
+    IReadOnlyList<MailFlowRule> _rules = [];
+
+    async Task<IReadOnlyList<MailFlowRule>> LoadRulesAsync(CancellationToken cancellationToken) =>
+        _rules = _records is null ? [] : await _records.GetRulesAsync(cancellationToken);
+
+    [RelayCommand]
+    Task RefreshRules() => Rules.ReloadAsync(busyText: "Reading the mail flow rules…");
 
     // ---- Block and allow lists ----------------------------------------------------------------
 

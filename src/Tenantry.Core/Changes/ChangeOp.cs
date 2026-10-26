@@ -57,7 +57,11 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetSenderListed), "setSenderListed")]
 [JsonDerivedType(typeof(AddListEntry), "addListEntry")]
 [JsonDerivedType(typeof(RemoveListEntry), "removeListEntry")]
-[JsonDerivedType(typeof(UpdateListEntry), "updateListEntry")]public abstract record ChangeOp
+[JsonDerivedType(typeof(UpdateListEntry), "updateListEntry")]
+[JsonDerivedType(typeof(SetRuleEnabled), "setRuleEnabled")]
+[JsonDerivedType(typeof(SetRuleMode), "setRuleMode")]
+[JsonDerivedType(typeof(SetRulePriority), "setRulePriority")]
+[JsonDerivedType(typeof(RemoveRule), "removeRule")]public abstract record ChangeOp
 {
     [JsonIgnore]
     public abstract ChangeTarget Target { get; }
@@ -856,6 +860,67 @@ public sealed record UpdateListEntry(ChangeTarget Entry, Directory.ListKind Kind
     public override string After => $"{NewExpiry.Text}{(string.IsNullOrEmpty(NewNotes) ? "" : $"; note \"{NewNotes}\"")}";
     public override bool IsNoChange => OldExpiry == NewExpiry && (OldNotes ?? "") == (NewNotes ?? "");
     public override ChangeOp Since(ChangeOp earlier) => earlier is UpdateListEntry e ? this with { OldExpiry = e.OldExpiry, OldNotes = e.OldNotes } : this;
+}
+
+// ---- Mail flow rules (5c) -------------------------------------------------------------------
+
+/// <summary>
+/// A change to one mail flow rule. Rules have no address, so the write guard judges the rule's
+/// name: in Test mode only rules named zz-tenantry-test-… can change.
+/// </summary>
+/// <param name="Rule">Kind "rule": Id is Exchange's identity, Name the rule's name.</param>
+public abstract record RuleChange(ChangeTarget Rule) : ChangeOp
+{
+    public override ChangeTarget Target => Rule;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+public sealed record SetRuleEnabled(ChangeTarget Rule, bool Old, bool New) : RuleChange(Rule)
+{
+    public override string Key => "enabled";
+    public override string Label => $"Mail Flow Rule \"{Rule.Name}\"";
+    public override string Before => Old ? "On" : "Off";
+    public override string After => New ? "On" : "Off";
+    public override bool IsCaution => !New;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetRuleEnabled e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>Enforce (acts on mail) or Test (only records matches). Switching to Enforce is a caution change.</summary>
+public sealed record SetRuleMode(ChangeTarget Rule, Directory.RuleMode Old, Directory.RuleMode New) : RuleChange(Rule)
+{
+    public override string Key => "mode";
+    public override string Label => $"Mail Flow Rule \"{Rule.Name}\" Mode";
+    public override string Before => Directory.MailFlowRule.ModeName(Old);
+    public override string After => Directory.MailFlowRule.ModeName(New);
+    public override bool IsCaution => New == Directory.RuleMode.Enforce;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetRuleMode e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>Moves a rule in the order rules run (0 first). Exchange moves the others to make room.</summary>
+public sealed record SetRulePriority(ChangeTarget Rule, int Old, int New) : RuleChange(Rule)
+{
+    public override string Key => "priority";
+    public override string Label => $"Mail Flow Rule \"{Rule.Name}\" Order";
+    public override string Before => $"Runs {Old + 1}{Ordinal(Old + 1)}";
+    public override string After => $"Runs {New + 1}{Ordinal(New + 1)}";
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetRulePriority e ? this with { Old = e.Old } : this;
+
+    static string Ordinal(int n) => (n % 100) is 11 or 12 or 13 ? "th" : (n % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" };
+}
+
+/// <summary>Deletes a rule for good: a caution change.</summary>
+/// <param name="Was">How it stood, for the review ("On, Enforce").</param>
+public sealed record RemoveRule(ChangeTarget Rule, string Was) : RuleChange(Rule)
+{
+    public override string Key => "remove";
+    public override string Label => $"Mail Flow Rule \"{Rule.Name}\"";
+    public override string Before => Was;
+    public override string After => "Deleted";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
 }
 
 /// <summary>

@@ -95,6 +95,28 @@ public sealed partial class GraphChangeExecutor
             cancellationToken);
     }
 
+    Task<IReadOnlyList<JsonElement>> ReadRule(string identity, CancellationToken ct) =>
+        Read("Get-TransportRule", new() { ["Identity"] = identity }, ct);
+
+    static bool RuleHas(IReadOnlyList<JsonElement> rows, Func<MailFlowRule, bool> done) =>
+        rows.Count == 1 && done(GraphUserRecords.ToMailFlowRule(rows[0]));
+
+    Task<ApplyResult> SetRuleEnabledAsync(SetRuleEnabled change, CancellationToken cancellationToken) =>
+        RunCheckedAsync(change.New ? "Enable-TransportRule" : "Disable-TransportRule", new() { ["Identity"] = change.Rule.Id, ["Confirm"] = false },
+            ct => ReadRule(change.Rule.Id, ct), rows => RuleHas(rows, r => r.Enabled == change.New), cancellationToken);
+
+    Task<ApplyResult> SetRuleModeAsync(SetRuleMode change, CancellationToken cancellationToken) =>
+        RunCheckedAsync("Set-TransportRule", new() { ["Identity"] = change.Rule.Id, ["Mode"] = MailFlowRule.ExchangeMode(change.New) },
+            ct => ReadRule(change.Rule.Id, ct), rows => RuleHas(rows, r => r.Mode == change.New), cancellationToken);
+
+    Task<ApplyResult> SetRulePriorityAsync(SetRulePriority change, CancellationToken cancellationToken) =>
+        RunCheckedAsync("Set-TransportRule", new() { ["Identity"] = change.Rule.Id, ["Priority"] = change.New },
+            ct => ReadRule(change.Rule.Id, ct), rows => RuleHas(rows, r => r.Priority == change.New), cancellationToken);
+
+    Task<ApplyResult> RemoveRuleAsync(RemoveRule change, CancellationToken cancellationToken) =>
+        RunCheckedAsync("Remove-TransportRule", new() { ["Identity"] = change.Rule.Id, ["Confirm"] = false },
+            ct => ReadRule(change.Rule.Id, ct), rows => rows.Count == 0, cancellationToken);
+
     Task<ApplyResult> SetSenderListedAsync(SetSenderListed change, CancellationToken cancellationToken)
     {
         var entry = change.Sender.Address ?? change.Sender.Id;
