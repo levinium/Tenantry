@@ -4,5 +4,10 @@ namespace Tenantry.App.Views;
 
 public partial class RulePartPickerView : UserControl
 {
-    public RulePartPickerView() => InitializeComponent();
+    public RulePartPickerView()
+    {
+        InitializeComponent();
+        // The dropdown opens ready to search.
+        AttachedToVisualTree += (_, _) => SearchBox.Focus();
+    }
 }

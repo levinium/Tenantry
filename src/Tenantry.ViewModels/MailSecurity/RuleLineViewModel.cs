@@ -60,7 +60,15 @@ public sealed partial class RuleLineViewModel : ObservableObject
 
     public RulePartDef Def => Line.Def;
 
-    public string Label => Display.TitleCase(Def.Label);
+    /// <summary>The line as part of the sentence ("the recipient is"); Mark chose sentence flow over Title Case here.</summary>
+    public string Label => RuleCodec.Lower(Def.Label);
+
+    /// <summary>The word joining it to the line before ("and", "or"); empty for the first line.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasConnector))]
+    public partial string Connector { get; set; } = "";
+
+    public bool HasConnector => Connector.Length > 0;
 
     public string Group => Def.Group;
 
@@ -94,7 +102,8 @@ public sealed partial class RuleLineViewModel : ObservableObject
 /// <summary>One choice in the add-a-part list.</summary>
 public sealed record RulePickerItem(RulePartDef Def, bool IsUsed)
 {
-    public string Label => Display.TitleCase(Def.Label);
+    /// <summary>As it will read in the sentence, capitalized as a choice in a list.</summary>
+    public string Label => Def.Label;
     public bool IsAdvanced => Def.Advanced && Def.IsAvailable;
     public bool CanAdd => Def.IsAvailable && !IsUsed;
 
@@ -168,11 +177,17 @@ public sealed partial class RulePartPickerViewModel : ObservableObject
 
     static string Heading(string group) => Display.TitleCase(group);
 
+    /// <summary>Raised after a part is added, so the list that showed it can close.</summary>
+    public event EventHandler? Chosen;
+
     [RelayCommand]
     void Choose(RulePickerItem item)
     {
-        if (item.CanAdd)
-            _add(_kind, item.Def);
+        if (!item.CanAdd)
+            return;
+        _add(_kind, item.Def);
+        Search = "";
+        Chosen?.Invoke(this, EventArgs.Empty);
     }
 }
 

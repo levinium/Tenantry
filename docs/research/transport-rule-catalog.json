@@ -2115,7 +2115,8 @@
       "enumValues": [
         {
           "value": "DoNotAudit",
-          "eac": "Not specified / unchecked"
+          "eac": "Not specified / unchecked",
+          "label": "Don't audit"
         },
         {
           "value": "Low",
@@ -2146,15 +2147,18 @@
       "enumValues": [
         {
           "value": "Header",
-          "eac": "Header"
+          "eac": "Header",
+          "label": "Message header (From)"
         },
         {
           "value": "Envelope",
-          "eac": "Envelope"
+          "eac": "Envelope",
+          "label": "Message envelope (MAIL FROM)"
         },
         {
           "value": "HeaderOrEnvelope",
-          "eac": "Header or envelope"
+          "eac": "Header or envelope",
+          "label": "Header or envelope"
         }
       ],
       "default": "Header",
@@ -2194,11 +2198,13 @@
       "enumValues": [
         {
           "value": "Ignore",
-          "eac": "unchecked"
+          "eac": "unchecked",
+          "label": "No: deliver it anyway"
         },
         {
           "value": "Defer",
-          "eac": "checked"
+          "eac": "checked",
+          "label": "Yes: hold it and try again"
         }
       ],
       "default": "Ignore",

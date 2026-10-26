@@ -100,7 +100,8 @@ public sealed class RuleCatalog
         e.TryGetProperty("enumValues", out var v) && v.ValueKind == JsonValueKind.Array
             ? [.. v.EnumerateArray().Select(c => c.ValueKind == JsonValueKind.String
                 ? new RuleChoice(c.GetString()!, c.GetString()!)
-                : new RuleChoice(Str(c, "value") ?? "", Str(c, "eac") ?? Str(c, "label") ?? Str(c, "value") ?? ""))]
+                // A plain-words label wins over the admin center's (which can be "checked"/"unchecked" for a checkbox).
+                : new RuleChoice(Str(c, "value") ?? "", Str(c, "label") ?? Str(c, "eac") ?? Str(c, "value") ?? ""))]
             : [];
 
     static RulePartDef Part(JsonElement e, RulePartKind kind) => new(

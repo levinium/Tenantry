@@ -470,17 +470,26 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
             Render(editing, "rule-editor-starters-light", height: 1000);
             newRule.StartCommand.Execute(Tenantry.ViewModels.MailSecurity.RuleStarters.All.Single(s => s.Title == "Copy Mail to Someone"));
-            newRule.Conditions[0].Main!.Text = "pat@northgate.example";
-            newRule.TogglePickerCommand.Execute(Tenantry.Core.MailFlow.RulePartKind.Action);
-            newRule.ActionPicker.Search = "recipients";
+            newRule.Conditions[0].Main!.NewEntry = "pat@northgate.example, sam@northgate.example";
             Settle();
-            Render(editing, "rule-editor-new-light", height: 1700);
+            Render(editing, "rule-editor-new-light", height: 1500);
+            // The add-an-action dropdown, searched.
+            newRule.ActionPicker.Search = "recipients";
+            Render(editing, "rule-editor-picker-light", height: 1500, during: w =>
+            {
+                var add = w.GetVisualDescendants().OfType<Avalonia.Controls.Button>().First(b => b.Name == "AddAction");
+                add.BringIntoView();
+                Settle();
+                add.Flyout!.ShowAt(add);
+            });
             newRule.DiscardCommand.Execute(null);
             mailArea.EditRule(mailArea.Rules.Rows.Cast<MailFlowRule>().First());
             var existing = (Tenantry.ViewModels.MailSecurity.RuleEditorViewModel)editing.SelectedTab!;
             for (var i = 0; i < 50 && existing.IsLoading; i++)
                 Settle();
             existing.ShowMoreSettings = true;
+            existing.Exceptions[0].Main!.NewEntry = "accounts@northgate.example";
+            existing.Exceptions[0].Main!.AddEntry();
             existing.Conditions[0].Main!.SelectedChoice = existing.Conditions[0].Main!.Choices.First(c => c.Value == "InOrganization");
             Settle();
             Render(editing, "rule-editor-edit-light", height: 1900);

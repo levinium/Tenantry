@@ -2,11 +2,49 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
              xmlns:mf="using:Tenantry.Core.MailFlow"
+             xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.RuleValueEditorView"
              x:DataType="ms:RuleValueEditor">
-  <!-- One value of a rule, shaped by its kind: a box, a list (one per line), a choice, a size, a date or a switch. -->
+  <UserControl.Styles>
+    <!-- A list reads as one box: its chips, then a borderless box to type the next entry. -->
+    <Style Selector="Border.chipbox">
+      <Setter Property="Background" Value="{DynamicResource CardBg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="6,5" />
+    </Style>
+    <Style Selector="Border.chipbox:focus-within">
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    </Style>
+    <Style Selector="TextBox.bare">
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Padding" Value="4,3" />
+    </Style>
+    <Style Selector="TextBox.bare /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.bare:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TextBox.bare:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Border.chip.bad">
+      <Setter Property="Background" Value="{DynamicResource BadgeDangerBg}" />
+    </Style>
+    <Style Selector="Border.chip.bad TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource BadgeDangerFg}" />
+    </Style>
+  </UserControl.Styles>
+
   <StackPanel Spacing="4">
-    <TextBlock Classes="label" Text="{Binding Label}">
+    <TextBlock Classes="label">
+      <TextBlock.Text>
+        <Binding Path="Label" />
+      </TextBlock.Text>
       <TextBlock.IsVisible>
         <MultiBinding Converter="{x:Static BoolConverters.And}">
           <Binding Path="!IsSwitch" />
@@ -14,11 +52,37 @@
         </MultiBinding>
       </TextBlock.IsVisible>
     </TextBlock>
+
+    <!-- A list: chips, then where the next one is typed -->
+    <Border Classes="chipbox" IsVisible="{Binding IsLines}">
+      <StackPanel Spacing="4">
+        <ItemsControl ItemsSource="{Binding Chips}" IsVisible="{Binding HasChips}" Margin="2,2,2,0">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemSpacing="6" LineSpacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="ms:ValueChip">
+              <Border Classes="chip" Classes.bad="{Binding HasProblem}" ToolTip.Tip="{Binding Problem}">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBlock Text="{Binding Text}" VerticalAlignment="Center" MaxWidth="420" TextTrimming="CharacterEllipsis" />
+                  <Button Classes="chipx" Command="{Binding RemoveCommand}" ToolTip.Tip="{Binding Tip}">
+                    <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+                  </Button>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBox x:Name="EntryBox" Classes="bare" Text="{Binding NewEntry}" PlaceholderText="{Binding Hint}" AcceptsReturn="False" KeyDown="OnEntryKeyDown" LostFocus="OnEntryLostFocus" />
+      </StackPanel>
+    </Border>
+
     <TextBox IsVisible="{Binding IsText}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" />
-    <TextBox IsVisible="{Binding IsLongText}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" />
-    <TextBox IsVisible="{Binding IsLines}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" AcceptsReturn="True" TextWrapping="NoWrap" MinHeight="64" MaxHeight="220" />
+    <TextBox IsVisible="{Binding IsLongText}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" />
     <TextBox IsVisible="{Binding IsNumber}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" Width="160" HorizontalAlignment="Left" />
-    <ComboBox IsVisible="{Binding IsChoice}" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" MinWidth="240" PlaceholderText="Choose…">
+    <ComboBox IsVisible="{Binding IsChoice}" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" MinWidth="260" PlaceholderText="Choose…">
       <ComboBox.ItemTemplate>
         <DataTemplate x:DataType="mf:RuleChoice">
           <TextBlock Text="{Binding Label}" />
@@ -28,7 +92,7 @@
     <ItemsControl IsVisible="{Binding IsChoices}" ItemsSource="{Binding MultiChoices}">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate>
-          <WrapPanel ItemSpacing="12" LineSpacing="2" />
+          <WrapPanel ItemSpacing="14" LineSpacing="2" />
         </ItemsPanelTemplate>
       </ItemsControl.ItemsPanel>
       <ItemsControl.ItemTemplate>

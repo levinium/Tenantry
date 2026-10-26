@@ -18,6 +18,23 @@ public sealed partial class CheckChoice(RuleChoice choice, bool isChecked, Actio
     partial void OnIsCheckedChanged(bool value) => changed();
 }
 
+/// <summary>One entry of a list value (an address, a word, a domain…), shown as a chip with ×; red when it's wrong.</summary>
+public sealed class ValueChip
+{
+    public ValueChip(string text, string? problem, Action<ValueChip> remove)
+    {
+        Text = text;
+        Problem = problem;
+        RemoveCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(() => remove(this));
+    }
+
+    public string Text { get; }
+    public string? Problem { get; }
+    public bool HasProblem => Problem is not null;
+    public string Tip => Problem is null ? $"Remove {Text}" : $"{Problem}. Remove it and add it again corrected.";
+    public CommunityToolkit.Mvvm.Input.IRelayCommand RemoveCommand { get; }
+}
+
 /// <summary>
 /// The input for one value of a rule (a condition's addresses, a header's name, a size…), shaped by
 /// the catalog's value type: a box, a list with one entry per line, a choice, a size with its unit,
@@ -68,12 +85,17 @@ public sealed partial class RuleValueEditor : ObservableObject
             case RuleInput.Switch:
                 IsOn = value is JsonValue on && on.GetValueKind() == JsonValueKind.True;
                 break;
+            case RuleInput.Lines:
+                foreach (var entry in value is JsonArray entries ? entries.Select(e => e?.ToString() ?? "") : RuleValues.SplitLines(RuleValues.ToText(value), valueType))
+                    if (entry.Length > 0)
+                        Chips.Add(NewChip(entry));
+                break;
             default:
                 Text = RuleValues.ToText(value);
                 break;
         }
         _loading = false;
-        Problem = RuleValues.Problem(valueType, Value, required, choices);
+        Problem = FindProblem();
     }
 
     public string Label { get; }
@@ -90,19 +112,19 @@ public sealed partial class RuleValueEditor : ObservableObject
     public bool IsDate => Input == RuleInput.Date;
     public bool IsSwitch => Input == RuleInput.Switch;
 
-    /// <summary>The grey text in an empty box: what to type, with an example.</summary>
+    /// <summary>The grey text in an empty box: what to type, with an example. A list adds each entry on Enter.</summary>
     public string Hint => _valueType switch
     {
-        "addresses" or "groups" or "betweenGroups" => "One address per line, like pat@contoso.com",
-        "words" or "characterSets" => "One word or phrase per line",
-        "patterns" or "headerPatterns" => @"One pattern per line, like invoice\s*#?\d+",
-        "headerWords" => "One word or phrase per line",
-        "domains" => "One domain per line, like contoso.com",
-        "ipRanges" => "One per line: 192.0.2.10, 192.0.2.0/24 or 192.0.2.1-192.0.2.50",
-        "adAttributeWords" => "One per line, like Department:Sales,Marketing",
-        "adAttributePatterns" => @"One per line, like Title:^Director\b",
-        "documentPropertyWords" => "One per line, like Department:Finance,Legal",
-        "sensitiveInfoTypes" => "One per line",
+        "addresses" or "betweenGroups" => Chips.Count == 0 ? "Type an address, like pat@contoso.com, and press Enter" : "Add another address",
+        "groups" => Chips.Count == 0 ? "Type a group's address and press Enter" : "Add another group",
+        "words" or "headerWords" => Chips.Count == 0 ? "Type a word or phrase and press Enter" : "Add another word or phrase",
+        "patterns" or "headerPatterns" => Chips.Count == 0 ? @"Type a pattern, like invoice\s*#?\d+, and press Enter" : "Add another pattern",
+        "domains" => Chips.Count == 0 ? "Type a domain, like contoso.com, and press Enter" : "Add another domain",
+        "ipRanges" => Chips.Count == 0 ? "Type 192.0.2.10, 192.0.2.0/24 or 192.0.2.1-192.0.2.50 and press Enter" : "Add another address or range",
+        "adAttributeWords" => Chips.Count == 0 ? "Type Property:words, like Department:Sales,Marketing, and press Enter" : "Add another property",
+        "adAttributePatterns" => Chips.Count == 0 ? @"Type Property:patterns, like Title:^Director\b, and press Enter" : "Add another property",
+        "documentPropertyWords" => Chips.Count == 0 ? "Type Property:words, like Department:Finance, and press Enter" : "Add another property",
+        "sensitiveInfoTypes" => "Type one and press Enter",
         "headerName" => "Like X-Contoso-Checked",
         "dsnCode" => "5.7.1, or 5.7.900 to 5.7.999",
         "html" => "Text or HTML. %%From%%, %%To%%, %%Subject%% and other tokens are filled in",
@@ -123,6 +145,73 @@ public sealed partial class RuleValueEditor : ObservableObject
 
     [ObservableProperty]
     public partial string Text { get; set; } = "";
+
+    // ---- Lists: one chip per entry ----------------------------------------------------------
+
+    public System.Collections.ObjectModel.ObservableCollection<ValueChip> Chips { get; } = [];
+
+    public bool HasChips => Chips.Count > 0;
+
+    /// <summary>What's being typed into a list, before Enter adds it. Pasting a list (or typing a comma) adds each entry at once.</summary>
+    [ObservableProperty]
+    public partial string NewEntry { get; set; } = "";
+
+    partial void OnNewEntryChanged(string value)
+    {
+        if (value.Contains('\n') || RuleValues.CommasSeparate(_valueType) && (value.Contains(',') || value.Contains(';')))
+            AddEntry();
+        else
+            OnEdited();
+    }
+
+    ValueChip NewChip(string entry) => new(entry, RuleValues.EntryProblem(_valueType, entry, Choices), RemoveChip);
+
+    /// <summary>Adds what's typed as one chip (or several, from a pasted list); repeats are skipped.</summary>
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    public void AddEntry()
+    {
+        var entries = RuleValues.SplitLines(NewEntry, _valueType);
+        foreach (var entry in entries)
+            if (!Chips.Any(c => string.Equals(c.Text, entry, StringComparison.OrdinalIgnoreCase)))
+                Chips.Add(NewChip(entry));
+        NewEntry = "";
+        ChipsChanged();
+    }
+
+    void RemoveChip(ValueChip chip)
+    {
+        Chips.Remove(chip);
+        ChipsChanged();
+    }
+
+    /// <summary>Backspace in an empty box takes the last chip back into the box to fix.</summary>
+    public void EditLastChip()
+    {
+        if (Chips.Count == 0 || NewEntry.Length > 0)
+            return;
+        var last = Chips[^1];
+        Chips.Remove(last);
+        NewEntry = last.Text;
+        ChipsChanged();
+    }
+
+    /// <summary>What's wrong, in plain words: for a list, the first entry that needs fixing, by name.</summary>
+    string? FindProblem()
+    {
+        if (Input != RuleInput.Lines)
+            return RuleValues.Problem(_valueType, Value, _required, Choices);
+        foreach (var entry in Chips.Select(c => c.Text).Concat(RuleValues.SplitLines(NewEntry, _valueType)))
+            if (RuleValues.EntryProblem(_valueType, entry, Choices) is { } problem)
+                return problem.StartsWith($"'{entry}'", StringComparison.Ordinal) ? problem : $"'{entry}': {problem}";
+        return RuleValues.Problem(_valueType, Value, _required, Choices);
+    }
+
+    void ChipsChanged()
+    {
+        OnPropertyChanged(nameof(HasChips));
+        OnPropertyChanged(nameof(Hint));
+        OnEdited();
+    }
 
     [ObservableProperty]
     public partial RuleChoice? SelectedChoice { get; set; }
@@ -157,7 +246,7 @@ public sealed partial class RuleValueEditor : ObservableObject
         if (_loading)
             return;
         var value = Value;
-        Problem = RuleValues.Problem(_valueType, value, _required, Choices);
+        Problem = FindProblem();
         _changed(value);
     }
 
@@ -165,7 +254,10 @@ public sealed partial class RuleValueEditor : ObservableObject
     public JsonNode? Value => Input switch
     {
         RuleInput.None => JsonValue.Create(true),
-        RuleInput.Lines => RuleValues.SplitLines(Text, _valueType) is { Length: > 0 } lines ? new JsonArray(lines.Select(l => (JsonNode)l).ToArray()) : null,
+        // What's typed but not yet added counts too: leaving the box shouldn't lose it.
+        RuleInput.Lines => Chips.Select(c => c.Text).Concat(RuleValues.SplitLines(NewEntry, _valueType)).ToArray() is { Length: > 0 } lines
+            ? new JsonArray(lines.Select(l => (JsonNode)l).ToArray())
+            : null,
         RuleInput.Choice => SelectedChoice is { } c ? JsonValue.Create(c.Value) : null,
         RuleInput.Choices => MultiChoices.Where(c => c.IsChecked).Select(c => (JsonNode)c.Choice.Value).ToArray() is { Length: > 0 } picked ? new JsonArray(picked) : null,
         RuleInput.Number => long.TryParse(Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? JsonValue.Create(n) : string.IsNullOrWhiteSpace(Text) ? null : JsonValue.Create(Text.Trim()),

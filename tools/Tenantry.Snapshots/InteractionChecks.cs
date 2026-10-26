@@ -285,19 +285,33 @@ static class InteractionChecks
             Click(window, FindButton(window, b => b.DataContext is Tenantry.ViewModels.MailSecurity.RuleStarter { Title: "Blank Rule" }));
             Expect(editor.IsReady, "the blank rule is showing");
             editor.Name = "zz-tenantry-test-editor";
-            var addAction = FindButton(window, b => b.Command == editor.TogglePickerCommand && b.CommandParameter is Tenantry.Core.MailFlow.RulePartKind.Action);
+            var addAction = FindButton(window, b => b.Name == "AddAction");
             addAction.BringIntoView();
             Settle();
             Click(window, addAction);
-            Expect(editor.IsActionPickerOpen, "the action list opened");
+            var list = (Flyout)addAction.Flyout!;
+            Expect(list.IsOpen, "the action list opened");
             editor.ActionPicker.Search = "prepend the subject";
             Settle();
-            var pick = FindButton(window, b => b.DataContext is Tenantry.ViewModels.MailSecurity.RulePickerItem { Def.Parameter: "PrependSubject" });
-            pick.BringIntoView();
+            var pick = Buttons(list).First(b => b.DataContext is Tenantry.ViewModels.MailSecurity.RulePickerItem { Def.Parameter: "PrependSubject" });
+            Click(pick);
+            Expect(editor.Actions.Count == 1 && !list.IsOpen, "the action was added and the list closed");
+
+            // Several recipients: typed and Enter, then a pasted list, each a chip.
+            var addCondition = FindButton(window, b => b.Name == "AddCondition");
+            Click(window, addCondition);
+            var conditions = (Flyout)addCondition.Flyout!;
+            Click(Buttons(conditions).First(b => b.DataContext is Tenantry.ViewModels.MailSecurity.RulePickerItem { Def.Parameter: "SentTo" }));
+            var entry = window.GetVisualDescendants().OfType<TextBox>().First(t => t.Name == "EntryBox" && t.DataContext == editor.Conditions[0].Main);
+            entry.Focus();
+            entry.Text = "zz-tenantry-test-bo@contoso.example";
             Settle();
-            Click(window, pick);
-            Expect(editor.Actions.Count == 1 && !editor.IsActionPickerOpen, "the action was added and the list closed");
-            var box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.DataContext == editor.Actions[0].Main);
+            window.KeyPress(Avalonia.Input.Key.Enter, Avalonia.Input.RawInputModifiers.None, Avalonia.Input.PhysicalKey.Enter, null);
+            Settle();
+            entry.Text = "a@contoso.example, b@contoso.example";
+            Settle();
+            Expect(editor.Conditions[0].Main!.Chips.Count == 3, $"three recipients as chips (got {editor.Conditions[0].Main!.Chips.Count})");
+            var box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.DataContext == editor.Actions[0].Main && t.IsEffectivelyVisible);
             box.Text = "[TEST] ";
             Settle();
             Expect(main.Pending!.Rows.Any(r => r.Change is CreateRule), "the new rule is in Pending changes");
@@ -307,6 +321,22 @@ static class InteractionChecks
             Click(window, done);
             Expect(!main.Tabs.Contains(editor), "Done closed the editor");
             Expect(main.Pending!.Rows.Any(r => r.Change is CreateRule), "the rule stayed in Pending changes");
+            window.Close();
+        });
+
+        Check("Mail Flow Rules: clicking a rule's name opens it as its own page", () =>
+        {
+            var (window, main, _) = OpenList();
+            var area = main.MailSecurity!;
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "rules" }));
+            for (var i = 0; i < 50 && area.Rules.IsLoading; i++)
+                Settle();
+            var first = area.Rules.Rows.Cast<MailFlowRule>().First();
+            Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, first)));
+            var page = main.SelectedTab as Tenantry.ViewModels.MailSecurity.RuleEditorViewModel;
+            Expect(page?.RuleIdentity == first.Identity, "the rule's page opened");
             window.Close();
         });
 

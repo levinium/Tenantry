@@ -165,30 +165,6 @@ public sealed partial class RuleEditorViewModel : TabViewModel, IDisposable
     public RulePartPickerViewModel ExceptionPicker { get; }
     public RulePartPickerViewModel ActionPicker { get; }
 
-    /// <summary>Which add-a-part list is open, if any.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsConditionPickerOpen), nameof(IsExceptionPickerOpen), nameof(IsActionPickerOpen))]
-    public partial RulePartKind? OpenPicker { get; private set; }
-
-    public bool IsConditionPickerOpen => OpenPicker == RulePartKind.Condition;
-    public bool IsExceptionPickerOpen => OpenPicker == RulePartKind.Exception;
-    public bool IsActionPickerOpen => OpenPicker == RulePartKind.Action;
-
-    [RelayCommand]
-    void TogglePicker(RulePartKind kind)
-    {
-        OpenPicker = OpenPicker == kind ? null : kind;
-        if (OpenPicker is { } open)
-            PickerFor(open).Search = "";
-    }
-
-    RulePartPickerViewModel PickerFor(RulePartKind kind) => kind switch
-    {
-        RulePartKind.Condition => ConditionPicker,
-        RulePartKind.Exception => ExceptionPicker,
-        _ => ActionPicker,
-    };
-
     ObservableCollection<RuleLineViewModel> LinesFor(RulePartKind kind) => kind switch
     {
         RulePartKind.Condition => Conditions,
@@ -211,7 +187,6 @@ public sealed partial class RuleEditorViewModel : TabViewModel, IDisposable
             line.Extras[extra.Parameter] = JsonValue.Create(extra.Default!.Trim('"'));
         LinesFor(kind).Add(NewLine(line));
         _draft.LinesFor(kind).Add(line);
-        OpenPicker = null;
         Changed();
     }
 
@@ -401,6 +376,10 @@ public sealed partial class RuleEditorViewModel : TabViewModel, IDisposable
             return;
         Summary = RuleCodec.Summary(_draft);
         Problems = FindProblems();
+        // The sentence joins its lines: all conditions must match ("and"), any exception excuses ("or").
+        foreach (var (lines, word) in new[] { (Conditions, "and"), (Exceptions, "or"), (Actions, "and") })
+            for (var i = 0; i < lines.Count; i++)
+                lines[i].Connector = i == 0 ? "" : word;
         foreach (var name in new[] { nameof(HasNoConditions), nameof(HasNoExceptions), nameof(HasNoActions), nameof(Title) })
             OnPropertyChanged(name);
         ConditionPicker.Refresh();

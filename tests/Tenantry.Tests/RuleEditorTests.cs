@@ -98,11 +98,11 @@ public sealed class RuleEditorTests
         var editor = RuleEditorViewModel.New(pipeline, Availability.Yes, Rules, _ => { });
         editor.StartCommand.Execute(RuleStarters.All.Single(s => s.Title == "Copy Mail to Someone"));
 
-        Assert.Contains(editor.Problems, p => p.Contains("The Recipient Is", StringComparison.Ordinal));
+        Assert.Contains(editor.Problems, p => p.Contains("the recipient is", StringComparison.Ordinal));
         Assert.Empty(pipeline.Pending);
 
-        editor.Conditions[0].Main!.Text = "pat@contoso.example";
-        editor.Actions[0].Main!.Text = "auditor@contoso.example";
+        editor.Conditions[0].Main!.NewEntry = "pat@contoso.example";
+        editor.Actions[0].Main!.NewEntry = "auditor@contoso.example";
         Assert.Empty(editor.Problems);
         Assert.Single(pipeline.Pending);
 
@@ -120,7 +120,8 @@ public sealed class RuleEditorTests
         Assert.False(editor.IsLoading);
         Assert.Empty(pipeline.Pending);
 
-        editor.Conditions[0].Main!.Text = "invoice\nreceipt";
+        editor.Conditions[0].Main!.NewEntry = "receipt";
+        editor.Conditions[0].Main!.AddEntry();
         var update = Assert.IsType<UpdateRule>(Assert.Single(pipeline.Pending));
         Assert.Equal(["SubjectContainsWords"], ((JsonObject)JsonNode.Parse(update.Changes)!).Select(p => p.Key));
 
@@ -128,7 +129,7 @@ public sealed class RuleEditorTests
         Assert.Contains(pipeline.Pending, c => c is SetRuleMode { New: RuleMode.Enforce });
         Assert.DoesNotContain("Mode", ((JsonObject)JsonNode.Parse(pipeline.Pending.OfType<UpdateRule>().Single().Changes)!).Select(p => p.Key));
 
-        editor.Conditions[0].Main!.Text = "invoice";
+        editor.Conditions[0].Main!.Chips[1].RemoveCommand.Execute(null);
         editor.Mode = RuleEditorViewModel.Modes.Single(m => m.Value == RuleMode.Test);
         Assert.Empty(pipeline.Pending);
     }
@@ -156,17 +157,14 @@ public sealed class RuleEditorTests
         var editor = RuleEditorViewModel.New(pipeline, Availability.Yes, Rules, _ => { });
         editor.StartCommand.Execute(RuleStarters.All[0]);
 
-        editor.TogglePickerCommand.Execute(RulePartKind.Action);
-        Assert.True(editor.IsActionPickerOpen);
         var delete = editor.ActionPicker.Groups.SelectMany(g => g.Items).Single(i => i.Def.Parameter == "DeleteMessage");
         editor.ActionPicker.ChooseCommand.Execute(delete);
-        Assert.False(editor.IsActionPickerOpen);
         Assert.Single(editor.Actions);
         Assert.False(editor.ActionPicker.Groups.SelectMany(g => g.Items).Single(i => i.Def.Parameter == "DeleteMessage").CanAdd);
 
-        var prepend = editor.ActionPicker.Groups.SelectMany(g => g.Items).Single(i => i.Label == "Prepend the Disclaimer");
+        var prepend = editor.ActionPicker.Groups.SelectMany(g => g.Items).Single(i => i.Label == "Prepend the disclaimer");
         editor.ActionPicker.ChooseCommand.Execute(prepend);
-        Assert.False(editor.ActionPicker.Groups.SelectMany(g => g.Items).Single(i => i.Label == "Append the Disclaimer").CanAdd);
+        Assert.False(editor.ActionPicker.Groups.SelectMany(g => g.Items).Single(i => i.Label == "Append the disclaimer").CanAdd);
 
         editor.Actions[0].RemoveCommand.Execute(null);
         Assert.Single(editor.Actions);
@@ -183,7 +181,7 @@ public sealed class RuleEditorTests
         Assert.Contains(picker.Groups, g => g.Title == "The Sender");
 
         picker.Search = "attachment password";
-        Assert.Equal("Any Attachment Is Password Protected", Assert.Single(picker.Groups.SelectMany(g => g.Items)).Label);
+        Assert.Equal("Any attachment is password protected", Assert.Single(picker.Groups.SelectMany(g => g.Items)).Label);
 
         picker.Search = "zzzz";
         Assert.True(picker.HasNoMatches);
@@ -198,15 +196,68 @@ public sealed class RuleEditorTests
     public void Values_are_checked_as_they_are_typed(string valueType, string text, string expected)
     {
         var choices = valueType == "adAttributeWords" ? RuleCatalog.Instance.Conditions.First(c => c.ValueType == valueType).Choices : [];
-        var editor = new RuleValueEditor("", valueType, choices, true, null, _ => { }) { Text = text };
+        var editor = new RuleValueEditor("", valueType, choices, true, null, _ => { });
+        if (editor.IsLines)
+            editor.NewEntry = text;
+        else
+            editor.Text = text;
         Assert.Contains(expected, editor.Problem);
     }
 
     [Fact]
     public void A_pattern_over_the_limit_is_refused()
     {
-        var editor = new RuleValueEditor("", "patterns", [], true, null, _ => { }) { Text = new string('a', RuleValues.MaxPatternLength + 1) };
+        var editor = new RuleValueEditor("", "patterns", [], true, null, _ => { }) { NewEntry = new string('a', RuleValues.MaxPatternLength + 1) };
         Assert.Contains("at most", editor.Problem);
+    }
+
+    [Fact]
+    public void Several_addresses_are_chips_added_by_enter_or_by_pasting_a_list()
+    {
+        JsonNode? value = null;
+        var editor = new RuleValueEditor("", "addresses", [], true, new JsonArray("it@contoso.example"), v => value = v);
+        Assert.Equal(["it@contoso.example"], editor.Chips.Select(c => c.Text));
+
+        editor.NewEntry = "help@contoso.example";
+        Assert.Equal(2, ((JsonArray)value!).Count);
+        editor.AddEntry();
+        Assert.Equal("", editor.NewEntry);
+
+        editor.NewEntry = "a@contoso.example, b@contoso.example; IT@contoso.example";
+        Assert.Equal(["it@contoso.example", "help@contoso.example", "a@contoso.example", "b@contoso.example"], editor.Chips.Select(c => c.Text));
+        Assert.Equal(4, ((JsonArray)value!).Count);
+
+        editor.Chips[0].RemoveCommand.Execute(null);
+        editor.EditLastChip();
+        Assert.Equal("b@contoso.example", editor.NewEntry);
+        Assert.Equal(3, ((JsonArray)value!).Count);
+    }
+
+    [Fact]
+    public void A_bad_chip_is_marked_and_named()
+    {
+        var editor = new RuleValueEditor("", "domains", [], true, null, _ => { }) { NewEntry = "contoso.com\npat@contoso.com" };
+        Assert.True(editor.Chips[1].HasProblem);
+        Assert.False(editor.Chips[0].HasProblem);
+        Assert.StartsWith("'pat@contoso.com' is an address", editor.Problem);
+    }
+
+    [Fact]
+    public void Patterns_keep_their_commas()
+    {
+        var editor = new RuleValueEditor("", "patterns", [], true, null, _ => { }) { NewEntry = @"\d{3,4}" };
+        Assert.Empty(editor.Chips);
+        editor.AddEntry();
+        Assert.Equal([@"\d{3,4}"], editor.Chips.Select(c => c.Text));
+    }
+
+    [Fact]
+    public void The_sentence_joins_conditions_with_and_and_exceptions_with_or()
+    {
+        var editor = RuleEditorViewModel.New(Pipeline(), Availability.Yes, Rules, _ => { });
+        editor.StartCommand.Execute(RuleStarters.All.Single(s => s.Title == "Add a Disclaimer"));
+        Assert.Equal(["", "and"], editor.Conditions.Select(l => l.Connector));
+        Assert.Equal("the sender is located", editor.Conditions[0].Label);
     }
 
     [Theory]

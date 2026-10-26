@@ -57,10 +57,13 @@ public static partial class RuleValues
         _ => RuleInput.Text,
     };
 
+    /// <summary>Whether commas and semicolons separate entries; patterns and Property:values keep them.</summary>
+    public static bool CommasSeparate(string valueType) => !PatternTypes.Contains(valueType) && !PropertyTypes.Contains(valueType);
+
     /// <summary>The values in a list, one per line. Patterns keep commas (they're part of a pattern); other lists also split on commas and semicolons.</summary>
     public static string[] SplitLines(string text, string valueType)
     {
-        var separators = PatternTypes.Contains(valueType) || PropertyTypes.Contains(valueType) ? new[] { '\n' } : ['\n', ',', ';'];
+        var separators = CommasSeparate(valueType) ? ['\n', ',', ';'] : new[] { '\n' };
         return text.Split(separators).Select(s => s.Trim().TrimEnd('\r')).Where(s => s.Length > 0).ToArray();
     }
 
@@ -91,7 +94,7 @@ public static partial class RuleValues
         {
             var items = list.Select(i => i?.ToString() ?? "").ToArray();
             for (var i = 0; i < items.Length; i++)
-                if (ItemProblem(valueType, items[i], choices) is { } problem)
+                if (EntryProblem(valueType, items[i], choices) is { } problem)
                     return items.Length == 1 ? problem : $"Line {i + 1}: {problem}";
             return null;
         }
@@ -115,7 +118,8 @@ public static partial class RuleValues
         _ => false,
     };
 
-    static string? ItemProblem(string valueType, string item, IReadOnlyList<RuleChoice> choices)
+    /// <summary>What's wrong with one entry of a list, in plain words; null when it's fine.</summary>
+    public static string? EntryProblem(string valueType, string item, IReadOnlyList<RuleChoice> choices)
     {
         if (PatternTypes.Contains(valueType))
         {

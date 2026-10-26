@@ -63,7 +63,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         AddEntries = new AddListEntriesViewModel(pipeline, canEdit, () => _entries, _now);
         Rules = DataListViewModel.Create(
             MailSecurityLists.Rules(r => new RulePreviewViewModel(r, _rules.Count, pipeline, canEdit, CanOpenEditor ? EditRule : null)),
-            LoadRulesAsync, _ => { }, listState, _now);
+            LoadRulesAsync, row => EditRule((MailFlowRule)row), listState, _now);
         if (pipeline is not null)
             pipeline.Applied += (_, applied) =>
             {
@@ -79,6 +79,8 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             list.PrimaryAction = null;
             list.HasRecordPages = false;
         }
+        // A rule opens as its own page: the editor, read-only for an admin who can't change rules.
+        Rules.HasRecordPages = CanOpenRulePage;
         Trace.EmptyText = "Choose what to look for above, then press Search.";
         Quarantine.EmptyText = "Nothing in quarantine matches these filters.";
         TraceStart = _now().Date.AddDays(-1);
@@ -158,12 +160,15 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         _tabs!.OpenTab(_ => false, () => RuleEditorViewModel.New(_pipeline, _canEdit, _rules, e => _tabs.CloseTab(e)));
     }
 
-    /// <summary>Opens the rule in the editor, or switches to its tab if it's already open.</summary>
+    /// <summary>A rule's page needs somewhere to open and somewhere to read it from.</summary>
+    public bool CanOpenRulePage => _tabs is not null && _records is not null;
+
+    /// <summary>Opens the rule as its own page (the editor), or switches to its tab if it's already open.</summary>
     public void EditRule(MailFlowRule rule)
     {
-        if (!CanOpenEditor)
+        if (!CanOpenRulePage || _tabs is null)
             return;
-        _tabs!.OpenTab(t => t is RuleEditorViewModel e && e.RuleIdentity == rule.Identity,
+        _tabs.OpenTab(t => t is RuleEditorViewModel e && e.RuleIdentity == rule.Identity,
             () => RuleEditorViewModel.Edit(rule, ct => _records!.GetRuleDraftAsync(rule.Identity, ct), _pipeline, _canEdit, _rules, e => _tabs.CloseTab(e)));
     }
 

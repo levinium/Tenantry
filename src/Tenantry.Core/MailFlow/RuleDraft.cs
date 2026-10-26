@@ -356,6 +356,6 @@ public static class RuleCodec
     }
 
     /// <summary>Mid-sentence case: "The sender is" → "the sender is"; "SCL…" stays.</summary>
-    static string Lower(string text) =>
+    public static string Lower(string text) =>
         text.Length > 1 && char.IsUpper(text[0]) && char.IsLower(text[1]) ? char.ToLowerInvariant(text[0]) + text[1..] : text;
 }

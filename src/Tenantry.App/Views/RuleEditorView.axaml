@@ -1,7 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
-             xmlns:mf="using:Tenantry.Core.MailFlow"
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:conv="using:Tenantry.App.Converters"
              xmlns:views="using:Tenantry.App.Views"
@@ -9,21 +8,50 @@
              x:Class="Tenantry.App.Views.RuleEditorView"
              x:DataType="ms:RuleEditorViewModel"
              x:Name="Root">
+  <UserControl.Styles>
+    <!-- "WHEN", "EXCEPT IF", "THEN": a quiet tag that starts each part of the sentence. -->
+    <Style Selector="Border.parttag">
+      <Setter Property="Background" Value="{DynamicResource BadgeInfoBg}" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="8,3" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.parttag > TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource BadgeInfoFg}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="LetterSpacing" Value="0.6" />
+    </Style>
+    <Style Selector="TextBlock.connector">
+      <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+    </Style>
+    <Style Selector="TextBlock.phrase">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="Border.summary">
+      <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="18,14" />
+    </Style>
+  </UserControl.Styles>
+
   <UserControl.Resources>
-    <!-- One line of the sentence: what it checks or does, its inputs, and a remove button. -->
+    <!-- One line of the sentence: "and" / "or", what it checks or does, then its value. -->
     <DataTemplate x:Key="Line" x:DataType="ms:RuleLineViewModel">
-      <Border Classes="groupbox" Padding="12,10" Margin="0,0,0,8">
-        <StackPanel Spacing="8">
-          <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
-            <TextBlock Text="{Binding Label}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" />
-            <c:Badge Grid.Column="1" Text="Advanced" Kind="Info" IsVisible="{Binding IsAdvanced}" VerticalAlignment="Center" />
-            <Border Grid.Column="2" IsVisible="{Binding HasNotes}" ToolTip.Tip="{Binding Notes}" Background="Transparent" VerticalAlignment="Center">
-              <ic:FluentIcon Icon="Info" FontSize="16" Foreground="{DynamicResource TextMuted}" />
+      <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="12" Margin="0,0,0,16">
+        <TextBlock Classes="connector" Text="{Binding Connector}" IsVisible="{Binding HasConnector}" />
+        <StackPanel Grid.Column="1" Spacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Classes="phrase" Text="{Binding Label}" VerticalAlignment="Center" />
+            <c:Badge Text="Advanced" Kind="Info" IsVisible="{Binding IsAdvanced}" VerticalAlignment="Center" />
+            <Border IsVisible="{Binding HasNotes}" ToolTip.Tip="{Binding Notes}" Background="Transparent" VerticalAlignment="Center">
+              <ic:FluentIcon Icon="Info" FontSize="15" Foreground="{DynamicResource TextMuted}" />
             </Border>
-            <Button Grid.Column="3" Classes="ghost" Command="{Binding RemoveCommand}" ToolTip.Tip="Take this line out of the rule" Padding="6,4">
-              <ic:FluentIcon Icon="Dismiss" FontSize="14" />
-            </Button>
-          </Grid>
+          </StackPanel>
           <Panel IsVisible="{Binding HasMain}">
             <views:RuleValueEditorView DataContext="{Binding Main}" />
           </Panel>
@@ -40,222 +68,248 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
         </StackPanel>
-      </Border>
+        <Button Grid.Column="2" Classes="ghost" Command="{Binding RemoveCommand}" ToolTip.Tip="Take this out of the rule" Padding="6" VerticalAlignment="Top">
+          <ic:FluentIcon Icon="Delete" FontSize="15" Foreground="{DynamicResource TextMuted}" />
+        </Button>
+      </Grid>
     </DataTemplate>
   </UserControl.Resources>
 
   <DockPanel>
-      <!-- Heading and the way out: fixed above the scrolling rule -->
-      <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="8,16,8,10" MaxWidth="980">
-        <StackPanel Spacing="4">
-          <TextBlock Classes="h1" Text="{Binding Title}" TextWrapping="Wrap" />
-          <TextBlock Classes="caption" TextWrapping="Wrap"
-                     Text="Build the rule as a sentence: when a message matches, except in these cases, then do this." />
-        </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
-          <Button Classes="danger-outline" Command="{Binding DiscardCommand}" ToolTip.Tip="Take this rule's changes out of Pending Changes and close">
-            <TextBlock Text="Discard Changes" />
-          </Button>
-          <Button Classes="accent" Command="{Binding DoneCommand}" ToolTip.Tip="Close the editor. Changes stay in Pending Changes until you apply them.">
-            <TextBlock Text="Done" />
-          </Button>
-        </StackPanel>
-      </Grid>
-  <ScrollViewer>
-    <StackPanel Margin="8,0,8,24" Spacing="14" MaxWidth="980" HorizontalAlignment="Stretch">
-
-      <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
-        <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
-      </Border>
-
-      <!-- Reading the rule -->
-      <StackPanel IsVisible="{Binding IsLoading}" HorizontalAlignment="Center" Spacing="12" Margin="0,40">
-        <Panel Width="36" Height="36" HorizontalAlignment="Center">
-          <Ellipse Classes="spintrack" />
-          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
-            <Arc.RenderTransform>
-              <RotateTransform />
-            </Arc.RenderTransform>
-          </Arc>
-        </Panel>
-        <TextBlock HorizontalAlignment="Center" Text="Reading the rule from Exchange…" />
+    <!-- Heading and the way out: fixed above the scrolling rule -->
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="8,16,8,12" MaxWidth="920">
+      <TextBlock Classes="h1" Text="{Binding Title}" TextWrapping="Wrap" VerticalAlignment="Center" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Button Classes="danger-outline" Command="{Binding DiscardCommand}" ToolTip.Tip="Take this rule's changes out of Pending Changes and close">
+          <TextBlock Text="Discard Changes" />
+        </Button>
+        <Button Classes="accent" Command="{Binding DoneCommand}" ToolTip.Tip="Close the editor. Changes stay in Pending Changes until you apply them.">
+          <TextBlock Text="Done" />
+        </Button>
       </StackPanel>
-      <Border Classes="banner error" IsVisible="{Binding HasLoadError}">
-        <TextBlock TextWrapping="Wrap" Text="{Binding LoadError}" />
-      </Border>
+    </Grid>
 
-      <!-- New rule: where to start -->
-      <StackPanel Spacing="10" IsVisible="{Binding ShowStarters}">
-        <TextBlock Classes="h3" Text="Start From" />
-        <ItemsControl ItemsSource="{Binding Starters}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <WrapPanel ItemSpacing="10" LineSpacing="10" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="ms:RuleStarter">
-              <Button Classes="choice" Width="290" Height="112" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top"
-                      Command="{Binding #Root.((ms:RuleEditorViewModel)DataContext).StartCommand}" CommandParameter="{Binding}">
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                  <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="22" VerticalAlignment="Top" Foreground="{DynamicResource Accent}" />
-                  <StackPanel Grid.Column="1" Spacing="4">
-                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                    <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+    <ScrollViewer>
+      <StackPanel Margin="8,0,8,32" Spacing="16" MaxWidth="920">
+
+        <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+          <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+        </Border>
+
+        <!-- Reading the rule -->
+        <StackPanel IsVisible="{Binding IsLoading}" HorizontalAlignment="Center" Spacing="12" Margin="0,40">
+          <Panel Width="36" Height="36" HorizontalAlignment="Center">
+            <Ellipse Classes="spintrack" />
+            <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+              <Arc.RenderTransform>
+                <RotateTransform />
+              </Arc.RenderTransform>
+            </Arc>
+          </Panel>
+          <TextBlock HorizontalAlignment="Center" Text="Reading the rule from Exchange…" />
+        </StackPanel>
+        <Border Classes="banner error" IsVisible="{Binding HasLoadError}">
+          <TextBlock TextWrapping="Wrap" Text="{Binding LoadError}" />
+        </Border>
+
+        <!-- New rule: where to start -->
+        <StackPanel Spacing="12" IsVisible="{Binding ShowStarters}">
+          <StackPanel Spacing="2">
+            <TextBlock Classes="h3" Text="Start From" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Every new rule starts in Test mode: it records which mail would match without acting on it." />
+          </StackPanel>
+          <ItemsControl ItemsSource="{Binding Starters}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel ItemSpacing="10" LineSpacing="10" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ms:RuleStarter">
+                <Button Classes="choice" Width="290" Height="104" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top"
+                        Command="{Binding #Root.((ms:RuleEditorViewModel)DataContext).StartCommand}" CommandParameter="{Binding}">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="22" VerticalAlignment="Top" Foreground="{DynamicResource Accent}" />
+                    <StackPanel Grid.Column="1" Spacing="4">
+                      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Grid>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <!-- The rule -->
+        <StackPanel Spacing="16" IsVisible="{Binding IsReady}">
+
+          <!-- In plain words, kept up to date -->
+          <Border Classes="summary">
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBlock Classes="label" Text="IN PLAIN WORDS" VerticalAlignment="Center" />
+                <c:Badge Grid.Column="1" Text="{Binding Status}" Kind="{Binding StatusKind}" />
+              </Grid>
+              <SelectableTextBlock Text="{Binding Summary}" TextWrapping="Wrap" FontSize="15" LineHeight="22" />
+              <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+                      <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                      <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+
+          <!-- Name and mode -->
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <Grid ColumnDefinitions="3*,2*" ColumnSpacing="16">
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="label" Text="NAME" />
+                  <TextBox Text="{Binding Name}" PlaceholderText="What the rule is for" MaxLength="64" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="4">
+                  <TextBlock Classes="label" Text="MODE" />
+                  <ComboBox ItemsSource="{x:Static ms:RuleEditorViewModel.Modes}" SelectedItem="{Binding Mode}" HorizontalAlignment="Stretch" />
+                </StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="3*,2*" ColumnSpacing="16" IsVisible="{Binding IsNew}">
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="label" Text="RUNS" />
+                  <ComboBox ItemsSource="{x:Static ms:RuleEditorViewModel.OrderChoices}" SelectedItem="{Binding Order}" HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <CheckBox Grid.Column="1" IsChecked="{Binding TurnOn}" Content="Turn the Rule On When It's Saved" VerticalAlignment="Bottom" />
+              </Grid>
+              <Border Classes="banner warning" IsVisible="{Binding IsEnforcing}">
+                <TextBlock TextWrapping="Wrap" Text="Enforce acts on real mail as soon as the rule is saved. Try it in Test mode first and check the matches in message trace." />
+              </Border>
+            </StackPanel>
+          </Border>
+
+          <!-- The rule itself, read top to bottom as one sentence -->
+          <Border Classes="card">
+            <StackPanel Spacing="18">
+
+              <!-- When -->
+              <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Border Classes="parttag"><TextBlock Text="WHEN THE MESSAGE" /></Border>
+                  <TextBlock Classes="caption" VerticalAlignment="Center" Text="matches all of these" IsVisible="{Binding !HasNoConditions}" />
+                </StackPanel>
+                <TextBlock Classes="muted" Margin="52,0,0,0" Text="is any message (no conditions yet)" IsVisible="{Binding HasNoConditions}" />
+                <ItemsControl ItemsSource="{Binding Conditions}" ItemTemplate="{StaticResource Line}" />
+                <Button x:Name="AddCondition" Classes="link" Margin="48,0,0,0" HorizontalAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <ic:FluentIcon Icon="Add" FontSize="14" />
+                    <TextBlock Text="Add a Condition" />
                   </StackPanel>
-                </Grid>
-              </Button>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <TextBlock Classes="caption" TextWrapping="Wrap" Text="Every new rule starts in Test mode: it records which mail would match without acting on it." />
-      </StackPanel>
+                  <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedLeft">
+                      <views:RulePartPickerView DataContext="{Binding ConditionPicker}" />
+                    </Flyout>
+                  </Button.Flyout>
+                </Button>
+              </StackPanel>
 
-      <!-- The rule -->
-      <StackPanel Spacing="14" IsVisible="{Binding IsReady}">
+              <Border Classes="divider" />
 
-        <!-- In plain words, kept up to date as you edit -->
-        <Border Classes="card">
-          <StackPanel Spacing="8">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-              <TextBlock Classes="label" Text="IN PLAIN WORDS" VerticalAlignment="Center" />
-              <c:Badge Grid.Column="1" Text="{Binding Status}" Kind="{Binding StatusKind}" />
-            </Grid>
-            <SelectableTextBlock Text="{Binding Summary}" TextWrapping="Wrap" FontSize="15" />
-            <Border Classes="banner warning" IsVisible="{Binding HasProblems}">
+              <!-- Except if -->
+              <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Border Classes="parttag"><TextBlock Text="EXCEPT IF" /></Border>
+                  <TextBlock Classes="caption" VerticalAlignment="Center" Text="any one of these leaves the message alone" IsVisible="{Binding !HasNoExceptions}" />
+                </StackPanel>
+                <TextBlock Classes="muted" Margin="52,0,0,0" Text="no exceptions" IsVisible="{Binding HasNoExceptions}" />
+                <ItemsControl ItemsSource="{Binding Exceptions}" ItemTemplate="{StaticResource Line}" />
+                <Button x:Name="AddException" Classes="link" Margin="48,0,0,0" HorizontalAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <ic:FluentIcon Icon="Add" FontSize="14" />
+                    <TextBlock Text="Add an Exception" />
+                  </StackPanel>
+                  <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedLeft">
+                      <views:RulePartPickerView DataContext="{Binding ExceptionPicker}" />
+                    </Flyout>
+                  </Button.Flyout>
+                </Button>
+              </StackPanel>
+
+              <Border Classes="divider" />
+
+              <!-- Then -->
+              <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Border Classes="parttag"><TextBlock Text="THEN" /></Border>
+                  <TextBlock Classes="caption" VerticalAlignment="Center" Text="do all of these" IsVisible="{Binding !HasNoActions}" />
+                </StackPanel>
+                <TextBlock Classes="muted" Margin="52,0,0,0" Text="nothing yet: add at least one action" IsVisible="{Binding HasNoActions}" />
+                <ItemsControl ItemsSource="{Binding Actions}" ItemTemplate="{StaticResource Line}" />
+                <Button x:Name="AddAction" Classes="link" Margin="48,0,0,0" HorizontalAlignment="Left">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <ic:FluentIcon Icon="Add" FontSize="14" />
+                    <TextBlock Text="Add an Action" />
+                  </StackPanel>
+                  <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedLeft">
+                      <views:RulePartPickerView DataContext="{Binding ActionPicker}" />
+                    </Flyout>
+                  </Button.Flyout>
+                </Button>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- Notes and the rule's other settings -->
+          <Border Classes="card">
+            <StackPanel Spacing="12">
               <StackPanel Spacing="4">
-                <TextBlock FontWeight="SemiBold" Text="Before This Rule Can Be Saved" />
-                <ItemsControl ItemsSource="{Binding Problems}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="x:String">
-                      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                        <TextBlock Text="•" />
-                        <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" />
-                      </Grid>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <TextBlock Classes="label" Text="NOTES" />
+                <TextBox Text="{Binding Comments}" PlaceholderText="Why this rule exists, who asked for it…" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="56" />
               </StackPanel>
-            </Border>
-          </StackPanel>
-        </Border>
+              <Button Classes="link" HorizontalAlignment="Left" Command="{Binding ToggleMoreSettingsCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <ic:FluentIcon Icon="ChevronDown" FontSize="14" IsVisible="{Binding !ShowMoreSettings}" />
+                  <ic:FluentIcon Icon="ChevronUp" FontSize="14" IsVisible="{Binding ShowMoreSettings}" />
+                  <TextBlock Text="More Settings" />
+                  <TextBlock Classes="caption" VerticalAlignment="Center" Text="dates, stop processing, sender address, errors, auditing" />
+                </StackPanel>
+              </Button>
+              <ItemsControl ItemsSource="{Binding Settings}" IsVisible="{Binding ShowMoreSettings}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <UniformGrid Columns="2" ColumnSpacing="20" RowSpacing="14" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="ms:RuleValueEditor">
+                    <views:RuleValueEditorView VerticalAlignment="Bottom" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
 
-        <!-- Name, mode, on/off and order -->
-        <Border Classes="card">
-          <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="12">
+          <!-- Settings from a newer Exchange: shown, never changed -->
+          <Border Classes="banner info" IsVisible="{Binding HasKept}">
             <StackPanel Spacing="4">
-              <TextBlock Classes="label" Text="NAME" />
-              <TextBox Text="{Binding Name}" PlaceholderText="What the rule is for" MaxLength="64" />
+              <TextBlock FontWeight="SemiBold" Text="Settings Tenantry Doesn't Edit Yet" />
+              <TextBlock TextWrapping="Wrap" Text="This rule has settings newer than Tenantry knows. They're kept exactly as they are when you save." />
+              <ItemsControl ItemsSource="{Binding Kept}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String">
+                    <SelectableTextBlock Text="{Binding}" TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
             </StackPanel>
-            <StackPanel Grid.Column="1" Spacing="4">
-              <TextBlock Classes="label" Text="MODE" />
-              <ComboBox ItemsSource="{x:Static ms:RuleEditorViewModel.Modes}" SelectedItem="{Binding Mode}" HorizontalAlignment="Stretch" />
-            </StackPanel>
-            <Border Grid.Row="1" Grid.ColumnSpan="2" Classes="banner warning" IsVisible="{Binding IsEnforcing}">
-              <TextBlock TextWrapping="Wrap" Text="Enforce acts on real mail as soon as the rule is saved. Try it in Test mode first and check the matches in message trace." />
-            </Border>
-            <StackPanel Grid.Row="2" Spacing="4" IsVisible="{Binding IsNew}">
-              <TextBlock Classes="label" Text="RUNS" />
-              <ComboBox ItemsSource="{x:Static ms:RuleEditorViewModel.OrderChoices}" SelectedItem="{Binding Order}" HorizontalAlignment="Stretch" />
-            </StackPanel>
-            <CheckBox Grid.Row="2" Grid.Column="1" IsVisible="{Binding IsNew}" IsChecked="{Binding TurnOn}" Content="Turn the Rule On When It's Saved" VerticalAlignment="Bottom" />
-          </Grid>
-        </Border>
-
-        <!-- When -->
-        <Border Classes="card">
-          <StackPanel Spacing="8">
-            <TextBlock Classes="h3" Text="When the Message…" />
-            <TextBlock Classes="caption" Text="No conditions yet, so the rule applies to every message." TextWrapping="Wrap" IsVisible="{Binding HasNoConditions}" />
-            <TextBlock Classes="caption" Text="A message has to match all of these." TextWrapping="Wrap" IsVisible="{Binding !HasNoConditions}" />
-            <ItemsControl ItemsSource="{Binding Conditions}" ItemTemplate="{StaticResource Line}" />
-            <Button HorizontalAlignment="Left" Command="{Binding TogglePickerCommand}" CommandParameter="{x:Static mf:RulePartKind.Condition}">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <ic:FluentIcon Icon="Add" FontSize="14" />
-                <TextBlock Text="Add a Condition" />
-              </StackPanel>
-            </Button>
-            <views:RulePartPickerView DataContext="{Binding ConditionPicker}" IsVisible="{Binding #Root.((ms:RuleEditorViewModel)DataContext).IsConditionPickerOpen}" />
-          </StackPanel>
-        </Border>
-
-        <!-- Except when -->
-        <Border Classes="card">
-          <StackPanel Spacing="8">
-            <TextBlock Classes="h3" Text="Except When…" />
-            <TextBlock Classes="caption" Text="No exceptions yet. A message that matches any exception is left alone." TextWrapping="Wrap" IsVisible="{Binding HasNoExceptions}" />
-            <TextBlock Classes="caption" Text="A message that matches any of these is left alone." TextWrapping="Wrap" IsVisible="{Binding !HasNoExceptions}" />
-            <ItemsControl ItemsSource="{Binding Exceptions}" ItemTemplate="{StaticResource Line}" />
-            <Button HorizontalAlignment="Left" Command="{Binding TogglePickerCommand}" CommandParameter="{x:Static mf:RulePartKind.Exception}">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <ic:FluentIcon Icon="Add" FontSize="14" />
-                <TextBlock Text="Add an Exception" />
-              </StackPanel>
-            </Button>
-            <views:RulePartPickerView DataContext="{Binding ExceptionPicker}" IsVisible="{Binding #Root.((ms:RuleEditorViewModel)DataContext).IsExceptionPickerOpen}" />
-          </StackPanel>
-        </Border>
-
-        <!-- Then -->
-        <Border Classes="card">
-          <StackPanel Spacing="8">
-            <TextBlock Classes="h3" Text="Then…" />
-            <TextBlock Classes="caption" Text="Add at least one action: what happens to a matching message." TextWrapping="Wrap" IsVisible="{Binding HasNoActions}" />
-            <ItemsControl ItemsSource="{Binding Actions}" ItemTemplate="{StaticResource Line}" />
-            <Button HorizontalAlignment="Left" Command="{Binding TogglePickerCommand}" CommandParameter="{x:Static mf:RulePartKind.Action}">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <ic:FluentIcon Icon="Add" FontSize="14" />
-                <TextBlock Text="Add an Action" />
-              </StackPanel>
-            </Button>
-            <views:RulePartPickerView DataContext="{Binding ActionPicker}" IsVisible="{Binding #Root.((ms:RuleEditorViewModel)DataContext).IsActionPickerOpen}" />
-          </StackPanel>
-        </Border>
-
-        <!-- Notes and the rule's other settings -->
-        <Border Classes="card">
-          <StackPanel Spacing="10">
-            <StackPanel Spacing="4">
-              <TextBlock Classes="label" Text="NOTES" />
-              <TextBox Text="{Binding Comments}" PlaceholderText="Why this rule exists, who asked for it…" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="56" />
-            </StackPanel>
-            <Button Classes="link" HorizontalAlignment="Left" Command="{Binding ToggleMoreSettingsCommand}">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <ic:FluentIcon Icon="Settings" FontSize="14" />
-                <TextBlock Text="More Settings: Dates, Stop Processing, Sender Address, Errors, Auditing" />
-              </StackPanel>
-            </Button>
-            <ItemsControl ItemsSource="{Binding Settings}" IsVisible="{Binding ShowMoreSettings}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <StackPanel Spacing="10" />
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="ms:RuleValueEditor">
-                  <views:RuleValueEditorView />
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </StackPanel>
-        </Border>
-
-        <!-- Settings from a newer Exchange: shown, never changed -->
-        <Border Classes="banner info" IsVisible="{Binding HasKept}">
-          <StackPanel Spacing="4">
-            <TextBlock FontWeight="SemiBold" Text="Settings Tenantry Doesn't Edit Yet" />
-            <TextBlock TextWrapping="Wrap" Text="This rule has settings newer than Tenantry knows. They're kept exactly as they are when you save." />
-            <ItemsControl ItemsSource="{Binding Kept}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="x:String">
-                  <SelectableTextBlock Text="{Binding}" TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </StackPanel>
-        </Border>
+          </Border>
+        </StackPanel>
       </StackPanel>
-    </StackPanel>
-  </ScrollViewer>
+    </ScrollViewer>
   </DockPanel>
 </UserControl>
