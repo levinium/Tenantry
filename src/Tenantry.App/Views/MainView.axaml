@@ -84,6 +84,16 @@
             </Button>
           </Grid>
           <Border Classes="divider" Margin="8,0,8,8" />
+          <!-- A newer Tenantry is downloaded and ready: one click restarts into it. -->
+          <Button Classes="accent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,0,0,6"
+                  DataContext="{x:Static vm:AppUpdate.Current}" x:DataType="vm:AppUpdate"
+                  IsVisible="{Binding IsReady}" Command="{Binding RestartCommand}"
+                  ToolTip.Tip="A newer Tenantry is downloaded. Restart to install it; anything not applied in Pending changes is lost.">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="ArrowDownload" FontSize="18" />
+              <TextBlock Text="{Binding ReadyText}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
           <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="Key" FontSize="18" />

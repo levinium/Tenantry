@@ -32,6 +32,7 @@ public partial class App : Application
             desktop.MainWindow = window;
             // Once the window is up (so a browser sign-in has something to return to).
             window.Opened += async (_, _) => await shell.StartAsync();
+            UpdateChecker.Start();
         }
 
         base.OnFrameworkInitializationCompleted();

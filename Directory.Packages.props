@@ -19,6 +19,8 @@
     <PackageVersion Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.91.1" />
     <PackageVersion Include="Microsoft.Data.Sqlite.Core" Version="10.0.13" />
     <PackageVersion Include="SQLite3MC.PCLRaw.bundle" Version="2.4.0" />
+    <!-- Installers and self-updating from GitHub Releases; keep in step with vpk in .config/dotnet-tools.json. -->
+    <PackageVersion Include="Velopack" Version="1.2.161" />
 
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />

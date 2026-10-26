@@ -1,0 +1,112 @@
+name: Packages
+
+# Installers for every platform, made with Velopack (vpk, pinned in .config/dotnet-tools.json).
+# - A push to main builds them as downloadable workflow artifacts (kept 14 days), no release.
+# - A version tag (v0.2.0) also publishes a GitHub pre-release with them; installed copies update
+#   themselves from it. Pre-release while builds are unsigned (SmartScreen and Gatekeeper warn).
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  REPO_URL: https://github.com/${{ github.repository }}
+
+jobs:
+  # Tags only: the release the packages are added to. Made once, before the platform jobs, so
+  # they don't race to create it.
+  release:
+    name: Create the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --prerelease --title "Tenantry ${GITHUB_REF_NAME#v}" --notes \
+            "Unsigned pre-release: Windows SmartScreen and macOS Gatekeeper will warn before the first run. Installed copies update themselves.
+          Builds made from a release start with Test mode off: real users and groups can be changed."
+
+  package:
+    name: Package ${{ matrix.rid }}
+    needs: release
+    # Runs on pushes too, when the release job is skipped.
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64, exe: Tenantry.exe }
+          - { os: windows-latest, rid: win-arm64, exe: Tenantry.exe }
+          - { os: macos-latest, rid: osx-arm64, exe: Tenantry }
+          - { os: macos-latest, rid: osx-x64, exe: Tenantry }
+          - { os: ubuntu-latest, rid: linux-x64, exe: Tenantry }
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore vpk
+        run: dotnet tool restore
+
+      # The tag's number for a release; otherwise the project's version marked as a CI build.
+      - name: Version
+        id: version
+        run: |
+          if ("$env:GITHUB_REF" -like 'refs/tags/v*') { $v = "$env:GITHUB_REF_NAME".Substring(1) }
+          else {
+            $base = ([xml](Get-Content src/Tenantry.App/Tenantry.App.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+            $v = "$base-ci.$env:GITHUB_RUN_NUMBER"
+          }
+          "value=$v" >> $env:GITHUB_OUTPUT
+          "Version $v"
+
+      - name: Publish
+        run: dotnet publish src/Tenantry.App/Tenantry.App.csproj -c Release -r ${{ matrix.rid }} --self-contained -o publish -p:Version=${{ steps.version.outputs.value }} -p:DebugType=none
+
+      # macOS wants an .icns; made from the 1024 px master.
+      - name: macOS icon
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir tenantry.iconset
+          for s in 16 32 128 256 512; do
+            sips -z $s $s src/Tenantry.App/Assets/tenantry-1024.png --out tenantry.iconset/icon_${s}x${s}.png >/dev/null
+            sips -z $((s*2)) $((s*2)) src/Tenantry.App/Assets/tenantry-1024.png --out tenantry.iconset/icon_${s}x${s}@2x.png >/dev/null
+          done
+          iconutil -c icns tenantry.iconset -o tenantry.icns
+
+      # The previous release, so this one can include a small update (delta) from it.
+      - name: Previous release
+        if: startsWith(github.ref, 'refs/tags/v')
+        continue-on-error: true
+        run: dotnet vpk download github --repoUrl $env:REPO_URL --channel ${{ matrix.rid }} --pre --token ${{ github.token }} -o releases
+
+      - name: Pack
+        run: |
+          $icon = switch ($env:RUNNER_OS) { 'Windows' { 'src/Tenantry.App/Assets/tenantry.ico' } 'macOS' { 'tenantry.icns' } default { 'src/Tenantry.App/Assets/tenantry-256.png' } }
+          $extra = switch ($env:RUNNER_OS) { 'macOS' { @('--bundleId', 'io.github.levinium.tenantry') } 'Linux' { @('--categories', 'Utility;Network') } default { @() } }
+          dotnet vpk pack --packId Tenantry --packVersion ${{ steps.version.outputs.value }} --packDir publish --mainExe ${{ matrix.exe }} `
+            --packTitle Tenantry --packAuthors levinium --icon $icon --channel ${{ matrix.rid }} --runtime ${{ matrix.rid }} -o releases @extra
+          if ($LASTEXITCODE -ne 0) { throw "vpk pack failed" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tenantry-${{ steps.version.outputs.value }}-${{ matrix.rid }}
+          path: releases/*
+          retention-days: 14
+
+      - name: Add to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: dotnet vpk upload github --repoUrl $env:REPO_URL --channel ${{ matrix.rid }} --tag $env:GITHUB_REF_NAME --merge --pre --publish --token ${{ github.token }} -o releases

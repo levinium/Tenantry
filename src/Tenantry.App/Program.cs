@@ -8,6 +8,8 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // First: when the installer or an update runs the app to finish setting up, this does that and exits.
+        Velopack.VelopackApp.Build().Run();
         AppDomain.CurrentDomain.UnhandledException += (_, e) => WriteCrashLog(e.ExceptionObject);
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }

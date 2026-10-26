@@ -23,7 +23,17 @@
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="Avalonia.Controls.DataGrid" />
     <PackageReference Include="FluentIcons.Avalonia" />
+    <PackageReference Include="Velopack" />
   </ItemGroup>
+
+  <!-- Installers ship no debug symbols: DebugType=none covers Tenantry's own, and this drops the
+       ones native packages (SkiaSharp, HarfBuzz) copy in. -->
+  <Target Name="DropSymbolsFromPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishedSymbols Include="$(PublishDir)**\*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(PublishedSymbols)" />
+  </Target>
 
   <ItemGroup>
     <ProjectReference Include="..\Tenantry.ViewModels\Tenantry.ViewModels.csproj" />
