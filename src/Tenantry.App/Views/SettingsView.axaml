@@ -143,13 +143,30 @@
                    Text="How Tenantry makes new passwords when it resets one, for this tenant. You can still type your own password when resetting one person. Saved as you change it." />
       </StackPanel>
 
+      <!-- Simple or a pattern -->
+      <StackPanel Spacing="6">
+        <RadioButton GroupName="passwordmode" IsChecked="{Binding UseSimple}" Content="Simple: Choose a Length and Which Kinds of Characters" />
+        <RadioButton GroupName="passwordmode" IsChecked="{Binding UsePattern}" Content="Pattern: Spell Out the Format, Part by Part, in Order" />
+      </StackPanel>
+
       <!-- What they'll look like -->
       <Border Classes="card">
         <StackPanel Spacing="8">
-          <TextBlock Classes="label" Text="EXAMPLE" />
+          <TextBlock Classes="label" Text="EXAMPLES" />
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" IsVisible="{Binding !HasProblem}">
-            <SelectableTextBlock Classes="code" FontSize="18" Text="{Binding Example}" VerticalAlignment="Center" />
-            <Button Grid.Column="1" Content="Another Example" Command="{Binding NewExampleCommand}" VerticalAlignment="Center" />
+            <ItemsControl ItemsSource="{Binding Examples}" VerticalAlignment="Center">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="24" LineSpacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <SelectableTextBlock Classes="code" FontSize="18" Text="{Binding}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button Grid.Column="1" Content="More Examples" Command="{Binding NewExampleCommand}" VerticalAlignment="Center" />
           </Grid>
           <TextBlock Text="{Binding Description}" TextWrapping="Wrap" IsVisible="{Binding !HasProblem}" />
           <Border Classes="banner error" IsVisible="{Binding HasProblem}">
@@ -158,7 +175,67 @@
         </StackPanel>
       </Border>
 
-      <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="14">
+      <!-- Pattern: the parts in order, and the same as short text -->
+      <StackPanel Spacing="12" IsVisible="{Binding UsePattern}">
+        <ItemsControl ItemsSource="{Binding Parts}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:PatternPartRow">
+              <Border Classes="valuerow">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <WrapPanel ItemSpacing="10" LineSpacing="8" VerticalAlignment="Center">
+                    <ComboBox ItemsSource="{x:Static vm:PatternPartRow.Kinds}" SelectedItem="{Binding Kind}" MinWidth="250" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasCount}" VerticalAlignment="Center">
+                      <NumericUpDown Value="{Binding Count}" Minimum="1" Maximum="64" Increment="1" FormatString="0" Width="110" ToolTip.Tip="How many" />
+                      <TextBlock Classes="caption" Text="to" VerticalAlignment="Center" />
+                      <NumericUpDown Value="{Binding UpTo}" Minimum="1" Maximum="64" Increment="1" FormatString="0" Width="150" PlaceholderText="(exactly)"
+                                     ToolTip.Tip="Leave empty for exactly that many; set it for a range" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasLetterRules}" VerticalAlignment="Center">
+                      <TextBlock Classes="caption" Text="At least" VerticalAlignment="Center" />
+                      <NumericUpDown Value="{Binding MinCapitals}" Minimum="0" Maximum="64" Increment="1" FormatString="0" Width="100" />
+                      <TextBlock Classes="caption" Text="capital," VerticalAlignment="Center" />
+                      <NumericUpDown Value="{Binding MinSmall}" Minimum="0" Maximum="64" Increment="1" FormatString="0" Width="100" />
+                      <TextBlock Classes="caption" Text="small" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBox Text="{Binding Text}" IsVisible="{Binding IsExact}" PlaceholderText="Text, like -" MinWidth="140" VerticalAlignment="Center" />
+                  </WrapPanel>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                    <Button Classes="ghost" Command="{Binding MoveUpCommand}" ToolTip.Tip="Move this part earlier" Padding="6">
+                      <ic:FluentIcon Icon="ArrowUp" FontSize="14" />
+                    </Button>
+                    <Button Classes="ghost" Command="{Binding MoveDownCommand}" ToolTip.Tip="Move this part later" Padding="6">
+                      <ic:FluentIcon Icon="ArrowDown" FontSize="14" />
+                    </Button>
+                    <Button Classes="ghost" Command="{Binding RemoveCommand}" ToolTip.Tip="Take this part out" Padding="6">
+                      <ic:FluentIcon Icon="Delete" FontSize="14" />
+                    </Button>
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Button Classes="link" HorizontalAlignment="Left" Command="{Binding AddPartCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Add" FontSize="14" />
+            <TextBlock Text="Add a Part" />
+          </StackPanel>
+        </Button>
+        <StackPanel Spacing="4">
+          <TextBlock Classes="label" Text="AS PATTERN TEXT" />
+          <TextBox Text="{Binding PatternText}" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" FontSize="15" MaxWidth="480" HorizontalAlignment="Left" MinWidth="320" />
+          <TextBlock Classes="error" Text="{Binding PatternTextProblem}" IsVisible="{Binding HasPatternTextProblem}" TextWrapping="Wrap" />
+          <TextBlock Classes="caption" Text="{Binding PatternHelp}" TextWrapping="Wrap" />
+        </StackPanel>
+        <CheckBox Content="Leave Out Characters That Look Alike (0 and O, 1 and l, 5 and S)" IsChecked="{Binding AvoidLookAlikes}" />
+      </StackPanel>
+
+      <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="14" IsVisible="{Binding UseSimple}">
         <StackPanel Spacing="2" VerticalAlignment="Center">
           <TextBlock Text="Length" FontWeight="SemiBold" />
           <TextBlock Classes="caption" TextWrapping="Wrap" Text="Characters, not counting dashes. 16 or more is strong." />

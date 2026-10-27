@@ -661,6 +661,16 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     var settings = (SettingsViewModel)synced.Dialog!.Content;
     settings.SelectedArea = settings.SettingsAreas.Single(a => a.Key == "passwords");
     Render(synced, $"settings-passwords-{suffix}");
+    // A pattern, part by part (a made-up format).
+    // A fresh Settings for it: earlier captures' windows stay bound to the first one and would push their radio buttons back.
+    synced.OpenSettingsCommand.Execute(null);
+    var patternSettings = (SettingsViewModel)synced.Dialog!.Content;
+    patternSettings.SelectedArea = patternSettings.SettingsAreas.Single(a => a.Key == "passwords");
+    var passwords = patternSettings.Passwords!;
+    passwords.UsePattern = true;
+    passwords.PatternText = "U2 l4 D2-4 '-' S1";
+    Render(synced, $"settings-password-pattern-{suffix}", height: 1100);
+    passwords.UseDefaultCommand.Execute(null);
     synced.CloseDialog();
 
     // Mid-sync: the spinning icon, the step, the moving bar and the background line; then Settings showing it.

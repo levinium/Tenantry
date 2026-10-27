@@ -10,6 +10,93 @@ public sealed record Choice<T>(T Value, string Label)
     public override string ToString() => Label;
 }
 
+/// <summary>One part of a password pattern as a row: what kind, how many, and for letters the capital and small-letter rules.</summary>
+public sealed partial class PatternPartRow : ObservableObject
+{
+    readonly Action _changed;
+    readonly Action<PatternPartRow, int> _move;
+    readonly Action<PatternPartRow> _remove;
+    bool _loading;
+
+    public static IReadOnlyList<Choice<PatternKind>> Kinds { get; } =
+    [
+        new(PatternKind.Letters, "Letters (Capital or Small)"),
+        new(PatternKind.Capitals, "Capital Letters"),
+        new(PatternKind.SmallLetters, "Small Letters"),
+        new(PatternKind.Digits, "Digits"),
+        new(PatternKind.PhoneSymbols, "Symbols Easy to Type on a Phone"),
+        new(PatternKind.AnySymbols, "Any Symbols"),
+        new(PatternKind.LettersOrDigits, "Letters or Digits"),
+        new(PatternKind.Exact, "Exact Text"),
+    ];
+
+    public PatternPartRow(PatternPart part, Action changed, Action<PatternPartRow, int> move, Action<PatternPartRow> remove)
+    {
+        _changed = changed;
+        _move = move;
+        _remove = remove;
+        _loading = true;
+        Kind = Kinds.First(k => k.Value == part.Kind);
+        Count = part.Min;
+        UpTo = part.IsRange ? part.Max : null;
+        MinCapitals = part.MinCapitals;
+        MinSmall = part.MinSmall;
+        Text = part.Text ?? "";
+        _loading = false;
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLetterRules), nameof(IsExact), nameof(HasCount))]
+    public partial Choice<PatternKind> Kind { get; set; }
+
+    [ObservableProperty]
+    public partial decimal Count { get; set; }
+
+    /// <summary>When set, a range: from Count up to this.</summary>
+    [ObservableProperty]
+    public partial decimal? UpTo { get; set; }
+
+    [ObservableProperty]
+    public partial decimal MinCapitals { get; set; }
+
+    [ObservableProperty]
+    public partial decimal MinSmall { get; set; }
+
+    [ObservableProperty]
+    public partial string Text { get; set; }
+
+    public bool HasLetterRules => Kind.Value is PatternKind.Letters or PatternKind.LettersOrDigits;
+    public bool IsExact => Kind.Value == PatternKind.Exact;
+    public bool HasCount => !IsExact;
+
+    partial void OnKindChanged(Choice<PatternKind> value) => Edited();
+    partial void OnCountChanged(decimal value) => Edited();
+    partial void OnUpToChanged(decimal? value) => Edited();
+    partial void OnMinCapitalsChanged(decimal value) => Edited();
+    partial void OnMinSmallChanged(decimal value) => Edited();
+    partial void OnTextChanged(string value) => Edited();
+
+    void Edited()
+    {
+        if (!_loading)
+            _changed();
+    }
+
+    public PatternPart ToPart() => IsExact
+        ? new PatternPart(PatternKind.Exact, 1, 1, Text: Text)
+        : new PatternPart(Kind.Value, (int)Count, UpTo is { } max && max > Count ? (int)max : (int)Count,
+            HasLetterRules ? (int)MinCapitals : 0, HasLetterRules ? (int)MinSmall : 0);
+
+    [RelayCommand]
+    void MoveUp() => _move(this, -1);
+
+    [RelayCommand]
+    void MoveDown() => _move(this, 1);
+
+    [RelayCommand]
+    void Remove() => _remove(this);
+}
+
 /// <summary>
 /// Settings › Passwords: how Tenantry makes new passwords for this tenant. Each choice saves at once
 /// when the result is a password Microsoft 365 accepts; otherwise it says what to change. An
@@ -50,9 +137,109 @@ public sealed partial class PasswordStyleViewModel : ObservableObject
         Symbols = SymbolChoices.First(c => c.Value == style.Symbols);
         Groups = style.Groups;
         AvoidLookAlikes = style.AvoidLookAlikes;
+        UsePattern = style.UsesPattern;
+        SetPatternText(style.Pattern ?? StarterPattern, fromRows: false);
         _loading = false;
         Changed();
     }
+
+    // ---- Pattern ------------------------------------------------------------------------------------
+
+    /// <summary>Offered when switching to a pattern for the first time: passes Microsoft 365's rules.</summary>
+    public const string StarterPattern = "L5+1U+1l D3 S2";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UseSimple))]
+    public partial bool UsePattern { get; set; }
+
+    public bool UseSimple
+    {
+        get => !UsePattern;
+        set => UsePattern = !value;
+    }
+
+    partial void OnUsePatternChanged(bool value) => Changed();
+
+    public System.Collections.ObjectModel.ObservableCollection<PatternPartRow> Parts { get; } = [];
+
+    string _patternText = "";
+    bool _syncing;
+
+    /// <summary>The pattern as short text; typing a valid one rebuilds the rows, and editing the rows rewrites it.</summary>
+    public string PatternText
+    {
+        get => _patternText;
+        set
+        {
+            if (_patternText == value)
+                return;
+            SetPatternText(value, fromRows: false);
+            Changed();
+        }
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPatternTextProblem))]
+    public partial string? PatternTextProblem { get; private set; }
+
+    public bool HasPatternTextProblem => PatternTextProblem is not null;
+
+    void SetPatternText(string text, bool fromRows)
+    {
+        _patternText = text;
+        OnPropertyChanged(nameof(PatternText));
+        if (fromRows)
+            return;
+        var (parts, problem) = PasswordPattern.Parse(text);
+        PatternTextProblem = problem;
+        if (problem is not null)
+            return;
+        _syncing = true;
+        Parts.Clear();
+        foreach (var part in parts)
+            Parts.Add(Row(part));
+        _syncing = false;
+    }
+
+    PatternPartRow Row(PatternPart part) => new(part, RowsChanged, MoveRow, RemoveRow);
+
+    /// <summary>A row changed: the text follows.</summary>
+    void RowsChanged()
+    {
+        if (_syncing)
+            return;
+        PatternTextProblem = null;
+        SetPatternText(PasswordPattern.ToText(Parts.Select(r => r.ToPart())), fromRows: true);
+        Changed();
+    }
+
+    void MoveRow(PatternPartRow row, int by)
+    {
+        var at = Parts.IndexOf(row);
+        var to = at + by;
+        if (to < 0 || to >= Parts.Count)
+            return;
+        Parts.Move(at, to);
+        RowsChanged();
+    }
+
+    void RemoveRow(PatternPartRow row)
+    {
+        Parts.Remove(row);
+        RowsChanged();
+    }
+
+    [RelayCommand]
+    void AddPart()
+    {
+        Parts.Add(Row(new PatternPart(PatternKind.Digits, 1, 1)));
+        RowsChanged();
+    }
+
+    /// <summary>The pattern's parts in words: "5 letters (at least 1 capital), then 3 digits…".</summary>
+    public string PatternHelp =>
+        "L letters, U capitals, l small letters, D digits, S symbols easy to type on a phone, P any symbols, A letters or digits, 'text' exact text. " +
+        "Add a count (D3) or a range (D6-8); letters can need capitals or small letters (L5+1U+1l). Parts go in the order written.";
 
     public int MinLength => PasswordStyle.MinLength;
     public int MaxLength => PasswordStyle.MaxLength;
@@ -83,7 +270,7 @@ public sealed partial class PasswordStyleViewModel : ObservableObject
     partial void OnAvoidLookAlikesChanged(bool value) => Changed();
 
     /// <summary>The style as chosen on screen (saved or not).</summary>
-    public PasswordStyle Style => new((int)Length, Letters.Value, Numbers, Symbols.Value, Groups, AvoidLookAlikes);
+    public PasswordStyle Style => new((int)Length, Letters.Value, Numbers, Symbols.Value, Groups, AvoidLookAlikes, UsePattern ? PatternText : null);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasProblem))]
@@ -115,13 +302,21 @@ public sealed partial class PasswordStyleViewModel : ObservableObject
         }
         _store.Save(style);
         Example = style.Create();
+        Examples = Enumerable.Range(0, 3).Select(_ => style.Create()).ToArray();
     }
+
+    /// <summary>A few at once, so a pattern's variety shows.</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<string> Examples { get; private set; } = [];
 
     [RelayCommand]
     void NewExample()
     {
         if (Problem is null)
+        {
             Example = Style.Create();
+            Examples = Enumerable.Range(0, 3).Select(_ => Style.Create()).ToArray();
+        }
     }
 
     [RelayCommand]

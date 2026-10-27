@@ -324,6 +324,27 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Settings › Passwords: choosing Pattern shows the parts, and typing pattern text rebuilds them", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.OpenSettingsCommand.Execute(null);
+            Settle();
+            var settings = (SettingsViewModel)main.Dialog!.Content;
+            settings.SelectedArea = settings.SettingsAreas.Single(a => a.Key == "passwords");
+            Settle();
+            var passwords = settings.Passwords!;
+            var pattern = window.GetVisualDescendants().OfType<RadioButton>().First(r => (r.Content as string ?? "").StartsWith("Pattern:", StringComparison.Ordinal));
+            Click(window, pattern);
+            Expect(passwords.UsePattern, $"Pattern is chosen (radio checked {pattern.IsChecked})");
+            Settle();
+            Expect(window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.DataContext is PatternPartRow && c.IsEffectivelyVisible), "the parts show");
+            passwords.PatternText = "U2 l4 D3 S1";
+            Settle();
+            Expect(passwords.UsePattern && passwords.Parts.Count == 4, $"still a pattern, with its 4 parts (pattern {passwords.UsePattern}, parts {passwords.Parts.Count})");
+            passwords.UseDefaultCommand.Execute(null);
+            window.Close();
+        });
+
         Check("New User: the list's button opens the form; Add puts the new person in Pending changes and closes it", () =>
         {
             var (window, main, _) = OpenList();
@@ -483,6 +504,8 @@ static class InteractionChecks
         {
             IsDemo = false,
             ListState = new Tenantry.Core.Lists.MemoryListStateStore(),
+            SyncSettings = new MemorySyncSettingsStore(),
+            PasswordStyle = demo.PasswordStyle ?? new MemoryPasswordStyleStore(),
             Changes = new ChangePipeline(new Tenantry.Demo.DemoChangeExecutor((Tenantry.Demo.DemoTenantDirectory)demo.Directory),
                 new ChangeLog(new Tenantry.Core.Cache.MemoryEntityStore()), new MemoryTestModeStore(true), demo.Account),
         }, () => { });

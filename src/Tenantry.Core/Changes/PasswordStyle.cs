@@ -33,14 +33,21 @@ public enum PasswordSymbols
 /// </summary>
 /// <param name="Length">Characters, not counting the dashes between groups.</param>
 /// <param name="AvoidLookAlikes">Leaves out characters people misread: 0 O o, 1 l I, 5 S, 2 Z.</param>
+/// <param name="Pattern">
+/// A format in order (<see cref="PasswordPattern"/>, like "L5+1U D3 S2"). When set it's used
+/// instead of the simple choices, which are kept for switching back.
+/// </param>
 public sealed record PasswordStyle(
     int Length = 16,
     PasswordLetters Letters = PasswordLetters.Mixed,
     bool Numbers = true,
     PasswordSymbols Symbols = PasswordSymbols.None,
     bool Groups = true,
-    bool AvoidLookAlikes = true)
+    bool AvoidLookAlikes = true,
+    string? Pattern = null)
 {
+    [JsonIgnore]
+    public bool UsesPattern => Pattern is not null;
     public const int MinLength = 8;
     public const int MaxLength = 64;
 
@@ -82,6 +89,11 @@ public sealed record PasswordStyle(
     {
         get
         {
+            if (Pattern is not null)
+            {
+                var (parts, unreadable) = PasswordPattern.Parse(Pattern);
+                return unreadable ?? PasswordPattern.Problem(parts);
+            }
             if (Sets.Count == 0)
                 return "Choose at least one kind of character.";
             if (Length is < MinLength or > MaxLength)
@@ -101,6 +113,8 @@ public sealed record PasswordStyle(
     {
         get
         {
+            if (Pattern is not null)
+                return PasswordPattern.Describe(PasswordPattern.Parse(Pattern).Parts);
             var kinds = new List<string>();
             kinds.Add(Letters switch
             {
@@ -123,6 +137,8 @@ public sealed record PasswordStyle(
     public string Create()
     {
         var style = Problem is null ? this : Default;
+        if (style.Pattern is not null)
+            return PasswordPattern.Create(PasswordPattern.Parse(style.Pattern).Parts, style.AvoidLookAlikes);
         var sets = style.Sets;
         var chars = new char[style.Length];
         // One of each kind at random places, then the rest from all kinds together.
