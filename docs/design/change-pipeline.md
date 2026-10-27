@@ -195,6 +195,35 @@ and their Intune devices (managed, by primary user).
   So these changes are covered by unit tests. The write guard refuses them on any device whose
   name doesn't start with the test marker.
 
+### Devices list (6a)
+
+The Devices area lists every device from the local copy. Three reads keep it current:
+
+| Part | Read | How often |
+|---|---|---|
+| Entra devices | `devices/delta` (changes only, like users and groups) | every check for changes |
+| Intune devices | `deviceManagement/managedDevices`, read whole (Intune has no delta) | hourly, or on Refresh |
+| BitLocker keys backed up | `informationProtection/bitlocker/recoveryKeys?$select=id,deviceId` (never the key) | hourly, or on Refresh |
+
+- **Joining:** the two device lists join on the Entra device ID. A device only Intune knows (its
+  Entra ID is all zeros, or not synced yet) is listed as "Intune only", keyed `intune:{id}`.
+  Where both say something, Intune's word wins.
+- **Encryption:** Intune's `isEncrypted` depends on a compliance policy asking for it. Measured
+  live, half the laptops with a backed-up key reported "not encrypted". A backed-up BitLocker key
+  therefore counts as encrypted.
+- **Refresh:** the list's Refresh button reads only these three parts (`ITenantSync.SyncDevicesAsync`).
+- **Missing access:** with no Intune role, devices show from Entra alone, with a note.
+- **Bulk actions** (the selection panel, and the preview for one device):
+  - sync and restart, disable or enable, retire, and wipe, through the 4c-2 changes;
+  - Delete Stale Devices (`DeleteDevice`): it offers devices not seen for 90, 180 or 365 days
+    and skips any seen more recently.
+- **Deleting a device:** removes the Intune record first, so Intune doesn't recreate the Entra
+  one, then `DELETE devices/{id}`. A record that's already gone counts as deleted. Deleting is a
+  caution change.
+- **Gating:** "Manage Devices" needs Intune Administrator or Cloud Device Administrator.
+- **Not tested live:** `POST /devices` is refused, so no throwaway device can be made to delete.
+  The guard's refusal of a non-test device was checked live.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

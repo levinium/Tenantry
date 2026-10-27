@@ -17,6 +17,10 @@ public interface ITenantDirectory
     async Task<UserSummary?> GetUserAsync(string id, CancellationToken cancellationToken = default) =>
         (await GetUsersAsync(cancellationToken)).FirstOrDefault(u => u.Id == id);
 
+    /// <summary>Every device: Entra's and Intune's records joined. Empty where devices aren't kept.</summary>
+    Task<IReadOnlyList<DeviceSummary>> GetDevicesAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<DeviceSummary>>([]);
+
     /// <summary>One group or shared mailbox as the lists would show it; null when it's gone.</summary>
     async Task<GroupSummary?> GetGroupAsync(string id, CancellationToken cancellationToken = default) =>
         (await GetGroupsAsync(cancellationToken)).FirstOrDefault(g => g.Id == id);

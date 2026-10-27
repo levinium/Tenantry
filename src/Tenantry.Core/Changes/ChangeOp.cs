@@ -50,6 +50,7 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetUserRisk), "setUserRisk")]
 [JsonDerivedType(typeof(SetDeviceEnabled), "setDeviceEnabled")]
 [JsonDerivedType(typeof(RunDeviceAction), "runDeviceAction")]
+[JsonDerivedType(typeof(DeleteDevice), "deleteDevice")]
 [JsonDerivedType(typeof(SecretViewed), "secretViewed")]
 [JsonDerivedType(typeof(SetOneDriveAccess), "setOneDriveAccess")]
 [JsonDerivedType(typeof(ReleaseQuarantined), "releaseQuarantined")]
@@ -854,6 +855,27 @@ public sealed record RunDeviceAction(ChangeTarget Device, DeviceCommand Command)
     };
     public override bool IsCaution => Command != DeviceCommand.Sync;
     public override string? ConfirmPhrase => Command == DeviceCommand.Wipe ? Device.Name : null;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
+/// Deletes a device's records: from Intune when it's managed there, then from Entra. Typically a
+/// stale device nobody uses. It isn't wiped or retired first; a device still in use would have to
+/// register again. A caution change.
+/// </summary>
+/// <param name="Device">The Entra device (Kind "device"), or the Intune device (Kind "manageddevice") for one Entra doesn't list.</param>
+/// <param name="ManagedId">Its Intune ID, when Intune manages it too.</param>
+/// <param name="LastSeen">When it was last seen, for the review ("Last Seen 3 Feb 2026").</param>
+public sealed record DeleteDevice(ChangeTarget Device, string? ManagedId, string LastSeen) : ChangeOp
+{
+    public override ChangeTarget Target => Device;
+    public override string Key => "remove";
+    public override string Label => "Delete Device";
+    public override string Before => LastSeen;
+    public override string After => Device.Kind == "manageddevice" ? "Deleted from Intune"
+        : ManagedId is null ? "Deleted from Entra" : "Deleted from Intune and Entra";
+    public override bool IsCaution => true;
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;
 }

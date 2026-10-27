@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.DevicePreviewView"
+             x:DataType="rec:DevicePreviewViewModel">
+  <StackPanel Spacing="16">
+    <!-- What it is -->
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+      <Border Classes="avatar" Width="40" Height="40" CornerRadius="8" VerticalAlignment="Top">
+        <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Border>
+      <StackPanel Grid.Column="1" Spacing="6">
+        <SelectableTextBlock Classes="h3" Text="{Binding Name}" TextWrapping="Wrap" />
+        <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+        <WrapPanel ItemSpacing="6" LineSpacing="4">
+          <c:Badge Text="{Binding JoinType}" Kind="Neutral" />
+          <c:Badge Text="{Binding ManagedText}" Kind="{Binding ManagedKind}" />
+          <c:Badge Text="{Binding ComplianceText}" Kind="{Binding ComplianceKind}" IsVisible="{Binding HasCompliance}" />
+          <c:Badge Text="Disabled" Kind="Danger" IsVisible="{Binding IsDisabled}" />
+          <c:Badge Text="Not Encrypted" Kind="Warning" IsVisible="{Binding IsUnencrypted}" />
+        </WrapPanel>
+      </StackPanel>
+    </Grid>
+
+    <!-- Who uses it -->
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="PRIMARY USER" />
+      <TextBlock Text="No primary user" Classes="muted" IsVisible="{Binding !HasUser}" />
+      <StackPanel Spacing="2" IsVisible="{Binding HasUser}">
+        <Button Classes="link" Content="{Binding UserName}" Command="{Binding OpenUserCommand}" IsVisible="{Binding CanOpenUser}"
+                HorizontalAlignment="Left" ToolTip.Tip="Open their record" />
+        <TextBlock Text="{Binding UserName}" IsVisible="{Binding !CanOpenUser}" />
+        <TextBlock Classes="caption" Text="{Binding UserDetail}" />
+      </StackPanel>
+    </StackPanel>
+
+    <!-- Facts -->
+    <ItemsControl ItemsSource="{Binding Facts}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="6" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:SummaryLine">
+          <Grid ColumnDefinitions="120,*" ColumnSpacing="8">
+            <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <Border Classes="divider" />
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </StackPanel>
+    </Border>
+    <Panel IsVisible="{Binding CanEdit}">
+      <StackPanel Spacing="8">
+        <TextBlock Classes="h3" Text="Actions" />
+        <views:BulkEditorView DataContext="{Binding Bulk}" />
+      </StackPanel>
+    </Panel>
+  </StackPanel>
+</UserControl>

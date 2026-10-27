@@ -150,7 +150,7 @@ public sealed class TenantConnector : ITenantConnector
             account,
             directory,
             new TenantContext(
-                new HashSet<string>([DirectoryRoles.UserAdministrator, DirectoryRoles.ExchangeAdministrator]),
+                new HashSet<string>([DirectoryRoles.UserAdministrator, DirectoryRoles.ExchangeAdministrator, DirectoryRoles.IntuneAdministrator]),
                 new HashSet<string>(["EXCHANGE_S_STANDARD"]),
                 OperatingSystem.IsWindows()),
             IsDemo: true,

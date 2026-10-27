@@ -213,6 +213,12 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     groupsPage.SelectedSection = groupsPage.Sections.Single(s => s.Key == "groups");
     groupsPage.Groups.PreviewRow(groupsPage.Groups.Rows.Cast<GroupSummary>().First(g => g.DisplayName == "Finance"));
     Render(groupsPage, $"groups-{suffix}");
+
+    // Devices: the list with a managed laptop in the preview.
+    var devicesPage = Main();
+    devicesPage.SelectedSection = devicesPage.Sections.Single(s => s.Key == "devices");
+    devicesPage.Devices.PreviewRow(devicesPage.Devices.Rows.Cast<DeviceSummary>().First(d => d.IsManaged && d.UserName is not null && d.Platform == "Windows"));
+    Render(devicesPage, $"devices-{suffix}");
     if (full)
     {
         groupsPage.OpenGroup(groupsPage.Groups.Rows.Cast<GroupSummary>().First(g => g.DisplayName == "Announcements"));
@@ -589,6 +595,15 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         editing.Groups.SelectedRows = editing.Groups.Rows.Take(4).ToArray();
         Render(editing, "groups-selected-light");
         editing.Groups.ClearSelectionCommand.Execute(null);
+
+        // Devices: several selected, with Delete Stale Devices open.
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "devices");
+        editing.Devices.LoadAsync().GetAwaiter().GetResult();
+        editing.Devices.SelectedRows = editing.Devices.Rows.Take(5).ToArray();
+        var devicePanel = (Tenantry.ViewModels.Records.SelectionPanelViewModel)editing.Devices.PreviewModel!;
+        devicePanel.Bulk!.ToggleCommand.Execute(devicePanel.Bulk.Actions.Single(a => a.Title == "Delete Stale Devices"));
+        Render(editing, "devices-selected-light");
+        editing.Devices.ClearSelectionCommand.Execute(null);
 
         // New Group: a shared mailbox with two people given access.
         editing.Groups.RunPrimaryActionCommand.Execute(null);

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Tenantry.Core.Cache;
 using Tenantry.Core.Changes;
 
 namespace Tenantry.Graph;
@@ -7,12 +8,56 @@ namespace Tenantry.Graph;
 /// <summary>Device changes (4c-2): enabling or disabling in Entra, and Intune remote actions.</summary>
 public sealed partial class GraphChangeExecutor
 {
-    Task<ApplyResult> SetDeviceEnabledAsync(SetDeviceEnabled change, CancellationToken cancellationToken) =>
-        GraphCheckedAsync(
+    async Task<ApplyResult> SetDeviceEnabledAsync(SetDeviceEnabled change, CancellationToken cancellationToken)
+    {
+        var result = await GraphCheckedAsync(
             ct => graph.PatchAsync($"devices/{change.Device.Id}", new JsonObject { ["accountEnabled"] = change.New }, ct),
             ct => graph.GetAsync($"devices/{change.Device.Id}?$select=accountEnabled", ct),
             answer => answer is { } d && d.TryGetProperty("accountEnabled", out var on) && on.ValueKind == (change.New ? JsonValueKind.True : JsonValueKind.False),
             cancellationToken);
+        // The Devices list shows it at once.
+        if (result.Outcome == ChangeOutcome.Applied)
+            store.Apply(DirectorySync.Devices, [new EntityChange(change.Device.Id, new JsonObject { ["accountEnabled"] = change.New }, OnlyIfExists: true)]);
+        return result;
+    }
+
+    /// <summary>
+    /// Deletes the Intune record first (so Intune doesn't recreate the Entra one), then Entra's.
+    /// Either already gone counts as deleted. The local copy drops both at once.
+    /// </summary>
+    async Task<ApplyResult> DeleteDeviceAsync(DeleteDevice change, CancellationToken cancellationToken)
+    {
+        var managedId = change.Device.Kind == "manageddevice" ? change.Device.Id : change.ManagedId;
+        try
+        {
+            if (managedId is not null)
+            {
+                await DeleteIfThereAsync($"deviceManagement/managedDevices/{managedId}", cancellationToken);
+                store.Apply(DirectorySync.ManagedDevices, [EntityChange.Removed(managedId)]);
+            }
+            if (change.Device.Kind == "device")
+            {
+                await DeleteIfThereAsync($"devices/{change.Device.Id}", cancellationToken);
+                store.Apply(DirectorySync.Devices, [EntityChange.Removed(change.Device.Id)]);
+            }
+            return new ApplyResult(ChangeOutcome.Applied);
+        }
+        catch (GraphException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, Describe(e));
+        }
+    }
+
+    async Task DeleteIfThereAsync(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await graph.DeleteAsync(path, cancellationToken);
+        }
+        catch (GraphException e) when (e.Status == System.Net.HttpStatusCode.NotFound)
+        {
+        }
+    }
 
     /// <summary>
     /// Intune sends the action to the device, which carries it out when it next checks in: there's

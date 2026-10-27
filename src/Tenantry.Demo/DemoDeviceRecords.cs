@@ -4,37 +4,19 @@ using Tenantry.Core.Directory;
 namespace Tenantry.Demo;
 
 /// <summary>
-/// The demo's devices, seeded per person: a company laptop managed by Intune (BitLocker key, and a
-/// backed-up local admin password), usually a phone, sometimes a personal tablet registered only.
-/// Keys and passwords are made up.
+/// A person's devices in the demo: theirs from the demo directory's one set of devices (see
+/// <see cref="DemoTenantDirectory"/>). Keys and passwords are made up.
 /// </summary>
 public sealed partial class DemoUserRecords : IDeviceRecords
 {
-    readonly Dictionary<string, List<UserDevice>> _userDevices = new(StringComparer.Ordinal);
-
     public async Task<Available<IReadOnlyList<UserDevice>>> GetDevicesAsync(string userId, CancellationToken cancellationToken = default)
     {
-        if (!_userDevices.TryGetValue(userId, out var devices))
-        {
-            var person = await PersonAsync(userId, cancellationToken);
-            var random = new Random(StableSeed(userId) + 30);
-            var now = DateTimeOffset.UtcNow;
-            var initials = new string(person.DisplayName.Split(' ').Select(w => w[0]).ToArray()).ToUpperInvariant();
-            devices = person.Kind == UserKind.Guest ? [] :
-            [
-                new($"obj-l-{userId}", $"dev-l-{userId}", $"mdm-l-{userId}", $"NG-{initials}-{random.Next(100, 999)}", "Windows", "10.0.26100", "Lenovo", "ThinkPad T14",
-                    $"PF{random.Next(1000000, 9999999)}", "Entra joined", true, random.NextDouble() > 0.1, true, now.AddHours(-random.Next(1, 48)),
-                    now.AddDays(-random.Next(100, 700)), "Primary user", "Company-owned"),
-            ];
-            if (person.Kind != UserKind.Guest && random.NextDouble() < 0.7)
-                devices.Add(new($"obj-p-{userId}", $"dev-p-{userId}", $"mdm-p-{userId}", $"{person.DisplayName.Split(' ')[0]}'s iPhone", "iOS", "19.1", "Apple", "iPhone 15",
-                    null, "Registered", true, true, true, now.AddHours(-random.Next(1, 30)), now.AddDays(-random.Next(30, 400)), "Primary user", "Personal"));
-            if (random.NextDouble() < 0.2)
-                devices.Add(new($"obj-t-{userId}", $"dev-t-{userId}", null, "iPad", "iPadOS", "18.6", "Apple", "iPad Air", null, "Registered", true, null, null,
-                    now.AddDays(-random.Next(5, 60)), now.AddDays(-random.Next(200, 900)), "Registered by them", null));
-            _userDevices[userId] = devices;
-        }
-        return new(devices.ToArray());
+        var devices = (await directory.GetDevicesAsync(cancellationToken)).Where(d => d.UserId == userId);
+        return new(devices
+            .Select(d => new UserDevice(d.ObjectId, d.DeviceId, d.ManagedId, d.Name, d.Os, d.OsVersion, d.Manufacturer, d.Model, d.Serial, d.JoinType,
+                d.Enabled, d.Compliant, d.Encrypted, d.LastSeen, d.Registered, d.IsManaged ? "Primary user" : "Registered by them", d.Ownership))
+            .OrderByDescending(d => d.LastActivity ?? DateTimeOffset.MinValue)
+            .ToArray());
     }
 
     public Task<IReadOnlyList<RecoveryKeyInfo>> GetRecoveryKeysAsync(string deviceId, CancellationToken cancellationToken = default) =>
@@ -60,14 +42,15 @@ public sealed partial class DemoUserRecords : IDeviceRecords
         switch (change)
         {
             case SetDeviceEnabled e:
-                foreach (var list in _userDevices.Values)
-                    for (var i = 0; i < list.Count; i++)
-                        if (list[i].ObjectId == e.Device.Id)
-                            list[i] = list[i] with { Enabled = e.New };
+                directory.UpdateDevice(e.Device.Id, d => d with { Enabled = e.New });
                 return true;
             case RunDeviceAction { Command: DeviceCommand.Retire or DeviceCommand.Wipe } a:
-                foreach (var list in _userDevices.Values)
-                    list.RemoveAll(d => d.ManagedId == a.Device.Id);
+                // Intune lets go of it; its Entra record stays, as it does for real.
+                directory.UpdateDevice(a.Device.Id, d => d.ObjectId is null ? null
+                    : d with { ManagedId = null, Compliant = null, Encrypted = null, LastCheckIn = null, Ownership = null });
+                return true;
+            case DeleteDevice delete:
+                directory.UpdateDevice(delete.Device.Id, _ => null);
                 return true;
             case RunDeviceAction:
                 return true;

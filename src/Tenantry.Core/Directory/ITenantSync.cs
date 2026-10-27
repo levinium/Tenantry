@@ -54,4 +54,8 @@ public interface ITenantSync
 
     /// <summary>Brings the local copy up to date; returns how many objects changed.</summary>
     Task<int> SyncAsync(IProgress<string>? progress = null, SyncScope scope = SyncScope.Changes, CancellationToken cancellationToken = default);
+
+    /// <summary>Re-reads only the devices (the Devices list's Refresh); a whole refresh where devices have no read of their own.</summary>
+    Task<int> SyncDevicesAsync(IProgress<string>? progress = null, CancellationToken cancellationToken = default) =>
+        SyncAsync(progress, SyncScope.Refresh, cancellationToken);
 }

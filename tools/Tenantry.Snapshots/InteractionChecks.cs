@@ -501,6 +501,58 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Devices: clicking a device's name shows it in the preview, and its Restart goes to Pending changes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "devices");
+            main.Devices.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var laptop = main.Devices.Rows.Cast<DeviceSummary>().First(d => d.IsManaged);
+            Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, laptop)));
+            var preview = main.Devices.PreviewModel as DevicePreviewViewModel;
+            Expect(preview?.Device == laptop, "the device is in the preview");
+            Settle();
+            var restart = preview!.Bulk!.Actions.Single(a => a.Title == "Restart");
+            var head = FindButton(window, b => b.Classes.Contains("bulkhead") && ReferenceEquals(b.DataContext, restart));
+            head.BringIntoView();
+            Settle();
+            Click(window, head);
+            var stage = FindButton(window, b => b.Command == preview.Bulk.StageCommand && b.IsEffectivelyVisible);
+            stage.BringIntoView();
+            Settle();
+            Click(window, stage);
+            Expect(main.Pending!.Rows.Any(r => r.Change is RunDeviceAction { Command: DeviceCommand.Restart } a && a.Device.Id == laptop.ManagedId),
+                "the restart is in Pending changes");
+            window.Close();
+        });
+
+        Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "devices");
+            main.Devices.LoadAsync().GetAwaiter().GetResult();
+            main.Devices.ApplyView(main.Devices.Views.Single(v => v.View.Id == "all"));
+            Settle();
+            var stale = main.Devices.Rows.Cast<DeviceSummary>().First(d => d.LastSeen is { } s && s < DateTimeOffset.UtcNow.AddDays(-90));
+            var fresh = main.Devices.Rows.Cast<DeviceSummary>().First(d => d.LastSeen is { } s && s > DateTimeOffset.UtcNow.AddDays(-10));
+            main.Devices.SelectedRows = [stale, fresh];
+            Settle();
+            var panel = main.Devices.PreviewModel as SelectionPanelViewModel ?? throw new InvalidOperationException("no selection panel");
+            var delete = panel.Bulk!.Actions.Single(a => a.Title == "Delete Stale Devices");
+            var head = FindButton(window, b => b.Classes.Contains("bulkhead") && ReferenceEquals(b.DataContext, delete));
+            head.BringIntoView();
+            Settle();
+            Click(window, head);
+            delete.Choice = delete.Choices.Single(c => (int)c.Value == 90);
+            var stage = FindButton(window, b => b.Command == panel.Bulk.StageCommand && b.IsEffectivelyVisible);
+            stage.BringIntoView();
+            Settle();
+            Click(window, stage);
+            var deletes = main.Pending!.Rows.Select(r => r.Change).OfType<DeleteDevice>().ToArray();
+            Expect(deletes.Length == 1 && deletes[0].Device.Name == stale.Name, "only the stale device is in Pending changes");
+            window.Close();
+        });
+
         Console.WriteLine(_failed == 0 ? "ALL INTERACTION CHECKS PASSED" : $"{_failed} INTERACTION CHECK(S) FAILED");
         return _failed == 0 ? 0 : 1;
     }

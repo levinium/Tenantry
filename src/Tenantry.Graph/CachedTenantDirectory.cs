@@ -278,6 +278,92 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
         return rows;
     }
 
+    /// <summary>
+    /// Entra's devices joined with Intune's on the Entra device ID. A device Intune manages without
+    /// an Entra record (or with one not yet synced) is still listed, as "Intune only".
+    /// </summary>
+    public Task<IReadOnlyList<DeviceSummary>> GetDevicesAsync(CancellationToken cancellationToken = default) =>
+        Task.Run<IReadOnlyList<DeviceSummary>>(() =>
+        {
+            var managed = new Dictionary<string, JsonDocument>(StringComparer.OrdinalIgnoreCase);
+            var unjoined = new List<JsonDocument>();
+            foreach (var json in store.All(DirectorySync.ManagedDevices))
+            {
+                var m = JsonDocument.Parse(json);
+                if (DirectorySync.AzureDeviceId(m.RootElement) is { } id && managed.TryAdd(id, m))
+                    continue;
+                unjoined.Add(m);
+            }
+            // A BitLocker key backed up means it's encrypted, whatever Intune says (see DirectorySync.RecoveryKeys).
+            var keyed = Ids(DirectorySync.RecoveryKeys);
+            DeviceSummary WithKey(DeviceSummary d) =>
+                d.DeviceId is { } id && keyed.Contains(id) ? d with { KeyBackedUp = true, Encrypted = true } : d;
+            try
+            {
+                var stored = store.All(DirectorySync.Devices);
+                var devices = new List<DeviceSummary>(stored.Count + unjoined.Count);
+                foreach (var json in stored)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    using var d = JsonDocument.Parse(json);
+                    JsonDocument? hit = null;
+                    if (Str(d.RootElement, "deviceId") is { } deviceId)
+                        managed.Remove(deviceId, out hit);
+                    using (hit)
+                        devices.Add(WithKey(ToDevice(d.RootElement, hit?.RootElement)));
+                }
+                // Intune devices whose Entra record isn't here.
+                foreach (var m in managed.Values.Concat(unjoined))
+                    devices.Add(WithKey(ToDevice(null, m.RootElement)));
+                return devices;
+            }
+            finally
+            {
+                foreach (var m in managed.Values.Concat(unjoined))
+                    m.Dispose();
+            }
+        }, cancellationToken);
+
+    /// <summary>One device from its Entra record, its Intune record, or both; Intune's word wins where both say.</summary>
+    internal static DeviceSummary ToDevice(JsonElement? entra, JsonElement? intune)
+    {
+        static bool? Flag(JsonElement? e, string name) =>
+            e is { } x && x.TryGetProperty(name, out var v) && v.ValueKind is JsonValueKind.True or JsonValueKind.False ? v.ValueKind == JsonValueKind.True : null;
+        static string? Text(JsonElement? e, string name) => e is { } x ? Str(x, name) is { Length: > 0 } s ? s : null : null;
+        static DateTimeOffset? When(JsonElement? e, string name) => e is { } x ? Date(x, name) : null;
+        static long? Bytes(JsonElement? e, string name) =>
+            e is { } x && x.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.GetInt64() > 0 ? v.GetInt64() : null;
+
+        var managedId = Text(intune, "id");
+        var objectId = Text(entra, "id");
+        return new DeviceSummary(
+            Key: objectId ?? "intune:" + managedId,
+            ObjectId: objectId,
+            DeviceId: Text(entra, "deviceId") ?? (intune is { } i ? DirectorySync.AzureDeviceId(i) : null),
+            ManagedId: managedId,
+            Name: Text(intune, "deviceName") ?? Text(entra, "displayName") ?? "A device",
+            Os: Text(intune, "operatingSystem") ?? Text(entra, "operatingSystem"),
+            OsVersion: Text(intune, "osVersion") ?? Text(entra, "operatingSystemVersion"),
+            Manufacturer: Text(intune, "manufacturer") ?? Text(entra, "manufacturer"),
+            Model: Text(intune, "model") ?? Text(entra, "model"),
+            Serial: Text(intune, "serialNumber"),
+            JoinType: entra is not null ? GraphUserRecords.Join(Text(entra, "trustType")) : "Intune only",
+            Enabled: Flag(entra, "accountEnabled"),
+            Compliant: intune is not null
+                ? Text(intune, "complianceState") switch { "compliant" => true, "noncompliant" => false, _ => null }
+                : Flag(entra, "isCompliant"),
+            Encrypted: Flag(intune, "isEncrypted"),
+            LastCheckIn: When(intune, "lastSyncDateTime"),
+            LastSignIn: When(entra, "approximateLastSignInDateTime"),
+            Registered: When(entra, "registrationDateTime") ?? When(intune, "enrolledDateTime"),
+            Ownership: Text(intune, "managedDeviceOwnerType") switch { "company" => DeviceFields.Company, "personal" => DeviceFields.Personal, _ => null },
+            UserId: Text(intune, "userId"),
+            UserName: Text(intune, "userDisplayName") ?? Text(intune, "userPrincipalName"),
+            UserPrincipalName: Text(intune, "userPrincipalName"),
+            StorageTotal: Bytes(intune, "totalStorageSpaceInBytes"),
+            StorageFree: Bytes(intune, "freeStorageSpaceInBytes"));
+    }
+
     static string[] Strings(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Array
             ? v.EnumerateArray().Select(x => x.GetString()).OfType<string>().Where(s => s.Length > 0).ToArray()

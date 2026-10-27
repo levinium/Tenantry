@@ -37,6 +37,10 @@ public static class Capabilities
     public static readonly Capability ManageMailSecurity = new("mail.security", "Manage Mail Security (Quarantine, Rules, Block Lists)",
         [ExchangeAdministrator, SecurityAdministrator]);
 
+    /// <summary>Devices: Intune remote actions, and enabling, disabling or deleting devices in Entra.</summary>
+    public static readonly Capability ManageDevices = new("devices.manage", "Manage Devices",
+        [IntuneAdministrator, CloudDeviceAdministrator]);
+
     public static IReadOnlyList<Capability> All { get; } =
-        [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess];
+        [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess, ManageDevices];
 }

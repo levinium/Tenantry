@@ -102,7 +102,7 @@ public sealed partial class GraphUserRecords : IDeviceRecords
         return items;
     }
 
-    static string Join(string? trustType) => trustType switch
+    internal static string Join(string? trustType) => trustType switch
     {
         "AzureAd" => "Entra joined",
         "ServerAd" => "Hybrid joined",

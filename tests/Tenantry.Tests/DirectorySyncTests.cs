@@ -53,6 +53,25 @@ public class DirectorySyncTests
               {"id":"u1","signInActivity":{"lastSignInDateTime":"2026-10-19T08:00:00Z"}},
               {"id":"ghost","signInActivity":{"lastSignInDateTime":"2026-10-19T08:00:00Z"}}]}
             """)
+        // Two Entra devices (a joined laptop Intune manages, a registered phone it doesn't), and an
+        // Intune device with no Entra record (Intune sends an all-zero Entra ID for it).
+        .On(HttpMethod.Get, "devices/delta?$select", $$"""
+            {"value":[
+              {"id":"e1","deviceId":"d-1","displayName":"LAPTOP-1","operatingSystem":"Windows","trustType":"AzureAd","accountEnabled":true,
+               "approximateLastSignInDateTime":"2026-10-18T09:00:00Z"},
+              {"id":"e2","deviceId":"d-2","displayName":"Phone","operatingSystem":"iOS","trustType":"Workplace","accountEnabled":false}],
+             "@odata.deltaLink":"{{Base}}devices/delta?$deltatoken=dd1"}
+            """)
+        .On(HttpMethod.Get, "$deltatoken=dd1", """{"value":[],"@odata.deltaLink":"https://graph.microsoft.com/v1.0/devices/delta?$deltatoken=dd1"}""")
+        .On(HttpMethod.Get, "deviceManagement/managedDevices?$select", """
+            {"value":[
+              {"id":"m1","deviceName":"LAPTOP-1","operatingSystem":"Windows","azureADDeviceId":"d-1","complianceState":"noncompliant","isEncrypted":true,
+               "lastSyncDateTime":"2026-10-20T08:00:00Z","managedDeviceOwnerType":"company","userId":"u1","userDisplayName":"Ada",
+               "userPrincipalName":"ada@contoso.example","serialNumber":"SN1","totalStorageSpaceInBytes":256000000000,"freeStorageSpaceInBytes":0},
+              {"id":"m3","deviceName":"KIOSK","operatingSystem":"Android","azureADDeviceId":"00000000-0000-0000-0000-000000000000","complianceState":"compliant"}]}
+            """)
+        // A key backed up for the phone, which Intune doesn't manage: it counts as encrypted.
+        .On(HttpMethod.Get, "informationProtection/bitlocker/recoveryKeys", """{"value":[{"id":"k1","deviceId":"d-2"},{"id":"k2","deviceId":"d-2"}]}""")
         .On(HttpMethod.Get, "/reports/authenticationMethods/userRegistrationDetails", """
             {"value":[{"id":"u1","isAdmin":true,"isMfaRegistered":false,"methodsRegistered":["email"],"userPreferredMethodForSecondaryAuthentication":"none"}]}
             """)
@@ -149,14 +168,67 @@ public class DirectorySyncTests
             .On(HttpMethod.Get, "users/delta?$select", $$"""{"value":[{"id":"u1","displayName":"Ada"}],"@odata.deltaLink":"{{Base}}users/delta?$deltatoken=d1"}""")
             .On(HttpMethod.Get, "groups/delta?$select", $$"""{"value":[],"@odata.deltaLink":"{{Base}}groups/delta?$deltatoken=gd1"}""")
             .On(HttpMethod.Get, "/domains?", """{"value":[]}""")
-            .On(HttpMethod.Get, "resourceProvisioningOptions", """{"value":[]}""");
+            .On(HttpMethod.Get, "resourceProvisioningOptions", """{"value":[]}""")
+            .On(HttpMethod.Get, "devices/delta?$select", $$"""{"value":[{"id":"e1","deviceId":"d-1","displayName":"LAPTOP-1","trustType":"AzureAd"}],"@odata.deltaLink":"{{Base}}devices/delta?$deltatoken=dd1"}""")
+            .On(HttpMethod.Get, "deviceManagement/managedDevices", """{"error":{"code":"Forbidden","message":"no Intune role"}}""", HttpStatusCode.Forbidden)
+            .On(HttpMethod.Get, "informationProtection/bitlocker/recoveryKeys", """{"error":{"code":"Forbidden","message":"no role"}}""", HttpStatusCode.Forbidden);
         var store = new MemoryEntityStore();
+        var sync = new DirectorySync(Graph(http), store, now: () => Now);
 
-        await new DirectorySync(Graph(http), store, now: () => Now).SyncAsync(cancellationToken: Ct);
+        await sync.SyncAsync(cancellationToken: Ct);
 
         var ada = (await new CachedTenantDirectory(store, "Contoso").GetUsersAsync(Ct)).Single();
         Assert.Null(ada.LastSignIn);
         Assert.NotNull(store.GetMark(DirectorySync.SignIns));
+        // No Intune role: devices come from Entra alone, with a note saying why.
+        var device = (await new CachedTenantDirectory(store, "Contoso").GetDevicesAsync(Ct)).Single();
+        Assert.Equal(("LAPTOP-1", "Entra joined", false), (device.Name, device.JoinType, device.IsManaged));
+        Assert.Contains(sync.Notes, n => n.StartsWith("Intune devices weren't read", StringComparison.Ordinal));
+    }
+
+    // ---- Devices ----------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Devices_join_Entra_and_Intune_on_the_Entra_device_ID()
+    {
+        var store = new MemoryEntityStore();
+        await new DirectorySync(Graph(FirstRun()), store, now: () => Now).SyncAsync(cancellationToken: Ct);
+
+        var devices = await new CachedTenantDirectory(store, "Contoso").GetDevicesAsync(Ct);
+
+        Assert.Equal(["KIOSK", "LAPTOP-1", "Phone"], devices.Select(d => d.Name).Order().ToArray());
+        var laptop = devices.Single(d => d.Name == "LAPTOP-1");
+        Assert.Equal(("e1", "d-1", "m1", "e1"), (laptop.Key, laptop.DeviceId, laptop.ManagedId, laptop.ObjectId));
+        // Intune's word on compliance; its check-in is newer than Entra's sign-in, so it's the last seen.
+        Assert.Equal((false, true, DeviceFields.Company, "Ada"), (laptop.Compliant, laptop.Encrypted, laptop.Ownership, laptop.UserName));
+        Assert.Equal(new DateTimeOffset(2026, 10, 20, 8, 0, 0, TimeSpan.Zero), laptop.LastSeen);
+        Assert.Null(laptop.StorageFree);
+        var phone = devices.Single(d => d.Name == "Phone");
+        Assert.Equal(("Registered", false, false, "iOS/iPadOS"), (phone.JoinType, phone.IsManaged, phone.Enabled, phone.Platform));
+        Assert.Equal((true, true), (phone.Encrypted, phone.KeyBackedUp));
+        Assert.False(laptop.KeyBackedUp);
+        // Intune-only: keyed by its Intune ID, no Entra record to enable or delete.
+        var kiosk = devices.Single(d => d.Name == "KIOSK");
+        Assert.Equal(("intune:m3", null, "Intune only", true), (kiosk.Key, kiosk.ObjectId, kiosk.JoinType, kiosk.Compliant));
+    }
+
+    [Fact]
+    public async Task The_devices_refresh_reads_only_devices()
+    {
+        var http = FirstRun();
+        var store = new MemoryEntityStore();
+        var sync = new DirectorySync(Graph(http), store, now: () => Now);
+        await sync.SyncAsync(cancellationToken: Ct);
+        var before = http.Requests.Count;
+
+        await sync.SyncDevicesAsync(cancellationToken: Ct);
+
+        var paths = http.Requests.Skip(before).Select(r => r.PathAndQuery).ToArray();
+        Assert.Equal(3, paths.Length);
+        Assert.Contains(paths, p => p.Contains("$deltatoken=dd1", StringComparison.Ordinal));
+        Assert.Contains(paths, p => p.Contains("deviceManagement/managedDevices", StringComparison.Ordinal));
+        // Key metadata only: the key itself is never asked for.
+        Assert.Contains(paths, p => p.Contains("recoveryKeys?$select=id,deviceId", StringComparison.Ordinal));
     }
 
     // ---- Groups -----------------------------------------------------------------------------

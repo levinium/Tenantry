@@ -155,6 +155,34 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
             current => BulkActions.ForGroups(() => current().Cast<GroupSummary>().ToArray(), index),
             pipeline, canEdit);
 
+    public static SelectionPanelViewModel ForDevices(IReadOnlyList<object> rows, Action<object> uncheck, ChangePipeline? pipeline, Availability canEdit,
+        Func<DateTimeOffset> now) =>
+        new(rows, uncheck, "device", "devices",
+            r => (((DeviceSummary)r).Name, DescribeDevice((DeviceSummary)r)),
+            SummarizeDevices,
+            current => BulkActions.ForDevices(() => current().Cast<DeviceSummary>().ToArray(), now),
+            pipeline, canEdit);
+
+    /// <summary>"Windows · Ada Lovelace", or the platform alone for a device with no primary user.</summary>
+    internal static string DescribeDevice(DeviceSummary d) => d.UserName is { } user ? $"{d.Platform} · {user}" : d.Platform;
+
+    static IReadOnlyList<SummaryLine> SummarizeDevices(IReadOnlyList<object> rows)
+    {
+        var devices = rows.Cast<DeviceSummary>().ToArray();
+        var lines = new List<SummaryLine>
+        {
+            new("Platforms", string.Join(" · ", devices.GroupBy(d => d.Platform).OrderByDescending(g => g.Count()).Select(g => $"{g.Count():N0} {g.Key}"))),
+            new("Intune", Counts(devices.Select(d => d.IsManaged ? "managed" : "not managed"), nouns: false)),
+        };
+        var notCompliant = devices.Count(d => d.Compliant == false);
+        if (notCompliant > 0)
+            lines.Add(new("Compliance", $"{notCompliant:N0} not compliant"));
+        var disabled = devices.Count(d => d.Enabled == false);
+        if (disabled > 0)
+            lines.Add(new("Status", $"{disabled:N0} disabled"));
+        return lines;
+    }
+
     static IReadOnlyList<SummaryLine> SummarizeUsers(IReadOnlyList<object> rows)
     {
         var users = rows.Cast<UserSummary>().ToArray();

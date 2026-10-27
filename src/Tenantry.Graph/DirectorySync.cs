@@ -118,6 +118,11 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                 changed += await SyncDeltaAsync(Users, Users, $"users/delta?$select={UserSelect}", "users", scope, _ => item => new EntityChange(Id(item), ToObject(item)), progress, cancellationToken);
                 progress?.Report("Checking groups for changes…");
                 changed += await SyncDeltaAsync(Groups, GroupsMark, $"groups/delta?$select={GroupSelect}", "groups", scope, GroupMapper, progress, cancellationToken);
+                changed += await SyncDevicesAsync(notes, scope, progress, cancellationToken);
+                if (Due(ManagedDevices, scope))
+                    changed += await SyncManagedDevicesAsync(notes, progress, cancellationToken);
+                if (Due(RecoveryKeys, scope))
+                    changed += await SyncRecoveryKeysAsync(progress, cancellationToken);
 
                 if (Due(Domains, scope))
                 {
@@ -191,6 +196,9 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                 new("Users", "Everyone in the directory, their licenses and status (changes only)", store.GetMark(Users)?.SyncedAt, changes),
                 new("Groups", "Groups with their members and owners (changes only)", store.GetMark(GroupsMark)?.SyncedAt, changes),
                 new("Licenses", "The tenant's licenses and how many are left", store.GetMark(Skus)?.SyncedAt, changes),
+                new("Devices", "Devices registered or joined in Entra (changes only)", store.GetMark(Devices)?.SyncedAt, changes),
+                new("Intune Devices", "Compliance, encryption, primary user and check-ins of the devices Intune manages", store.GetMark(ManagedDevices)?.SyncedAt, details),
+                new("BitLocker Keys Backed Up", "Which devices have a recovery key backed up (never the keys themselves)", store.GetMark(RecoveryKeys)?.SyncedAt, details),
                 new("Last Sign-In Times", "When each person last signed in", store.GetMark(SignIns)?.SyncedAt, details),
                 new("MFA Registration", "Who has set up multi-factor sign-in, and who holds an admin role", store.GetMark(Registration)?.SyncedAt, details),
                 new("Microsoft 365 Apps Activations", "How many computers and mobile devices each person has activated the apps on (Microsoft updates it daily)",

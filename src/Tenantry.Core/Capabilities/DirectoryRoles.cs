@@ -13,6 +13,7 @@ public static class DirectoryRoles
     public const string ExchangeRecipientAdministrator = "31392ffb-586c-42d1-9346-e59415a2cc4e";
     public const string SharePointAdministrator = "f28a1f50-f6e7-4571-818b-6a12f2af6b6c";
     public const string IntuneAdministrator = "3a2c62db-5318-420d-8d74-23affee5d9d5";
+    public const string CloudDeviceAdministrator = "7698a772-787b-4ac8-901f-60d6b08affd2";
     public const string SecurityAdministrator = "194ae4cb-b126-40b2-bd5b-6091b380977d";
     public const string SecurityReader = "5d6b6bb7-de71-4623-b4af-96380a352509";
     public const string ConditionalAccessAdministrator = "b1be1c3e-b65d-4f19-8427-f6fa0d97feb9";
@@ -36,6 +37,7 @@ public static class DirectoryRoles
         [ExchangeRecipientAdministrator] = "Exchange Recipient Administrator",
         [SharePointAdministrator] = "SharePoint Administrator",
         [IntuneAdministrator] = "Intune Administrator",
+        [CloudDeviceAdministrator] = "Cloud Device Administrator",
         [SecurityAdministrator] = "Security Administrator",
         [SecurityReader] = "Security Reader",
         [ConditionalAccessAdministrator] = "Conditional Access Administrator",

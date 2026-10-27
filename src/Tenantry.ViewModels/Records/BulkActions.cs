@@ -339,6 +339,62 @@ public static class BulkActions
         ];
     }
 
+    // ---- Devices ----------------------------------------------------------------------------
+
+    /// <summary>A device's Entra record as a change target.</summary>
+    public static ChangeTarget EntraTarget(DeviceSummary d) => new("device", d.ObjectId!, d.Name, null);
+
+    /// <summary>A device's Intune record as a change target.</summary>
+    public static ChangeTarget IntuneTarget(DeviceSummary d) => new("manageddevice", d.ManagedId!, d.Name, null);
+
+    /// <summary>How long unseen before "Delete Stale Devices" offers a device, in days.</summary>
+    public static readonly int[] StaleDays = [90, 180, 365];
+
+    /// <param name="selected">The devices checked right now (read each time).</param>
+    public static IReadOnlyList<BulkAction> ForDevices(Func<IReadOnlyList<DeviceSummary>> selected, Func<DateTimeOffset> now)
+    {
+        BulkPlan Intune(DeviceCommand command) => Plan(selected(), d => d.ManagedId is null
+            ? (null, $"{d.Name}: not managed by Intune")
+            : (new RunDeviceAction(IntuneTarget(d), command), null));
+
+        return
+        [
+            new("Sync with Intune", "Ask each device to check in now: it picks up new policies and apps, and reports its state.", "ArrowSync",
+                (_, _) => Task.FromResult(Intune(DeviceCommand.Sync))),
+
+            new("Restart", "Restart each device now. Whoever is using it may lose unsaved work.", "ArrowClockwise",
+                (_, _) => Task.FromResult(Intune(DeviceCommand.Restart)), isCaution: true),
+
+            new("Disable or Enable", "A disabled device can't be used to sign in to Microsoft 365; enable it to allow that again.", "Prohibited",
+                (a, _) =>
+                {
+                    var enable = (bool)a.Choice!.Value;
+                    return Task.FromResult(Plan(selected(), d => d.ObjectId is null ? (null, $"{d.Name}: not in Entra")
+                        : d.Enabled == enable ? (null, $"{d.Name}: already {(enable ? "enabled" : "disabled")}")
+                        : (new SetDeviceEnabled(EntraTarget(d), d.Enabled != false, enable), null)));
+                },
+                choiceLabel: "Device", choices: [new BulkChoice("Disable", false), new BulkChoice("Enable", true)]),
+
+            new("Retire", "Remove work data, apps and settings and stop managing each device. The owner's own things stay.", "PhoneLinkSetup",
+                (_, _) => Task.FromResult(Intune(DeviceCommand.Retire)), isCaution: true),
+
+            new("Wipe", "Erase each device back to factory settings. You type each device's name to confirm before it's sent.", "Delete",
+                (_, _) => Task.FromResult(Intune(DeviceCommand.Wipe)), isCaution: true),
+
+            new("Delete Stale Devices", "Delete the records of devices nobody has used for a while, from Intune and Entra. Devices seen more recently are skipped.", "DeleteDismiss",
+                (a, _) =>
+                {
+                    var days = (int)a.Choice!.Value;
+                    var cutoff = now().AddDays(-days);
+                    return Task.FromResult(Plan(selected(), d => d.LastSeen is { } seen && seen > cutoff
+                        ? (null, $"{d.Name}: seen {Display.Exact(seen)}")
+                        : (new DeleteDevice(d.ObjectId is not null ? EntraTarget(d) : IntuneTarget(d), d.ObjectId is not null ? d.ManagedId : null,
+                            d.LastSeen is { } last ? $"Last seen {Display.Exact(last)}" : "Never seen"), null)));
+                },
+                choiceLabel: "Not Seen For", choices: StaleDays.Select(n => new BulkChoice($"{n} Days or More", n)).ToArray(), isCaution: true),
+        ];
+    }
+
     /// <summary>People who are in any of the selected groups' lists, for "remove" pickers.</summary>
     static IEnumerable<PickOption> MembersOf(IReadOnlyList<GroupSummary> groups, IDirectoryIndex index, Func<GroupSummary, IReadOnlyList<GroupMember>> list)
     {

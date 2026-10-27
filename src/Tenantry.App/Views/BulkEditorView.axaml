@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.BulkEditorView"
+             x:DataType="ed:BulkEditorViewModel">
+  <!-- Actions as rows that open in place; each stages its changes to Pending changes. -->
+  <StackPanel Spacing="8">
+    <Border Classes="banner warning" IsVisible="{Binding IsTestMode}">
+      <TextBlock TextWrapping="Wrap" FontSize="12"
+                 Text="Test mode: only zz-tenantry-test- objects change when you apply; the rest are refused." />
+    </Border>
+    <ItemsControl ItemsSource="{Binding Actions}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="4" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="ed:BulkAction">
+          <Border Classes="bulkrow" Classes.open="{Binding IsSelected}">
+            <StackPanel>
+              <Button Classes="bulkhead" Command="{Binding $parent[ItemsControl].((ed:BulkEditorViewModel)DataContext).ToggleCommand}" CommandParameter="{Binding}"
+                      ToolTip.Tip="{Binding Description}">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                  <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="16" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center" />
+                  <Panel Grid.Column="2" VerticalAlignment="Center">
+                    <ic:FluentIcon Icon="ChevronRight" FontSize="12" IsVisible="{Binding !IsSelected}" />
+                    <ic:FluentIcon Icon="ChevronDown" FontSize="12" IsVisible="{Binding IsSelected}" />
+                  </Panel>
+                </Grid>
+              </Button>
+              <StackPanel Spacing="10" Margin="12,4,12,12" IsVisible="{Binding IsSelected}">
+                <views:BulkActionInputsView />
+                <StackPanel DataContext="{Binding $parent[ItemsControl].DataContext}" x:DataType="ed:BulkEditorViewModel" Spacing="8">
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Classes="accent" Command="{Binding StageCommand}" ToolTip.Tip="One change per selected row, to Pending changes">
+                      <TextBlock Text="{Binding StageText}" />
+                    </Button>
+                    <TextBlock Classes="muted" Text="Preparing…" IsVisible="{Binding IsWorking}" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <Border Classes="banner error" IsVisible="{Binding HasError}">
+                    <TextBlock Text="{Binding Error}" TextWrapping="Wrap" />
+                  </Border>
+                  <Border Classes="banner success" IsVisible="{Binding HasResult}">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="{Binding Result}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                      <TextBlock Classes="caption" Text="{Binding SkippedHeading}"
+                                 IsVisible="{Binding SkippedHeading, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                      <ItemsControl ItemsSource="{Binding Skipped}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="x:String">
+                            <TextBlock Classes="caption" Text="{Binding}" TextWrapping="Wrap" />
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

@@ -85,6 +85,9 @@
     <DataTemplate DataType="ms:RulePreviewViewModel">
       <views:RulePreviewView />
     </DataTemplate>
+    <DataTemplate DataType="rec:DevicePreviewViewModel">
+      <views:DevicePreviewView />
+    </DataTemplate>
   </Application.DataTemplates>
 
   <Application.Resources>

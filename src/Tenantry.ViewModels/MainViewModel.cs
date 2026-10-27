@@ -53,9 +53,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                 ShowDialog(new Records.DialogViewModel("New Group", TenantName,
                     new Records.NewGroupViewModel(grouping, _tenant.Records as IUserRecords, _index, CloseDialog))))
             : new ListPrimaryAction("New Group", "PeopleAdd", false, createUsers.Reason ?? "This tenant can't be edited");
+        var manageDevices = Evaluate(Capabilities.ManageDevices);
+        Devices = DataListViewModel.Create(DeviceList.Definition(d => new Records.DevicePreviewViewModel(d, _tenant.Changes, manageDevices, _now, _index, OpenUser)),
+            LoadDevicesAsync, OpenDevice, tenant.ListState, _now);
+        // The device page comes later (6b): opening a device shows it in the preview.
+        Devices.HasRecordPages = false;
+        Devices.PrimaryAction = HasSync ? new ListPrimaryAction("Refresh Devices", "ArrowSync", true,
+            "Read devices from Entra and Intune again now (they're otherwise checked with everything else)", () => _ = RefreshDevicesAsync()) : null;
+        Devices.SelectionPanel = (rows, uncheck) =>
+            Records.SelectionPanelViewModel.ForDevices(rows, uncheck, _tenant.Changes, manageDevices, _now);
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);
+        Devices.FollowSharedPreferences(shared);
         if (tenant.Changes is { } changes)
         {
             Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync);
@@ -82,7 +92,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             new NavSection("groups", GroupList.AreaTitle, readUsers.Reason),
             new NavSection("mail", "Mail & Security", MailSecurity is null ? "Mail & Security needs Exchange Online" : mailSecurity.Reason),
             new NavSection("sharepoint", "SharePoint & OneDrive", Later),
-            new NavSection("devices", "Devices", Later),
+            new NavSection("devices", "Devices", readUsers.Reason),
             new NavSection("security", "Security & Compliance", Later),
         ];
         Tabs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasRecordTabs));
@@ -108,15 +118,46 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     public DataListViewModel Groups { get; }
 
+    public DataListViewModel Devices { get; }
+
     /// <summary>Mail &amp; security (quarantine, message trace…); null when the tenant has no Exchange reads.</summary>
     public MailSecurity.MailSecurityViewModel? MailSecurity { get; }
 
     /// <summary>Lists in sidebar order, so each sidebar entry maps to one list tab.</summary>
-    IEnumerable<(string Section, DataListViewModel List)> AreaLists => [("users", Users), ("groups", Groups)];
+    IEnumerable<(string Section, DataListViewModel List)> AreaLists => [("users", Users), ("groups", Groups), ("devices", Devices)];
 
     /// <summary>Each sidebar entry's tab: the lists, then areas with pages of their own.</summary>
     IEnumerable<(string Section, TabViewModel Tab)> AreaTabs =>
         AreaLists.Select(a => (a.Section, (TabViewModel)a.List)).Concat(MailSecurity is null ? [] : [("mail", (TabViewModel)MailSecurity)]);
+
+    Task<IReadOnlyList<DeviceSummary>> LoadDevicesAsync(CancellationToken cancellationToken) => _tenant.Directory.GetDevicesAsync(cancellationToken);
+
+    /// <summary>Until devices have pages of their own, opening one shows it in the preview.</summary>
+    void OpenDevice(DeviceSummary device) => Devices.PreviewRow(device);
+
+    /// <summary>The Devices list's Refresh: Entra's devices (changes) and Intune's (read whole) now, then the list.</summary>
+    async Task RefreshDevicesAsync()
+    {
+        if (IsSyncing)
+            return;
+        // The list keeps its rows; the wheel says what's being read.
+        Devices.ShowLoading("Reading devices from Entra and Intune…");
+        try
+        {
+            var progress = new Progress<string>(Devices.UpdateLoadingText);
+            if (await SyncAsync(progress, SyncScope.Refresh, _lifetime.Token, devicesOnly: true) is null)
+                Devices.ShowLoadError($"Couldn't read devices: {SyncError}");
+            await Devices.ReloadAsync(_lifetime.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // The tenant was closed.
+        }
+        finally
+        {
+            Devices.ShowLoading(null);
+        }
+    }
 
     async Task<IReadOnlyList<UserSummary>> LoadUsersAsync(CancellationToken cancellationToken)
     {
@@ -136,12 +177,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     {
         await Users.LoadAsync(cancellationToken);
         await Groups.LoadAsync(cancellationToken);
+        await Devices.LoadAsync(cancellationToken);
     }
 
     async Task ReloadListsAsync(CancellationToken cancellationToken)
     {
         await Users.ReloadAsync(cancellationToken);
         await Groups.ReloadAsync(cancellationToken);
+        await Devices.ReloadAsync(cancellationToken);
     }
 
     /// <summary>Every gated feature and whether this admin can use it here, for the "Your access" panel.</summary>
@@ -193,10 +236,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             const string first = "Downloading the directory for the first time…";
             Users.ShowLoading(first);
             Groups.ShowLoading(first);
+            Devices.ShowLoading(first);
             var progress = new Progress<string>(text =>
             {
                 Users.UpdateLoadingText(text);
                 Groups.UpdateLoadingText(text);
+                Devices.UpdateLoadingText(text);
             });
             var ok = await SyncAsync(progress, SyncScope.Everything, cancellationToken) is not null;
             await LoadListsAsync(cancellationToken);
@@ -205,6 +250,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                 var message = $"Couldn't download the directory: {SyncError} Use Refresh (bottom left) to try again.";
                 Users.ShowLoadError(message);
                 Groups.ShowLoadError(message);
+                Devices.ShowLoadError(message);
             }
         }
         else
@@ -346,7 +392,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     }
 
     /// <summary>Runs one sync; returns the number of changes, or null if it failed (see <see cref="SyncError"/>).</summary>
-    async Task<int?> SyncAsync(IProgress<string>? progress, SyncScope scope, CancellationToken cancellationToken)
+    /// <param name="devicesOnly">Re-read only the devices (the Devices list's Refresh).</param>
+    async Task<int?> SyncAsync(IProgress<string>? progress, SyncScope scope, CancellationToken cancellationToken, bool devicesOnly = false)
     {
         if (_tenant.Sync is not { } sync)
             return 0;
@@ -357,7 +404,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         try
         {
             // Off the UI thread: a first download parses and writes thousands of objects.
-            var changed = await Task.Run(() => sync.SyncAsync(report, scope, cancellationToken), cancellationToken);
+            var changed = await Task.Run(() => devicesOnly ? sync.SyncDevicesAsync(report, cancellationToken) : sync.SyncAsync(report, scope, cancellationToken),
+                cancellationToken);
             SyncError = null;
             return changed;
         }
