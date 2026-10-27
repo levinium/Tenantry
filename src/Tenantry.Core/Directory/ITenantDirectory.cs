@@ -21,6 +21,10 @@ public interface ITenantDirectory
     Task<IReadOnlyList<DeviceSummary>> GetDevicesAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<DeviceSummary>>([]);
 
+    /// <summary>Every site and OneDrive. Empty where sites aren't kept.</summary>
+    Task<IReadOnlyList<SiteSummary>> GetSitesAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<SiteSummary>>([]);
+
     /// <summary>One group or shared mailbox as the lists would show it; null when it's gone.</summary>
     async Task<GroupSummary?> GetGroupAsync(string id, CancellationToken cancellationToken = default) =>
         (await GetGroupsAsync(cancellationToken)).FirstOrDefault(g => g.Id == id);

@@ -90,6 +90,44 @@ public sealed class SharePointAdmin(HttpClient http, ITokenSource tokens, GraphC
             $"{Text(loginName)}<Parameter Type=\"Boolean\">{(isAdmin ? "true" : "false")}</Parameter></Parameters></Method>",
             $"<Constructor Id=\"1\" TypeId=\"{TenantTypeId}\" />", cancellationToken);
 
+    /// <summary>The CSOM type of the filter Get-SPOSite passes (SPOSitePropertiesEnumerableFilter).</summary>
+    const string SiteFilterTypeId = "{b92aeee2-c92c-4b67-abcc-024e471bc140}";
+
+    /// <summary>
+    /// Every site's properties, as Get-SPOSite reads them (Tenant.GetSitePropertiesFromSharePointByFilters):
+    /// storage, owner, template, sharing, lock, archive, hub and Teams connection in one pass. Pages
+    /// arrive as SharePoint sends them (measured live: 557 rows with OneDrives in one 3.6 s page).
+    /// </summary>
+    /// <param name="includePersonal">Include OneDrives.</param>
+    public async IAsyncEnumerable<JsonElement> GetSitesAsync(bool includePersonal,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        string? start = null;
+        for (var page = 0; page < 1000; page++)
+        {
+            var startIndex = start is null ? "<Property Name=\"StartIndex\" Type=\"Null\" />"
+                : $"<Property Name=\"StartIndex\" Type=\"String\">{SecurityElement.Escape(start)}</Property>";
+            var answer = await ProcessQueryAsync(
+                "<ObjectPath Id=\"2\" ObjectPathId=\"1\" /><ObjectPath Id=\"4\" ObjectPathId=\"3\" />" +
+                "<Query Id=\"5\" ObjectPathId=\"3\"><Query SelectAllProperties=\"true\"><Properties /></Query>" +
+                "<ChildItemQuery SelectAllProperties=\"true\"><Properties /></ChildItemQuery></Query>",
+                $"<Constructor Id=\"1\" TypeId=\"{TenantTypeId}\" />" +
+                $"<Method Id=\"3\" ParentId=\"1\" Name=\"GetSitePropertiesFromSharePointByFilters\"><Parameters><Parameter TypeId=\"{SiteFilterTypeId}\">" +
+                "<Property Name=\"Filter\" Type=\"String\"></Property><Property Name=\"IncludeDetail\" Type=\"Boolean\">true</Property>" +
+                $"<Property Name=\"IncludePersonalSite\" Type=\"Enum\">{(includePersonal ? 1 : 2)}</Property>{startIndex}" +
+                "<Property Name=\"Template\" Type=\"Null\" /></Parameter></Parameters></Method>",
+                cancellationToken);
+            if (ResultOf(answer, 5) is not { ValueKind: JsonValueKind.Object } result)
+                yield break;
+            if (result.TryGetProperty("_Child_Items_", out var items) && items.ValueKind == JsonValueKind.Array)
+                foreach (var item in items.EnumerateArray())
+                    yield return item;
+            start = Str(result, "NextStartIndexFromSharePoint");
+            if (string.IsNullOrEmpty(start))
+                yield break;
+        }
+    }
+
     static string Text(string value) => $"<Parameter Type=\"String\">{SecurityElement.Escape(value)}</Parameter>";
 
     static string? Str(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;

@@ -62,11 +62,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             Records.SelectionPanelViewModel.ForDevices(rows, uncheck, _tenant.Changes, manageDevices, _now);
         DevicesArea = new DevicesAreaViewModel(Devices, tenant.Records as IAutopilotRecords, tenant.Changes, manageDevices, tenant.ListState, _now,
             managedId => { if (_devices.FirstOrDefault(d => d.ManagedId == managedId) is { } device) OpenDevice(device); });
+        // SharePoint: one local copy of every site collection, shown as Sites and as OneDrives.
+        object SitePreview(SiteSummary s) => new Records.SitePreviewViewModel(s, _index, OpenUser, OpenGroup);
+        var sites = DataListViewModel.Create(SiteList.Sites(SitePreview), async ct => (await LoadSitesAsync(ct)).Where(s => s.Kind != SiteKind.OneDrive).ToArray(),
+            row => SharePoint!.Sites.PreviewRow(row), tenant.ListState, _now);
+        var oneDrives = DataListViewModel.Create(SiteList.OneDrives(SitePreview), async ct => (await LoadSitesAsync(ct)).Where(s => s.Kind == SiteKind.OneDrive).ToArray(),
+            row => SharePoint!.OneDrives.PreviewRow(row), tenant.ListState, _now);
+        foreach (var list in new[] { sites, oneDrives })
+        {
+            // Site pages arrive in 7b: opening one shows it in the preview until then.
+            list.HasRecordPages = false;
+            list.PrimaryAction = HasSync ? new ListPrimaryAction("Refresh Sites", "ArrowSync", true,
+                "Read sites and OneDrives from SharePoint again now (they're otherwise read hourly)", () => _ = RefreshSitesAsync()) : null;
+        }
+        SharePoint = new SharePointAreaViewModel(sites, oneDrives);
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);
         Devices.FollowSharedPreferences(shared);
         DevicesArea.Autopilot.FollowSharedPreferences(shared);
+        SharePoint.Sites.FollowSharedPreferences(shared);
+        SharePoint.OneDrives.FollowSharedPreferences(shared);
         if (tenant.Changes is { } changes)
         {
             Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync);
@@ -92,7 +108,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             new NavSection("users", "Users", readUsers.Reason),
             new NavSection("groups", GroupList.AreaTitle, readUsers.Reason),
             new NavSection("mail", "Mail & Security", MailSecurity is null ? "Mail & Security needs Exchange Online" : mailSecurity.Reason),
-            new NavSection("sharepoint", "SharePoint & OneDrive", Later),
+            new NavSection("sharepoint", "SharePoint & OneDrive", readUsers.Reason),
             new NavSection("devices", "Devices", readUsers.Reason),
             new NavSection("security", "Security & Compliance", Later),
         ];
@@ -124,16 +140,54 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// <summary>The Devices area's tab: the device list and Autopilot, as pages.</summary>
     public DevicesAreaViewModel DevicesArea { get; }
 
+    /// <summary>The SharePoint &amp; OneDrive area's tab: Sites and OneDrives, as pages.</summary>
+    public SharePointAreaViewModel SharePoint { get; }
+
+    IReadOnlyList<SiteSummary> _sites = [];
+
+    async Task<IReadOnlyList<SiteSummary>> LoadSitesAsync(CancellationToken cancellationToken) =>
+        _sites = await _tenant.Directory.GetSitesAsync(cancellationToken);
+
+    /// <summary>The Sites lists' Refresh: sites and OneDrives from SharePoint now, then both lists.</summary>
+    async Task RefreshSitesAsync()
+    {
+        if (IsSyncing)
+            return;
+        var lists = new[] { SharePoint.Sites, SharePoint.OneDrives };
+        foreach (var list in lists)
+            list.ShowLoading("Reading sites and OneDrives from SharePoint…");
+        try
+        {
+            if (await SyncAsync(null, SyncScope.Refresh, _lifetime.Token, sitesOnly: true) is null)
+                foreach (var list in lists)
+                    list.ShowLoadError($"Couldn't read sites: {SyncError}");
+            foreach (var list in lists)
+                await list.ReloadAsync(_lifetime.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // The tenant was closed.
+        }
+        finally
+        {
+            foreach (var list in lists)
+                list.ShowLoading(null);
+        }
+    }
+
     /// <summary>Mail &amp; security (quarantine, message trace…); null when the tenant has no Exchange reads.</summary>
     public MailSecurity.MailSecurityViewModel? MailSecurity { get; }
 
     /// <summary>Lists in sidebar order, so each sidebar entry maps to one list tab.</summary>
-    IEnumerable<(string Section, DataListViewModel List)> AreaLists => [("users", Users), ("groups", Groups), ("devices", Devices)];
+    IEnumerable<(string Section, DataListViewModel List)> AreaLists =>
+        [("users", Users), ("groups", Groups), ("devices", Devices), ("sharepoint", SharePoint.Sites), ("sharepoint", SharePoint.OneDrives)];
 
-    /// <summary>Each sidebar entry's tab: the lists, then areas with pages of their own.</summary>
+    /// <summary>Each sidebar entry's tab: a list, or an area with pages of its own.</summary>
     IEnumerable<(string Section, TabViewModel Tab)> AreaTabs =>
-        AreaLists.Select(a => (a.Section, a.List == Devices ? DevicesArea : (TabViewModel)a.List))
-            .Concat(MailSecurity is null ? [] : [("mail", (TabViewModel)MailSecurity)]);
+    [
+        ("users", Users), ("groups", Groups), ("devices", DevicesArea), ("sharepoint", SharePoint),
+        .. MailSecurity is null ? Array.Empty<(string, TabViewModel)>() : [("mail", (TabViewModel)MailSecurity)],
+    ];
 
     IReadOnlyList<DeviceSummary> _devices = [];
 
@@ -196,6 +250,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         await Users.LoadAsync(cancellationToken);
         await Groups.LoadAsync(cancellationToken);
         await Devices.LoadAsync(cancellationToken);
+        await SharePoint.Sites.LoadAsync(cancellationToken);
+        await SharePoint.OneDrives.LoadAsync(cancellationToken);
     }
 
     async Task ReloadListsAsync(CancellationToken cancellationToken)
@@ -203,6 +259,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         await Users.ReloadAsync(cancellationToken);
         await Groups.ReloadAsync(cancellationToken);
         await Devices.ReloadAsync(cancellationToken);
+        await SharePoint.Sites.ReloadAsync(cancellationToken);
+        await SharePoint.OneDrives.ReloadAsync(cancellationToken);
     }
 
     /// <summary>Every gated feature and whether this admin can use it here, for the "Your access" panel.</summary>
@@ -411,7 +469,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     /// <summary>Runs one sync; returns the number of changes, or null if it failed (see <see cref="SyncError"/>).</summary>
     /// <param name="devicesOnly">Re-read only the devices (the Devices list's Refresh).</param>
-    async Task<int?> SyncAsync(IProgress<string>? progress, SyncScope scope, CancellationToken cancellationToken, bool devicesOnly = false)
+    async Task<int?> SyncAsync(IProgress<string>? progress, SyncScope scope, CancellationToken cancellationToken, bool devicesOnly = false, bool sitesOnly = false)
     {
         if (_tenant.Sync is not { } sync)
             return 0;
@@ -422,8 +480,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         try
         {
             // Off the UI thread: a first download parses and writes thousands of objects.
-            var changed = await Task.Run(() => devicesOnly ? sync.SyncDevicesAsync(report, cancellationToken) : sync.SyncAsync(report, scope, cancellationToken),
-                cancellationToken);
+            var changed = await Task.Run(() => devicesOnly ? sync.SyncDevicesAsync(report, cancellationToken)
+                : sitesOnly ? sync.SyncSitesAsync(report, cancellationToken)
+                : sync.SyncAsync(report, scope, cancellationToken), cancellationToken);
             SyncError = null;
             return changed;
         }
@@ -692,6 +751,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             entries.Add(new PaletteEntry("Device", d.Name, d.UserName is { } user ? $"{d.Platform} · {user}" : d.Platform,
                 DeviceList.IconFor(d), searchText, () => OpenDevice(d)));
         }
+        foreach (var s in _sites)
+        {
+            var searchText = string.Join(' ', s.Title, s.Url, s.OwnerName, SiteSummary.KindName(s.Kind)).ToLowerInvariant();
+            var isDrive = s.Kind == SiteKind.OneDrive;
+            entries.Add(new PaletteEntry(isDrive ? "OneDrive" : "Site", s.Title, s.Url, isDrive ? "Cloud" : "Globe", searchText, () =>
+            {
+                SelectedSection = Sections.First(x => x.Key == "sharepoint");
+                SharePoint.SelectedPage = SharePointAreaViewModel.Pages[isDrive ? 1 : 0];
+                (isDrive ? SharePoint.OneDrives : SharePoint.Sites).PreviewRow(s);
+            }));
+        }
         foreach (var (section, list) in AreaLists)
         {
             foreach (var view in list.Views)
@@ -702,6 +772,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                         SelectedSection = Sections.First(s => s.Key == section);
                         if (list == Devices)
                             DevicesArea.SelectedPage = DevicesAreaViewModel.Pages[0];
+                        if (list == SharePoint.Sites || list == SharePoint.OneDrives)
+                            SharePoint.SelectedPage = SharePointAreaViewModel.Pages[list == SharePoint.Sites ? 0 : 1];
                         list.ApplyView(view);
                     }));
             }

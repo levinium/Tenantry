@@ -586,6 +586,24 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("SharePoint: the sidebar opens Sites; the OneDrives tab switches lists; a name opens its preview with the owner", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SharePoint.Sites.LoadAsync().GetAwaiter().GetResult();
+            main.SharePoint.OneDrives.LoadAsync().GetAwaiter().GetResult();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection { Key: "sharepoint" }));
+            Expect(main.SelectedTab == main.SharePoint && main.SharePoint.ShowSites, "Sites is showing");
+            Expect(main.SharePoint.Sites.Rows.Cast<SiteSummary>().All(s => s.Kind != SiteKind.OneDrive), "no OneDrives among the sites");
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "onedrives" }));
+            Expect(main.SharePoint.ShowOneDrives, "OneDrives is showing");
+            Settle();
+            var drive = main.SharePoint.OneDrives.Rows.Cast<SiteSummary>().First();
+            Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, drive) && b.IsEffectivelyVisible));
+            var preview = main.SharePoint.OneDrives.PreviewModel as SitePreviewViewModel;
+            Expect(preview?.Site == drive && preview.OwnerText == drive.OwnerName, "its preview shows its owner");
+            window.Close();
+        });
+
         Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
         {
             var (window, main, _) = OpenList();

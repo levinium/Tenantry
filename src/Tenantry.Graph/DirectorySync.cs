@@ -24,8 +24,9 @@ namespace Tenantry.Graph;
 /// note, never failing the sync.
 /// </summary>
 /// <param name="settings">How often each part is re-read (Settings); the defaults when null.</param>
+/// <param name="sharePoint">The SharePoint admin site, for sites and OneDrives; skipped when null.</param>
 public sealed partial class DirectorySync(GraphClient graph, IEntityStore store, ICmdletRunner? exchange = null, Func<DateTimeOffset>? now = null,
-    Func<SyncSettings>? settings = null) : ITenantSync
+    Func<SyncSettings>? settings = null, SharePointAdmin? sharePoint = null) : ITenantSync
 {
     /// <summary>Each mailbox's size and automatic-reply state (one Exchange read per mailbox for each).</summary>
     public const string MailboxDetails = "mailboxdetails";
@@ -123,6 +124,8 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                     changed += await SyncManagedDevicesAsync(notes, progress, cancellationToken);
                 if (Due(RecoveryKeys, scope))
                     changed += await SyncRecoveryKeysAsync(progress, cancellationToken);
+                if (Due(Sites, scope))
+                    changed += await SyncSitesAsync(notes, progress, cancellationToken);
 
                 if (Due(Domains, scope))
                 {
@@ -198,6 +201,7 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                 new("Licenses", "The tenant's licenses and how many are left", store.GetMark(Skus)?.SyncedAt, changes),
                 new("Devices", "Devices registered or joined in Entra (changes only)", store.GetMark(Devices)?.SyncedAt, changes),
                 new("Intune Devices", "Compliance, encryption, primary user and check-ins of the devices Intune manages", store.GetMark(ManagedDevices)?.SyncedAt, details),
+                new("SharePoint Sites and OneDrives", "Every site and OneDrive: storage, owner, sharing, lock and archive state", store.GetMark(Sites)?.SyncedAt, details),
                 new("BitLocker Keys Backed Up", "Which devices have a recovery key backed up (never the keys themselves)", store.GetMark(RecoveryKeys)?.SyncedAt, details),
                 new("Last Sign-In Times", "When each person last signed in", store.GetMark(SignIns)?.SyncedAt, details),
                 new("MFA Registration", "Who has set up multi-factor sign-in, and who holds an admin role", store.GetMark(Registration)?.SyncedAt, details),

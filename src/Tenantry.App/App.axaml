@@ -88,6 +88,9 @@
     <DataTemplate DataType="rec:DevicePreviewViewModel">
       <views:DevicePreviewView />
     </DataTemplate>
+    <DataTemplate DataType="rec:SitePreviewViewModel">
+      <views:SitePreviewView />
+    </DataTemplate>
     <DataTemplate DataType="rec:AutopilotPreviewViewModel">
       <views:AutopilotPreviewView />
     </DataTemplate>

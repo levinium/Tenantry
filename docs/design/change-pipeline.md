@@ -284,6 +284,31 @@ Windows"). Rename, Change Primary User and Lost Mode are offered for one device 
 - **Not tested live:** the tenant has no test device or Autopilot entry, so these writes are
   covered by unit tests and click-through checks.
 
+### Sites and OneDrives (7a)
+
+The SharePoint & OneDrive area has two page tabs over one local copy of every site collection:
+Sites, and OneDrives.
+
+- **Source:** Graph can't list every site with storage and sharing for a delegated admin. The
+  list comes from the SharePoint admin site's
+  `Tenant.GetSitePropertiesFromSharePointByFilters` (CSOM; what Get-SPOSite calls), with
+  OneDrives included. Measured live: 557 rows in one 3.6 s page.
+- **Reading:** read whole, at most hourly or on Refresh (Sites' own Refresh reads only sites).
+  Each row is stored small (`DirectorySync.SiteRow`), not SharePoint's 150-odd properties.
+- **CSOM spellings:** dates are `/Date(y,m,d,h,m,s,ms)/` with months from 0 (year 1 means none),
+  and IDs are `/Guid(…)/`.
+- **Owners:** SharePoint returns no owner names. A OneDrive's owner is a sign-in name, matched to
+  the person in the directory (someone gone still shows the sign-in name). A group's site is
+  named after its group.
+- **Archived OneDrives:** Microsoft archives a OneDrive left unlicensed for 93 days, so most
+  unlicensed people's OneDrives are archived (seen live). The preview says reactivating is
+  charged.
+- **Sites views:** Teams, team, communication and channel sites, hubs, shared outside the
+  organization, no activity in 180+ days, storage nearly full, locked, archived, system.
+- **OneDrives views:** archived, no activity in 180+ days, over 10 GB, nearly full, shared
+  outside the organization, locked.
+- **Missing role:** without SharePoint Administrator the part is skipped with a note.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

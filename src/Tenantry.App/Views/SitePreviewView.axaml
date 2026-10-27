@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.SitePreviewView"
+             x:DataType="rec:SitePreviewViewModel">
+  <StackPanel Spacing="16">
+    <StackPanel Spacing="6">
+      <SelectableTextBlock Classes="h3" Text="{Binding Title}" TextWrapping="Wrap" />
+      <Button Classes="link" Command="{Binding OpenSiteCommand}" HorizontalAlignment="Left" ToolTip.Tip="Open it in the browser">
+        <TextBlock Text="{Binding Url}" TextWrapping="Wrap" />
+      </Button>
+      <WrapPanel ItemSpacing="6" LineSpacing="4">
+        <c:Badge Text="{Binding KindText}" Kind="Neutral" />
+        <c:Badge Text="Team" Kind="Info" IsVisible="{Binding IsTeam}" ToolTip.Tip="Connected to Microsoft Teams" />
+        <c:Badge Text="{Binding StateText}" Kind="{Binding StateKind}" />
+        <c:Badge Text="{Binding SharingText}" Kind="{Binding SharingKind}" ToolTip.Tip="Who it can be shared with outside the organization" />
+      </WrapPanel>
+    </StackPanel>
+
+    <Border Classes="banner neutral" IsVisible="{Binding HasArchiveNote}">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+        <ic:FluentIcon Icon="Archive" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0" />
+        <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="{Binding ArchiveNote}" />
+      </Grid>
+    </Border>
+
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="{Binding OwnerLabel}" />
+      <Button Classes="link" Content="{Binding OwnerText}" Command="{Binding OpenOwnerCommand}" IsVisible="{Binding CanOpenOwner}" HorizontalAlignment="Left"
+              ToolTip.Tip="Open their record" />
+      <TextBlock Text="{Binding OwnerText}" IsVisible="{Binding !CanOpenOwner}" />
+    </StackPanel>
+
+    <ItemsControl ItemsSource="{Binding Facts}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="6" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:SummaryLine">
+          <Grid ColumnDefinitions="120,*" ColumnSpacing="8">
+            <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

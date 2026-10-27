@@ -58,4 +58,8 @@ public interface ITenantSync
     /// <summary>Re-reads only the devices (the Devices list's Refresh); a whole refresh where devices have no read of their own.</summary>
     Task<int> SyncDevicesAsync(IProgress<string>? progress = null, CancellationToken cancellationToken = default) =>
         SyncAsync(progress, SyncScope.Refresh, cancellationToken);
+
+    /// <summary>Re-reads only sites and OneDrives (the Sites list's Refresh); a whole refresh where sites have no read of their own.</summary>
+    Task<int> SyncSitesAsync(IProgress<string>? progress = null, CancellationToken cancellationToken = default) =>
+        SyncAsync(progress, SyncScope.Refresh, cancellationToken);
 }

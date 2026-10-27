@@ -214,6 +214,19 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     groupsPage.Groups.PreviewRow(groupsPage.Groups.Rows.Cast<GroupSummary>().First(g => g.DisplayName == "Finance"));
     Render(groupsPage, $"groups-{suffix}");
 
+    // SharePoint: sites with a team site in the preview, then OneDrives on the archived view.
+    var sitesPage = Main();
+    sitesPage.SelectedSection = sitesPage.Sections.Single(s => s.Key == "sharepoint");
+    sitesPage.SharePoint.Sites.PreviewRow(sitesPage.SharePoint.Sites.Rows.Cast<SiteSummary>().First(s => s.IsTeam));
+    Render(sitesPage, $"sites-{suffix}");
+    if (full)
+    {
+        sitesPage.SharePoint.SelectedPage = SharePointAreaViewModel.Pages[1];
+        sitesPage.SharePoint.OneDrives.ApplyView(sitesPage.SharePoint.OneDrives.Views.Single(v => v.View.Id == "archived"));
+        sitesPage.SharePoint.OneDrives.PreviewRow(sitesPage.SharePoint.OneDrives.Rows[0]);
+        Render(sitesPage, "onedrives-light");
+    }
+
     // Devices: the list with a managed laptop in the preview.
     var devicesPage = Main();
     devicesPage.SelectedSection = devicesPage.Sections.Single(s => s.Key == "devices");

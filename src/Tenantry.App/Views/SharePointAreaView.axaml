@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:listviews="using:Tenantry.App.Lists"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.SharePointAreaView"
+             x:DataType="vm:SharePointAreaViewModel">
+  <DockPanel>
+    <!-- The area's pages -->
+    <TabStrip DockPanel.Dock="Top" Classes="pagetabs" Margin="0,8,0,10" ItemsSource="{x:Static vm:SharePointAreaViewModel.Pages}" SelectedItem="{Binding SelectedPage}">
+      <TabStrip.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel />
+        </ItemsPanelTemplate>
+      </TabStrip.ItemsPanel>
+      <TabStrip.ItemTemplate>
+        <DataTemplate x:DataType="ms:MailSecurityPage">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="15" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+          </StackPanel>
+        </DataTemplate>
+      </TabStrip.ItemTemplate>
+    </TabStrip>
+
+    <Panel>
+      <ContentControl Content="{Binding Sites}" IsVisible="{Binding ShowSites}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+      <ContentControl Content="{Binding OneDrives}" IsVisible="{Binding ShowOneDrives}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </Panel>
+  </DockPanel>
+</UserControl>

@@ -324,6 +324,79 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             }
         }, cancellationToken);
 
+    public Task<IReadOnlyList<SiteSummary>> GetSitesAsync(CancellationToken cancellationToken = default) =>
+        Task.Run<IReadOnlyList<SiteSummary>>(() =>
+        {
+            // SharePoint lists no owner names: a OneDrive's owner is a sign-in name (matched to the
+            // person), a group's site belongs to the group (named after it).
+            var people = new Dictionary<string, (string Name, string? Mail)>(StringComparer.OrdinalIgnoreCase);
+            foreach (var json in store.All(DirectorySync.Users))
+            {
+                using var u = JsonDocument.Parse(json);
+                if (Str(u.RootElement, "userPrincipalName") is { } upn)
+                    people[upn] = (Str(u.RootElement, "displayName") ?? upn, Str(u.RootElement, "mail") ?? upn);
+            }
+            var groups = new Dictionary<string, (string Name, string? Mail)>(StringComparer.OrdinalIgnoreCase);
+            foreach (var json in store.All(DirectorySync.Groups))
+            {
+                using var g = JsonDocument.Parse(json);
+                if (Str(g.RootElement, "id") is { } id)
+                    groups[id] = (Str(g.RootElement, "displayName") ?? id, Str(g.RootElement, "mail"));
+            }
+            var stored = store.All(DirectorySync.Sites);
+            var sites = new List<SiteSummary>(stored.Count);
+            foreach (var json in stored)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var s = JsonDocument.Parse(json);
+                var site = ToSite(s.RootElement);
+                if (site.OwnerName is null)
+                {
+                    if (site.GroupId is { } groupId && groups.TryGetValue(groupId, out var group))
+                        site = site with { OwnerName = group.Name, OwnerEmail = site.OwnerEmail ?? group.Mail };
+                    else if (site.OwnerLogin is { } login)
+                    {
+                        // Someone no longer in the directory still has a sign-in name to show.
+                        var upn = login[(login.LastIndexOf('|') + 1)..];
+                        site = people.TryGetValue(upn, out var person)
+                            ? site with { OwnerName = person.Name, OwnerEmail = site.OwnerEmail ?? person.Mail }
+                            : upn.Contains('@') ? site with { OwnerName = upn } : site;
+                    }
+                }
+                sites.Add(site);
+            }
+            return sites;
+        }, cancellationToken);
+
+    /// <summary>A stored site row (see <c>DirectorySync.SiteRow</c>) as the lists use it.</summary>
+    internal static SiteSummary ToSite(JsonElement s)
+    {
+        static long Num(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt64() : 0;
+        var template = Str(s, "template") ?? "";
+        return new SiteSummary(
+            Id: Str(s, "id") ?? "",
+            Url: Str(s, "url") ?? "",
+            Title: Str(s, "title") ?? Str(s, "url") ?? "",
+            Template: template,
+            Kind: SiteSummary.KindOf(template),
+            OwnerName: Str(s, "ownerName"),
+            OwnerEmail: Str(s, "ownerEmail"),
+            OwnerLogin: Str(s, "ownerLogin"),
+            GroupId: Str(s, "groupId"),
+            IsTeam: Bool(s, "isTeam"),
+            IsHubSite: Bool(s, "isHub"),
+            HubSiteId: Str(s, "hubSiteId"),
+            StorageUsedMb: Num(s, "storageMb"),
+            StorageQuotaMb: Num(s, "quotaMb"),
+            Sharing: (int)Num(s, "sharing"),
+            Lock: Str(s, "lock") ?? "Unlock",
+            Archive: Str(s, "archive") ?? "NotArchived",
+            Created: Date(s, "created"),
+            LastActivity: Date(s, "lastActivity"),
+            SensitivityLabel: Str(s, "label"),
+            Subsites: (int)Num(s, "webs"));
+    }
+
     /// <summary>One device from its Entra record, its Intune record, or both; Intune's word wins where both say.</summary>
     internal static DeviceSummary ToDevice(JsonElement? entra, JsonElement? intune)
     {

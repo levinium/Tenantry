@@ -92,7 +92,7 @@ public sealed class TenantConnector : ITenantConnector
                 return missing;
             },
             ListState: new JsonListStateStore(folder),
-            Sync: new DirectorySync(graph, entities, exchange, settings: syncSettings.Load),
+            Sync: new DirectorySync(graph, entities, exchange, settings: syncSettings.Load, sharePoint: sharePoint),
             Resources: entities,
             Changes: new ChangePipeline(new GraphChangeExecutor(graph, entities, exchange: exchange, sharePoint: sharePoint, passwordStyle: passwordStyle.Load),
                 new ChangeLog(entities), new JsonTestModeStore(folder, TestModeByDefault), account),
