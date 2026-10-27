@@ -87,14 +87,9 @@ public sealed partial class ImportUsersViewModel : ObservableObject
 
     // ---- Template ---------------------------------------------------------------------------------
 
-    /// <summary>Saves the template: its headers and one made-up row to copy.</summary>
+    /// <summary>Saves the template: just its column headers.</summary>
     [RelayCommand]
-    async Task DownloadTemplate()
-    {
-        var domain = _records is null ? "contoso.com" : (await _records.GetDomainsAsync()).FirstOrDefault() ?? "contoso.com";
-        string[] example = [$"pat.lee@{domain}", "Pat", "Lee", "Pat Lee", "", "Yes", "Yes", "Finance", "Analyst", "Floor 3", "", "", "", "US", "", ""];
-        await Platform.SaveCsv("Tenantry users template.csv", Csv.Write([Columns, example]));
-    }
+    async Task DownloadTemplate() => await Platform.SaveCsv("Tenantry users template.csv", Csv.Write([Columns]));
 
     // ---- Reading the file -------------------------------------------------------------------------
 
@@ -437,7 +432,7 @@ public sealed partial class ImportMembersViewModel(GroupSummary group, ChangePip
         $"Choose a CSV file with a \"{Column}\" column: one sign-in name or email address per row. Everyone not already in {group.DisplayName} is added as a member.";
 
     [RelayCommand]
-    async Task DownloadTemplate() => await Platform.SaveCsv("Tenantry members template.csv", Csv.Write([[Column], ["pat.lee@contoso.com"]]));
+    async Task DownloadTemplate() => await Platform.SaveCsv("Tenantry members template.csv", Csv.Write([[Column]]));
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasFile))]
