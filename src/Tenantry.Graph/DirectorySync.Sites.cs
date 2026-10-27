@@ -69,7 +69,7 @@ public sealed partial class DirectorySync
     }
 
     /// <summary>One site as stored: what the Sites and OneDrives lists show, in plain JSON types.</summary>
-    internal static JsonObject? SiteRow(JsonElement s)
+    public static JsonObject? SiteRow(JsonElement s)
     {
         if (Csom.Guid(s, "SiteId") is not { } id || Csom.Text(s, "Url") is not { } url)
             return null;
@@ -95,6 +95,11 @@ public sealed partial class DirectorySync
             ["lastActivity"] = Csom.Date(s, "LastContentModifiedDate")?.ToString("o", CultureInfo.InvariantCulture),
             ["label"] = Csom.Text(s, "SensitivityLabel2") ?? Csom.Guid(s, "SensitivityLabel"),
             ["webs"] = Csom.Number(s, "WebsCount"),
+            ["linkType"] = Csom.Number(s, "DefaultSharingLinkType"),
+            ["linkPermission"] = Csom.Number(s, "DefaultLinkPermission"),
+            ["guestExpiryOwn"] = Csom.Flag(s, "OverrideTenantExternalUserExpirationPolicy"),
+            ["guestExpiryDays"] = Csom.Number(s, "ExternalUserExpirationInDays"),
+            ["warningMb"] = Csom.Number(s, "StorageWarningLevel"),
         };
     }
 }

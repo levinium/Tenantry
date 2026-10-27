@@ -16,9 +16,51 @@ namespace Tenantry.Graph;
 /// says so instead of listing.</item>
 /// </list>
 /// </summary>
-public sealed partial class GraphUserRecords : ISiteRecords
+public sealed partial class GraphUserRecords : ISiteRecords, IDeletedSiteRecords
 {
+    /// <summary>
+    /// SharePoint's recycle bin, plus deleted Microsoft 365 groups: a group's site is restored by
+    /// restoring the group, so a deleted site whose address matches a deleted group's alias is that
+    /// group's (SharePoint keeps no title or group for a deleted site).
+    /// </summary>
+    public async Task<IReadOnlyList<DeletedSite>> GetDeletedSitesAsync(CancellationToken cancellationToken = default)
+    {
+        var root = await SharePoint.RootUrlAsync(cancellationToken);
+        var groups = new Dictionary<string, (string Id, string Name, DateTimeOffset? At)>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            await foreach (var g in graph.GetAllAsync("directory/deletedItems/microsoft.graph.group?$select=id,displayName,mailNickname,deletedDateTime,groupTypes&$top=999", cancellationToken))
+                if (g.TryGetProperty("groupTypes", out var types) && types.EnumerateArray().Any(t => t.GetString() == "Unified") && Text(g, "mailNickname") is { } alias)
+                    groups[alias] = (Text(g, "id")!, Text(g, "displayName") ?? alias, When(g, "deletedDateTime"));
+        }
+        catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden)
+        {
+        }
+        var sites = new List<DeletedSite>();
+        await foreach (var s in SharePoint.GetDeletedSitesAsync(cancellationToken))
+        {
+            if (Csom.Text(s, "Url") is not { } url)
+                continue;
+            var alias = SiteSummary.AliasOf(url);
+            var group = groups.Remove(alias, out var found) ? found : ((string Id, string Name, DateTimeOffset? At)?)null;
+            sites.Add(new DeletedSite(Csom.Guid(s, "SiteId") ?? url, url, group?.Name ?? alias, Csom.Date(s, "DeletionTime") ?? group?.At,
+                s.TryGetProperty("DaysRemaining", out var d) && d.ValueKind == JsonValueKind.Number ? d.GetInt32() : null,
+                Csom.Number(s, "StorageMaximumLevel"), group?.Id));
+        }
+        // Groups whose site SharePoint doesn't list (yet): restoring the group brings the site back.
+        foreach (var (alias, g) in groups)
+            sites.Add(new DeletedSite(g.Id, $"{root}/sites/{alias}", g.Name, g.At,
+                g.At is { } at ? Math.Max(0, 30 - (int)(DateTimeOffset.UtcNow - at).TotalDays) : null, 0, g.Id));
+        return sites;
+    }
+
     SharePointAdmin SharePoint => sharePoint ?? throw new InvalidOperationException("SharePoint isn't connected for this tenant.");
+
+    int? _organizationSharing;
+
+    /// <summary>Read once: it changes only in the SharePoint admin center.</summary>
+    public async Task<int> GetOrganizationSharingAsync(CancellationToken cancellationToken = default) =>
+        _organizationSharing ??= await SharePoint.GetTenantSharingAsync(cancellationToken);
 
     /// <summary>
     /// A read of a site's contents. SharePoint shows them only to the site's members and admins,
@@ -32,9 +74,9 @@ public sealed partial class GraphUserRecords : ISiteRecords
         }
         catch (SharePointException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
         {
-            throw new UnauthorizedAccessException(site.IsArchived
-                ? "It's archived, so nothing inside it can be read until it's reactivated."
-                : "SharePoint shows what's inside a site only to its members and admins, and you aren't one here. Add yourself as a site admin to see it.");
+            throw site.IsArchived
+                ? new UnauthorizedAccessException("It's archived, so nothing inside it can be read until it's reactivated.")
+                : new SiteAccessException();
         }
     }
 

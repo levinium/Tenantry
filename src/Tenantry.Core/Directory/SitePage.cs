@@ -66,6 +66,13 @@ public sealed record RecentFile(string Name, DateTimeOffset? Modified, string? B
 /// <summary>Microsoft's 30-day usage report for one site or OneDrive.</summary>
 public sealed record SiteUsage(long Files, long ActiveFiles, long? PageViews, long? VisitedPages, DateOnly? LastActivity);
 
+/// <summary>
+/// SharePoint shows what's inside a site only to its members and admins, not to a SharePoint or
+/// Global Administrator as such: the fix is to add yourself as a site admin.
+/// </summary>
+public sealed class SiteAccessException() : UnauthorizedAccessException(
+    "SharePoint shows what's inside a site only to its members and admins, and you aren't one here. Add yourself as a site admin to see it.");
+
 /// <summary>The site page's reads, live from SharePoint (the site's own REST API) and Graph's usage reports.</summary>
 public interface ISiteRecords
 {
@@ -80,4 +87,7 @@ public interface ISiteRecords
 
     /// <summary>Microsoft's usage report; unavailable without a reports role or with names concealed.</summary>
     Task<Available<SiteUsage>> GetUsageAsync(SiteSummary site, CancellationToken cancellationToken = default);
+
+    /// <summary>The organization's external sharing level (<see cref="SiteSummary.Sharing"/>'s values): no site can be more open.</summary>
+    Task<int> GetOrganizationSharingAsync(CancellationToken cancellationToken = default) => Task.FromResult(2);
 }

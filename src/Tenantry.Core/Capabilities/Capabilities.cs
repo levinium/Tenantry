@@ -41,6 +41,11 @@ public static class Capabilities
     public static readonly Capability ManageDevices = new("devices.manage", "Manage Devices",
         [IntuneAdministrator, CloudDeviceAdministrator]);
 
+    /// <summary>SharePoint: site admins and members, sharing, storage, lock, archive, and creating, deleting and restoring sites.</summary>
+    public static readonly Capability ManageSites = new("sites.manage", "Manage SharePoint Sites and OneDrives",
+        [SharePointAdministrator]);
+
     public static IReadOnlyList<Capability> All { get; } =
-        [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess, ManageDevices];
+        [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess, ManageDevices,
+            ManageSites];
 }

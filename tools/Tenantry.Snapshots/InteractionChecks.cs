@@ -623,6 +623,132 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Site page: a site you can't see inside offers Add Yourself as Site Admin; the button stages it and the note says what's next", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SharePoint.Sites.LoadAsync().GetAwaiter().GetResult();
+            main.OpenSite(main.SharePoint.Sites.Rows.Cast<SiteSummary>().First(s => s.OwnerName is null && s.Kind == SiteKind.TeamSite && !s.IsArchived));
+            var page = (SiteDetailViewModel)main.SelectedTab!;
+            var permissions = page.Sections.OfType<SitePermissionsSection>().Single();
+            page.SelectedSection = permissions;
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Expect(permissions.NoteActionText == "Add Yourself as Site Admin", "the note offers to add you");
+            Click(window, FindButton(window, b => b.Command == permissions.NoteActionCommand && b.IsEffectivelyVisible));
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetSiteAdmin { New: true }), "adding you is in Pending changes");
+            Expect(!permissions.HasNoteAction && permissions.Note?.Contains("Pending changes", StringComparison.Ordinal) == true, "the button went and the note says to apply");
+            Expect(page.HasPending, "the page's header says what's pending");
+            window.Close();
+        });
+
+        Check("Site page, Permissions: Remove on a member stages it and Undo takes it back; picking someone adds an Adding row", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.Groups.LoadAsync().GetAwaiter().GetResult();
+            main.SharePoint.Sites.LoadAsync().GetAwaiter().GetResult();
+            main.OpenSite(main.SharePoint.Sites.Rows.Cast<SiteSummary>().First(s => s.GroupId is not null && s.Kind == SiteKind.TeamSite && s.OwnerName is not null && !s.IsArchived));
+            var page = (SiteDetailViewModel)main.SelectedTab!;
+            var permissions = page.Sections.OfType<SitePermissionsSection>().Single();
+            page.SelectedSection = permissions;
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var member = permissions.Groups.Single(g => g.Name == "Members").Members.First(m => m.ActionText == "Remove");
+            var remove = FindButton(window, b => b.Command == member.DoCommand);
+            remove.BringIntoView();
+            Settle();
+            Click(window, remove);
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetGroupMembership { Role: GroupRole.Member, New: false }), "removing them is in Pending changes");
+            var removing = permissions.Groups.Single(g => g.Name == "Members").Members.First(m => m.StateText == "Removing");
+            Settle();
+            var undo = FindButton(window, b => b.Command == removing.DoCommand);
+            undo.BringIntoView();
+            Settle();
+            Click(window, undo);
+            Expect(!main.Pending.Rows.Any(r => r.Change is SetGroupMembership { New: false }), "Undo took it back out");
+            var visitors = permissions.Groups.Single(g => g.Name == "Visitors");
+            visitors.Picker!.Query = main.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member).DisplayName;
+            Settle();
+            Expect(visitors.Picker.HasResults, "the picker found them");
+            var option = FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == visitors.Picker);
+            option.BringIntoView();
+            Settle();
+            Click(window, option);
+            Expect(main.Pending.Rows.Any(r => r.Change is SetSiteGroupMember { New: true }), "adding them to Visitors is in Pending changes");
+            Expect(permissions.Groups.Single(g => g.Name == "Visitors").Members.Any(m => m.StateText == "Adding"), "an Adding row appeared");
+            window.Close();
+        });
+
+        Check("Site page: Lock from the Overview tab's actions goes to Pending changes as a caution change", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SharePoint.Sites.LoadAsync().GetAwaiter().GetResult();
+            main.OpenSite(main.SharePoint.Sites.Rows.Cast<SiteSummary>().First(s => s.Kind == SiteKind.CommunicationSite));
+            var page = (SiteDetailViewModel)main.SelectedTab!;
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var actions = page.Actions!;
+            var lockIt = actions.Actions.Single(a => a.Title == "Lock");
+            var head = FindButton(window, b => b.Classes.Contains("bulkhead") && ReferenceEquals(b.DataContext, lockIt));
+            head.BringIntoView();
+            Settle();
+            Click(window, head);
+            lockIt.Choice = lockIt.Choices.Single(c => c.Value is "ReadOnly");
+            var stage = FindButton(window, b => b.Command == actions.StageCommand && b.IsEffectivelyVisible);
+            stage.BringIntoView();
+            Settle();
+            Click(window, stage);
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetSiteSetting { Setting: "lock", IsCaution: true }), "locking is in Pending changes");
+            window.Close();
+        });
+
+        Check("New Site: the Sites list's button opens the form; a communication site goes to Pending changes and the form closes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SharePoint.Sites.LoadAsync().GetAwaiter().GetResult();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "sharepoint");
+            Settle();
+            Click(window, FindButton(window, b => b.Command == main.SharePoint.Sites.RunPrimaryActionCommand && b.IsEffectivelyVisible));
+            var form = main.Dialog?.Content as Tenantry.ViewModels.Records.NewSiteViewModel ?? throw new InvalidOperationException("the form didn't open");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.Records.NewSiteKind { Kind: SiteKind.CommunicationSite }));
+            form.Name = "Zz-tenantry-test News";
+            Settle();
+            Expect(form.SiteUrl.EndsWith("/sites/zz-tenantry-test-news", StringComparison.Ordinal), "the address followed the name");
+            var add = FindButton(window, b => b.Command == form.AddCommand);
+            add.BringIntoView();
+            Settle();
+            Click(window, add);
+            Expect(main.Dialog is null && main.Pending!.Rows.Any(r => r.Change is CreateSite { Kind: SiteKind.CommunicationSite }), "it's in Pending changes and the form closed");
+            window.Close();
+        });
+
+        Check("SharePoint › Deleted Sites: the page tab reads the list; Restore in the preview goes to Pending changes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "sharepoint");
+            Settle();
+            var area = main.SharePoint;
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "deleted" }));
+            for (var i = 0; i < 50 && area.Deleted.Total == 0; i++)
+                Settle();
+            Expect(area.Deleted.Total > 0, "the deleted sites list has rows");
+            var first = area.Deleted.Rows.Cast<DeletedSite>().First();
+            Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, first)));
+            var preview = area.Deleted.PreviewModel as DeletedSitePreviewViewModel ?? throw new InvalidOperationException("no preview");
+            Settle();
+            var restore = preview.Actions!.Actions.Single(a => a.Title == "Restore");
+            var head = FindButton(window, b => b.Classes.Contains("bulkhead") && ReferenceEquals(b.DataContext, restore));
+            head.BringIntoView();
+            Settle();
+            Click(window, head);
+            var stage = FindButton(window, b => b.Command == preview.Actions.StageCommand && b.IsEffectivelyVisible);
+            stage.BringIntoView();
+            Settle();
+            Click(window, stage);
+            Expect(main.Pending!.Rows.Any(r => r.Change is RestoreSite), "restoring is in Pending changes");
+            window.Close();
+        });
+
         Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
         {
             var (window, main, _) = OpenList();

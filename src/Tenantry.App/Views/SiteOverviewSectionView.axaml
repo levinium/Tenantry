@@ -13,7 +13,8 @@
       </Grid>
     </DataTemplate>
   </UserControl.Resources>
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <Grid ColumnDefinitions="*,360" ColumnSpacing="16" MaxWidth="1180" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12">
     <Border Classes="banner neutral" IsVisible="{Binding Details.HasArchiveNote}">
       <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
         <ic:FluentIcon Icon="Archive" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0" />
@@ -59,4 +60,21 @@
       </StackPanel>
     </Border>
   </StackPanel>
+
+    <!-- Actions: each goes to Pending changes -->
+    <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
+      <StackPanel Spacing="10">
+        <TextBlock Classes="h3" Text="Actions" />
+        <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+          </StackPanel>
+        </Border>
+        <Panel IsVisible="{Binding CanEdit}">
+          <views:BulkEditorView DataContext="{Binding Actions}" />
+        </Panel>
+      </StackPanel>
+    </Border>
+  </Grid>
 </UserControl>

@@ -663,6 +663,46 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Render(editing, $"site-{section.Key}-light", height: 1000);
         }
 
+        // Site actions (7c): Lock open on the Overview, a member being removed and someone being added, the no-access note with its button.
+        sitePage.SelectedSection = sitePage.Sections[0];
+        sitePage.Actions!.Selected = sitePage.Actions.Actions.Single(a => a.Title == "Lock");
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(editing, "site-actions-light", height: 1100);
+        sitePage.Actions.Selected = null;
+        var sitePermissions = sitePage.Sections.OfType<Tenantry.ViewModels.Records.SitePermissionsSection>().Single();
+        sitePage.SelectedSection = sitePermissions;
+        Settle();
+        sitePermissions.Groups.Single(g => g.Name == "Members").Members.First(m => m.ActionText == "Remove").DoCommand.Execute(null);
+        var visitorsCard = sitePermissions.Groups.Single(g => g.Name == "Visitors");
+        visitorsCard.Picker!.Query = editing.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member).DisplayName;
+        visitorsCard.Picker.PickCommand.Execute(visitorsCard.Picker.Results.First());
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(editing, "site-permissions-editing-light", height: 1300);
+        editing.Pending!.DiscardAllCommand.Execute(null);
+        editing.OpenSite(editing.SharePoint.Sites.Rows.Cast<SiteSummary>().First(s => s.OwnerName is null && s.Kind == SiteKind.TeamSite && !s.IsArchived));
+        var noAccess = (SiteDetailViewModel)editing.SelectedTab!;
+        noAccess.SelectedSection = noAccess.Sections.OfType<Tenantry.ViewModels.Records.SitePermissionsSection>().Single();
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(editing, "site-noaccess-light", height: 700);
+
+        // New Site and Deleted Sites.
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "sharepoint");
+        editing.SharePoint.Sites.RunPrimaryActionCommand.Execute(null);
+        var newSite = (Tenantry.ViewModels.Records.NewSiteViewModel)editing.Dialog!.Content;
+        newSite.Name = "Project Hub";
+        Settle();
+        Render(editing, "new-site-light", height: 1100);
+        editing.CloseDialogCommand.Execute(null);
+        editing.SharePoint.SelectedPage = SharePointAreaViewModel.Pages.Single(p => p.Key == "deleted");
+        for (var i = 0; i < 20; i++)
+            Settle();
+        editing.SharePoint.Deleted.PreviewRow(editing.SharePoint.Deleted.Rows[0]);
+        Render(editing, "deleted-sites-light");
+        editing.SharePoint.SelectedPage = SharePointAreaViewModel.Pages[0];
+
         // New Group: a shared mailbox with two people given access.
         editing.Groups.RunPrimaryActionCommand.Execute(null);
         var newGroup = (Tenantry.ViewModels.Records.NewGroupViewModel)editing.Dialog!.Content;

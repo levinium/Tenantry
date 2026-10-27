@@ -63,18 +63,30 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         DevicesArea = new DevicesAreaViewModel(Devices, tenant.Records as IAutopilotRecords, tenant.Changes, manageDevices, tenant.ListState, _now,
             managedId => { if (_devices.FirstOrDefault(d => d.ManagedId == managedId) is { } device) OpenDevice(device); });
         // SharePoint: one local copy of every site collection, shown as Sites and as OneDrives.
-        object SitePreview(SiteSummary s) => new Records.SitePreviewViewModel(s, _index, OpenUser, OpenGroup);
+        _manageSites = Evaluate(Capabilities.ManageSites);
+        object SitePreview(SiteSummary s) => new Records.SitePreviewViewModel(s, _index, OpenUser, OpenGroup,
+            tenant.Changes is { } siteChanges && _manageSites.IsAvailable
+                ? new Editing.BulkEditorViewModel(s.Title, Records.BulkActions.ForSites(() => [s], index: _index, me: tenant.Account, tenantSharing: OrganizationSharing), siteChanges)
+                : null,
+            tenant.Changes is null ? "This tenant can't be edited" : _manageSites.Reason);
         var sites = DataListViewModel.Create(SiteList.Sites(SitePreview), async ct => (await LoadSitesAsync(ct)).Where(s => s.Kind != SiteKind.OneDrive).ToArray(),
             row => OpenSite((SiteSummary)row), tenant.ListState, _now);
         var oneDrives = DataListViewModel.Create(SiteList.OneDrives(SitePreview), async ct => (await LoadSitesAsync(ct)).Where(s => s.Kind == SiteKind.OneDrive).ToArray(),
             row => OpenSite((SiteSummary)row), tenant.ListState, _now);
         foreach (var list in new[] { sites, oneDrives })
         {
-
             list.PrimaryAction = HasSync ? new ListPrimaryAction("Refresh Sites", "ArrowSync", true,
                 "Read sites and OneDrives from SharePoint again now (they're otherwise read hourly)", () => _ = RefreshSitesAsync()) : null;
+            list.SelectionPanel = (rows, uncheck) =>
+                Records.SelectionPanelViewModel.ForSites(rows, uncheck, _tenant.Changes, _manageSites, _index, _tenant.Account, OrganizationSharing);
         }
-        SharePoint = new SharePointAreaViewModel(sites, oneDrives);
+        sites.SecondaryAction = sites.PrimaryAction;
+        sites.PrimaryAction = tenant.Changes is { } siteMaking && _manageSites.IsAvailable
+            ? new ListPrimaryAction("New Site", "GlobeAdd", true, "Make a team site (with a Microsoft 365 group) or a communication site", () =>
+                ShowDialog(new Records.DialogViewModel("New Site", TenantName,
+                    new Records.NewSiteViewModel(siteMaking, _index, SharePointRoot(), _sites, _tenant.Account, CloseDialog))))
+            : new ListPrimaryAction("New Site", "GlobeAdd", false, tenant.Changes is null ? "This tenant can't be edited" : _manageSites.Reason ?? "");
+        SharePoint = new SharePointAreaViewModel(sites, oneDrives, tenant.Records as IDeletedSiteRecords, tenant.Changes, _manageSites, tenant.ListState, _now);
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);
@@ -144,10 +156,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     IReadOnlyList<SiteSummary> _sites = [];
 
+    readonly Availability _manageSites;
+
+    /// <summary>The organization's sharing level, for the sharing choices (read once, when first needed).</summary>
+    Task<int> OrganizationSharing(CancellationToken cancellationToken) =>
+        _tenant.Records is ISiteRecords records ? records.GetOrganizationSharingAsync(cancellationToken) : Task.FromResult(2);
+
+    /// <summary>The tenant's SharePoint address, from its root site (or any site) in the local copy.</summary>
+    string SharePointRoot()
+    {
+        var site = _sites.FirstOrDefault(s => s.IsRoot) ?? _sites.FirstOrDefault(s => s.Kind != SiteKind.OneDrive);
+        return site is null ? "" : new Uri(site.Url).GetLeftPart(UriPartial.Authority);
+    }
+
     /// <summary>Opens a site's or OneDrive's page, or switches to it if it is already open.</summary>
     public void OpenSite(SiteSummary site) =>
         OpenTab(t => t is SiteDetailViewModel p && p.Site.Id == site.Id,
-            () => new SiteDetailViewModel(site, _tenant.Records as ISiteRecords, _index, OpenUser, OpenGroup));
+            () => new SiteDetailViewModel(site, _tenant.Records as ISiteRecords, _index, OpenUser, OpenGroup,
+                _tenant.Changes, _manageSites, _tenant.Account, OrganizationSharing));
 
     async Task<IReadOnlyList<SiteSummary>> LoadSitesAsync(CancellationToken cancellationToken) =>
         _sites = await _tenant.Directory.GetSitesAsync(cancellationToken);
@@ -681,6 +707,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         foreach (var page in Tabs.OfType<GroupDetailViewModel>())
         {
             if (_index.Group(page.Group.Id) is { } updated)
+                page.Update(updated);
+        }
+        foreach (var page in Tabs.OfType<SiteDetailViewModel>())
+        {
+            if (_sites.FirstOrDefault(s => s.Id == page.Site.Id) is { } updated)
                 page.Update(updated);
         }
         var devices = Tabs.OfType<DeviceDetailViewModel>().ToArray();

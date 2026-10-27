@@ -1,0 +1,100 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.NewSiteView"
+             x:DataType="rec:NewSiteViewModel"
+             x:Name="Root">
+  <StackPanel Spacing="18" Width="640" HorizontalAlignment="Left">
+    <!-- What kind -->
+    <StackPanel Spacing="8">
+      <TextBlock Classes="label" Text="WHAT KIND" />
+      <ListBox ItemsSource="{x:Static rec:NewSiteViewModel.Kinds}" SelectedItem="{Binding Kind}" Background="Transparent">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Columns="2" />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="rec:NewSiteKind">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="2,4">
+              <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Top" />
+              <StackPanel Grid.Column="1" Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </StackPanel>
+
+    <!-- Name and address -->
+    <StackPanel Spacing="10">
+      <TextBlock Classes="label" Text="NAME AND ADDRESS" />
+      <TextBox Text="{Binding Name}" PlaceholderText="Name, like Finance Team" />
+      <StackPanel Spacing="4">
+        <TextBlock Classes="caption" Text="Address" />
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+          <TextBlock Classes="muted" Text="{Binding RootUrl, StringFormat='{}{0}/sites/'}" VerticalAlignment="Center" />
+          <TextBox Grid.Column="1" Text="{Binding Alias}" PlaceholderText="finance-team" />
+        </Grid>
+        <TextBlock Classes="caption" IsVisible="{Binding IsTeam}" TextWrapping="Wrap"
+                   Text="Its Microsoft 365 group uses the same alias for its email address, at your default domain." />
+      </StackPanel>
+      <TextBox Text="{Binding Description}" PlaceholderText="What it's for (optional)" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" />
+    </StackPanel>
+
+    <StackPanel Spacing="8" IsVisible="{Binding IsTeam}">
+      <TextBlock Classes="label" Text="PRIVACY" />
+      <RadioButton GroupName="siteprivacy" IsChecked="{Binding IsPrivate}" Content="Private: Only Members See What's Inside (Recommended)" />
+      <RadioButton GroupName="siteprivacy" IsChecked="{Binding !IsPrivate}" Content="Public: Anyone in the Organization Can Join and See It" />
+    </StackPanel>
+
+    <!-- Owners -->
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label" Text="OWNERS" />
+      <TextBlock Classes="caption" Text="{Binding OwnersNote}" TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding Owners}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="6" LineSpacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="rec:ChosenPerson">
+            <Border Classes="chip">
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                <Button Classes="chipx" Command="{Binding #Root.((rec:NewSiteViewModel)DataContext).RemoveOwnerCommand}" CommandParameter="{Binding}"
+                        ToolTip.Tip="Take them off">
+                  <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+                </Button>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <views:PersonPickerView DataContext="{Binding OwnerPicker}" />
+    </StackPanel>
+
+    <!-- What still needs doing, then add -->
+    <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding ShowProblems}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="x:String">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+            <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Command="{Binding AddCommand}" Content="Add to Pending Changes"
+              ToolTip.Tip="Nothing is created until you apply the pending changes" />
+      <Button Command="{Binding CancelCommand}" Content="Cancel" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

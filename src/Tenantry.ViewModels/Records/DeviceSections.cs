@@ -25,6 +25,30 @@ public abstract partial class LiveSection : RecordSection
 
     public bool HasNote => Note is not null;
 
+    /// <summary>A button beside the note that fixes what it says ("Add Yourself as Site Admin"), or null.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNoteAction))]
+    public partial string? NoteActionText { get; protected set; }
+
+    public bool HasNoteAction => NoteActionText is not null;
+
+    [RelayCommand]
+    void NoteAction() => OnNoteAction();
+
+    protected virtual void OnNoteAction()
+    {
+    }
+
+    /// <summary>The fix to offer for a read that wasn't allowed, or null.</summary>
+    protected virtual string? NoteActionFor(UnauthorizedAccessException e) => null;
+
+    /// <summary>Reads again, if it has been shown (after changes to what it shows were applied).</summary>
+    public void ReadAgainIfShown()
+    {
+        if (_loaded || Note is not null)
+            Reread();
+    }
+
     /// <summary>What the wheel says while this tab reads.</summary>
     public virtual string LoadingText => $"Reading {Title.ToLowerInvariant()} from Microsoft 365…";
 
@@ -34,6 +58,7 @@ public abstract partial class LiveSection : RecordSection
             return;
         IsLoading = true;
         Note = null;
+        NoteActionText = null;
         try
         {
             await ReadAsync(cancellationToken);
@@ -43,6 +68,7 @@ public abstract partial class LiveSection : RecordSection
         {
             // Already in plain words (no access to a site's contents, an archived site).
             Note = e.Message;
+            NoteActionText = NoteActionFor(e);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

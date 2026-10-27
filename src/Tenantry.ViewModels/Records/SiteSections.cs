@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Tenantry.Core.Changes;
 using Tenantry.Core.Directory;
+using Tenantry.ViewModels.Editing;
 using Tenantry.ViewModels.Lists;
 
 namespace Tenantry.ViewModels.Records;
@@ -14,12 +16,33 @@ public abstract class SiteSection(SiteDetailViewModel page) : LiveSection
     protected SiteSummary Site => page.Site;
 
     protected ISiteRecords Records => page.Records ?? throw new InvalidOperationException("SharePoint isn't connected for this tenant.");
+
+    /// <summary>A site the admin can't see inside: offer to make them a site admin.</summary>
+    protected override string? NoteActionFor(UnauthorizedAccessException e) => e is SiteAccessException && Page.CanAddMe ? "Add Yourself as Site Admin" : null;
+
+    protected override void OnNoteAction() => Page.AddMe();
+
+    /// <summary>"Add me" was staged (from any tab): every tab's note says what happens next.</summary>
+    internal void MeStaged()
+    {
+        if (NoteActionText is null)
+            return;
+        NoteActionText = null;
+        Note = "Adding you as a site admin is waiting in Pending changes. Apply it, and this tab reads again.";
+    }
+
+    /// <summary>The site's row changed in the local copy (after a sync or applied changes).</summary>
+    internal virtual void SiteChanged()
+    {
+    }
 }
 
-/// <summary>Someone with access, as a row: opens their record (or the group's) when it's in the local copy.</summary>
+/// <summary>Someone with access, as a row: opens their record (or the group's) when it's in the local copy; may be removed.</summary>
 public sealed partial class PrincipalRow(SitePrincipal principal, string? detail, UserSummary? user, GroupSummary? group,
     Action<UserSummary>? openUser, Action<GroupSummary>? openGroup)
 {
+    public SitePrincipal Principal => principal;
+
     public string Name => principal.Kind switch
     {
         PrincipalKind.GroupMembers when group is not null => group.DisplayName,
@@ -63,6 +86,28 @@ public sealed partial class PrincipalRow(SitePrincipal principal, string? detail
             openGroup?.Invoke(group);
     }
 
+    /// <summary>"Adding" or "Removing" while a change to them waits in Pending changes.</summary>
+    public string? StateText { get; set; }
+
+    public bool HasState => StateText is not null;
+
+    /// <summary>The row's button ("Remove", "Undo"), or null for none.</summary>
+    public string? ActionText { get; set; }
+
+    public string? ActionTip { get; set; }
+
+    public bool HasAction => ActionText is not null && Act is not null;
+
+    /// <summary>Why it can't be removed here, when that's worth saying ("Their own OneDrive").</summary>
+    public string? Locked { get; set; }
+
+    public bool IsLocked => Locked is not null;
+
+    internal Action? Act { get; set; }
+
+    [RelayCommand]
+    void Do() => Act?.Invoke();
+
     /// <summary>A principal as a row, looked up in the local copy.</summary>
     public static PrincipalRow Of(SitePrincipal p, IDirectoryIndex index, Action<UserSummary>? openUser, Action<GroupSummary>? openGroup, string? detail = null)
     {
@@ -71,11 +116,15 @@ public sealed partial class PrincipalRow(SitePrincipal principal, string? detail
         return new PrincipalRow(p, detail ?? user?.UserPrincipalName ?? (p.Kind == PrincipalKind.Guest ? p.Upn?.Replace("#ext#", "", StringComparison.OrdinalIgnoreCase) : null),
             user, group, openUser, openGroup);
     }
+
+    /// <summary>A person from the directory as SharePoint would name them.</summary>
+    public static SitePrincipal PersonOf(UserSummary u) =>
+        new(u.DisplayName, SetOneDriveAccess.LoginFor(u.UserPrincipalName), u.Kind == UserKind.Guest ? PrincipalKind.Guest : PrincipalKind.Person, Upn: u.UserPrincipalName);
 }
 
 // ---- Overview ---------------------------------------------------------------------------------
 
-/// <summary>Storage, activity and what it is; its owner and group.</summary>
+/// <summary>Storage, activity and what it is; its owner and group; and its actions.</summary>
 public sealed class SiteOverviewSection(SiteDetailViewModel page) : SiteSection(page)
 {
     public override string Key => "overview";
@@ -84,6 +133,12 @@ public sealed class SiteOverviewSection(SiteDetailViewModel page) : SiteSection(
     public override string LoadingText => "Reading its activity from Microsoft's usage report…";
 
     public SitePreviewViewModel Details => Page.Summary;
+
+    /// <summary>Sharing, storage, lock, archive, delete and site admins; null when the admin can't edit.</summary>
+    public BulkEditorViewModel? Actions => Page.Actions;
+
+    public bool CanEdit => Page.CanEdit;
+    public string EditReason => Page.EditReason;
 
     /// <summary>How full, as a 0–100 bar; null without a quota.</summary>
     public double? UsedPercent => Site.UsedPercent;
@@ -108,6 +163,12 @@ public sealed class SiteOverviewSection(SiteDetailViewModel page) : SiteSection(
 
     public bool HasActivity => _usage is not null;
 
+    internal override void SiteChanged()
+    {
+        foreach (var name in new[] { nameof(Details), nameof(UsedPercent), nameof(HasQuota), nameof(StorageText) })
+            OnPropertyChanged(name);
+    }
+
     protected override async Task ReadAsync(CancellationToken cancellationToken)
     {
         var read = await Records.GetUsageAsync(Site, cancellationToken);
@@ -121,20 +182,38 @@ public sealed class SiteOverviewSection(SiteDetailViewModel page) : SiteSection(
 
 // ---- Permissions ------------------------------------------------------------------------------
 
-/// <summary>A SharePoint group on the site, with the people and groups in it.</summary>
-public sealed class SiteGroupCard(string name, string? explanation, IReadOnlyList<PrincipalRow> members)
+/// <summary>A SharePoint group on the site (or its admins), with the people and groups in it; may take more.</summary>
+public sealed class SiteGroupCard(string name, string? explanation, IReadOnlyList<PrincipalRow> members, PersonPicker? picker = null)
 {
     public string Name => name;
     public string? Explanation => explanation;
     public bool HasExplanation => explanation is not null;
     public IReadOnlyList<PrincipalRow> Members => members;
     public bool IsEmpty => members.Count == 0;
-    public string CountText => members.Count switch { 0 => "Nobody", 1 => "1", var n => $"{n:N0}" };
+    public string CountText => members.Count(m => m.StateText != "Adding") switch { 0 => "Nobody", 1 => "1", var n => $"{n:N0}" };
+
+    /// <summary>"Add someone: type a name"; null when the admin can't change this group.</summary>
+    public PersonPicker? Picker => picker;
+
+    public bool HasPicker => picker is not null;
 }
 
-/// <summary>Site admins, then the Owners, Members and Visitors groups and the site's own groups.</summary>
-public sealed class SitePermissionsSection(SiteDetailViewModel page) : SiteSection(page)
+/// <summary>
+/// Site admins, then the Owners, Members and Visitors groups and the site's own groups, each
+/// editable: people are added with a picker and removed per row, each change staged to Pending
+/// changes. A group-connected site's Owners and Members are its Microsoft 365 group's, so they
+/// change the group.
+/// </summary>
+public sealed class SitePermissionsSection : SiteSection, IDisposable
 {
+    SitePermissions? _permissions;
+
+    public SitePermissionsSection(SiteDetailViewModel page) : base(page)
+    {
+        if (page.Pipeline is { } pipeline)
+            pipeline.Changed += OnPendingChanged;
+    }
+
     public override string Key => "permissions";
     public override string Title => "Permissions";
     public override string Icon => "PeopleLock";
@@ -144,22 +223,159 @@ public sealed class SitePermissionsSection(SiteDetailViewModel page) : SiteSecti
 
     static string? Explain(string? role, bool groupSite) => role switch
     {
-        "Owners" => groupSite ? "Full control. On a group's site this is the Microsoft 365 group's owners." : "Full control of the site.",
-        "Members" => groupSite ? "Can edit. On a group's site this is the Microsoft 365 group's members." : "Can add and edit content.",
+        "Owners" => groupSite ? "Full control. These are the Microsoft 365 group's owners: changes here change the group." : "Full control of the site.",
+        "Members" => groupSite ? "Can edit. These are the Microsoft 365 group's members: changes here change the group." : "Can add and edit content.",
         "Visitors" => "Can view.",
         _ => null,
     };
 
+    IEnumerable<ChangeOp> Pending => Page.Pipeline?.Pending.Where(Page.Touches) ?? [];
+
     protected override async Task ReadAsync(CancellationToken cancellationToken)
     {
-        var permissions = await Records.GetPermissionsAsync(Site, cancellationToken);
-        PrincipalRow Row(SitePrincipal p) => PrincipalRow.Of(p, Page.Index, Page.OpenUserAction, Page.OpenGroupAction);
+        _permissions = await Records.GetPermissionsAsync(Site, cancellationToken);
+        Rebuild();
+    }
+
+    void OnPendingChanged(object? sender, EventArgs e)
+    {
+        if (_permissions is not null)
+            Rebuild();
+    }
+
+    PrincipalRow Row(SitePrincipal p) => PrincipalRow.Of(p, Page.Index, Page.OpenUserAction, Page.OpenGroupAction);
+
+    ChangeTarget PersonTarget(SitePrincipal p) =>
+        p.Upn is { } upn && Page.Index.AllUsers.FirstOrDefault(u => string.Equals(u.UserPrincipalName, upn, StringComparison.OrdinalIgnoreCase)) is { } user
+            ? GroupAccess.Target(user)
+            : new ChangeTarget(p.Kind is PrincipalKind.Person or PrincipalKind.Guest ? "user" : "principal", p.Upn ?? p.Login, p.Name, p.Upn);
+
+    /// <summary>A row that removes (or undoes) through <paramref name="stage"/>; <paramref name="pending"/> is a change already waiting for it.</summary>
+    PrincipalRow Editable(SitePrincipal p, ChangeOp? pending, Func<ChangeOp>? remove, string? locked = null)
+    {
+        var row = Row(p);
+        if (!Page.CanEdit)
+            return row;
+        if (pending is not null)
+        {
+            row.StateText = "Removing";
+            row.ActionText = "Undo";
+            row.ActionTip = "Keep them (takes the change out of Pending changes)";
+            row.Act = () => Page.Pipeline!.Unstage(pending);
+        }
+        else if (locked is not null)
+            row.Locked = locked;
+        else if (remove is not null)
+        {
+            row.ActionText = "Remove";
+            row.ActionTip = "Take them out (added to Pending changes)";
+            row.Act = () => Page.Pipeline!.Stage(remove());
+        }
+        return row;
+    }
+
+    /// <summary>Someone staged to be added, shown at the end of the card with Undo.</summary>
+    PrincipalRow Adding(SitePrincipal p, ChangeOp pending)
+    {
+        var row = Row(p);
+        row.StateText = "Adding";
+        row.ActionText = "Undo";
+        row.ActionTip = "Don't add them (takes the change out of Pending changes)";
+        row.Act = () => Page.Pipeline!.Unstage(pending);
+        return row;
+    }
+
+    PersonPicker? Picker(IEnumerable<string> present, Action<UserSummary> add)
+    {
+        if (!Page.CanEdit)
+            return null;
+        var taken = present.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return new PersonPicker("Add someone: type a name",
+            () => GroupAccess.People(Page.Index).Where(o => o.Address is null || !taken.Contains(o.Address)),
+            o =>
+            {
+                if (Page.Index.User(o.Id) is { } user)
+                    add(user);
+            });
+    }
+
+    static SitePrincipal PersonFromTarget(ChangeTarget t) =>
+        new(t.Name, SetOneDriveAccess.LoginFor(t.Address ?? t.Id), PrincipalKind.Person, Upn: t.Address);
+
+    void Rebuild()
+    {
+        if (_permissions is not { } permissions)
+            return;
+        var pending = Pending.ToArray();
+        var site = SiteChange.TargetFor(Site);
+        var groupSite = Site.GroupId is { } gid ? Page.Index.Group(gid) : null;
         Groups.Clear();
-        Groups.Add(new SiteGroupCard("Site Admins", "Full control, including over permissions and settings. They see everything in it.", [.. permissions.Admins.Select(Row)]));
+
+        // Site admins.
+        var adminChanges = pending.OfType<SetSiteAdmin>().ToArray();
+        // A OneDrive's person, or a site's primary owner: SharePoint won't take them off the admins (seen live).
+        var ownerUpn = Site.OwnerLogin is { } ownerLogin ? ownerLogin[(ownerLogin.LastIndexOf('|') + 1)..] : null;
+        var adminRows = permissions.Admins.Select(p => Editable(p,
+            adminChanges.FirstOrDefault(c => !c.New && string.Equals(c.Login, p.Login, StringComparison.OrdinalIgnoreCase)),
+            p.Kind is PrincipalKind.Person or PrincipalKind.Guest ? () => new SetSiteAdmin(site, Site.Url, PersonTarget(p), p.Login, true, false) : null,
+            p.Upn is { } upn && string.Equals(upn, ownerUpn, StringComparison.OrdinalIgnoreCase) ? (Site.Kind == SiteKind.OneDrive ? "Their own OneDrive" : "The site's primary owner")
+            : p.Kind == PrincipalKind.GroupOwners ? "The group's owners" : null)).ToList();
+        foreach (var add in adminChanges.Where(c => c.New && !permissions.Admins.Any(a => string.Equals(a.Login, c.Login, StringComparison.OrdinalIgnoreCase))))
+            adminRows.Add(Adding(PersonFromTarget(add.Person), add));
+        Groups.Add(new SiteGroupCard("Site Admins", "Full control, including over permissions and settings. They see everything in it.", adminRows,
+            Picker(permissions.Admins.Select(a => a.Upn ?? "").Concat(adminChanges.Select(c => c.Person.Address ?? "")),
+                u => Page.Pipeline!.Stage(new SetSiteAdmin(site, Site.Url, GroupAccess.Target(u), SetOneDriveAccess.LoginFor(u.UserPrincipalName), false, true)))));
+
         foreach (var g in permissions.Groups)
-            Groups.Add(new SiteGroupCard(g.Role ?? g.Name, Explain(g.Role, Site.GroupId is not null) ?? (g.Role is null ? null : g.Name), [.. g.Members.Select(Row)]));
+        {
+            var spChanges = pending.OfType<SetSiteGroupMember>().Where(c => c.GroupId == g.Id).ToArray();
+            // Anyone directly in the SharePoint group (not the Microsoft 365 group's claim) is removed from it.
+            IEnumerable<PrincipalRow> Direct(IEnumerable<SitePrincipal> principals) => principals.Select(p => Editable(p,
+                spChanges.FirstOrDefault(c => !c.New && string.Equals(c.Login, p.Login, StringComparison.OrdinalIgnoreCase)),
+                p.Kind is PrincipalKind.System ? null : () => new SetSiteGroupMember(site, Site.Url, g.Id, g.Role ?? g.Name, PersonTarget(p), p.Login, true, false)));
+            var addedHere = spChanges.Where(c => c.New && !g.Members.Any(m => string.Equals(m.Login, c.Login, StringComparison.OrdinalIgnoreCase)))
+                .Select(c => Adding(PersonFromTarget(c.Person), c));
+
+            if (groupSite is not null && g.Role is "Owners" or "Members")
+            {
+                // The group's own owners or members, changed in the group.
+                var role = g.Role == "Owners" ? GroupRole.Owner : GroupRole.Member;
+                var list = role == GroupRole.Owner ? groupSite.OwnerList : groupSite.Members;
+                var groupChanges = pending.OfType<SetGroupMembership>().Where(c => c.Role == role).ToArray();
+                var rows = new List<PrincipalRow>();
+                foreach (var m in list)
+                {
+                    if (Page.Index.User(m.Id) is not { } person)
+                        continue;
+                    var lastOwner = role == GroupRole.Owner && groupSite.OwnerList.Count <= 1;
+                    rows.Add(Editable(PrincipalRow.PersonOf(person), groupChanges.FirstOrDefault(c => !c.New && c.Person.Id == person.Id),
+                        () => new SetGroupMembership(GroupAccess.Target(groupSite), GroupAccess.Target(person), "user", role, groupSite.IsExchangeManaged, true, false),
+                        lastOwner ? "The group's only owner" : null));
+                }
+                foreach (var add in groupChanges.Where(c => c.New && list.All(m => m.Id != c.Person.Id)))
+                    rows.Add(Adding(PersonFromTarget(add.Person), add));
+                rows.AddRange(Direct(g.Members.Where(p => p.Kind is not (PrincipalKind.GroupMembers or PrincipalKind.GroupOwners) || p.ObjectId != groupSite.Id)));
+                rows.AddRange(addedHere);
+                var present = list.Select(m => Page.Index.User(m.Id)?.UserPrincipalName ?? "").Concat(groupChanges.Select(c => c.Person.Address ?? ""));
+                Groups.Add(new SiteGroupCard(g.Role, Explain(g.Role, true), rows, groupSite.IsDynamic && role == GroupRole.Member ? null : Picker(present,
+                    u => Page.Pipeline!.Stage(new SetGroupMembership(GroupAccess.Target(groupSite), GroupAccess.Target(u), "user", role, groupSite.IsExchangeManaged, false, true)))));
+                continue;
+            }
+
+            Groups.Add(new SiteGroupCard(g.Role ?? g.Name, Explain(g.Role, Site.GroupId is not null) ?? (g.Role is null ? null : g.Name),
+                [.. Direct(g.Members), .. addedHere],
+                Picker(g.Members.Select(m => m.Upn ?? "").Concat(spChanges.Select(c => c.Person.Address ?? "")),
+                    u => Page.Pipeline!.Stage(new SetSiteGroupMember(site, Site.Url, g.Id, g.Role ?? g.Name, GroupAccess.Target(u),
+                        SetOneDriveAccess.LoginFor(u.UserPrincipalName), false, true)))));
+        }
         var everyone = permissions.Groups.SelectMany(g => g.Members).Any(m => m.Kind is PrincipalKind.Everyone or PrincipalKind.EveryoneExceptExternal);
         Summary = everyone ? "Open to the whole organization" : $"{permissions.Admins.Count} admin{(permissions.Admins.Count == 1 ? "" : "s")}, {permissions.Groups.Count} groups";
+    }
+
+    public void Dispose()
+    {
+        if (Page.Pipeline is { } pipeline)
+            pipeline.Changed -= OnPendingChanged;
     }
 }
 
@@ -174,7 +390,7 @@ public sealed class LinkSummaryRow(string title, string detail, int count, Badge
     public BadgeKind Kind => kind;
 }
 
-/// <summary>Its external sharing setting, the sharing links on its files, and the guests who've been let in.</summary>
+/// <summary>Its sharing settings, the sharing links on its files, and the guests who've been let in.</summary>
 public sealed class SiteSharingSection(SiteDetailViewModel page) : SiteSection(page)
 {
     public override string Key => "sharing";
@@ -194,6 +410,14 @@ public sealed class SiteSharingSection(SiteDetailViewModel page) : SiteSection(p
         _ => "",
     };
 
+    /// <summary>The site's sharing settings (changed from the Overview tab's actions).</summary>
+    public IReadOnlyList<SummaryLine> Settings =>
+    [
+        new("Default Link", SiteSettings.LinkTypeName(Site.LinkType)),
+        new("Link Permission", SiteSettings.LinkPermissionName(Site.LinkPermission)),
+        new("Guests Lose Access", SiteSettings.GuestExpiryName(Site.GuestExpiryDays)),
+    ];
+
     public ObservableCollection<LinkSummaryRow> Links { get; } = [];
     public ObservableCollection<PrincipalRow> SharedWith { get; } = [];
     public ObservableCollection<PrincipalRow> Guests { get; } = [];
@@ -207,6 +431,12 @@ public sealed class SiteSharingSection(SiteDetailViewModel page) : SiteSection(p
         OnPropertyChanged(nameof(HasNoLinks));
         OnPropertyChanged(nameof(HasNoGuests));
         OnPropertyChanged(nameof(HasSharedWith));
+    }
+
+    internal override void SiteChanged()
+    {
+        foreach (var name in new[] { nameof(SettingText), nameof(SettingKind), nameof(SettingExplanation), nameof(Settings) })
+            OnPropertyChanged(name);
     }
 
     protected override async Task ReadAsync(CancellationToken cancellationToken)

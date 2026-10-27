@@ -144,13 +144,14 @@ public sealed class TenantConnector : ITenantConnector
         var directory = new DemoTenantDirectory();
         var records = new DemoUserRecords(directory);
         var passwordStyle = new MemoryPasswordStyleStore();
-        var account = $"admin@{DemoTenantDirectory.Domain}";
+        var account = DemoUserRecords.Account;
         return new ConnectedTenant(
             "Northgate (demo)",
             account,
             directory,
             new TenantContext(
-                new HashSet<string>([DirectoryRoles.UserAdministrator, DirectoryRoles.ExchangeAdministrator, DirectoryRoles.IntuneAdministrator]),
+                new HashSet<string>([DirectoryRoles.UserAdministrator, DirectoryRoles.ExchangeAdministrator, DirectoryRoles.IntuneAdministrator,
+                    DirectoryRoles.SharePointAdministrator]),
                 new HashSet<string>(["EXCHANGE_S_STANDARD"]),
                 OperatingSystem.IsWindows()),
             IsDemo: true,

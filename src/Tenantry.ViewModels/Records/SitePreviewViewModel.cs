@@ -11,13 +11,26 @@ public sealed partial class SitePreviewViewModel
     readonly Action<UserSummary>? _openUser;
     readonly Action<GroupSummary>? _openGroup;
 
-    public SitePreviewViewModel(SiteSummary site, IDirectoryIndex? index = null, Action<UserSummary>? openUser = null, Action<GroupSummary>? openGroup = null)
+    /// <param name="actions">The site's actions (sharing, storage, lock, site admins), or null when the admin can't edit.</param>
+    public SitePreviewViewModel(SiteSummary site, IDirectoryIndex? index = null, Action<UserSummary>? openUser = null, Action<GroupSummary>? openGroup = null,
+        Editing.BulkEditorViewModel? actions = null, string? editReason = null)
     {
         Site = site;
         _index = index ?? EmptyIndex.Instance;
         _openUser = openUser;
         _openGroup = openGroup;
+        Actions = actions;
+        EditReason = editReason ?? "";
     }
+
+    /// <summary>Sharing, storage, lock, archive and site admins; null when the admin can't edit (or on the page's header).</summary>
+    public Editing.BulkEditorViewModel? Actions { get; }
+
+    public bool CanEdit => Actions is not null;
+
+    public string EditReason { get; }
+
+    public bool HasEditReason => Actions is null && EditReason.Length > 0;
 
     public SiteSummary Site { get; }
 

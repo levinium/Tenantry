@@ -336,6 +336,49 @@ API (`{site}/_api/web/…`). The tenant's SharePoint token covers every host, On
 - **Activity:** the sites report is matched by site ID. The OneDrive report has no address, so it
   is matched by the owner's sign-in name (seen live). Reports are cached for 30 minutes.
 
+### Site actions (7c)
+
+The site page's Overview tab, the site preview and the selection panel (several sites checked)
+share one action list (`BulkActions.ForSites`). The Permissions tab is edited in place: a picker on
+each card adds people, each row has Remove, and staged rows show Adding or Removing with Undo. The
+Sites list's New Site button opens a one-popup form, and the area's Deleted Sites page lists what
+can be restored.
+
+- **Guard:** a site's target address is the last part of its address (`…/sites/finance` →
+  `finance`), so in Test mode only `zz-tenantry-test-` sites change, whatever their title says.
+- **`SetSiteAdmin`:** CSOM `Tenant.SetSiteAdmin`, read back from `GetSiteAdministrators`. "Add
+  Yourself as Site Admin" also sits on each tab's no-access note (`SiteAccessException` →
+  `LiveSection.NoteActionText`); once applied, the tabs read again. SharePoint won't remove a
+  site's primary owner (seen live), so that row has no Remove.
+- **`SetSiteGroupMember`:** the site's REST API (`ensureuser`, `sitegroups/GetById({id})/users`,
+  `removeByLoginName`). A group-connected site's Owners and Members are its Microsoft 365 group's,
+  so those cards stage `SetGroupMembership` on the group. SharePoint only knows people with a
+  SharePoint license (or invited guests): adding an unlicensed person is refused with "could not be
+  found" (seen live), and the result says why.
+- **`SetSiteSetting`:** one setting as SiteProperties values (`Values`, JSON), sent with
+  `SetProperty` and `Update` on `GetSitePropertiesByUrl` (as Set-SPOSite does), then read back into
+  the local copy. Types come from `SiteSettings.TypeOf`. Settings: external sharing (choices stop at
+  the organization's level; opening up is a caution), default link and its permission, guest
+  expiry (`OverrideTenantExternalUserExpirationPolicy` plus days), storage limit (warning at 90%;
+  below what the site holds is skipped), lock (Read-Only or No Access are cautions).
+- **`SetSiteArchived`:** `Tenant.ArchiveSiteByUrl` / `UnarchiveSiteByUrl`. Needs Microsoft 365
+  Archive with pay-as-you-go billing; without it SharePoint refuses (seen live) and the result
+  says where to set it up.
+- **`DeleteSite`:** typed confirmation (the site's title). A group-connected site is deleted by
+  deleting its group (`DELETE groups/{id}`); SharePoint refuses to delete the site alone. Others go
+  to the recycle bin (`Tenant.RemoveSite`). Channel sites, OneDrives and SharePoint's own sites are
+  skipped with the reason.
+- **`RestoreSite`:** `Tenant.RestoreDeletedSite`, or `directory/deletedItems/{id}/restore` for a
+  deleted group. The Deleted Sites page joins `GetDeletedSitePropertiesFromSharePoint` with deleted
+  Microsoft 365 groups by alias, since SharePoint keeps no title or group for a deleted site.
+- **`CreateSite`:** a team site is a Microsoft 365 group (`POST groups`); its site appears within
+  moments and is read through the admin site (Graph's `groups/{id}/sites/root` is refused to an
+  admin who isn't a member, seen live). A communication site uses `SPSiteManager/create`. Whoever
+  applies it becomes its owner; naming an unlicensed owner fails outright (seen live), so chosen
+  owners join its Owners group afterwards.
+- **Each CSOM method was checked to exist** by aiming it at a test address that doesn't exist:
+  SharePoint answered "not found", never "method doesn't exist".
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

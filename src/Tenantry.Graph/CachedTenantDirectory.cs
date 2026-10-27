@@ -394,7 +394,11 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             Created: Date(s, "created"),
             LastActivity: Date(s, "lastActivity"),
             SensitivityLabel: Str(s, "label"),
-            Subsites: (int)Num(s, "webs"));
+            Subsites: (int)Num(s, "webs"),
+            LinkType: (int)Num(s, "linkType"),
+            LinkPermission: (int)Num(s, "linkPermission"),
+            GuestExpiryDays: Bool(s, "guestExpiryOwn") ? (int)Num(s, "guestExpiryDays") : null,
+            StorageWarningMb: Num(s, "warningMb"));
     }
 
     /// <summary>One device from its Entra record, its Intune record, or both; Intune's word wins where both say.</summary>

@@ -73,6 +73,13 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(UpdateRule), "updateRule")]
 [JsonDerivedType(typeof(CreateUser), "createUser")]
 [JsonDerivedType(typeof(CreateGroup), "createGroup")]
+[JsonDerivedType(typeof(SetSiteAdmin), "setSiteAdmin")]
+[JsonDerivedType(typeof(SetSiteGroupMember), "setSiteGroupMember")]
+[JsonDerivedType(typeof(SetSiteSetting), "setSiteSetting")]
+[JsonDerivedType(typeof(SetSiteArchived), "setSiteArchived")]
+[JsonDerivedType(typeof(DeleteSite), "deleteSite")]
+[JsonDerivedType(typeof(RestoreSite), "restoreSite")]
+[JsonDerivedType(typeof(CreateSite), "createSite")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -1244,4 +1251,138 @@ public sealed record SetOneDriveAccess(ChangeTarget User, string SiteUrl, string
     public override bool IsNoChange => Old == New;
     public override IReadOnlyList<ChangeTarget> Guarded => [User, Person];
     public override ChangeOp Since(ChangeOp earlier) => earlier is SetOneDriveAccess e ? this with { Old = e.Old } : this;
+}
+
+// ---- Sites (7c) -----------------------------------------------------------------------------
+
+/// <summary>
+/// A change to one site or OneDrive. Its target's address is the last part of the site's address
+/// (…/sites/finance → "finance"), so in Test mode only sites whose address starts with the test
+/// marker can change, whatever their title says.
+/// </summary>
+/// <param name="Site">Kind "site": Id is SharePoint's site ID, Name the title, Address the alias.</param>
+public abstract record SiteChange(ChangeTarget Site, string SiteUrl) : ChangeOp
+{
+    public override ChangeTarget Target => Site;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+
+    public static ChangeTarget TargetFor(Directory.SiteSummary site) => new("site", site.Id, site.Title, site.Alias);
+}
+
+/// <summary>
+/// Gives someone admin rights on a site (full control, and they see everything in it), or takes
+/// them away. Adding yourself is how an admin sees inside a site they aren't a member of. Only the
+/// site changes, so only it is guarded.
+/// </summary>
+/// <param name="Login">SharePoint's sign-in name for the person.</param>
+public sealed record SetSiteAdmin(ChangeTarget Site, string SiteUrl, ChangeTarget Person, string Login, bool Old, bool New) : SiteChange(Site, SiteUrl)
+{
+    public override string Key => "admin:" + Login.ToLowerInvariant();
+    public override string Label => $"Site Admin {Person.Name}";
+    public override string Before => Old ? "Site Admin" : "Not a Site Admin";
+    public override string After => New ? "Site Admin" : "Removed";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetSiteAdmin e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>
+/// Adds someone to one of a site's SharePoint groups (its Owners, Members or Visitors, or one of its
+/// own), or takes them out. A group-connected site's owners and members change through its
+/// Microsoft 365 group instead (<see cref="SetGroupMembership"/>).
+/// </summary>
+public sealed record SetSiteGroupMember(ChangeTarget Site, string SiteUrl, int GroupId, string GroupName, ChangeTarget Person, string Login, bool Old, bool New)
+    : SiteChange(Site, SiteUrl)
+{
+    public override string Key => $"sitegroup:{GroupId}:{Login.ToLowerInvariant()}";
+    public override string Label => $"{GroupName}: {Person.Name}";
+    public override string Before => Old ? "In the Group" : "Not in the Group";
+    public override string After => New ? "Added" : "Removed";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetSiteGroupMember e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>
+/// One site setting (external sharing, the default link, guest expiry, storage quota, lock), sent
+/// as SharePoint's SiteProperties values: <see cref="Values"/> is a JSON object of property → value,
+/// since some settings are two properties (guest expiry is a switch and a number of days).
+/// </summary>
+/// <param name="Setting">Which setting ("sharing", "quota"…): the slot, so restaging one replaces it.</param>
+public sealed record SetSiteSetting(ChangeTarget Site, string SiteUrl, string Setting, string SettingLabel, string Old, string New, string Values,
+    bool Caution = false) : SiteChange(Site, SiteUrl)
+{
+    public override string Key => "setting:" + Setting;
+    public override string Label => SettingLabel;
+    public override string Before => Old;
+    public override string After => New;
+    public override bool IsCaution => Caution;
+    public override bool IsNoChange => string.Equals(Old, New, StringComparison.Ordinal);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetSiteSetting e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>
+/// Archives a site (Microsoft 365 Archive: kept, out of reach, stored more cheaply) or reactivates
+/// it. Both are caution changes: an archived site can't be opened, and reactivating one archived
+/// more than 7 days ago is charged.
+/// </summary>
+public sealed record SetSiteArchived(ChangeTarget Site, string SiteUrl, bool Archive) : SiteChange(Site, SiteUrl)
+{
+    public override string Key => "archive";
+    public override string Label => "Archive";
+    public override string Before => Archive ? "Active" : "Archived";
+    public override string After => Archive ? "Archived: kept, but can't be opened" : "Reactivated (charged after 7 days archived)";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
+}
+
+/// <summary>
+/// Deletes a site into SharePoint's recycle bin (restorable for 93 days). A group-connected site is
+/// deleted with its Microsoft 365 group (its Team, mailbox and calendar too; restorable for 30
+/// days). The admin types the site's title to confirm.
+/// </summary>
+/// <param name="GroupId">The Microsoft 365 group to delete instead, for a group-connected site.</param>
+/// <param name="Detail">How it stood, for the review ("Team site · 12 GB").</param>
+public sealed record DeleteSite(ChangeTarget Site, string SiteUrl, string? GroupId, string Detail) : SiteChange(Site, SiteUrl)
+{
+    public override string Key => "delete";
+    public override string Label => GroupId is null ? $"Delete Site {Site.Name}" : $"Delete Site and Group {Site.Name}";
+    public override string Before => Detail;
+    public override string After => GroupId is null ? "Deleted (restorable for 93 days)" : "Deleted with its Microsoft 365 group (restorable for 30 days)";
+    public override bool IsCaution => true;
+    public override string? ConfirmPhrase => Site.Name;
+    public override bool IsNoChange => false;
+}
+
+/// <summary>Brings back a deleted site (or the deleted Microsoft 365 group it belongs to, which brings back its site).</summary>
+public sealed record RestoreSite(ChangeTarget Site, string SiteUrl, string? GroupId, string Detail) : SiteChange(Site, SiteUrl)
+{
+    public override string Key => "restore";
+    public override string Label => $"Deleted Site {Site.Name}";
+    public override string Before => Detail;
+    public override string After => GroupId is null ? "Restored" : "Restored with its Microsoft 365 group";
+    public override bool IsNoChange => false;
+}
+
+/// <summary>
+/// A new site: a team site (made as a Microsoft 365 group, which gives it a mailbox and calendar
+/// too; its owners are the group's) or a communication site (made in SharePoint: the admin who
+/// applies it becomes its owner, and <see cref="Owners"/> join its Owners group). Its owners are
+/// guarded along with it.
+/// </summary>
+/// <param name="Site">Kind "site": Id and Address are the new site's alias, Name its title.</param>
+public sealed record CreateSite(ChangeTarget Site, string SiteUrl, Directory.SiteKind Kind, string? Description, bool IsPrivate,
+    IReadOnlyList<ChangeTarget> Owners) : SiteChange(Site, SiteUrl)
+{
+    public override string Key => "create";
+    public override string Label => $"New {Directory.SiteSummary.KindName(Kind)} {Site.Name}";
+    public override string Before => "None";
+    public override string After => string.Join(" · ", new[]
+    {
+        SiteUrl,
+        Kind == Directory.SiteKind.TeamSite ? (IsPrivate ? "Private Microsoft 365 group" : "Public Microsoft 365 group") : null,
+        Owners.Count switch { 0 => null, 1 => $"Owner {Owners[0].Name}", var n => $"{n} owners" },
+    }.OfType<string>());
+    public override bool IsNoChange => false;
+    public override IReadOnlyList<ChangeTarget> Guarded => [Site, .. Owners];
 }

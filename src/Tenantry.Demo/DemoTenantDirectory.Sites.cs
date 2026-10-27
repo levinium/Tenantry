@@ -39,6 +39,9 @@ public sealed partial class DemoTenantDirectory
         return true;
     }
 
+    /// <summary>Adds a site (a new one, or one restored from the recycle bin).</summary>
+    public void AddSite(SiteSummary site) => _sites?.Add(site);
+
     static List<SiteSummary> GenerateSites(IReadOnlyList<UserSummary> users, IReadOnlyList<GroupSummary> groups)
     {
         var now = DateTimeOffset.UtcNow;

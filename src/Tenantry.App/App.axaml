@@ -31,6 +31,12 @@
     <DataTemplate DataType="rec:NewGroupViewModel">
       <views:NewGroupView />
     </DataTemplate>
+    <DataTemplate DataType="rec:NewSiteViewModel">
+      <views:NewSiteView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:DeletedSitePreviewViewModel">
+      <views:DeletedSitePreviewView />
+    </DataTemplate>
     <DataTemplate DataType="rec:ImportUsersViewModel">
       <views:ImportUsersView />
     </DataTemplate>

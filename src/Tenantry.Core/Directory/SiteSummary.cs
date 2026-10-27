@@ -30,6 +30,9 @@ public enum SiteKind
 /// OneDrive left unlicensed for 93 days (seen live: most OneDrives of unlicensed people).
 /// </param>
 /// <param name="OwnerName">The person (a OneDrive's owner) or the Microsoft 365 group (a group's site), named from the directory.</param>
+/// <param name="LinkType">The default sharing link (<see cref="SiteSettings.LinkTypeName"/>); 0 follows the organization.</param>
+/// <param name="LinkPermission">The default link's permission (<see cref="SiteSettings.LinkPermissionName"/>); 0 follows the organization.</param>
+/// <param name="GuestExpiryDays">Days before guests lose access, when the site sets its own; null follows the organization.</param>
 public sealed record SiteSummary(
     string Id,
     string Url,
@@ -51,13 +54,35 @@ public sealed record SiteSummary(
     DateTimeOffset? Created,
     DateTimeOffset? LastActivity,
     string? SensitivityLabel = null,
-    int? Subsites = null)
+    int? Subsites = null,
+    int LinkType = 0,
+    int LinkPermission = 0,
+    int? GuestExpiryDays = null,
+    long StorageWarningMb = 0)
 {
     public double? UsedPercent => StorageQuotaMb > 0 ? Math.Min(100, StorageUsedMb * 100.0 / StorageQuotaMb) : null;
 
     public bool IsLocked => Lock is "ReadOnly" or "NoAccess";
 
     public bool IsArchived => Archive is not ("NotArchived" or "" or null);
+
+    /// <summary>The last part of its address ("finance" in …/sites/finance): what the write guard judges.</summary>
+    public string Alias => AliasOf(Url);
+
+    /// <summary>The tenant's root site (…sharepoint.com/), which can't be deleted.</summary>
+    public bool IsRoot => new Uri(Url).AbsolutePath.Trim('/').Length == 0;
+
+    public static string AliasOf(string url)
+    {
+        var trimmed = url.TrimEnd('/');
+        return trimmed[(trimmed.LastIndexOf('/') + 1)..];
+    }
+
+    /// <summary>External sharing levels from closed to open (0 off, 3 existing guests, 1 new guests, 2 anyone).</summary>
+    public static readonly int[] SharingLevels = [0, 3, 1, 2];
+
+    /// <summary>How open a sharing level is (0 closed … 3 anyone): a site can't be more open than its organization.</summary>
+    public static int SharingRank(int sharing) => Math.Max(0, Array.IndexOf(SharingLevels, sharing));
 
     public static string KindName(SiteKind kind) => kind switch
     {

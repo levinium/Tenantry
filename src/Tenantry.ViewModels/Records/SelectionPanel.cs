@@ -178,6 +178,30 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
             current => BulkActions.ForAutopilot(() => current().Cast<AutopilotDevice>().ToArray()),
             pipeline, canEdit);
 
+    public static SelectionPanelViewModel ForSites(IReadOnlyList<object> rows, Action<object> uncheck, ChangePipeline? pipeline, Availability canEdit,
+        IDirectoryIndex index, string? me, Func<CancellationToken, Task<int>>? tenantSharing) =>
+        new(rows, uncheck, "site", "sites",
+            r => (((SiteSummary)r).Title, SiteSummary.KindName(((SiteSummary)r).Kind)),
+            all =>
+            {
+                var sites = all.Cast<SiteSummary>().ToArray();
+                return
+                [
+                    new("Types", Counts(sites.Select(s => SiteSummary.KindName(s.Kind).ToLowerInvariant()), nouns: false)),
+                    new("Sharing", Counts(sites.Select(s => SiteSummary.SharingName(s.Sharing).ToLowerInvariant()), nouns: false)),
+                    new("Storage", $"{SiteSettings.Storage(sites.Sum(s => s.StorageUsedMb))} used"),
+                ];
+            },
+            current => BulkActions.ForSites(() => current().Cast<SiteSummary>().ToArray(), index: index, me: me, tenantSharing: tenantSharing),
+            pipeline, canEdit);
+
+    public static SelectionPanelViewModel ForDeletedSites(IReadOnlyList<object> rows, Action<object> uncheck, ChangePipeline? pipeline, Availability canEdit) =>
+        new(rows, uncheck, "deleted site", "deleted sites",
+            r => (((DeletedSite)r).Name, ((DeletedSite)r).Url),
+            all => [new("Types", Counts(all.Cast<DeletedSite>().Select(s => DeletedSiteFields.KindOf(s).ToLowerInvariant()), nouns: false))],
+            current => BulkActions.ForDeletedSites(() => current().Cast<DeletedSite>().ToArray()),
+            pipeline, canEdit);
+
     /// <summary>"Windows · Ada Lovelace", or the platform alone for a device with no primary user.</summary>
     internal static string DescribeDevice(DeviceSummary d) => d.UserName is { } user ? $"{d.Platform} · {user}" : d.Platform;
 

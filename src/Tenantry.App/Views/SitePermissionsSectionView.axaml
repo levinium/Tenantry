@@ -26,6 +26,9 @@
               </Grid>
               <TextBlock Classes="muted" Text="Nobody." IsVisible="{Binding IsEmpty}" />
               <ItemsControl ItemsSource="{Binding Members}" />
+              <Panel IsVisible="{Binding HasPicker}">
+                <views:PersonPickerView DataContext="{Binding Picker}" MaxWidth="440" HorizontalAlignment="Left" />
+              </Panel>
             </StackPanel>
           </Border>
         </DataTemplate>

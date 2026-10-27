@@ -1,3 +1,4 @@
+using Tenantry.Core.Changes;
 using Tenantry.Core.Directory;
 
 namespace Tenantry.Demo;
@@ -7,15 +8,93 @@ namespace Tenantry.Demo;
 /// libraries and their latest files, and 30 days of activity, from each site's own seed. Sites
 /// with no owner stand in for ones the admin can't see inside, as happens for real.
 /// </summary>
-public sealed partial class DemoUserRecords : ISiteRecords
+public sealed partial class DemoUserRecords : ISiteRecords, IDeletedSiteRecords
 {
-    static void CanSeeInside(SiteSummary site)
+    void CanSeeInside(SiteSummary site)
     {
         if (site.IsArchived)
             throw new UnauthorizedAccessException("It's archived, so nothing inside it can be read until it's reactivated.");
-        if (site.OwnerName is null && site.Kind != SiteKind.System)
-            throw new UnauthorizedAccessException(
-                "SharePoint shows what's inside a site only to its members and admins, and you aren't one here. Add yourself as a site admin to see it.");
+        if (site.OwnerName is null && site.Kind != SiteKind.System && !SelfAdmin.Contains(site.Id))
+            throw new SiteAccessException();
+    }
+
+    /// <summary>The demo organization lets sites share with new and existing guests, but not with anyone.</summary>
+    public Task<int> GetOrganizationSharingAsync(CancellationToken cancellationToken = default) => Task.FromResult(1);
+
+    /// <summary>The demo's signed-in admin.</summary>
+    public static string Account => $"admin@{DemoTenantDirectory.Domain}";
+
+    /// <summary>Sites the demo's admin made themself a site admin of: they can see inside them now.</summary>
+    readonly HashSet<string> SelfAdmin = [];
+
+    /// <summary>Deleted sites as they were, to put back on restore.</summary>
+    readonly Dictionary<string, SiteSummary> _removedSites = [];
+
+    /// <summary>Applies a site change to the demo's sites; null when it isn't one.</summary>
+    public async Task<ApplyResult?> ApplySiteAsync(ChangeOp change, CancellationToken cancellationToken = default)
+    {
+        switch (change)
+        {
+            case SetSiteAdmin admin:
+                if (admin.New && string.Equals(admin.Person.Address, Account, StringComparison.OrdinalIgnoreCase))
+                    SelfAdmin.Add(admin.Site.Id);
+                return new ApplyResult(ChangeOutcome.Applied);
+            case SetSiteGroupMember:
+                return new ApplyResult(ChangeOutcome.Applied);
+            case SetSiteSetting setting:
+                var values = System.Text.Json.Nodes.JsonNode.Parse(setting.Values)!.AsObject();
+                directory.UpdateSite(setting.Site.Id, s => values.Aggregate(s, (site, v) => v.Key switch
+                {
+                    SiteSettings.Sharing => site with { Sharing = v.Value!.GetValue<int>() },
+                    SiteSettings.LinkType => site with { LinkType = v.Value!.GetValue<int>() },
+                    SiteSettings.LinkPermission => site with { LinkPermission = v.Value!.GetValue<int>() },
+                    SiteSettings.GuestExpiryOverride when !v.Value!.GetValue<bool>() => site with { GuestExpiryDays = null },
+                    SiteSettings.GuestExpiryDays => site with { GuestExpiryDays = v.Value!.GetValue<int>() },
+                    SiteSettings.Quota => site with { StorageQuotaMb = v.Value!.GetValue<long>() },
+                    SiteSettings.QuotaWarning => site with { StorageWarningMb = v.Value!.GetValue<long>() },
+                    SiteSettings.Lock => site with { Lock = v.Value!.GetValue<string>() },
+                    _ => site,
+                }));
+                return new ApplyResult(ChangeOutcome.Applied);
+            case SetSiteArchived archive:
+                directory.UpdateSite(archive.Site.Id, s => s with { Archive = archive.Archive ? "RecentlyArchived" : "NotArchived" });
+                return new ApplyResult(ChangeOutcome.Applied);
+            case DeleteSite delete:
+                if ((await directory.GetSitesAsync(cancellationToken)).FirstOrDefault(s => s.Id == delete.Site.Id) is { } gone)
+                {
+                    _removedSites[gone.Id] = gone;
+                    _deletedSites.Add(new DeletedSite(gone.Id, gone.Url, gone.Title, DateTimeOffset.UtcNow, delete.GroupId is null ? 93 : 30, gone.StorageQuotaMb, delete.GroupId));
+                }
+                directory.UpdateSite(delete.Site.Id, _ => null);
+                return new ApplyResult(ChangeOutcome.Applied);
+            case RestoreSite restore:
+                _deletedSites.RemoveAll(d => d.Id == restore.Site.Id);
+                if (_removedSites.Remove(restore.Site.Id, out var back))
+                    directory.AddSite(back);
+                return new ApplyResult(ChangeOutcome.Applied);
+            case CreateSite create:
+                directory.AddSite(new SiteSummary(Guid.NewGuid().ToString(), create.SiteUrl, create.Site.Name,
+                    create.Kind == SiteKind.TeamSite ? "GROUP#0" : "SITEPAGEPUBLISHING#0", create.Kind, create.Owners.FirstOrDefault()?.Name, null, null, null,
+                    false, false, null, 0, 25L * 1024 * 1024, 0, "Unlock", "NotArchived", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
+                return new ApplyResult(ChangeOutcome.Applied);
+            default:
+                return null;
+        }
+    }
+
+    readonly List<DeletedSite> _deletedSites = [];
+
+    public async Task<IReadOnlyList<DeletedSite>> GetDeletedSitesAsync(CancellationToken cancellationToken = default)
+    {
+        if (_deletedSites.Count == 0)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var host = (await directory.GetSitesAsync(cancellationToken)).First(s => s.Kind != SiteKind.OneDrive).Url;
+            host = host[..host.IndexOf("/sites/", StringComparison.Ordinal)];
+            _deletedSites.Add(new DeletedSite(Guid.NewGuid().ToString(), $"{host}/sites/summer-event-2025", "summer-event-2025", now.AddDays(-12), 81, 25L * 1024 * 1024, null));
+            _deletedSites.Add(new DeletedSite(Guid.NewGuid().ToString(), $"{host}/sites/vendor-review", "Vendor Review", now.AddDays(-4), 26, 25L * 1024 * 1024, "demo-deleted-group"));
+        }
+        return _deletedSites.ToArray();
     }
 
     async Task<UserSummary[]> PeopleAsync(SiteSummary site, int count, CancellationToken cancellationToken)

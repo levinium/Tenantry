@@ -8,7 +8,7 @@ namespace Tenantry.ViewModels.Records;
 /// The actions offered when several users, or several groups and mailboxes, are selected. Each
 /// plans one change per row it applies to and names the rows it skips, with the reason.
 /// </summary>
-public static class BulkActions
+public static partial class BulkActions
 {
     /// <summary>Details read live (the list's local copy holds only department and job title) this many at a time.</summary>
     const int ReadsAtOnce = 4;

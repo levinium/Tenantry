@@ -30,6 +30,8 @@
             <Button Classes="link" Content="{Binding OwnerText}" Command="{Binding OpenOwnerCommand}" IsVisible="{Binding CanOpenOwner}" ToolTip.Tip="Open their record" />
             <TextBlock Classes="caption" Text="{Binding OwnerText}" IsVisible="{Binding !CanOpenOwner}" VerticalAlignment="Center" />
           </StackPanel>
+          <TextBlock Classes="caption pendingtext" Text="{Binding $parent[UserControl].((vm:SiteDetailViewModel)DataContext).PendingText}"
+                     IsVisible="{Binding $parent[UserControl].((vm:SiteDetailViewModel)DataContext).HasPending}" TextWrapping="Wrap" />
         </StackPanel>
         <Button Grid.Column="2" Command="{Binding OpenSiteCommand}" VerticalAlignment="Top" ToolTip.Tip="Open the site in the browser">
           <StackPanel Orientation="Horizontal" Spacing="8">

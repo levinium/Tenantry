@@ -28,6 +28,8 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
         }
         if (change is CreateTemporaryAccessPass)
             return new ApplyResult(ChangeOutcome.Applied, "Pass them this code (demo).", Reveal: "Tap" + Random.Shared.Next(100000, 999999).ToString(System.Globalization.CultureInfo.InvariantCulture) + "!x");
+        if (records is not null && change is SiteChange && await records.ApplySiteAsync(change, cancellationToken) is { } site)
+            return site;
         if (records is not null && records.ApplyDevice(change))
             return new ApplyResult(ChangeOutcome.Applied);
         // A device's own list of groups lives with the records; the group's members below.
