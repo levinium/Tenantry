@@ -88,6 +88,27 @@
     <DataTemplate DataType="rec:DevicePreviewViewModel">
       <views:DevicePreviewView />
     </DataTemplate>
+    <DataTemplate DataType="rec:DeviceOverviewSection">
+      <views:DeviceOverviewSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:DeviceUsersSection">
+      <views:DeviceUsersSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:DeviceComplianceSection">
+      <views:DeviceComplianceSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:DeviceAppsSection">
+      <views:DeviceAppsSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:DeviceGroupsSection">
+      <views:DeviceGroupsSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:DeviceDefenderSection">
+      <views:DeviceDefenderSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:DeviceKeysSection">
+      <views:DeviceKeysSectionView />
+    </DataTemplate>
   </Application.DataTemplates>
 
   <Application.Resources>

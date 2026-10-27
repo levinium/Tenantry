@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.DeviceOverviewSectionView"
+             x:DataType="rec:DeviceOverviewSection">
+  <UserControl.Resources>
+    <DataTemplate x:Key="Fact" x:DataType="rec:SummaryLine">
+      <Grid ColumnDefinitions="170,*" ColumnSpacing="12">
+        <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,2,0,0" />
+        <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+      </Grid>
+    </DataTemplate>
+  </UserControl.Resources>
+  <Grid ColumnDefinitions="*,360" ColumnSpacing="16" MaxWidth="1180" HorizontalAlignment="Stretch">
+    <StackPanel Spacing="12">
+      <!-- Warnings at a glance -->
+      <Border Classes="card" IsVisible="{Binding HasHealth}">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="h3" Text="Needs Attention" />
+          <ItemsControl ItemsSource="{Binding Health}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel ItemSpacing="8" LineSpacing="6" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="rec:HealthChip">
+                <c:Badge Text="{Binding Text}" Kind="{Binding Kind}" ToolTip.Tip="{Binding Tip}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h3" Text="Device" />
+          <ItemsControl ItemsSource="{Binding Facts}" ItemTemplate="{StaticResource Fact}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h3" Text="Hardware and Health" />
+          <views:DeviceSectionStatusView />
+          <ItemsControl ItemsSource="{Binding Hardware}" ItemTemplate="{StaticResource Fact}" IsVisible="{Binding HasHardware}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+          <TextBlock Classes="muted" TextWrapping="Wrap" IsVisible="{Binding !IsManaged}"
+                     Text="Intune doesn't manage this device, so it reports no hardware details." />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <!-- Actions: each goes to Pending changes -->
+    <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
+      <StackPanel Spacing="10">
+        <TextBlock Classes="h3" Text="Actions" />
+        <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+          </StackPanel>
+        </Border>
+        <Panel IsVisible="{Binding CanEdit}">
+          <views:BulkEditorView DataContext="{Binding Actions}" />
+        </Panel>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

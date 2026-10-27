@@ -30,6 +30,9 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             return new ApplyResult(ChangeOutcome.Applied, "Pass them this code (demo).", Reveal: "Tap" + Random.Shared.Next(100000, 999999).ToString(System.Globalization.CultureInfo.InvariantCulture) + "!x");
         if (records is not null && records.ApplyDevice(change))
             return new ApplyResult(ChangeOutcome.Applied);
+        // A device's own list of groups lives with the records; the group's members below.
+        if (records is not null && change is SetGroupMembership { PersonType: "device" } joined)
+            records.SetDeviceGroup(joined.Person.Id, joined.Group.Id, joined.Group.Name, joined.New);
         if (records is not null && records.ApplySecurity(change))
             return new ApplyResult(ChangeOutcome.Applied);
         if (records is not null && records.ApplyOneDrive(change) is { } oneDrive)

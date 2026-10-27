@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.DeviceUsersSectionView"
+             x:DataType="rec:DeviceUsersSection">
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <views:DeviceSectionStatusView />
+    <Border Classes="card">
+      <StackPanel Spacing="10">
+        <StackPanel Spacing="2">
+          <TextBlock Classes="h3" Text="People" />
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="Intune's primary user, who has signed in to it (Windows reports this), and who registered it in Entra." />
+        </StackPanel>
+        <TextBlock Classes="muted" Text="Nobody is attached to this device." IsVisible="{Binding HasNoPeople}" />
+        <ItemsControl ItemsSource="{Binding People}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:DevicePersonRow">
+              <Border Classes="valuerow">
+                <StackPanel Spacing="4">
+                  <WrapPanel ItemSpacing="8" LineSpacing="4">
+                    <Button Classes="link" Content="{Binding Name}" Command="{Binding OpenCommand}" IsVisible="{Binding CanOpen}" ToolTip.Tip="Open their record" />
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" IsVisible="{Binding !CanOpen}" VerticalAlignment="Center" />
+                    <ItemsControl ItemsSource="{Binding Roles}" VerticalAlignment="Center">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel ItemSpacing="6" LineSpacing="4" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                          <c:Badge Text="{Binding}" Kind="Neutral" />
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </WrapPanel>
+                  <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

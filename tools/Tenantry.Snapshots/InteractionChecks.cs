@@ -501,7 +501,7 @@ static class InteractionChecks
             window.Close();
         });
 
-        Check("Devices: clicking a device's name shows it in the preview, and its Restart goes to Pending changes", () =>
+        Check("Devices: clicking a device's name opens its page, and the page's Restart goes to Pending changes", () =>
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "devices");
@@ -509,20 +509,52 @@ static class InteractionChecks
             Settle();
             var laptop = main.Devices.Rows.Cast<DeviceSummary>().First(d => d.IsManaged);
             Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, laptop)));
-            var preview = main.Devices.PreviewModel as DevicePreviewViewModel;
-            Expect(preview?.Device == laptop, "the device is in the preview");
-            Settle();
-            var restart = preview!.Bulk!.Actions.Single(a => a.Title == "Restart");
+            var page = main.SelectedTab as DeviceDetailViewModel;
+            Expect(page?.Device == laptop, "the device's page opened");
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var actions = page!.Overview.Actions!;
+            var restart = actions.Actions.Single(a => a.Title == "Restart");
             var head = FindButton(window, b => b.Classes.Contains("bulkhead") && ReferenceEquals(b.DataContext, restart));
             head.BringIntoView();
             Settle();
             Click(window, head);
-            var stage = FindButton(window, b => b.Command == preview.Bulk.StageCommand && b.IsEffectivelyVisible);
+            var stage = FindButton(window, b => b.Command == actions.StageCommand && b.IsEffectivelyVisible);
             stage.BringIntoView();
             Settle();
             Click(window, stage);
             Expect(main.Pending!.Rows.Any(r => r.Change is RunDeviceAction { Command: DeviceCommand.Restart } a && a.Device.Id == laptop.ManagedId),
                 "the restart is in Pending changes");
+            window.Close();
+        });
+
+        Check("Device page, Groups tab: picking a security group adds a Joining row; Remove on a group stages leaving; Undo takes it back", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.Groups.LoadAsync().GetAwaiter().GetResult();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "devices");
+            main.Devices.LoadAsync().GetAwaiter().GetResult();
+            var laptop = main.Devices.Rows.Cast<DeviceSummary>().First(d => d.Platform == "Windows" && d.IsManaged && d.ObjectId is not null);
+            main.OpenDevice(laptop);
+            var page = (DeviceDetailViewModel)main.SelectedTab!;
+            var groups = page.Sections.OfType<DeviceGroupsSection>().Single();
+            page.SelectedSection = groups;
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var before = groups.Groups.Count;
+            Expect(before > 0, "it's already in a group");
+            groups.Picker.Query = "SG Fin";
+            Settle();
+            Click(window, FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == groups.Picker));
+            Expect(groups.Groups.Count == before + 1 && groups.Groups.Any(g => g.PendingText == "Joining"), "a Joining row appeared");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetGroupMembership { PersonType: "device", New: true }), "joining is in Pending changes");
+            var existing = groups.Groups.First(g => !g.HasPending);
+            var remove = FindButton(window, b => b.Command == existing.ToggleCommand);
+            Click(window, remove);
+            Expect(main.Pending.Rows.Any(r => r.Change is SetGroupMembership { PersonType: "device", New: false }), "leaving is in Pending changes");
+            var leaving = groups.Groups.First(g => g.PendingText == "Leaving");
+            Click(window, FindButton(window, b => b.Command == leaving.ToggleCommand));
+            Expect(!main.Pending.Rows.Any(r => r.Change is SetGroupMembership { New: false }), "Undo took leaving back out");
             window.Close();
         });
 

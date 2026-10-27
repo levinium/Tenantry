@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.DeviceGroupsSectionView"
+             x:DataType="rec:DeviceGroupsSection"
+             x:Name="Root">
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <Border Classes="card">
+    <StackPanel Spacing="10">
+    <StackPanel Spacing="2">
+      <TextBlock Classes="h3" Text="Groups" />
+      <TextBlock Classes="caption" TextWrapping="Wrap"
+                 Text="Entra groups the device is in. Groups decide which apps, policies and profiles it gets. Devices can join security groups; dynamic groups follow their rule." />
+    </StackPanel>
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </StackPanel>
+    </Border>
+    <views:PersonPickerView DataContext="{Binding Picker}" MaxWidth="440" HorizontalAlignment="Left"
+                            IsVisible="{Binding #Root.((rec:DeviceGroupsSection)DataContext).CanEdit}" />
+    <views:DeviceSectionStatusView />
+    <TextBlock Classes="muted" Text="Not in any groups." IsVisible="{Binding HasNoGroups}" />
+    <ItemsControl ItemsSource="{Binding Groups}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="8" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:DeviceGroupRow">
+          <Border Classes="valuerow">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+              <ic:FluentIcon Icon="PeopleTeam" FontSize="18" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
+              <WrapPanel Grid.Column="1" ItemSpacing="8" LineSpacing="4" VerticalAlignment="Center">
+                <Button Classes="link" Content="{Binding Name}" Command="{Binding OpenCommand}" IsVisible="{Binding CanOpen}" ToolTip.Tip="Open the group" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" IsVisible="{Binding !CanOpen}" VerticalAlignment="Center" />
+                <c:Badge Text="Dynamic" Kind="Info" IsVisible="{Binding IsDynamic}" />
+                <c:Badge Text="{Binding PendingText}" Kind="Warning" IsVisible="{Binding HasPending}" />
+              </WrapPanel>
+              <Button Grid.Column="2" Classes="danger-outline" Classes.undo="{Binding HasPending}" Content="{Binding ToggleText}" Command="{Binding ToggleCommand}"
+                      IsEnabled="{Binding CanChange}" ToolTip.Tip="{Binding Tip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center" />
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

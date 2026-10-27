@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.DeviceKeysSectionView"
+             x:DataType="rec:DeviceKeysSection">
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <Border Classes="card">
+    <StackPanel Spacing="10">
+    <StackPanel Spacing="2">
+      <TextBlock Classes="h3" Text="BitLocker Keys and Local Admin Password" />
+      <TextBlock Classes="caption" TextWrapping="Wrap"
+                 Text="Each is hidden until you press Show, then hides again after a minute. Microsoft records who reads it, and so does Tenantry's change log." />
+    </StackPanel>
+    <views:DeviceSectionStatusView />
+    <TextBlock Classes="muted" Text="No BitLocker keys or local admin password are backed up for it." IsVisible="{Binding HasNoSecrets}" />
+    <ItemsControl ItemsSource="{Binding Secrets}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="8" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:SecretRow">
+          <Border Classes="valuerow">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+              <StackPanel Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                <SelectableTextBlock Classes="code" Text="{Binding Masked}" TextWrapping="Wrap" />
+                <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" />
+                <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+              </StackPanel>
+              <Button Grid.Column="1" Content="{Binding ShowText}" Command="{Binding ShowCommand}" VerticalAlignment="Center"
+                      ToolTip.Tip="Shows it for a minute. Microsoft records who reads it, and so does Tenantry's change log." />
+              <Button Grid.Column="2" Command="{Binding CopyCommand}" IsVisible="{Binding IsShown}" VerticalAlignment="Center" ToolTip.Tip="Copy">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <ic:FluentIcon Icon="Copy" FontSize="14" />
+                  <TextBlock Text="Copy" IsVisible="{Binding !Copied}" />
+                  <TextBlock Text="Copied" IsVisible="{Binding Copied}" />
+                </StackPanel>
+              </Button>
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

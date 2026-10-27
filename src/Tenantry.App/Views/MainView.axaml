@@ -383,6 +383,9 @@
           <DataTemplate DataType="vm:GroupDetailViewModel">
             <views:GroupDetailView />
           </DataTemplate>
+          <DataTemplate DataType="vm:DeviceDetailViewModel">
+            <views:DeviceDetailView />
+          </DataTemplate>
           <DataTemplate DataType="ms:MailSecurityViewModel">
             <views:MailSecurityView />
           </DataTemplate>

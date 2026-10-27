@@ -351,11 +351,30 @@ public static class BulkActions
     public static readonly int[] StaleDays = [90, 180, 365];
 
     /// <param name="selected">The devices checked right now (read each time).</param>
-    public static IReadOnlyList<BulkAction> ForDevices(Func<IReadOnlyList<DeviceSummary>> selected, Func<DateTimeOffset> now)
+    /// <param name="one">One device's own page or preview: deleting it is plain "Delete Device", with no staleness test.</param>
+    public static IReadOnlyList<BulkAction> ForDevices(Func<IReadOnlyList<DeviceSummary>> selected, Func<DateTimeOffset> now, bool one = false)
     {
         BulkPlan Intune(DeviceCommand command) => Plan(selected(), d => d.ManagedId is null
             ? (null, $"{d.Name}: not managed by Intune")
             : (new RunDeviceAction(IntuneTarget(d), command), null));
+
+        static DeleteDevice Delete(DeviceSummary d) =>
+            new(d.ObjectId is not null ? EntraTarget(d) : IntuneTarget(d), d.ObjectId is not null ? d.ManagedId : null,
+                d.LastSeen is { } last ? $"Last seen {Display.Exact(last)}" : "Never seen");
+
+        var delete = one
+            ? new BulkAction("Delete Device", "Delete its records from Intune and Entra. If it's still in use, it has to be registered again.", "DeleteDismiss",
+                (_, _) => Task.FromResult(Plan(selected(), d => (Delete(d), null))), isCaution: true)
+            : new BulkAction("Delete Stale Devices", "Delete the records of devices nobody has used for a while, from Intune and Entra. Devices seen more recently are skipped.", "DeleteDismiss",
+                (a, _) =>
+                {
+                    var days = (int)a.Choice!.Value;
+                    var cutoff = now().AddDays(-days);
+                    return Task.FromResult(Plan(selected(), d => d.LastSeen is { } seen && seen > cutoff
+                        ? (null, $"{d.Name}: seen {Display.Exact(seen)}")
+                        : (Delete(d), null)));
+                },
+                choiceLabel: "Not Seen For", choices: StaleDays.Select(n => new BulkChoice($"{n} Days or More", n)).ToArray(), isCaution: true);
 
         return
         [
@@ -381,17 +400,7 @@ public static class BulkActions
             new("Wipe", "Erase each device back to factory settings. You type each device's name to confirm before it's sent.", "Delete",
                 (_, _) => Task.FromResult(Intune(DeviceCommand.Wipe)), isCaution: true),
 
-            new("Delete Stale Devices", "Delete the records of devices nobody has used for a while, from Intune and Entra. Devices seen more recently are skipped.", "DeleteDismiss",
-                (a, _) =>
-                {
-                    var days = (int)a.Choice!.Value;
-                    var cutoff = now().AddDays(-days);
-                    return Task.FromResult(Plan(selected(), d => d.LastSeen is { } seen && seen > cutoff
-                        ? (null, $"{d.Name}: seen {Display.Exact(seen)}")
-                        : (new DeleteDevice(d.ObjectId is not null ? EntraTarget(d) : IntuneTarget(d), d.ObjectId is not null ? d.ManagedId : null,
-                            d.LastSeen is { } last ? $"Last seen {Display.Exact(last)}" : "Never seen"), null)));
-                },
-                choiceLabel: "Not Seen For", choices: StaleDays.Select(n => new BulkChoice($"{n} Days or More", n)).ToArray(), isCaution: true),
+            delete,
         ];
     }
 

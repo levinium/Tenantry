@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.DeviceDetailView"
+             x:DataType="vm:DeviceDetailViewModel">
+  <!-- A device's record: what it is and how healthy, then one tab per area. -->
+  <DockPanel Margin="8,12,8,0">
+    <Border DockPanel.Dock="Top" Classes="card">
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="20">
+        <Border Classes="avatar large" VerticalAlignment="Top">
+          <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+          <TextBlock Classes="h1" Text="{Binding Device.Name}" TextWrapping="Wrap" />
+          <TextBlock Classes="muted" Text="{Binding Detail}" TextWrapping="Wrap" />
+          <WrapPanel ItemSpacing="8" LineSpacing="6" Margin="0,4,0,0">
+            <c:Badge Text="{Binding JoinType}" Kind="Neutral" />
+            <c:Badge Text="{Binding ManagedText}" Kind="{Binding ManagedKind}" />
+            <c:Badge Text="{Binding ComplianceText}" Kind="{Binding ComplianceKind}" IsVisible="{Binding HasCompliance}" />
+            <c:Badge Text="Disabled" Kind="Danger" IsVisible="{Binding IsDisabled}" />
+            <c:Badge Text="Not Encrypted" Kind="Warning" IsVisible="{Binding IsUnencrypted}" />
+          </WrapPanel>
+          <TextBlock Classes="caption" Text="{Binding LastSeenText}" />
+          <TextBlock Classes="caption pendingtext" Text="{Binding PendingText}" IsVisible="{Binding HasPending}" TextWrapping="Wrap" />
+        </StackPanel>
+        <Button Grid.Column="2" Command="{Binding OpenInAdminCenterCommand}" VerticalAlignment="Top"
+                ToolTip.Tip="Open this device in the Intune admin center (or Entra, for a device Intune doesn't manage)">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ic:FluentIcon Icon="Globe" FontSize="16" />
+            <TextBlock Text="Open in Admin Center" />
+          </StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <TabControl Classes="recordtabs" Margin="0,8,0,0" ItemsSource="{Binding Sections}" SelectedItem="{Binding SelectedSection}">
+      <TabControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:RecordSection">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+          </StackPanel>
+        </DataTemplate>
+      </TabControl.ItemTemplate>
+      <TabControl.ContentTemplate>
+        <DataTemplate x:DataType="rec:RecordSection">
+          <ScrollViewer Padding="0,12,0,24">
+            <ContentControl Content="{Binding}" />
+          </ScrollViewer>
+        </DataTemplate>
+      </TabControl.ContentTemplate>
+    </TabControl>
+  </DockPanel>
+</UserControl>

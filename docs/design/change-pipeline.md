@@ -224,6 +224,30 @@ The Devices area lists every device from the local copy. Three reads keep it cur
 - **Not tested live:** `POST /devices` is refused, so no throwaway device can be made to delete.
   The guard's refusal of a non-test device was checked live.
 
+### Device page (6b)
+
+Opening a device opens its page in a tab. The header shows what it is and its state. Below it are
+tabs: Overview, Users, Compliance, Apps, Groups, Defender and Recovery Keys. Each tab reads live
+the first time it's shown, with a wheel while it reads. Something that can't be shown leaves a
+note instead: for example a device Intune doesn't manage, or no Intune role.
+
+| Tab | Read | Notes |
+|---|---|---|
+| Overview | beta `managedDevices/{id}?$select=hardwareInformation,usersLoggedOn,…` | v1.0 refuses `usersLoggedOn`. Intune writes "never" as 0001-01-01 or 9999-12-31, and empty as 0 or "": all shown as nothing. |
+| Users | the same read, plus `devices/{id}/registeredOwners` and `registeredUsers` | one row per person, with every role they have |
+| Compliance | `…/deviceCompliancePolicyStates` and `…/deviceConfigurationStates`; each policy's `…/{id}/settingStates` read when it opens | Settings don't `$expand`. A policy with a problem comes first, already open. Intune writes "no error" as "0". |
+| Apps | beta `users/{primary user}/mobileAppIntentAndStates/{id}`; beta `…/detectedApps` | v1.0 has no `detectedApps`. 404 means no apps assigned. Installed apps are searchable. |
+| Groups | `devices/{id}/memberOf/microsoft.graph.group` | Devices join or leave security groups through `SetGroupMembership` (member type "device"). Dynamic and Exchange-managed groups are locked. |
+| Defender | `…/windowsProtectionState` and `…/detectedMalwareState` | 404 means the device doesn't report (not Windows) |
+| Recovery Keys | as on the user's Devices tab | each Show is logged |
+
+- **Actions** are the selection panel's. For one device, "Delete Device" replaces "Delete Stale
+  Devices" (`BulkActions.ForDevices(…, one: true)`).
+- **Words:** Intune's codes read as words through `DeviceText`: dotted setting IDs, states, and
+  enrollment types renamed from "Azure AD" to Entra.
+- **Not tested live:** the tenant has no test device, so joining and leaving groups is covered by
+  unit tests and a click-through check. Every read was checked live, read-only.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

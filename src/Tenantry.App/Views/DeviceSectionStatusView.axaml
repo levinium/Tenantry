@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.DeviceSectionStatusView"
+             x:DataType="rec:DeviceSection">
+  <!-- A device tab's wheel while it reads, and its note when something can't be shown. -->
+  <StackPanel Spacing="8">
+    <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+      <Panel Width="18" Height="18" VerticalAlignment="Center">
+        <Ellipse Classes="spintrack" />
+        <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+          <Arc.RenderTransform>
+            <RotateTransform />
+          </Arc.RenderTransform>
+        </Arc>
+      </Panel>
+      <TextBlock Classes="muted" VerticalAlignment="Center" Text="{Binding LoadingText}" />
+    </StackPanel>
+    <Border Classes="banner neutral" IsVisible="{Binding HasNote}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Note}" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

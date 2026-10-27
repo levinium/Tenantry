@@ -605,6 +605,19 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "devices-selected-light");
         editing.Devices.ClearSelectionCommand.Execute(null);
 
+        // A device's page, every tab: a Windows laptop that fails a policy.
+        var failing = editing.Devices.Rows.Cast<DeviceSummary>().First(d => d.Platform == "Windows" && d.IsManaged && d.Compliant == false && d.UserId is not null);
+        editing.OpenDevice(failing);
+        var devicePage = (DeviceDetailViewModel)editing.SelectedTab!;
+        foreach (var section in devicePage.Sections)
+        {
+            devicePage.SelectedSection = section;
+            for (var i = 0; i < 20; i++)
+                Settle();
+            Render(editing, $"device-{section.Key}-light", height: section.Key is "apps" or "overview" ? 1300 : 900);
+        }
+        devicePage.SelectedSection = devicePage.Sections[0];
+
         // New Group: a shared mailbox with two people given access.
         editing.Groups.RunPrimaryActionCommand.Execute(null);
         var newGroup = (Tenantry.ViewModels.Records.NewGroupViewModel)editing.Dialog!.Content;

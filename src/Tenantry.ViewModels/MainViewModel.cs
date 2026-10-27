@@ -56,8 +56,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         var manageDevices = Evaluate(Capabilities.ManageDevices);
         Devices = DataListViewModel.Create(DeviceList.Definition(d => new Records.DevicePreviewViewModel(d, _tenant.Changes, manageDevices, _now, _index, OpenUser)),
             LoadDevicesAsync, OpenDevice, tenant.ListState, _now);
-        // The device page comes later (6b): opening a device shows it in the preview.
-        Devices.HasRecordPages = false;
         Devices.PrimaryAction = HasSync ? new ListPrimaryAction("Refresh Devices", "ArrowSync", true,
             "Read devices from Entra and Intune again now (they're otherwise checked with everything else)", () => _ = RefreshDevicesAsync()) : null;
         Devices.SelectionPanel = (rows, uncheck) =>
@@ -130,10 +128,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     IEnumerable<(string Section, TabViewModel Tab)> AreaTabs =>
         AreaLists.Select(a => (a.Section, (TabViewModel)a.List)).Concat(MailSecurity is null ? [] : [("mail", (TabViewModel)MailSecurity)]);
 
-    Task<IReadOnlyList<DeviceSummary>> LoadDevicesAsync(CancellationToken cancellationToken) => _tenant.Directory.GetDevicesAsync(cancellationToken);
+    IReadOnlyList<DeviceSummary> _devices = [];
 
-    /// <summary>Until devices have pages of their own, opening one shows it in the preview.</summary>
-    void OpenDevice(DeviceSummary device) => Devices.PreviewRow(device);
+    async Task<IReadOnlyList<DeviceSummary>> LoadDevicesAsync(CancellationToken cancellationToken) =>
+        _devices = await _tenant.Directory.GetDevicesAsync(cancellationToken);
+
+    /// <summary>Opens a device's record page, or switches to it if it is already open.</summary>
+    public void OpenDevice(DeviceSummary device)
+    {
+        var existing = Tabs.OfType<DeviceDetailViewModel>().FirstOrDefault(t => t.Device.Key == device.Key);
+        if (existing is null)
+        {
+            existing = new DeviceDetailViewModel(device, _tenant.Changes, Evaluate(Capabilities.ManageDevices), _now,
+                _tenant.Records as IDevicePageRecords, _tenant.Records as IDeviceRecords, _index, OpenUser, OpenGroup);
+            Tabs.Add(existing);
+        }
+        SelectedTab = existing;
+    }
 
     /// <summary>The Devices list's Refresh: Entra's devices (changes) and Intune's (read whole) now, then the list.</summary>
     async Task RefreshDevicesAsync()
@@ -602,6 +613,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             if (_index.Group(page.Group.Id) is { } updated)
                 page.Update(updated);
         }
+        var devices = Tabs.OfType<DeviceDetailViewModel>().ToArray();
+        if (devices.Length > 0)
+        {
+            var current = (await _tenant.Directory.GetDevicesAsync(_lifetime.Token)).ToDictionary(d => d.Key, StringComparer.Ordinal);
+            foreach (var page in devices)
+                if (current.TryGetValue(page.Device.Key, out var updated))
+                    page.Update(updated);
+        }
         // The previews follow the same way.
         if (Users.PreviewModel is UserDetailViewModel userPreview && _index.User(userPreview.User.Id) is { } u)
             userPreview.Update(u);
@@ -659,6 +678,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             entries.Add(g.IsMailbox
                 ? new PaletteEntry("Mailbox", g.DisplayName, $"{g.Mail} · {GroupSummary.KindName(g.Kind)}", "Mail", searchText, () => OpenGroup(g))
                 : new PaletteEntry("Group", g.DisplayName, g.Mail ?? GroupSummary.KindName(g.Kind), "People", searchText, () => OpenGroup(g)));
+        }
+        foreach (var d in _devices)
+        {
+            var searchText = string.Join(' ', d.Name, d.UserName, d.UserPrincipalName, d.Serial, d.Model, d.Platform).ToLowerInvariant();
+            entries.Add(new PaletteEntry("Device", d.Name, d.UserName is { } user ? $"{d.Platform} · {user}" : d.Platform,
+                DeviceList.IconFor(d), searchText, () => OpenDevice(d)));
         }
         foreach (var (section, list) in AreaLists)
         {
