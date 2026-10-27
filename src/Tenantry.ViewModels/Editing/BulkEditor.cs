@@ -34,9 +34,10 @@ public sealed partial class BulkAction : ObservableObject
     public BulkAction(string title, string description, string icon, Func<BulkAction, CancellationToken, Task<BulkPlan>> plan,
         string? pickPlaceholder = null, Func<IEnumerable<PickOption>>? pickOptions = null,
         string? choiceLabel = null, IReadOnlyList<BulkChoice>? choices = null, Func<CancellationToken, Task<IReadOnlyList<BulkChoice>>>? loadChoices = null,
-        string? textLabel = null, bool isCaution = false)
+        string? textLabel = null, bool isCaution = false, string? group = null)
     {
         Title = title;
+        Group = group;
         Description = description;
         Icon = icon;
         _plan = plan;
@@ -55,6 +56,14 @@ public sealed partial class BulkAction : ObservableObject
 
     /// <summary>Takes something away (blocking, removing): the Stage button says so.</summary>
     public bool IsCaution { get; }
+
+    /// <summary>The kind of action ("Everyday", "Erase or Remove"), for a heading over a long list; null for none.</summary>
+    public string? Group { get; }
+
+    /// <summary>The heading shown above this action: its group, when it starts one.</summary>
+    public string? GroupHeading { get; internal set; }
+
+    public bool HasGroupHeading => GroupHeading is not null;
 
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
@@ -135,6 +144,12 @@ public sealed partial class BulkEditorViewModel : ObservableObject
         Actions = actions;
         _pipeline = pipeline;
         _close = close;
+        string? group = null;
+        foreach (var action in actions)
+        {
+            action.GroupHeading = action.Group is { } g && g != group ? g : null;
+            group = action.Group;
+        }
         foreach (var action in actions)
             action.PropertyChanged += (s, e) =>
             {

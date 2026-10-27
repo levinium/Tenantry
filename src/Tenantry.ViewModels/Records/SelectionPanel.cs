@@ -163,6 +163,21 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
             current => BulkActions.ForDevices(() => current().Cast<DeviceSummary>().ToArray(), now),
             pipeline, canEdit);
 
+    public static SelectionPanelViewModel ForAutopilot(IReadOnlyList<object> rows, Action<object> uncheck, ChangePipeline? pipeline, Availability canEdit) =>
+        new(rows, uncheck, "Autopilot device", "Autopilot devices",
+            r => (((AutopilotDevice)r).Serial, ((AutopilotDevice)r).Model ?? ""),
+            all =>
+            {
+                var devices = all.Cast<AutopilotDevice>().ToArray();
+                return
+                [
+                    new("Group Tags", Counts(devices.Select(d => d.GroupTag ?? "no tag"), nouns: false)),
+                    new("Enrollment", Counts(devices.Select(d => d.EnrollmentState.ToLowerInvariant()), nouns: false)),
+                ];
+            },
+            current => BulkActions.ForAutopilot(() => current().Cast<AutopilotDevice>().ToArray()),
+            pipeline, canEdit);
+
     /// <summary>"Windows · Ada Lovelace", or the platform alone for a device with no primary user.</summary>
     internal static string DescribeDevice(DeviceSummary d) => d.UserName is { } user ? $"{d.Platform} · {user}" : d.Platform;
 

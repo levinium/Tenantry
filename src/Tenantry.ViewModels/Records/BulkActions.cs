@@ -350,13 +350,32 @@ public static class BulkActions
     /// <summary>How long unseen before "Delete Stale Devices" offers a device, in days.</summary>
     public static readonly int[] StaleDays = [90, 180, 365];
 
+    const string Everyday = "Everyday";
+    const string Defender = "Microsoft Defender";
+    const string Settings = "Settings";
+    const string Remove = "Erase or Remove";
+
+    /// <summary>Windows device names: at most 15 letters, digits and hyphens (what Windows accepts).</summary>
+    static readonly System.Text.RegularExpressions.Regex WindowsName = new("^[A-Za-z0-9-]{1,15}$");
+
     /// <param name="selected">The devices checked right now (read each time).</param>
-    /// <param name="one">One device's own page or preview: deleting it is plain "Delete Device", with no staleness test.</param>
-    public static IReadOnlyList<BulkAction> ForDevices(Func<IReadOnlyList<DeviceSummary>> selected, Func<DateTimeOffset> now, bool one = false)
+    /// <param name="one">
+    /// One device's own page or preview: it also offers what only makes sense one at a time
+    /// (rename, primary user, lost mode), and deleting it is plain "Delete Device", with no staleness test.
+    /// </param>
+    /// <param name="index">People, for choosing a primary user.</param>
+    public static IReadOnlyList<BulkAction> ForDevices(Func<IReadOnlyList<DeviceSummary>> selected, Func<DateTimeOffset> now, bool one = false,
+        IDirectoryIndex? index = null)
     {
-        BulkPlan Intune(DeviceCommand command) => Plan(selected(), d => d.ManagedId is null
+        BulkPlan Intune(DeviceCommand command, bool keepUserData = false) => Plan(selected(), d => d.ManagedId is null
             ? (null, $"{d.Name}: not managed by Intune")
-            : (new RunDeviceAction(IntuneTarget(d), command), null));
+            : (new RunDeviceAction(IntuneTarget(d), command, keepUserData), null));
+
+        // Windows-only actions skip the rest, saying why.
+        BulkPlan Windows(DeviceCommand command, bool keepUserData = false) => Plan(selected(), d =>
+            d.ManagedId is null ? (null, $"{d.Name}: not managed by Intune")
+            : d.Platform != "Windows" ? (null, $"{d.Name}: not Windows")
+            : (new RunDeviceAction(IntuneTarget(d), command, keepUserData), null));
 
         static DeleteDevice Delete(DeviceSummary d) =>
             new(d.ObjectId is not null ? EntraTarget(d) : IntuneTarget(d), d.ObjectId is not null ? d.ManagedId : null,
@@ -364,7 +383,7 @@ public static class BulkActions
 
         var delete = one
             ? new BulkAction("Delete Device", "Delete its records from Intune and Entra. If it's still in use, it has to be registered again.", "DeleteDismiss",
-                (_, _) => Task.FromResult(Plan(selected(), d => (Delete(d), null))), isCaution: true)
+                (_, _) => Task.FromResult(Plan(selected(), d => (Delete(d), null))), isCaution: true, group: Remove)
             : new BulkAction("Delete Stale Devices", "Delete the records of devices nobody has used for a while, from Intune and Entra. Devices seen more recently are skipped.", "DeleteDismiss",
                 (a, _) =>
                 {
@@ -374,35 +393,133 @@ public static class BulkActions
                         ? (null, $"{d.Name}: seen {Display.Exact(seen)}")
                         : (Delete(d), null)));
                 },
-                choiceLabel: "Not Seen For", choices: StaleDays.Select(n => new BulkChoice($"{n} Days or More", n)).ToArray(), isCaution: true);
+                choiceLabel: "Not Seen For", choices: StaleDays.Select(n => new BulkChoice($"{n} Days or More", n)).ToArray(), isCaution: true, group: Remove);
 
-        return
-        [
-            new("Sync with Intune", "Ask each device to check in now: it picks up new policies and apps, and reports its state.", "ArrowSync",
-                (_, _) => Task.FromResult(Intune(DeviceCommand.Sync))),
+        var actions = new List<BulkAction>
+        {
+            new("Sync with Intune", "Ask it to check in now: it picks up new policies and apps, and reports its state.", "ArrowSync",
+                (_, _) => Task.FromResult(Intune(DeviceCommand.Sync)), group: Everyday),
+            new("Restart", "Restart it now. Whoever is using it may lose unsaved work.", "ArrowClockwise",
+                (_, _) => Task.FromResult(Intune(DeviceCommand.Restart)), isCaution: true, group: Everyday),
+            new("Lock", "Lock the screen; it's unlocked with its PIN or password.", "LockClosed",
+                (_, _) => Task.FromResult(Intune(DeviceCommand.Lock)), isCaution: true, group: Everyday),
+            new("Locate", "Ask it where it is (Windows with location on, supervised iPhones and iPads in lost mode, Android Enterprise). The location shows in the Intune admin center.", "Location",
+                (_, _) => Task.FromResult(Intune(DeviceCommand.Locate)), isCaution: true, group: Everyday),
+            new("Collect Diagnostics", "Windows uploads its logs; download them from the device in the Intune admin center.", "DocumentArrowUp",
+                (_, _) => Task.FromResult(Windows(DeviceCommand.CollectDiagnostics)), group: Everyday),
 
-            new("Restart", "Restart each device now. Whoever is using it may lose unsaved work.", "ArrowClockwise",
-                (_, _) => Task.FromResult(Intune(DeviceCommand.Restart)), isCaution: true),
+            new("Quick Scan", "Microsoft Defender scans the places malware usually hides (Windows).", "ShieldCheckmark",
+                (_, _) => Task.FromResult(Windows(DeviceCommand.QuickScan)), isCaution: true, group: Defender),
+            new("Full Scan", "Microsoft Defender scans every file; it can take hours and slow the device (Windows).", "Shield",
+                (_, _) => Task.FromResult(Windows(DeviceCommand.FullScan)), isCaution: true, group: Defender),
+            new("Update Definitions", "Microsoft Defender downloads its latest security intelligence (Windows).", "ArrowDownload",
+                (_, _) => Task.FromResult(Windows(DeviceCommand.UpdateDefinitions)), group: Defender),
+        };
 
-            new("Disable or Enable", "A disabled device can't be used to sign in to Microsoft 365; enable it to allow that again.", "Prohibited",
+        if (one)
+        {
+            actions.Add(new("Rename", "Give it a new name. Windows takes it after a restart; iPhones and iPads need to be supervised.", "Rename",
                 (a, _) =>
                 {
-                    var enable = (bool)a.Choice!.Value;
-                    return Task.FromResult(Plan(selected(), d => d.ObjectId is null ? (null, $"{d.Name}: not in Entra")
-                        : d.Enabled == enable ? (null, $"{d.Name}: already {(enable ? "enabled" : "disabled")}")
-                        : (new SetDeviceEnabled(EntraTarget(d), d.Enabled != false, enable), null)));
+                    var name = a.Text.Trim();
+                    if (name.Length == 0)
+                        return Task.FromResult(BulkPlan.Invalid("Type the new name."));
+                    return Task.FromResult(Plan(selected(), d =>
+                        d.ManagedId is null ? (null, $"{d.Name}: not managed by Intune")
+                        : d.Platform == "Windows" && !WindowsName.IsMatch(name) ? (null, "Windows names are up to 15 letters, digits and hyphens.")
+                        : string.Equals(d.Name, name, StringComparison.Ordinal) ? (null, $"{d.Name}: already its name")
+                        : (new RenameDevice(IntuneTarget(d), d.Name, name), null)));
                 },
-                choiceLabel: "Device", choices: [new BulkChoice("Disable", false), new BulkChoice("Enable", true)]),
+                textLabel: "New Name", group: Settings));
+            if (index is not null)
+                actions.Add(new("Change Primary User", "The person its apps, policies and Company Portal follow.", "PersonSwap",
+                    (a, _) =>
+                    {
+                        if (index.User(a.Picked!.Id) is not { } person)
+                            return Task.FromResult(BulkPlan.Invalid("That person isn't in the local copy any more."));
+                        return Task.FromResult(Plan(selected(), d =>
+                            d.ManagedId is null ? (null, $"{d.Name}: not managed by Intune")
+                            : d.UserId == person.Id ? (null, $"{d.Name}: already theirs")
+                            : (new SetPrimaryUser(IntuneTarget(d), d.UserName, GroupAccess.Target(person)), null)));
+                    },
+                    pickPlaceholder: "Choose a person: type a name", pickOptions: () => GroupAccess.People(index), group: Settings));
+        }
 
-            new("Retire", "Remove work data, apps and settings and stop managing each device. The owner's own things stay.", "PhoneLinkSetup",
-                (_, _) => Task.FromResult(Intune(DeviceCommand.Retire)), isCaution: true),
+        actions.Add(new("Ownership", "Company-owned or personal: Intune collects less from personal devices and can't wipe them.", "Building",
+            (a, _) =>
+            {
+                var company = (bool)a.Choice!.Value;
+                return Task.FromResult(Plan(selected(), d =>
+                    d.ManagedId is null ? (null, $"{d.Name}: not managed by Intune")
+                    : d.Ownership == (company ? DeviceFields.Company : DeviceFields.Personal) ? (null, $"{d.Name}: already {(company ? "company-owned" : "personal")}")
+                    : (new SetDeviceOwnership(IntuneTarget(d), d.Ownership != DeviceFields.Personal, company), null)));
+            },
+            choiceLabel: "Owned By", choices: [new BulkChoice("Company", true), new BulkChoice("Personal", false)], group: Settings));
+        actions.Add(new("Disable or Enable", "A disabled device can't be used to sign in to Microsoft 365; enable it to allow that again.", "Prohibited",
+            (a, _) =>
+            {
+                var enable = (bool)a.Choice!.Value;
+                return Task.FromResult(Plan(selected(), d => d.ObjectId is null ? (null, $"{d.Name}: not in Entra")
+                    : d.Enabled == enable ? (null, $"{d.Name}: already {(enable ? "enabled" : "disabled")}")
+                    : (new SetDeviceEnabled(EntraTarget(d), d.Enabled != false, enable), null)));
+            },
+            choiceLabel: "Device", choices: [new BulkChoice("Disable", false), new BulkChoice("Enable", true)], group: Settings));
+        actions.Add(new("Rotate BitLocker Keys", "Make new BitLocker recovery keys and back them up, after a key has been shown to someone (Windows).", "Key",
+            (_, _) => Task.FromResult(Windows(DeviceCommand.RotateBitLockerKeys)), isCaution: true, group: Settings));
+        actions.Add(new("Rotate Local Admin Password", "Give the local admin account a new password, after someone has used it (Windows LAPS).", "Password",
+            (_, _) => Task.FromResult(Windows(DeviceCommand.RotateLocalAdminPassword)), isCaution: true, group: Settings));
+        if (one)
+            actions.Add(new("Lost Mode", "A supervised iPhone or iPad locks and shows your message until lost mode is turned off; then Locate can find it.", "PhoneLock",
+                (a, _) =>
+                {
+                    var on = (bool)a.Choice!.Value;
+                    var message = a.Text.Trim();
+                    if (on && message.Length == 0)
+                        return Task.FromResult(BulkPlan.Invalid("Type the message to show on its screen, such as who to call."));
+                    return Task.FromResult(Plan(selected(), d =>
+                        d.ManagedId is null ? (null, $"{d.Name}: not managed by Intune")
+                        : d.Platform != "iOS/iPadOS" ? (null, $"{d.Name}: lost mode is for supervised iPhones and iPads")
+                        : (new SetLostMode(IntuneTarget(d), on, on ? message : null), null)));
+                },
+                choiceLabel: "Lost Mode", choices: [new BulkChoice("Turn On", true), new BulkChoice("Turn Off", false)],
+                textLabel: "Message on Its Screen (Needed When Turning On)", group: Settings));
 
-            new("Wipe", "Erase each device back to factory settings. You type each device's name to confirm before it's sent.", "Delete",
-                (_, _) => Task.FromResult(Intune(DeviceCommand.Wipe)), isCaution: true),
-
-            delete,
-        ];
+        actions.Add(new("Retire", "Remove work data, apps and settings and stop managing it. The owner's own things stay.", "PhoneLinkSetup",
+            (_, _) => Task.FromResult(Intune(DeviceCommand.Retire)), isCaution: true, group: Remove));
+        actions.Add(new("Wipe", "Erase it back to factory settings. You type its name to confirm before it's sent.", "Delete",
+            (_, _) => Task.FromResult(Intune(DeviceCommand.Wipe)), isCaution: true, group: Remove));
+        actions.Add(new("Fresh Start", "Reinstall Windows and remove apps the manufacturer added; keep or remove the user's files. You type its name to confirm.", "ArrowReset",
+            (a, _) => Task.FromResult(Windows(DeviceCommand.FreshStart, keepUserData: (bool)a.Choice!.Value)),
+            choiceLabel: "Their Files", choices: [new BulkChoice("Keep Their Files", true), new BulkChoice("Remove Their Files", false)], isCaution: true, group: Remove));
+        actions.Add(new("Autopilot Reset", "Return Windows to a business-ready state: apps, settings and files removed, still joined and enrolled. You type its name to confirm.", "ArrowCounterclockwise",
+            (_, _) => Task.FromResult(Windows(DeviceCommand.AutopilotReset)), isCaution: true, group: Remove));
+        actions.Add(delete);
+        return actions;
     }
+
+    // ---- Autopilot --------------------------------------------------------------------------
+
+    /// <summary>An Autopilot device as a change target, named by its serial number.</summary>
+    public static ChangeTarget AutopilotTarget(AutopilotDevice d) => new("autopilot", d.Id, d.Serial, null);
+
+    /// <param name="selected">The Autopilot devices checked right now (read each time).</param>
+    public static IReadOnlyList<BulkAction> ForAutopilot(Func<IReadOnlyList<AutopilotDevice>> selected) =>
+    [
+        new("Set Group Tag", "The tag Autopilot profiles and dynamic groups match on. Leave it empty to clear it.", "Tag",
+            (a, _) =>
+            {
+                var tag = a.Text.Trim();
+                return Task.FromResult(Plan(selected(), d => string.Equals(d.GroupTag ?? "", tag, StringComparison.Ordinal)
+                    ? (null, $"{d.Serial}: already {(tag.Length == 0 ? "untagged" : tag)}")
+                    : (new SetAutopilotGroupTag(AutopilotTarget(d), d.GroupTag, tag.Length == 0 ? null : tag), null)));
+            },
+            textLabel: "Group Tag"),
+
+        new("Remove from Autopilot", "It won't be set up by Autopilot again. Do this when a device is sold, scrapped or returned. Intune and Entra keep their records.", "DeleteDismiss",
+            (_, _) => Task.FromResult(Plan(selected(), d =>
+                (new DeleteAutopilotDevice(AutopilotTarget(d), string.Join(" · ", new[] { d.Model, d.EnrollmentState }.Where(s => !string.IsNullOrEmpty(s)))), null))),
+            isCaution: true),
+    ];
 
     /// <summary>People who are in any of the selected groups' lists, for "remove" pickers.</summary>
     static IEnumerable<PickOption> MembersOf(IReadOnlyList<GroupSummary> groups, IDirectoryIndex index, Func<GroupSummary, IReadOnlyList<GroupMember>> list)

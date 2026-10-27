@@ -386,6 +386,9 @@
           <DataTemplate DataType="vm:DeviceDetailViewModel">
             <views:DeviceDetailView />
           </DataTemplate>
+          <DataTemplate DataType="vm:DevicesAreaViewModel">
+            <views:DevicesAreaView />
+          </DataTemplate>
           <DataTemplate DataType="ms:MailSecurityViewModel">
             <views:MailSecurityView />
           </DataTemplate>

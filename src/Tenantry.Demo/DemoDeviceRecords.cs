@@ -52,6 +52,19 @@ public sealed partial class DemoUserRecords : IDeviceRecords
             case DeleteDevice delete:
                 directory.UpdateDevice(delete.Device.Id, _ => null);
                 return true;
+            case RenameDevice rename:
+                directory.UpdateDevice(rename.Device.Id, d => d with { Name = rename.New });
+                return true;
+            case SetPrimaryUser primary:
+                directory.UpdateDevice(primary.Device.Id, d => d with { UserId = primary.NewUser.Id, UserName = primary.NewUser.Name, UserPrincipalName = primary.NewUser.Address });
+                return true;
+            case SetDeviceOwnership owner:
+                directory.UpdateDevice(owner.Device.Id, d => d with { Ownership = owner.NewCompany ? DeviceFields.Company : DeviceFields.Personal });
+                return true;
+            case SetLostMode:
+                return true;
+            case SetAutopilotGroupTag or DeleteAutopilotDevice:
+                return ApplyAutopilot(change);
             case RunDeviceAction:
                 return true;
             default:

@@ -71,6 +71,11 @@ public static class TenantryPermissions
         "AppRoleAssignment.ReadWrite.All",
         "BitlockerKey.Read.All",
         "DeviceLocalCredential.Read.All",
+        // Devices (Phase 6, 2026-10-27): wipe, retire, locate, lost mode and BitLocker key
+        // rotation are "privileged operations"; Autopilot is Intune's service configuration
+        // (listing it was refused without this, seen live).
+        "DeviceManagementManagedDevices.PrivilegedOperations.All",
+        "DeviceManagementServiceConfig.ReadWrite.All",
     ]);
 
     public static readonly ApiPermissions Exchange = new(ExchangeAppId, "Office 365 Exchange Online", "https://outlook.office365.com",

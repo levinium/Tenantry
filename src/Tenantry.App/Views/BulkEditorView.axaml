@@ -20,6 +20,8 @@
       </ItemsControl.ItemsPanel>
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="ed:BulkAction">
+          <StackPanel Spacing="4">
+          <TextBlock Classes="label" Text="{Binding GroupHeading}" IsVisible="{Binding HasGroupHeading}" Margin="2,8,0,0" />
           <Border Classes="bulkrow" Classes.open="{Binding IsSelected}">
             <StackPanel>
               <Button Classes="bulkhead" Command="{Binding $parent[ItemsControl].((ed:BulkEditorViewModel)DataContext).ToggleCommand}" CommandParameter="{Binding}"
@@ -36,12 +38,13 @@
               <StackPanel Spacing="10" Margin="12,4,12,12" IsVisible="{Binding IsSelected}">
                 <views:BulkActionInputsView />
                 <StackPanel DataContext="{Binding $parent[ItemsControl].DataContext}" x:DataType="ed:BulkEditorViewModel" Spacing="8">
-                  <StackPanel Orientation="Horizontal" Spacing="10">
+                  <!-- A wrap panel, so a long label wraps in a narrow pane instead of running off it. -->
+                  <WrapPanel ItemSpacing="10" LineSpacing="6">
                     <Button Classes="accent" Command="{Binding StageCommand}" ToolTip.Tip="One change per selected row, to Pending changes">
-                      <TextBlock Text="{Binding StageText}" />
+                      <TextBlock Text="{Binding StageText}" TextWrapping="Wrap" />
                     </Button>
                     <TextBlock Classes="muted" Text="Preparing…" IsVisible="{Binding IsWorking}" VerticalAlignment="Center" />
-                  </StackPanel>
+                  </WrapPanel>
                   <Border Classes="banner error" IsVisible="{Binding HasError}">
                     <TextBlock Text="{Binding Error}" TextWrapping="Wrap" />
                   </Border>
@@ -63,6 +66,7 @@
               </StackPanel>
             </StackPanel>
           </Border>
+          </StackPanel>
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>

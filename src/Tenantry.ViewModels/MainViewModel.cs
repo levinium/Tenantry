@@ -60,10 +60,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             "Read devices from Entra and Intune again now (they're otherwise checked with everything else)", () => _ = RefreshDevicesAsync()) : null;
         Devices.SelectionPanel = (rows, uncheck) =>
             Records.SelectionPanelViewModel.ForDevices(rows, uncheck, _tenant.Changes, manageDevices, _now);
+        DevicesArea = new DevicesAreaViewModel(Devices, tenant.Records as IAutopilotRecords, tenant.Changes, manageDevices, tenant.ListState, _now,
+            managedId => { if (_devices.FirstOrDefault(d => d.ManagedId == managedId) is { } device) OpenDevice(device); });
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);
         Devices.FollowSharedPreferences(shared);
+        DevicesArea.Autopilot.FollowSharedPreferences(shared);
         if (tenant.Changes is { } changes)
         {
             Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync);
@@ -118,6 +121,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     public DataListViewModel Devices { get; }
 
+    /// <summary>The Devices area's tab: the device list and Autopilot, as pages.</summary>
+    public DevicesAreaViewModel DevicesArea { get; }
+
     /// <summary>Mail &amp; security (quarantine, message trace…); null when the tenant has no Exchange reads.</summary>
     public MailSecurity.MailSecurityViewModel? MailSecurity { get; }
 
@@ -126,7 +132,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     /// <summary>Each sidebar entry's tab: the lists, then areas with pages of their own.</summary>
     IEnumerable<(string Section, TabViewModel Tab)> AreaTabs =>
-        AreaLists.Select(a => (a.Section, (TabViewModel)a.List)).Concat(MailSecurity is null ? [] : [("mail", (TabViewModel)MailSecurity)]);
+        AreaLists.Select(a => (a.Section, a.List == Devices ? DevicesArea : (TabViewModel)a.List))
+            .Concat(MailSecurity is null ? [] : [("mail", (TabViewModel)MailSecurity)]);
 
     IReadOnlyList<DeviceSummary> _devices = [];
 
@@ -693,6 +700,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                     $"{view.Name} {list.Title} view".ToLowerInvariant(), () =>
                     {
                         SelectedSection = Sections.First(s => s.Key == section);
+                        if (list == Devices)
+                            DevicesArea.SelectedPage = DevicesAreaViewModel.Pages[0];
                         list.ApplyView(view);
                     }));
             }

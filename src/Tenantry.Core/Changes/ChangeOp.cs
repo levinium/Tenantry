@@ -51,6 +51,12 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetDeviceEnabled), "setDeviceEnabled")]
 [JsonDerivedType(typeof(RunDeviceAction), "runDeviceAction")]
 [JsonDerivedType(typeof(DeleteDevice), "deleteDevice")]
+[JsonDerivedType(typeof(RenameDevice), "renameDevice")]
+[JsonDerivedType(typeof(SetPrimaryUser), "setPrimaryUser")]
+[JsonDerivedType(typeof(SetDeviceOwnership), "setDeviceOwnership")]
+[JsonDerivedType(typeof(SetLostMode), "setLostMode")]
+[JsonDerivedType(typeof(SetAutopilotGroupTag), "setAutopilotGroupTag")]
+[JsonDerivedType(typeof(DeleteAutopilotDevice), "deleteAutopilotDevice")]
 [JsonDerivedType(typeof(SecretViewed), "secretViewed")]
 [JsonDerivedType(typeof(SetOneDriveAccess), "setOneDriveAccess")]
 [JsonDerivedType(typeof(ReleaseQuarantined), "releaseQuarantined")]
@@ -818,17 +824,50 @@ public enum DeviceCommand
 
     /// <summary>Erases the device back to factory settings.</summary>
     Wipe,
+
+    // Added in 6c (2026-10-27). The log stores these as numbers: add new ones at the end only.
+
+    /// <summary>Microsoft Defender quick scan (Windows).</summary>
+    QuickScan,
+
+    /// <summary>Microsoft Defender full scan (Windows).</summary>
+    FullScan,
+
+    /// <summary>Microsoft Defender downloads its latest security intelligence (Windows).</summary>
+    UpdateDefinitions,
+
+    /// <summary>The device uploads its logs, for download from the Intune admin center (Windows).</summary>
+    CollectDiagnostics,
+
+    /// <summary>Reports where the device is (Windows, supervised iOS/iPadOS in lost mode, Android Enterprise).</summary>
+    Locate,
+
+    /// <summary>Reinstalls Windows, removing apps the manufacturer added; their files are kept or removed (<see cref="RunDeviceAction.KeepUserData"/>).</summary>
+    FreshStart,
+
+    /// <summary>Returns a Windows device to a business-ready state, keeping its Entra join and Intune enrollment.</summary>
+    AutopilotReset,
+
+    /// <summary>Makes a new BitLocker recovery key and backs it up (Windows).</summary>
+    RotateBitLockerKeys,
 }
 
 /// <summary>
-/// An Intune remote action on a managed device. All but Sync interrupt or remove something:
-/// caution changes. A wipe can't be undone, so the admin also types the device's name.
+/// An Intune remote action on a managed device. All but Sync and the Defender updates interrupt
+/// or remove something: caution changes. The ones that erase (wipe, Fresh Start, Autopilot reset)
+/// can't be undone, so the admin also types the device's name. Those and retire share one slot:
+/// staging one replaces another.
 /// </summary>
 /// <param name="Device">The Intune managed device (Kind "manageddevice").</param>
-public sealed record RunDeviceAction(ChangeTarget Device, DeviceCommand Command) : ChangeOp
+/// <param name="KeepUserData">Fresh Start: keep the user's files.</param>
+public sealed record RunDeviceAction(ChangeTarget Device, DeviceCommand Command, bool KeepUserData = false) : ChangeOp
 {
+    public bool Removes => Command is DeviceCommand.Retire or DeviceCommand.Wipe or DeviceCommand.FreshStart or DeviceCommand.AutopilotReset;
+
+    public bool Erases => Command is DeviceCommand.Wipe or DeviceCommand.FreshStart or DeviceCommand.AutopilotReset;
+
     public override ChangeTarget Target => Device;
-    public override string Key => Command is DeviceCommand.Retire or DeviceCommand.Wipe ? "remove" : "action:" + Command;
+    public override string Key => Removes ? "remove" : "action:" + Command;
     public override string Label => Command switch
     {
         DeviceCommand.Sync => "Sync with Intune",
@@ -836,12 +875,22 @@ public sealed record RunDeviceAction(ChangeTarget Device, DeviceCommand Command)
         DeviceCommand.Lock => "Lock",
         DeviceCommand.RotateLocalAdminPassword => "Local Admin Password",
         DeviceCommand.Retire => "Retire",
-        _ => "Wipe",
+        DeviceCommand.Wipe => "Wipe",
+        DeviceCommand.QuickScan => "Defender Quick Scan",
+        DeviceCommand.FullScan => "Defender Full Scan",
+        DeviceCommand.UpdateDefinitions => "Defender Definitions",
+        DeviceCommand.CollectDiagnostics => "Collect Diagnostics",
+        DeviceCommand.Locate => "Locate",
+        DeviceCommand.FreshStart => "Fresh Start",
+        DeviceCommand.AutopilotReset => "Autopilot Reset",
+        _ => "BitLocker Recovery Keys",
     };
     public override string Before => Command switch
     {
         DeviceCommand.RotateLocalAdminPassword => "Current Password",
-        DeviceCommand.Retire or DeviceCommand.Wipe => "Managed",
+        DeviceCommand.RotateBitLockerKeys => "Current Keys",
+        DeviceCommand.UpdateDefinitions => "Current Definitions",
+        _ when Removes => "Managed",
         _ => "",
     };
     public override string After => Command switch
@@ -851,10 +900,97 @@ public sealed record RunDeviceAction(ChangeTarget Device, DeviceCommand Command)
         DeviceCommand.Lock => "Locks now",
         DeviceCommand.RotateLocalAdminPassword => "A new password",
         DeviceCommand.Retire => "Retired: work data removed, no longer managed",
-        _ => "Wiped: erased back to factory settings",
+        DeviceCommand.Wipe => "Wiped: erased back to factory settings",
+        DeviceCommand.QuickScan => "Scans now (quick)",
+        DeviceCommand.FullScan => "Scans now (full)",
+        DeviceCommand.UpdateDefinitions => "The latest definitions",
+        DeviceCommand.CollectDiagnostics => "Uploads its logs",
+        DeviceCommand.Locate => "Reports its location",
+        DeviceCommand.FreshStart => KeepUserData ? "Windows reinstalled, their files kept" : "Windows reinstalled, their files removed",
+        DeviceCommand.AutopilotReset => "Reset to business-ready, still enrolled",
+        _ => "New keys, backed up",
     };
-    public override bool IsCaution => Command != DeviceCommand.Sync;
-    public override string? ConfirmPhrase => Command == DeviceCommand.Wipe ? Device.Name : null;
+    public override bool IsCaution => Command is not (DeviceCommand.Sync or DeviceCommand.UpdateDefinitions or DeviceCommand.CollectDiagnostics);
+    public override string? ConfirmPhrase => Erases ? Device.Name : null;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Renames a managed device (Windows restarts to take the new name; iOS/iPadOS needs supervision).</summary>
+public sealed record RenameDevice(ChangeTarget Device, string Old, string New) : ChangeOp
+{
+    public override ChangeTarget Target => Device;
+    public override string Key => "name";
+    public override string Label => "Device Name";
+    public override string Before => Old;
+    public override string After => New;
+    public override bool IsNoChange => string.Equals(Old, New, StringComparison.Ordinal);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is RenameDevice r ? this with { Old = r.Old } : this;
+}
+
+/// <summary>Makes someone the device's primary user in Intune (the person its apps and policies follow).</summary>
+/// <param name="OldUser">The current primary user's name, for the review; null when it has none.</param>
+public sealed record SetPrimaryUser(ChangeTarget Device, string? OldUser, ChangeTarget NewUser) : ChangeOp
+{
+    public override ChangeTarget Target => Device;
+    public override string Key => "primaryuser";
+    public override string Label => "Primary User";
+    public override string Before => OldUser ?? "Nobody";
+    public override string After => NewUser.Name;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetPrimaryUser p ? this with { OldUser = p.OldUser } : this;
+}
+
+/// <summary>Marks a managed device company-owned or personal (Intune treats personal devices more lightly).</summary>
+public sealed record SetDeviceOwnership(ChangeTarget Device, bool OldCompany, bool NewCompany) : ChangeOp
+{
+    public override ChangeTarget Target => Device;
+    public override string Key => "ownership";
+    public override string Label => "Ownership";
+    public override string Before => OldCompany ? "Company-Owned" : "Personal";
+    public override string After => NewCompany ? "Company-Owned" : "Personal";
+    public override bool IsNoChange => OldCompany == NewCompany;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetDeviceOwnership o ? this with { OldCompany = o.OldCompany } : this;
+}
+
+/// <summary>
+/// Turns lost mode on (a supervised iPhone or iPad locks and shows a message and phone number) or
+/// off. A caution change when turning on.
+/// </summary>
+public sealed record SetLostMode(ChangeTarget Device, bool On, string? Message = null, string? Phone = null) : ChangeOp
+{
+    public override ChangeTarget Target => Device;
+    public override string Key => "lostmode";
+    public override string Label => "Lost Mode";
+    public override string Before => On ? "Off" : "On";
+    public override string After => On ? $"On: \"{Message}\"{(string.IsNullOrEmpty(Phone) ? "" : $", call {Phone}")}" : "Off";
+    public override bool IsCaution => On;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Sets an Autopilot device's group tag (what Autopilot profiles and dynamic groups match on).</summary>
+/// <param name="Entry">The Autopilot device (Kind "autopilot"), named by its serial number.</param>
+public sealed record SetAutopilotGroupTag(ChangeTarget Entry, string? Old, string? New) : ChangeOp
+{
+    public override ChangeTarget Target => Entry;
+    public override string Key => "grouptag";
+    public override string Label => "Group Tag";
+    public override string Before => string.IsNullOrEmpty(Old) ? "None" : Old;
+    public override string After => string.IsNullOrEmpty(New) ? "None" : New;
+    public override bool IsNoChange => string.Equals(Old ?? "", New ?? "", StringComparison.Ordinal);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetAutopilotGroupTag t ? this with { Old = t.Old } : this;
+}
+
+/// <summary>Removes a device from Autopilot (it won't be set up by Autopilot again). A caution change.</summary>
+public sealed record DeleteAutopilotDevice(ChangeTarget Entry, string Detail) : ChangeOp
+{
+    public override ChangeTarget Target => Entry;
+    public override string Key => "remove";
+    public override string Label => "Remove from Autopilot";
+    public override string Before => Detail;
+    public override string After => "Removed from Autopilot";
+    public override bool IsCaution => true;
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;
 }

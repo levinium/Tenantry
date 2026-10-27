@@ -248,6 +248,41 @@ note instead: for example a device Intune doesn't manage, or no Intune role.
 - **Not tested live:** the tenant has no test device, so joining and leaving groups is covered by
   unit tests and a click-through check. Every read was checked live, read-only.
 
+### More device actions and Autopilot (6c)
+
+Device actions are grouped: Everyday, Microsoft Defender, Settings, and Erase or Remove
+(`BulkAction.Group`). An action that doesn't apply to a device skips it and says why ("not
+Windows"). Rename, Change Primary User and Lost Mode are offered for one device only.
+
+| Change | Sent as | Read back | Caution |
+|---|---|---|---|
+| Lock, locate | `…/remoteLock`, `…/locateDevice` | none | yes |
+| Quick or full scan; update definitions | `…/windowsDefenderScan` `quickScan`; `…/windowsDefenderUpdateSignatures` | none | scans |
+| Collect diagnostics | beta `…/createDeviceLogCollectionRequest` (predefined) | none | no |
+| Rotate BitLocker keys | beta `…/rotateBitLockerKeys` | none | yes |
+| Fresh Start | `…/cleanWindowsDevice` `keepUserData` | none | yes; its name typed |
+| Autopilot reset | `…/wipe` with `keepEnrollmentData` true | none | yes; its name typed |
+| Rename (`RenameDevice`) | beta `…/setDeviceName`; Windows names: 15 letters, digits, hyphens | none (applied at check-in) | no |
+| Primary user (`SetPrimaryUser`) | beta `…/users/$ref` | `userId` | no |
+| Ownership (`SetDeviceOwnership`) | PATCH `managedDeviceOwnerType` | the property | no |
+| Lost mode (`SetLostMode`) | beta `…/enableLostMode` (message, phone) or `…/disableLostMode` | none | turning on |
+| Group tag (`SetAutopilotGroupTag`) | `windowsAutopilotDeviceIdentities/{id}/updateDeviceProperties` | `groupTag` | no |
+| Remove from Autopilot (`DeleteAutopilotDevice`) | `DELETE windowsAutopilotDeviceIdentities/{id}` | none | yes |
+
+- **Shared slot:** wipe, Fresh Start, Autopilot reset and retire share the "remove" slot, so
+  staging one replaces another.
+- **Command numbers:** `DeviceCommand` values are stored as numbers in the change log. New
+  commands are added at the end only.
+- **Autopilot page:** Devices is now an area with two page tabs, Devices and Autopilot. Autopilot
+  is read live from beta `windowsAutopilotDeviceIdentities?$expand=deploymentProfile` when first
+  shown, and again on Refresh. Its views: no profile assigned, never set up, enrolled, no group
+  tag, not contacted in 180+ days. An enrolled device's preview links to its device page.
+- **Permissions:** Autopilot needs `DeviceManagementServiceConfig.ReadWrite.All`. Wipe, retire,
+  locate, lost mode and key rotation need `DeviceManagementManagedDevices.PrivilegedOperations.All`.
+  Both were added 2026-10-27; a tenant grants them from the missing-permissions banner.
+- **Not tested live:** the tenant has no test device or Autopilot entry, so these writes are
+  covered by unit tests and click-through checks.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

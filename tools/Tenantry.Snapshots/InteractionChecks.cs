@@ -558,6 +558,34 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Devices › Autopilot: the page tab reads the list, a serial opens its preview, and Set Group Tag goes to Pending changes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "devices");
+            Settle();
+            var area = main.DevicesArea;
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "autopilot" }));
+            for (var i = 0; i < 50 && area.Autopilot.Total == 0; i++)
+                Settle();
+            Expect(area.Autopilot.Total > 0, "the Autopilot list has rows");
+            var first = area.Autopilot.Rows.Cast<AutopilotDevice>().First();
+            Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, first)));
+            var preview = area.Autopilot.PreviewModel as AutopilotPreviewViewModel ?? throw new InvalidOperationException("no preview");
+            Settle();
+            var tag = preview.Actions!.Actions.Single(a => a.Title == "Set Group Tag");
+            var head = FindButton(window, b => b.Classes.Contains("bulkhead") && ReferenceEquals(b.DataContext, tag));
+            head.BringIntoView();
+            Settle();
+            Click(window, head);
+            tag.Text = "Loaners";
+            var stage = FindButton(window, b => b.Command == preview.Actions.StageCommand && b.IsEffectivelyVisible);
+            stage.BringIntoView();
+            Settle();
+            Click(window, stage);
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetAutopilotGroupTag { New: "Loaners" }), "the group tag is in Pending changes");
+            window.Close();
+        });
+
         Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
         {
             var (window, main, _) = OpenList();

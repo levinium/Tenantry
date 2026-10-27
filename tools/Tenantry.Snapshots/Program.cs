@@ -617,6 +617,20 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Render(editing, $"device-{section.Key}-light", height: section.Key is "apps" or "overview" ? 1300 : 900);
         }
         devicePage.SelectedSection = devicePage.Sections[0];
+        // The page's actions, grouped, with Fresh Start open.
+        var freshStart = devicePage.Overview.Actions!.Actions.Single(a => a.Title == "Fresh Start");
+        devicePage.Overview.Actions.ToggleCommand.Execute(freshStart);
+        Render(editing, "device-actions-light", height: 1500);
+        devicePage.Overview.Actions.ToggleCommand.Execute(freshStart);
+
+        // Autopilot, with a device in the preview.
+        editing.SelectedTab = editing.DevicesArea;
+        editing.DevicesArea.SelectedPage = DevicesAreaViewModel.Pages.Single(p => p.Key == "autopilot");
+        for (var i = 0; i < 20; i++)
+            Settle();
+        editing.DevicesArea.Autopilot.PreviewRow(editing.DevicesArea.Autopilot.Rows[0]);
+        Render(editing, "autopilot-light");
+        editing.DevicesArea.SelectedPage = DevicesAreaViewModel.Pages[0];
 
         // New Group: a shared mailbox with two people given access.
         editing.Groups.RunPrimaryActionCommand.Execute(null);

@@ -30,7 +30,9 @@ public sealed partial class DeviceDetailViewModel : TabViewModel, IDisposable
         CanEdit = pipeline is not null && canEdit.IsAvailable;
         EditReason = pipeline is null ? "This tenant can't be edited" : canEdit.Reason ?? "";
         index ??= EmptyIndex.Instance;
-        Overview = new DeviceOverviewSection(this, CanEdit ? new Editing.BulkEditorViewModel(device.Name, BulkActions.ForDevices(() => [Device], now, one: true), pipeline!) : null);
+        Overview = new DeviceOverviewSection(this, CanEdit
+            ? new Editing.BulkEditorViewModel(device.Name, BulkActions.ForDevices(() => [Device], now, one: true, index), pipeline!)
+            : null);
         Sections =
         [
             Overview,
