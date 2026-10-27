@@ -33,6 +33,10 @@ public interface IUserRecords
     /// <summary>The tenant's verified domains, for changing a sign-in name.</summary>
     Task<IReadOnlyList<string>> GetDomainsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>The tenant's licenses with how many are left (for a new user).</summary>
+    Task<IReadOnlyList<LicenseSku>> GetLicenseCatalogAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<LicenseSku>>([]);
+
     /// <summary>The user's licenses (and where each comes from), the tenant's licenses with counts, and assigned apps.</summary>
     Task<UserLicensing> GetLicensingAsync(string userId, CancellationToken cancellationToken = default);
 

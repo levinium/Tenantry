@@ -36,6 +36,16 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             return oneDrive;
         if (records is not null && records.ApplyMailSecurity(change) is { } mailSecurity)
             return mailSecurity;
+        if (change is CreateUser create)
+            return await CreateUserAsync(create, cancellationToken);
+        if (change is CreateGroup group)
+        {
+            var members = group.Members.Select(m => new GroupMember(m.Id, "user", group.Kind == GroupKind.SharedMailbox ? "Full access, Send as" : null)).ToArray();
+            await directory.AddGroupAsync(new GroupSummary($"demo-g-{Guid.NewGuid():N}", group.Group.Name, group.Group.Address, group.Description, group.Kind,
+                group.MembershipRule is not null, false, group.Kind == GroupKind.Microsoft365 ? (group.IsPrivate ? "Private" : "Public") : null, DateTimeOffset.UtcNow,
+                members, group.Owners.Select(o => new GroupMember(o.Id, "user")).ToArray()));
+            return new ApplyResult(ChangeOutcome.Applied);
+        }
         if (change is ConvertMailbox convert)
             return Mailbox(convert.User.Id, m => m with { Type = convert.NewShared ? "Shared" : "User" })
                    ?? new ApplyResult(ChangeOutcome.Failed, "That person has no mailbox.");
@@ -112,6 +122,28 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             _ => null,
         };
         return result ?? new ApplyResult(ChangeOutcome.Failed, $"The demo can't apply \"{change.Label}\" changes.");
+    }
+
+    /// <summary>A new person in the demo: licensed ones get a mailbox, and they join their groups and get their manager.</summary>
+    async Task<ApplyResult> CreateUserAsync(CreateUser create, CancellationToken cancellationToken)
+    {
+        if ((await directory.GetUsersAsync(cancellationToken)).Any(u => string.Equals(u.UserPrincipalName, create.User.Address, StringComparison.OrdinalIgnoreCase)))
+            return new ApplyResult(ChangeOutcome.Failed, "Someone already has that sign-in name.");
+        var id = $"demo-new-{Guid.NewGuid():N}";
+        var upn = create.User.Address!;
+        var licensed = create.Licenses.Count > 0;
+        directory.AddUser(new UserSummary(id, create.User.Name, upn, licensed ? upn : null, create.Details.GetValueOrDefault("department"),
+            create.Details.GetValueOrDefault("jobTitle"), create.SignInAllowed, UserKind.Member, DateTimeOffset.UtcNow, null,
+            create.Licenses.Select(l => l.Name).ToArray(),
+            licensed ? new MailboxInfo("User", upn, [], ForwardingKind.None, null, false, false, false, false, 0, 50L << 30, AutoReplyState.Off) : null,
+            Activations: []));
+        foreach (var group in create.Groups)
+            directory.UpdateGroup(group.Group.Id, g => g with { Members = Toggle(g.Members, id, "user", null, true) });
+        if (create.ManagerId is { } manager)
+            records?.RememberManager(id, manager);
+        return create.Chosen is null
+            ? new ApplyResult(ChangeOutcome.Applied, Reveal: PasswordStyle.Create())
+            : new ApplyResult(ChangeOutcome.Applied, "Created with the password you chose (demo).");
     }
 
     /// <summary>Changes the Mail tab's settings and, when given, the list's copy of the mailbox.</summary>

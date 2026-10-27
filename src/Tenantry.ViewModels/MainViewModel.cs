@@ -37,10 +37,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
         var createUsers = Evaluate(Capabilities.EditUsers);
         Users = DataListViewModel.Create(UserList.Definition(_now, u => NewUserPage(u)), LoadUsersAsync, OpenUser, tenant.ListState, _now);
-        Users.PrimaryAction = new ListPrimaryAction("New User", "PersonAdd", false,
-            createUsers.IsAvailable ? "Creating users arrives with the change pipeline (Phase 3)" : createUsers.Reason!);
+        Users.PrimaryAction = tenant.Changes is { } creating && createUsers.IsAvailable
+            ? new ListPrimaryAction("New User", "PersonAdd", true, "Add someone: name, sign-in, password, licenses, groups and manager", () =>
+                ShowDialog(new Records.DialogViewModel("New User", TenantName,
+                    new Records.NewUserViewModel(creating, _tenant.Records as IUserRecords, _index, CloseDialog))))
+            : new ListPrimaryAction("New User", "PersonAdd", false, createUsers.Reason ?? "This tenant can't be edited");
         Groups = DataListViewModel.Create(GroupList.Definition(g => NewGroupPage(g)), LoadGroupsAsync, OpenGroup, tenant.ListState, _now);
-        Groups.PrimaryAction = new ListPrimaryAction("New Group", "PeopleAdd", false, "Creating groups arrives with the change pipeline (Phase 3)");
+        Groups.PrimaryAction = tenant.Changes is { } grouping && createUsers.IsAvailable
+            ? new ListPrimaryAction("New Group", "PeopleAdd", true, "Make a Microsoft 365 group, security group, distribution list or shared mailbox", () =>
+                ShowDialog(new Records.DialogViewModel("New Group", TenantName,
+                    new Records.NewGroupViewModel(grouping, _tenant.Records as IUserRecords, _index, CloseDialog))))
+            : new ListPrimaryAction("New Group", "PeopleAdd", false, createUsers.Reason ?? "This tenant can't be edited");
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);

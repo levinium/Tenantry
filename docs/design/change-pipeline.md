@@ -195,6 +195,31 @@ and their Intune devices (managed, by primary user).
   So these changes are covered by unit tests. The write guard refuses them on any device whose
   name doesn't start with the test marker.
 
+### New User and New Group
+
+The Users and Groups lists' buttons open one-popup forms; adding stages one change.
+
+- **`CreateUser`:** `POST users` (name, sign-in name, usage location, password, optional job and
+  contact fields), then in the same step its licenses (`assignLicense`), manager and groups
+  (Graph, or `Add-DistributionGroupMember` for distribution lists). The account counts as made even
+  if a later part fails; the result names what to finish by hand. The password is generated in the
+  tenant's style when applied and shown once, or typed (memory only, never logged). "Copy from a
+  colleague" fills department, title, office, manager, direct group memberships (not dynamic ones)
+  and licenses with seats left.
+- **`CreateGroup`:** Microsoft 365 and security groups (assigned or dynamic by rule) through
+  `POST groups`, owners and members bound in the same request (up to 20 each; the rest added after).
+  Distribution lists and mail-enabled security groups through `New-DistributionGroup` (members,
+  owners, outside senders). Shared mailboxes through `New-Mailbox -Shared`, then Full access and Send
+  as for each person, retried while Exchange catches up with the new mailbox.
+- **Guard:** the new object's sign-in name or address (or name) and every group or person added.
+- **Local copy:** what's made is read back through the same refresh a record page uses, so the
+  lists show it at once.
+- **Live test (2026-10-27):** the guard refused a non-test name; a test user (blocked, unlicensed,
+  manager, test group) and one of each group kind (owners, members, shared mailbox access) were
+  made through the pipeline, read back, and then permanently deleted. Found and fixed: Exchange
+  takes only mail-enabled people as a distribution list's owners or members, so the form offers only
+  those. Mailbox permissions take a few seconds to show after they're granted.
+
 ### Microsoft 365 Apps (Devices tab)
 
 The Devices tab ends with a Microsoft 365 Apps card:

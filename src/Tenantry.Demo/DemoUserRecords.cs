@@ -173,6 +173,13 @@ public sealed partial class DemoUserRecords(DemoTenantDirectory directory) : IUs
 
     static string SkuId(string name) => "sku-" + StableSeed(name).ToString("x8", System.Globalization.CultureInfo.InvariantCulture);
 
+    public async Task<IReadOnlyList<LicenseSku>> GetLicenseCatalogAsync(CancellationToken cancellationToken = default)
+    {
+        var users = await directory.GetUsersAsync(cancellationToken);
+        return Skus.Select(s => new LicenseSku(SkuId(s.Name), s.Name, s.Total,
+            Math.Min(s.Total, users.Count(u => u.Licenses.Contains(s.Name))), Apps.Take(s.Apps).ToArray())).ToArray();
+    }
+
     public async Task<UserLicensing> GetLicensingAsync(string userId, CancellationToken cancellationToken = default)
     {
         var users = await directory.GetUsersAsync(cancellationToken);

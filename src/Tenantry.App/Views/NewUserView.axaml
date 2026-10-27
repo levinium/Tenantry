@@ -1,0 +1,163 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.NewUserView"
+             x:DataType="rec:NewUserViewModel"
+             x:Name="Root">
+  <!-- New User: what's needed first, then the rest folded away until wanted. -->
+  <StackPanel Spacing="18" Width="640" HorizontalAlignment="Left">
+    <Border Classes="banner error" IsVisible="{Binding HasLoadError}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding LoadError}" />
+    </Border>
+
+    <!-- Copy from a colleague -->
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label" Text="START FROM A COLLEAGUE (OPTIONAL)" />
+      <views:PersonPickerView DataContext="{Binding CopyFrom}" />
+      <TextBlock Classes="caption" TextWrapping="Wrap" IsVisible="{Binding HasCopiedFrom}" Text="{Binding CopiedText}" />
+    </StackPanel>
+
+    <!-- Name and sign-in -->
+    <StackPanel Spacing="10">
+      <TextBlock Classes="label" Text="NAME AND SIGN-IN" />
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <TextBox Text="{Binding FirstName}" PlaceholderText="First name" />
+        <TextBox Grid.Column="1" Text="{Binding LastName}" PlaceholderText="Last name" />
+      </Grid>
+      <StackPanel Spacing="4">
+        <TextBlock Classes="caption" Text="Display Name" />
+        <TextBox Text="{Binding DisplayName}" PlaceholderText="How their name shows everywhere" />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <TextBlock Classes="caption" Text="Sign-In Name and Email" />
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+          <TextBox Text="{Binding Alias}" PlaceholderText="first.last" />
+          <TextBlock Grid.Column="1" Text="@" VerticalAlignment="Center" FontSize="15" />
+          <ComboBox Grid.Column="2" ItemsSource="{Binding Domains}" SelectedItem="{Binding Domain}" MinWidth="220" />
+        </Grid>
+      </StackPanel>
+    </StackPanel>
+
+    <!-- Password -->
+    <StackPanel Spacing="8">
+      <TextBlock Classes="label" Text="PASSWORD" />
+      <RadioButton GroupName="newpassword" IsChecked="{Binding Generate}" Content="Create One for Me, in This Tenant's Password Style (Shown Once After Applying)" />
+      <RadioButton GroupName="newpassword" IsChecked="{Binding TypeOwn}" Content="Let Me Type a Password" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" MaxWidth="360" HorizontalAlignment="Left" Margin="28,0,0,0" IsVisible="{Binding TypeOwn}">
+        <TextBox Text="{Binding Password}" PasswordChar="•" RevealPassword="{Binding ShowPassword}" PlaceholderText="Password" />
+        <ToggleButton Grid.Column="1" Classes="ghost" IsChecked="{Binding ShowPassword}" ToolTip.Tip="Show or hide what you typed" VerticalAlignment="Center">
+          <Panel>
+            <ic:FluentIcon Icon="Eye" FontSize="16" IsVisible="{Binding !ShowPassword}" />
+            <ic:FluentIcon Icon="EyeOff" FontSize="16" IsVisible="{Binding ShowPassword}" />
+          </Panel>
+        </ToggleButton>
+      </Grid>
+      <CheckBox IsChecked="{Binding MustChange}" Content="Make Them Choose Their Own Password When They First Sign In (Recommended)" />
+      <CheckBox IsChecked="{Binding SignInAllowed}" Content="Let Them Sign In Straight Away" />
+    </StackPanel>
+
+    <!-- Licenses -->
+    <StackPanel Spacing="8">
+      <TextBlock Classes="label" Text="LICENSES" />
+      <ItemsControl ItemsSource="{Binding Licenses}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="rec:NewLicenseChoice">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+              <CheckBox IsChecked="{Binding IsChosen}" Content="{Binding Name}" />
+              <TextBlock Grid.Column="1" Classes="caption" Text="{Binding LeftText}" VerticalAlignment="Center" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+        <TextBlock Classes="caption" Text="Country (for licensing)" VerticalAlignment="Center" />
+        <ComboBox Grid.Column="1" ItemsSource="{Binding Countries}" SelectedItem="{Binding UsageLocation}" MinWidth="240" HorizontalAlignment="Left" />
+      </Grid>
+    </StackPanel>
+
+    <!-- Groups and manager, folded -->
+    <StackPanel Spacing="10">
+      <Button Classes="link" HorizontalAlignment="Left" Command="{Binding ToggleGroupsCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="ChevronDown" FontSize="14" IsVisible="{Binding !ShowGroups}" />
+          <ic:FluentIcon Icon="ChevronUp" FontSize="14" IsVisible="{Binding ShowGroups}" />
+          <TextBlock Text="Groups and Manager" />
+        </StackPanel>
+      </Button>
+      <StackPanel Spacing="12" IsVisible="{Binding ShowGroups}" Margin="20,0,0,0">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="caption" Text="Manager" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding HasManager}">
+            <TextBlock Text="{Binding ManagerName}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Classes="ghost" Command="{Binding ClearManagerCommand}" ToolTip.Tip="No manager">
+              <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+            </Button>
+          </Grid>
+          <views:PersonPickerView DataContext="{Binding ManagerPicker}" IsVisible="{Binding !#Root.((rec:NewUserViewModel)DataContext).HasManager}" />
+        </StackPanel>
+        <StackPanel Spacing="6">
+          <TextBlock Classes="caption" Text="Groups" />
+          <ItemsControl ItemsSource="{Binding Groups}" IsVisible="{Binding HasGroups}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel ItemSpacing="6" LineSpacing="6" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="rec:ChosenGroup">
+                <Border Classes="chip" ToolTip.Tip="{Binding Kind}">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                    <Button Classes="chipx" Command="{Binding #Root.((rec:NewUserViewModel)DataContext).RemoveGroupCommand}" CommandParameter="{Binding}"
+                            ToolTip.Tip="Don't add them to this group">
+                      <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+                    </Button>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <views:PersonPickerView DataContext="{Binding GroupPicker}" />
+        </StackPanel>
+      </StackPanel>
+    </StackPanel>
+
+    <!-- Job and contact, folded -->
+    <StackPanel Spacing="10">
+      <Button Classes="link" HorizontalAlignment="Left" Command="{Binding ToggleJobCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="ChevronDown" FontSize="14" IsVisible="{Binding !ShowJob}" />
+          <ic:FluentIcon Icon="ChevronUp" FontSize="14" IsVisible="{Binding ShowJob}" />
+          <TextBlock Text="Job and Contact" />
+        </StackPanel>
+      </Button>
+      <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8" IsVisible="{Binding ShowJob}" Margin="20,0,0,0">
+        <TextBox Text="{Binding JobTitle}" PlaceholderText="Job title" />
+        <TextBox Grid.Column="1" Text="{Binding Department}" PlaceholderText="Department" />
+        <TextBox Grid.Row="1" Text="{Binding Office}" PlaceholderText="Office" />
+        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MobilePhone}" PlaceholderText="Mobile phone" />
+        <TextBox Grid.Row="2" Text="{Binding EmployeeId}" PlaceholderText="Employee ID" />
+      </Grid>
+    </StackPanel>
+
+    <!-- What still needs doing, then add -->
+    <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding ShowProblems}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="x:String">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+            <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Command="{Binding AddCommand}" Content="Add to Pending Changes"
+              ToolTip.Tip="Nothing is created until you apply the pending changes" />
+      <Button Command="{Binding CancelCommand}" Content="Cancel" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

@@ -64,6 +64,8 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(RemoveRule), "removeRule")]
 [JsonDerivedType(typeof(CreateRule), "createRule")]
 [JsonDerivedType(typeof(UpdateRule), "updateRule")]
+[JsonDerivedType(typeof(CreateUser), "createUser")]
+[JsonDerivedType(typeof(CreateGroup), "createGroup")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -162,6 +164,94 @@ public sealed record ResetPassword(ChangeTarget User, bool MustChangeAtNextSignI
 
     /// <summary>Never prints the password (a record's ToString would list every property).</summary>
     public override string ToString() => Summary;
+}
+
+/// <summary>A license chosen for a new user.</summary>
+public sealed record NewUserLicense(string SkuId, string Name);
+
+/// <summary>A group a new user joins: through Graph, or Exchange for distribution lists and mail-enabled security groups.</summary>
+public sealed record NewUserGroup(ChangeTarget Group, bool ExchangeManaged);
+
+/// <summary>
+/// Creates a user, then gives them their licenses, manager and groups in the same step (the rest
+/// needs the account to exist first). The password is generated in the tenant's style when applied
+/// and shown once, or one the admin typed (kept in memory only, never logged). The write guard
+/// checks the new sign-in name and every group they join.
+/// </summary>
+/// <param name="User">Kind "user": Id and Address are the new sign-in name (the real ID comes when it's made).</param>
+/// <param name="Details">Optional Graph text properties (department, jobTitle, officeLocation, mobilePhone, employeeId, companyName).</param>
+public sealed record CreateUser(
+    ChangeTarget User,
+    string GivenName,
+    string Surname,
+    string MailNickname,
+    string UsageLocation,
+    bool SignInAllowed,
+    bool MustChangePassword,
+    IReadOnlyList<NewUserLicense> Licenses,
+    IReadOnlyList<NewUserGroup> Groups,
+    string? ManagerId,
+    string? ManagerName,
+    IReadOnlyDictionary<string, string> Details,
+    [property: JsonIgnore] string? Chosen = null) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "create";
+    public override string Label => $"New User {User.Name}";
+    public override string Before => "None";
+
+    public override string After => string.Join(" · ", new[]
+    {
+        User.Address,
+        Licenses.Count == 0 ? "No license" : string.Join(", ", Licenses.Select(l => l.Name)),
+        Groups.Count switch { 0 => null, 1 => $"In {Groups[0].Group.Name}", var n => $"In {n} groups" },
+        ManagerName is { } m ? $"Reports to {m}" : null,
+        SignInAllowed ? null : "Sign-in blocked",
+    }.OfType<string>());
+
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+    public override IReadOnlyList<ChangeTarget> Guarded => [User, .. Groups.Select(g => g.Group)];
+
+    /// <summary>Never prints a typed password (a record's ToString would list every property).</summary>
+    public override string ToString() => Summary;
+}
+
+/// <summary>
+/// Creates a group, distribution list or shared mailbox with its first owners and members (for a
+/// shared mailbox, the people given Full access and Send as). Microsoft 365 and security groups are
+/// made through Graph; distribution lists, mail-enabled security groups and shared mailboxes through
+/// Exchange. The write guard checks the new group's name or address and everyone added.
+/// </summary>
+/// <param name="Group">Kind "group": Id is the alias until it's made; Address the email (none for a security group).</param>
+/// <param name="MembershipRule">For a dynamic security group: who belongs (Entra's rule syntax).</param>
+/// <param name="OutsideSenders">For a distribution list: accept mail from outside the organization.</param>
+public sealed record CreateGroup(
+    ChangeTarget Group,
+    Directory.GroupKind Kind,
+    string MailNickname,
+    string? Description,
+    string? MembershipRule,
+    bool IsPrivate,
+    bool OutsideSenders,
+    IReadOnlyList<ChangeTarget> Owners,
+    IReadOnlyList<ChangeTarget> Members) : ChangeOp
+{
+    public override ChangeTarget Target => Group;
+    public override string Key => "create";
+    public override string Label => $"New {Directory.GroupSummary.KindName(Kind)} {Group.Name}";
+    public override string Before => "None";
+
+    public override string After => string.Join(" · ", new[]
+    {
+        Group.Address,
+        MembershipRule is not null ? "Members by rule" : Members.Count switch { 0 => null, 1 => $"{Members[0].Name}", var n => $"{n} {(Kind == Directory.GroupKind.SharedMailbox ? "people with access" : "members")}" },
+        Owners.Count switch { 0 => null, 1 => $"Owner {Owners[0].Name}", var n => $"{n} owners" },
+    }.OfType<string>());
+
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+    public override IReadOnlyList<ChangeTarget> Guarded => [Group, .. Owners, .. Members];
 }
 
 /// <summary>Gives or takes away one license (assignLicense). Taking one away is a caution change.</summary>

@@ -61,6 +61,14 @@ public sealed partial class DataListViewModel : TabViewModel
 
     /// <summary>The list's main action button ("New user"), shown disabled with its reason when unavailable.</summary>
     public ListPrimaryAction? PrimaryAction { get; set; }
+
+    /// <summary>The button beside the search box (New User, New Group…).</summary>
+    [RelayCommand]
+    void RunPrimaryAction()
+    {
+        if (PrimaryAction is { IsEnabled: true, Run: { } run })
+            run();
+    }
     public override bool CanClose => _canClose;
     public string SearchHint => _source.SearchHint;
     public bool HasPreview => _source.HasPreview;

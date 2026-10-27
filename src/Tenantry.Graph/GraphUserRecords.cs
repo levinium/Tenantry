@@ -116,6 +116,8 @@ public sealed partial class GraphUserRecords(GraphClient graph, IEntityStore sto
     }
 
     /// <summary>The tenant's licenses from the local copy (kept current by sync and by license changes).</summary>
+    public Task<IReadOnlyList<LicenseSku>> GetLicenseCatalogAsync(CancellationToken cancellationToken = default) => Task.FromResult(Catalog());
+
     IReadOnlyList<LicenseSku> Catalog() =>
         store.All(DirectorySync.Skus)
             .Select(json => JsonDocument.Parse(json).RootElement)

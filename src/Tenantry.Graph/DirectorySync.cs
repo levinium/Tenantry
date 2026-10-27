@@ -52,6 +52,9 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
     public const string ActivationsReadId = "#read";
 
     const string UserSelect = "id,displayName,userPrincipalName,mail,department,jobTitle,accountEnabled,userType,createdDateTime,assignedLicenses";
+
+    /// <summary>The user properties the local copy keeps (for writing a new user straight into it).</summary>
+    public const string UserSelectFields = UserSelect;
     /// <summary>Licenses with counts and their apps, for the license picker and per-app switches.</summary>
     public const string SkuSelect = "skuId,skuPartNumber,prepaidUnits,consumedUnits,servicePlans,appliesTo,capabilityStatus";
 

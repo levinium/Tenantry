@@ -37,6 +37,8 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         SetUserText t => await PatchUserAsync(t.User.Id, t.Property, string.IsNullOrWhiteSpace(t.New) ? null : JsonValue.Create(t.New.Trim()), cancellationToken),
         SetSignInAllowed s => await PatchUserAsync(s.User.Id, "accountEnabled", JsonValue.Create(s.New), cancellationToken),
         ResetPassword r => await ResetPasswordAsync(r, cancellationToken),
+        CreateUser c => await CreateUserAsync(c, cancellationToken),
+        CreateGroup g => await CreateGroupAsync(g, cancellationToken),
         RevokeSessions r => await RevokeSessionsAsync(r, cancellationToken),
         SetLicenseAssigned l => await AssignLicenseAsync(l.User.Id,
             l.New ? new JsonArray(new JsonObject { ["skuId"] = l.SkuId, ["disabledPlans"] = new JsonArray() }) : [],

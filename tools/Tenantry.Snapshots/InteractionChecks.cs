@@ -324,6 +324,50 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("New User: the list's button opens the form; Add puts the new person in Pending changes and closes it", () =>
+        {
+            var (window, main, _) = OpenList();
+            Click(window, FindButton(window, b => b.Command == main.Users.RunPrimaryActionCommand));
+            var form = main.Dialog?.Content as Tenantry.ViewModels.Records.NewUserViewModel ?? throw new InvalidOperationException("the form didn't open");
+            for (var i = 0; i < 10; i++)
+                Settle();
+            form.FirstName = "Zz-tenantry-test";
+            form.LastName = "Pat";
+            Settle();
+            var add = FindButton(window, b => b.Command == form.AddCommand);
+            add.BringIntoView();
+            Settle();
+            Click(window, add);
+            Expect(main.Dialog is null, "the form closed");
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateUser), "the new person is in Pending changes");
+            window.Close();
+        });
+
+        Check("New Group: the list's button opens the form; a shared mailbox with a person goes to Pending changes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
+            Settle();
+            Click(window, FindButton(window, b => b.Command == main.Groups.RunPrimaryActionCommand));
+            var form = main.Dialog?.Content as Tenantry.ViewModels.Records.NewGroupViewModel ?? throw new InvalidOperationException("the form didn't open");
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var shared = window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.Records.NewGroupKind { Kind: GroupKind.SharedMailbox });
+            Click(window, shared);
+            Expect(form.IsShared, "Shared mailbox was chosen");
+            form.Name = "Zz-tenantry-test Desk";
+            form.MemberPicker.Query = main.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member).DisplayName;
+            Settle();
+            Click(window, FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == form.MemberPicker));
+            Expect(form.Members.Count() == 1, "the person was added");
+            var add = FindButton(window, b => b.Command == form.AddCommand);
+            add.BringIntoView();
+            Settle();
+            Click(window, add);
+            Expect(main.Dialog is null && main.Pending!.Rows.Any(r => r.Change is CreateGroup { Kind: GroupKind.SharedMailbox }), "it's in Pending changes and the form closed");
+            window.Close();
+        });
+
         Check("Quarantine and block/allow lists: clicking a name opens it as its own page", () =>
         {
             var (window, main, _) = OpenList();

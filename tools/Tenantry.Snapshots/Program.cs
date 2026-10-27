@@ -589,6 +589,37 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         editing.Groups.SelectedRows = editing.Groups.Rows.Take(4).ToArray();
         Render(editing, "groups-selected-light");
         editing.Groups.ClearSelectionCommand.Execute(null);
+
+        // New Group: a shared mailbox with two people given access.
+        editing.Groups.RunPrimaryActionCommand.Execute(null);
+        var newGroup = (Tenantry.ViewModels.Records.NewGroupViewModel)editing.Dialog!.Content;
+        Settle();
+        newGroup.Kind = Tenantry.ViewModels.Records.NewGroupViewModel.Kinds.Single(k => k.Kind == GroupKind.SharedMailbox);
+        newGroup.Name = "Front Desk";
+        foreach (var who in editing.Users.Rows.Cast<UserSummary>().Where(u => u.Kind == UserKind.Member).Take(2))
+        {
+            newGroup.MemberPicker.Query = who.DisplayName;
+            newGroup.MemberPicker.PickCommand.Execute(newGroup.MemberPicker.Results.First());
+        }
+        Settle();
+        Render(editing, "new-group-light", height: 1300);
+        editing.CloseDialogCommand.Execute(null);
+
+        // New User: started from a colleague, with the folded parts open.
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "users");
+        editing.Users.RunPrimaryActionCommand.Execute(null);
+        var newUser = (Tenantry.ViewModels.Records.NewUserViewModel)editing.Dialog!.Content;
+        Settle();
+        var copied = editing.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member && u.Department is not null && u.Licenses.Count > 0);
+        newUser.CopyFrom.Query = copied.DisplayName;
+        newUser.CopyFrom.PickCommand.Execute(newUser.CopyFrom.Results.First());
+        newUser.FirstName = "Pat";
+        newUser.LastName = "Lee";
+        newUser.ShowJob = true;
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(editing, "new-user-light", height: 1500);
+        editing.CloseDialogCommand.Execute(null);
         editing.SelectedSection = editing.Sections.Single(s => s.Key == "users");
         editing.SelectedTab = page;
         // Demo people aren't test objects, so Test mode would (rightly) refuse the reset.

@@ -178,6 +178,16 @@ public sealed partial class DemoTenantDirectory : ITenantDirectory
         return true;
     }
 
+    /// <summary>Adds a person (New User in the demo).</summary>
+    public void AddUser(UserSummary user) => _users = [.. _users ??= Generate(), user];
+
+    /// <summary>Adds a group or shared mailbox (New Group in the demo).</summary>
+    public async Task AddGroupAsync(GroupSummary group)
+    {
+        var groups = await GetGroupsAsync();
+        _groups = [.. groups, group];
+    }
+
     /// <summary>Changes one generated group or shared mailbox (written through by the demo's change executor).</summary>
     public bool UpdateGroup(string groupId, Func<GroupSummary, GroupSummary> change)
     {

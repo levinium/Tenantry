@@ -45,7 +45,7 @@
             </Flyout>
           </Button.Flyout>
         </Button>
-        <Button Grid.Column="2" Classes="accent"
+        <Button Grid.Column="2" Classes="accent" Command="{Binding RunPrimaryActionCommand}"
                 IsVisible="{Binding PrimaryAction, Converter={x:Static ObjectConverters.IsNotNull}}"
                 IsEnabled="{Binding PrimaryAction.IsEnabled, FallbackValue=False}"
                 ToolTip.Tip="{Binding PrimaryAction.Tip}" ToolTip.ShowOnDisabled="True">
