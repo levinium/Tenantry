@@ -620,6 +620,20 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
         Render(editing, "new-user-light", height: 1500);
         editing.CloseDialogCommand.Execute(null);
+
+        // Import from CSV: a made-up file with a new person, an update and two rows to fix.
+        editing.Users.RunSecondaryActionCommand.Execute(null);
+        var import = (Tenantry.ViewModels.Records.ImportUsersViewModel)editing.Dialog!.Content;
+        var people = editing.Users.Rows.Cast<UserSummary>().Where(u => u.Kind == UserKind.Member).Take(2).ToArray();
+        import.LoadAsync("new-starters.csv",
+            "Sign-In Name,First Name,Last Name,Department,Job Title,Licenses,Groups,Manager\n" +
+            $"pat.lee@northgate.example,Pat,Lee,Finance,Clerk,Microsoft 365 Business Basic,Finance,{people[0].UserPrincipalName}\n" +
+            $"{people[1].UserPrincipalName},,,Operations,Supervisor,,,\n" +
+            "sam.ray@northgate.example,Sam,Ray,,,Gold Plan,,\n" +
+            "kim.fox@elsewhere.example,Kim,Fox,,,,,\n").GetAwaiter().GetResult();
+        Settle();
+        Render(editing, "import-users-light", height: 1200);
+        editing.CloseDialogCommand.Execute(null);
         editing.SelectedSection = editing.Sections.Single(s => s.Key == "users");
         editing.SelectedTab = page;
         // Demo people aren't test objects, so Test mode would (rightly) refuse the reset.

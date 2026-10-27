@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.ImportMembersView"
+             x:DataType="rec:ImportMembersViewModel">
+  <StackPanel Spacing="16" Width="620" HorizontalAlignment="Left">
+    <TextBlock TextWrapping="Wrap" Text="{Binding Explanation}" />
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Command="{Binding ChooseFileCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="FolderOpen" FontSize="14" />
+          <TextBlock Text="Choose a CSV File" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding DownloadTemplateCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="ArrowDownload" FontSize="14" />
+          <TextBlock Text="Download the Template" />
+        </StackPanel>
+      </Button>
+    </StackPanel>
+    <Border Classes="banner error" IsVisible="{Binding HasFileProblem}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding FileProblem}" />
+    </Border>
+    <StackPanel Spacing="8" IsVisible="{Binding HasFile}">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" />
+        <TextBlock Grid.Column="1" Classes="caption" Text="{Binding Summary}" VerticalAlignment="Center" TextWrapping="Wrap" />
+      </Grid>
+      <views:ImportRowsView DataContext="{Binding Rows}" />
+    </StackPanel>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Command="{Binding AddCommand}" Content="{Binding AddText}"
+              ToolTip.Tip="Nothing changes until you apply the pending changes" />
+      <Button Command="{Binding CancelCommand}" Content="Cancel" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

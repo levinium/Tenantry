@@ -31,6 +31,12 @@
     <DataTemplate DataType="rec:NewGroupViewModel">
       <views:NewGroupView />
     </DataTemplate>
+    <DataTemplate DataType="rec:ImportUsersViewModel">
+      <views:ImportUsersView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:ImportMembersViewModel">
+      <views:ImportMembersView />
+    </DataTemplate>
     <DataTemplate DataType="rec:ConvertMailboxViewModel">
       <views:ConvertMailboxView />
     </DataTemplate>

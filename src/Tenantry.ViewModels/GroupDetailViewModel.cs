@@ -65,6 +65,9 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
         People = new GroupPeopleEditor(group, index, pipeline, canEdit ?? Availability.No("Editing isn't available here"),
             u => { _closeDialog?.Invoke(); _openUser(u); },
             g => { _closeDialog?.Invoke(); _openGroup(g); });
+        if (pipeline is not null && openDialog is not null && closeDialog is not null)
+            People.ImportMembers = () => openDialog(new DialogViewModel("Add Members from CSV", Group.DisplayName,
+                new ImportMembersViewModel(Group, pipeline, index, closeDialog)));
     }
 
     public GroupSummary Group { get; private set; }

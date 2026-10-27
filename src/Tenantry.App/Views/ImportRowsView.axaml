@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.ImportRowsView"
+             x:DataType="x:Object">
+  <!-- The rows of an imported file, each with what it will do or what's wrong. Shared by both imports. -->
+  <ScrollViewer MaxHeight="420" HorizontalScrollBarVisibility="Disabled">
+    <ItemsControl ItemsSource="{ReflectionBinding}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="6" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:ImportRow">
+          <Border Classes="valuerow">
+            <Grid ColumnDefinitions="56,*,Auto" ColumnSpacing="10">
+              <TextBlock Classes="caption" VerticalAlignment="Top" Margin="0,2,0,0">
+                <Run Text="Row" />
+                <Run Text="{Binding Line}" />
+              </TextBlock>
+              <StackPanel Grid.Column="1" Spacing="2">
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" IsVisible="{Binding Name, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Classes="caption" Text="{Binding SignInName}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Details}" TextWrapping="Wrap" IsVisible="{Binding HasDetails}" Margin="0,2,0,0" />
+              </StackPanel>
+              <c:Badge Grid.Column="2" Text="{Binding StatusText}" Kind="{Binding StatusKind}" VerticalAlignment="Top" />
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </ScrollViewer>
+</UserControl>

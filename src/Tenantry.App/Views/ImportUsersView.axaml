@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.ImportUsersView"
+             x:DataType="rec:ImportUsersViewModel">
+  <!-- Import from CSV: the template, the file, every row checked, then add. -->
+  <StackPanel Spacing="16" Width="720" HorizontalAlignment="Left">
+    <StackPanel Spacing="6">
+      <TextBlock TextWrapping="Wrap"
+                 Text="Each row creates a person, or updates them if the sign-in name already exists. Blank cells leave things as they are, and nothing is removed: licenses and groups in the file are added." />
+      <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding TemplateHelp}" />
+    </StackPanel>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Command="{Binding ChooseFileCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="FolderOpen" FontSize="14" />
+          <TextBlock Text="Choose a CSV File" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding DownloadTemplateCommand}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="ArrowDownload" FontSize="14" />
+          <TextBlock Text="Download the Template" />
+        </StackPanel>
+      </Button>
+    </StackPanel>
+
+    <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsReading}">
+      <Panel Width="18" Height="18" VerticalAlignment="Center">
+        <Ellipse Classes="spintrack" />
+        <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+          <Arc.RenderTransform>
+            <RotateTransform />
+          </Arc.RenderTransform>
+        </Arc>
+      </Panel>
+      <TextBlock Classes="muted" VerticalAlignment="Center" Text="Checking every row against the directory…" />
+    </StackPanel>
+    <Border Classes="banner error" IsVisible="{Binding HasFileProblem}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding FileProblem}" />
+    </Border>
+
+    <StackPanel Spacing="8" IsVisible="{Binding HasFile}">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" />
+        <TextBlock Grid.Column="1" Classes="caption" Text="{Binding Summary}" VerticalAlignment="Center" TextWrapping="Wrap" />
+      </Grid>
+      <views:ImportRowsView DataContext="{Binding Rows}" />
+      <TextBlock Classes="caption" TextWrapping="Wrap" Text="Rows that need fixing are left out. Fix them in the file and choose it again to add them." />
+    </StackPanel>
+
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Command="{Binding AddCommand}" Content="{Binding AddText}"
+              ToolTip.Tip="Nothing is created or changed until you apply the pending changes" />
+      <Button Command="{Binding CancelCommand}" Content="Cancel" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

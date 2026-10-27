@@ -220,6 +220,27 @@ The Users and Groups lists' buttons open one-popup forms; adding stages one chan
   takes only mail-enabled people as a distribution list's owners or members, so the form offers only
   those. Mailbox permissions take a few seconds to show after they're granted.
 
+### Import from CSV
+
+Import from CSV (beside New User) reads a file in Tenantry's template only (`ImportUsersViewModel.Columns`;
+unknown columns are refused). Each row is matched by sign-in name or email:
+
+- **New:** one `CreateUser` (details, licenses, groups, manager, and the file's password when
+  given, checked against Microsoft's rules; generated otherwise).
+- **Existing:** only what the file gives and differs: `SetUserText` per field, `SetManager`,
+  `SetSignInAllowed`, `ResetPassword` (file password), `SetLicenseAssigned` to add, and
+  `SetGroupMembership` to join. Blank cells leave things as they are; nothing is removed.
+- **Checks:** domain, sign-in name form, duplicates in the file, licenses by name with seats counted
+  across the whole file, groups by name or email (dynamic groups and mailboxes refused), managers
+  must already exist, Yes/No values, countries. Rows with problems are shown and left out.
+
+Add Members from CSV (a group's people editor) takes a "Sign-In Name" column and stages a
+membership add for each person not yet in the group.
+
+Live test (2026-10-27): a file creating a test user in the test group, changing a test user's
+department and adding another to the test group went through the pipeline; a non-test row was
+refused; everything was then put back and the created user deleted.
+
 ### Microsoft 365 Apps (Devices tab)
 
 The Devices tab ends with a Microsoft 365 Apps card:

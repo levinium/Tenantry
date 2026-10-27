@@ -69,6 +69,16 @@ public sealed partial class DataListViewModel : TabViewModel
         if (PrimaryAction is { IsEnabled: true, Run: { } run })
             run();
     }
+
+    /// <summary>A second, quieter button before the main one (Import from CSV).</summary>
+    public ListPrimaryAction? SecondaryAction { get; set; }
+
+    [RelayCommand]
+    void RunSecondaryAction()
+    {
+        if (SecondaryAction is { IsEnabled: true, Run: { } run })
+            run();
+    }
     public override bool CanClose => _canClose;
     public string SearchHint => _source.SearchHint;
     public bool HasPreview => _source.HasPreview;

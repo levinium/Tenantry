@@ -60,9 +60,16 @@
     <Border Classes="divider" IsVisible="{Binding IsGroup}" />
 
     <StackPanel Spacing="10" IsVisible="{Binding IsGroup}">
-      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
         <ic:FluentIcon Icon="People" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
         <TextBlock Grid.Column="1" Classes="h3" Text="{Binding MembersHeading}" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Command="{Binding ImportMembersFromCsvCommand}" IsVisible="{Binding CanImportMembers}"
+                ToolTip.Tip="Add everyone listed in a CSV file (one sign-in name or email per row)">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="DocumentTable" FontSize="14" />
+            <TextBlock Text="Add Members from CSV" />
+          </StackPanel>
+        </Button>
         </Grid>
         <views:PersonPickerView DataContext="{Binding MemberPicker}" MaxWidth="440" HorizontalAlignment="Left"
                                 IsEnabled="{Binding $parent[UserControl].((rec:GroupPeopleEditor)DataContext).CanAddMembers}" />

@@ -42,6 +42,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                 ShowDialog(new Records.DialogViewModel("New User", TenantName,
                     new Records.NewUserViewModel(creating, _tenant.Records as IUserRecords, _index, CloseDialog))))
             : new ListPrimaryAction("New User", "PersonAdd", false, createUsers.Reason ?? "This tenant can't be edited");
+        Users.SecondaryAction = tenant.Changes is { } importing && createUsers.IsAvailable
+            ? new ListPrimaryAction("Import from CSV", "DocumentTable", true, "Create or update many people from a spreadsheet, using Tenantry's template", () =>
+                ShowDialog(new Records.DialogViewModel("Import Users from CSV", TenantName,
+                    new Records.ImportUsersViewModel(importing, _tenant.Records as IUserRecords, _index, CloseDialog))))
+            : null;
         Groups = DataListViewModel.Create(GroupList.Definition(g => NewGroupPage(g)), LoadGroupsAsync, OpenGroup, tenant.ListState, _now);
         Groups.PrimaryAction = tenant.Changes is { } grouping && createUsers.IsAvailable
             ? new ListPrimaryAction("New Group", "PeopleAdd", true, "Make a Microsoft 365 group, security group, distribution list or shared mailbox", () =>

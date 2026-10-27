@@ -364,6 +364,37 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Import from CSV: the button opens it, a chosen file is checked row by row, and Add stages the ready rows", () =>
+        {
+            var (window, main, _) = OpenList();
+            var someone = main.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member && u.Department != "Testing");
+            var domain = someone.UserPrincipalName[(someone.UserPrincipalName.IndexOf('@') + 1)..];
+            Platform.OpenCsv = () => Task.FromResult<(string, string)?>(("people.csv",
+                $"Sign-In Name,Display Name,Department\nzz-tenantry-test-csv@{domain},Csv Person,Testing\n{someone.UserPrincipalName},,Testing\nnot-an-address,,\n"));
+            try
+            {
+                Click(window, FindButton(window, b => b.Command == main.Users.RunSecondaryActionCommand));
+                var import = main.Dialog?.Content as Tenantry.ViewModels.Records.ImportUsersViewModel ?? throw new InvalidOperationException("the import didn't open");
+                Settle();
+                Click(window, FindButton(window, b => b.Command == import.ChooseFileCommand));
+                for (var i = 0; i < 20 && import.Rows.Count == 0; i++)
+                    Settle();
+                Expect(import.Rows.Count == 3, $"three rows were checked (got {import.Rows.Count})");
+                Expect(import.Rows.Select(r => r.Outcome).SequenceEqual([Tenantry.ViewModels.Records.ImportOutcome.New, Tenantry.ViewModels.Records.ImportOutcome.Update,
+                    Tenantry.ViewModels.Records.ImportOutcome.Problem]), "new, update and a row to fix");
+                var add = FindButton(window, b => b.Command == import.AddCommand);
+                add.BringIntoView();
+                Settle();
+                Click(window, add);
+                Expect(main.Dialog is null && main.Pending!.Count == 2, $"two changes in Pending changes (got {main.Pending!.Count})");
+            }
+            finally
+            {
+                Platform.OpenCsv = () => Task.FromResult<(string, string)?>(null);
+            }
+            window.Close();
+        });
+
         Check("New Group: the list's button opens the form; a shared mailbox with a person goes to Pending changes", () =>
         {
             var (window, main, _) = OpenList();

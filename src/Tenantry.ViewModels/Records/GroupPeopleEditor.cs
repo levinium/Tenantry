@@ -57,6 +57,14 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
 
     public bool CanAddMembers => CanEdit && !HasMembersLock;
 
+    /// <summary>Opens Add Members from CSV (set by the group's record, which can open popups).</summary>
+    public Action? ImportMembers { get; set; }
+
+    public bool CanImportMembers => CanAddMembers && ImportMembers is not null && !_group.IsMailbox;
+
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    void ImportMembersFromCsv() => ImportMembers?.Invoke();
+
     public PersonPicker OwnerPicker { get; }
 
     public PersonPicker MemberPicker { get; }

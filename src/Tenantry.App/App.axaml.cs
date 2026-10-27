@@ -29,6 +29,7 @@ public partial class App : Application
             Platform.OpenUrl = url => _ = window.Launcher.LaunchUriAsync(new Uri(url));
             Platform.CopyText = text => _ = CopyAsync(window, text);
             Platform.SaveCsv = (name, csv) => SaveCsvAsync(window, name, csv);
+            Platform.OpenCsv = () => OpenCsvAsync(window);
             desktop.MainWindow = window;
             // Once the window is up (so a browser sign-in has something to return to).
             window.Opened += async (_, _) => await shell.StartAsync();
@@ -36,6 +37,22 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    static async Task<(string Name, string Text)?> OpenCsvAsync(MainWindow window)
+    {
+        var files = await window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "Choose a CSV File",
+            AllowMultiple = false,
+            FileTypeFilter = [new Avalonia.Platform.Storage.FilePickerFileType("CSV File") { Patterns = ["*.csv"] }],
+        });
+        if (files.Count == 0)
+            return null;
+        await using var stream = await files[0].OpenReadAsync();
+        // Excel saves CSV with a byte-order mark (UTF-8) or in the system code page; the reader finds out which.
+        using var reader = new StreamReader(stream, detectEncodingFromByteOrderMarks: true);
+        return (files[0].Name, await reader.ReadToEndAsync());
     }
 
     static async Task<bool> SaveCsvAsync(MainWindow window, string suggestedName, string csv)

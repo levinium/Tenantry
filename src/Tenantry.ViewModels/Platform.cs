@@ -14,4 +14,7 @@ public static class Platform
 
     /// <summary>Asks where to save a CSV file (suggesting a name) and writes it; false when cancelled.</summary>
     public static Func<string, string, Task<bool>> SaveCsv { get; set; } = (_, _) => Task.FromResult(false);
+
+    /// <summary>Asks for a CSV file and reads it: its name and text, or null when cancelled.</summary>
+    public static Func<Task<(string Name, string Text)?>> OpenCsv { get; set; } = () => Task.FromResult<(string, string)?>(null);
 }
