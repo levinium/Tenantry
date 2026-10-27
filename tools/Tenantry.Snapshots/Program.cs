@@ -384,6 +384,10 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         _ = devices.Devices[0].Secrets[0].ShowCommand.ExecuteAsync(null);
         Settle();
         Render(editing, "user-devices-key-light", height: 1100);
+        // Microsoft 365 Apps: activations and where they signed in, below the devices.
+        devices.Devices[0].IsExpanded = false;
+        Settle();
+        Render(editing, "user-devices-apps-light", height: 1700);
 
         // OneDrive: storage and who has access, with a colleague being given access.
         var oneDrive = page.Sections.OfType<Tenantry.ViewModels.Records.OneDriveSection>().Single();

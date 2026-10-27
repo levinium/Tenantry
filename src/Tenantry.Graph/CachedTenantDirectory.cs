@@ -71,6 +71,17 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
                 security[id] = ToSecurity(r.RootElement);
         }
 
+        // Microsoft 365 Apps activations, by sign-in name. Once the report has been read, someone
+        // missing from it has activated nothing (0), not "not read".
+        var activations = new Dictionary<string, IReadOnlyList<OfficeActivation>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var json in store.All(DirectorySync.Activations))
+        {
+            using var a = JsonDocument.Parse(json);
+            if (ActivationReport.UserPrincipalName(a.RootElement) is { } upn)
+                activations[upn] = ActivationReport.Parse(a.RootElement);
+        }
+        IReadOnlyList<OfficeActivation>? none = store.Get(DirectorySync.Activations, DirectorySync.ActivationsReadId) is not null ? [] : null;
+
         var stored = store.All(DirectorySync.Users);
         var users = new List<UserSummary>(stored.Count);
         foreach (var json in stored)
@@ -82,6 +93,7 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
                 summary = summary with { Mailbox = mailboxInfo };
             if (security.TryGetValue(summary.Id, out var registered))
                 summary = summary with { Security = registered };
+            summary = summary with { Activations = activations.GetValueOrDefault(summary.UserPrincipalName) ?? none };
             users.Add(summary);
         }
         return users;
@@ -107,6 +119,13 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
                 using var registration = JsonDocument.Parse(registrationJson);
                 summary = summary with { Security = ToSecurity(registration.RootElement) };
             }
+            if (store.Get(DirectorySync.Activations, summary.UserPrincipalName.ToLowerInvariant()) is { } activationJson)
+            {
+                using var activation = JsonDocument.Parse(activationJson);
+                summary = summary with { Activations = ActivationReport.Parse(activation.RootElement) };
+            }
+            else if (store.Get(DirectorySync.Activations, DirectorySync.ActivationsReadId) is not null)
+                summary = summary with { Activations = [] };
             if (store.Get(DirectorySync.Mailboxes, id) is not { } mailboxJson)
                 return summary;
             using var mailbox = JsonDocument.Parse(mailboxJson);

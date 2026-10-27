@@ -123,5 +123,120 @@
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>
+
+    <!-- Microsoft 365 Apps: where they've activated the apps, and where they've signed in. -->
+    <Border Classes="card" IsVisible="{Binding HasAppsCard}" Margin="0,8,0,0">
+      <StackPanel Spacing="16">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+          <ic:FluentIcon Icon="Apps" FontSize="22" Foreground="{DynamicResource Accent}" VerticalAlignment="Top" />
+          <StackPanel Grid.Column="1" Spacing="2">
+            <TextBlock Classes="h3" Text="Microsoft 365 Apps" />
+            <TextBlock Classes="caption" TextWrapping="Wrap"
+                       Text="Word, Excel, Outlook and the rest can be activated on up to 5 computers, plus 5 tablets and 5 phones. Microsoft counts them daily." />
+          </StackPanel>
+        </Grid>
+
+        <!-- Activations, from Microsoft's report -->
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="ACTIVATED ON" />
+          <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding ActivationsLoading}">
+            <Panel Width="18" Height="18" VerticalAlignment="Center">
+              <Ellipse Classes="spintrack" />
+              <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                <Arc.RenderTransform>
+                  <RotateTransform />
+                </Arc.RenderTransform>
+              </Arc>
+            </Panel>
+            <TextBlock Classes="muted" VerticalAlignment="Center" Text="Reading the activation report…" />
+          </StackPanel>
+          <TextBlock Classes="muted" Text="{Binding ActivationsNote}" IsVisible="{Binding HasActivationsNote}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding Activations}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="rec:ActivationRow">
+                <Border Classes="valuerow">
+                  <StackPanel Spacing="3">
+                    <WrapPanel ItemSpacing="8" LineSpacing="4">
+                      <TextBlock Text="{Binding Product}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                      <c:Badge Text="{Binding LimitText}" Kind="{Binding LimitKind}" IsVisible="{Binding IsNearLimit}" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding ComputersText}" IsVisible="{Binding HasComputerLimit}" />
+                    <TextBlock Text="{Binding MobileText}" />
+                    <TextBlock Classes="caption" Text="{Binding LastText}" IsVisible="{Binding HasLast}" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <!-- Devices, from the sign-in log -->
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="SIGNED IN FROM (LAST 30 DAYS)" />
+          <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding SignedInLoading}">
+            <Panel Width="18" Height="18" VerticalAlignment="Center">
+              <Ellipse Classes="spintrack" />
+              <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                <Arc.RenderTransform>
+                  <RotateTransform />
+                </Arc.RenderTransform>
+              </Arc>
+            </Panel>
+            <TextBlock Classes="muted" VerticalAlignment="Center" Text="Reading the last 30 days of sign-ins… this can take a few seconds." />
+          </StackPanel>
+          <TextBlock Classes="muted" Text="{Binding SignedInNote}" IsVisible="{Binding HasSignedInNote}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding SignedInFrom}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="rec:SignedInRow">
+                <Border Classes="valuerow">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="18" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                    <StackPanel Grid.Column="1" Spacing="3">
+                      <WrapPanel ItemSpacing="6" LineSpacing="4">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <c:Badge Text="{Binding Trust}" Kind="{Binding TrustKind}" />
+                        <c:Badge Text="{Binding ComplianceText}" Kind="{Binding ComplianceKind}" IsVisible="{Binding HasCompliance}" />
+                      </WrapPanel>
+                      <TextBlock Classes="caption" Text="{Binding Detail}" />
+                      <TextBlock Classes="caption" Text="{Binding AppsText}" IsVisible="{Binding HasApps}" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding LastText}" />
+                      <TextBlock Classes="caption" Text="It's in the list above, with its actions." IsVisible="{Binding IsListedAbove}" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <!-- What can be done: sign out here; deactivating one installation only in the admin center. -->
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="ACTIONS" />
+          <WrapPanel ItemSpacing="8" LineSpacing="8">
+            <Button Classes="danger-outline" Content="{Binding SignOutText}" Command="{Binding ToggleSignOutCommand}" IsEnabled="{Binding CanEdit}"
+                    ToolTip.Tip="Signs them out of every app and browser on every device; Office asks them to sign in again (added to Pending changes)" />
+            <Button Command="{Binding OpenActivationsCommand}"
+                    ToolTip.Tip="Opens their page in the Microsoft 365 admin center. Under Account, Microsoft 365 activations lists each computer, with a way to deactivate it.">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Open" FontSize="14" />
+                <TextBlock Text="Deactivate in the Admin Center" />
+              </StackPanel>
+            </Button>
+          </WrapPanel>
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="Microsoft doesn't let other apps list or deactivate a single installation. Deactivating signs Office out on that computer and frees a place; it doesn't uninstall anything." />
+        </StackPanel>
+      </StackPanel>
+    </Border>
   </StackPanel>
 </UserControl>

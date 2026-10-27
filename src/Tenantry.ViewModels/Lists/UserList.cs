@@ -45,6 +45,8 @@ public static class UserList
         View("no-mfa", "No MFA Registered", Is(F.Status, F.Active), new ChoiceCondition(F.Type, [F.Member, F.Guest], []), Is(F.Mfa, F.MfaNotRegistered)),
         View("admins", "Admins", Is(F.AdminRole, F.IsAdmin)),
         View("admins-no-mfa", "Admins Without MFA", Is(F.AdminRole, F.IsAdmin), Is(F.Mfa, F.MfaNotRegistered)),
+        // Microsoft 365 Apps activate on up to five computers per person: at four, the next new PC may be refused.
+        View("office-near-limit", "Office on 4+ Computers", new NumberCondition(F.OfficeComputers, 4, null)),
     ];
 
     /// <summary>Member, Guest, or (from Exchange) Shared mailbox, Room or Equipment.</summary>
@@ -136,6 +138,13 @@ public static class UserList
                     : s.MfaRegistered ? (F.MfaRegistered, BadgeKind.Success) : (F.MfaNotRegistered, BadgeKind.Warning) },
             new() { Key = F.AdminRole, Header = "Admin Role", Cell = CellKind.Text, MinWidth = 110, DefaultWidth = 120, DefaultVisible = false,
                 Text = u => u.Security is { } s ? (s.IsAdmin ? F.IsAdmin : F.NotAdmin) : null },
+            new() { Key = F.OfficeComputers, Header = "Office on Computers", Cell = CellKind.Number, MinWidth = 140, DefaultWidth = 160, DefaultVisible = false,
+                Number = u => OfficeActivations.Computers(u.Activations) },
+            new() { Key = F.OfficeMobile, Header = "Office on Phones and Tablets", Cell = CellKind.Number, MinWidth = 160, DefaultWidth = 200, DefaultVisible = false,
+                Number = u => OfficeActivations.Mobile(u.Activations) },
+            new() { Key = F.OfficeLastActivated, Header = "Office Last Activated", Cell = CellKind.Date, MinWidth = 150, DefaultWidth = 170, DefaultVisible = false,
+                Date = u => OfficeActivations.LastActivated(u.Activations) is { } d ? new DateTimeOffset(d.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero) : null,
+                EmptyText = "Never" },
         ],
     };
 }

@@ -274,12 +274,12 @@ public class DataListViewModelTests
         var (list, _) = await Loaded(store);
 
         Assert.Equal(["All Users", "Members", "Guests", "Sign-In Blocked"], list.ChipViews.Select(v => v.Name));
-        Assert.Equal("More Views (17)", list.MoreViewsText);
+        Assert.Equal("More Views (18)", list.MoreViewsText);
 
         // An unpinned view shows as a chip while it's the current one.
         list.ApplyView(list.MoreViews.Single(v => v.View.Id == "inactive"));
         Assert.Contains(list.ChipViews, v => v.View.Id == "inactive");
-        Assert.Equal(16, list.MoreViews.Count);
+        Assert.Equal(17, list.MoreViews.Count);
 
         list.TogglePin(list.Views.Single(v => v.View.Id == "guests"));
         list.TogglePin(list.Views.Single(v => v.View.Id == "licensed-blocked"));

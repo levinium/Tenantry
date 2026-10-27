@@ -45,6 +45,12 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
     /// <summary>Entra's MFA registration report, one row per user (needs Entra ID P1).</summary>
     public const string Registration = "registration";
 
+    /// <summary>Microsoft's Microsoft 365 Apps activation report, one row per person, keyed by lower-case sign-in name.</summary>
+    public const string Activations = "activations";
+
+    /// <summary>A row stored beside the report when it was read with names: someone missing from it has activated nothing.</summary>
+    public const string ActivationsReadId = "#read";
+
     const string UserSelect = "id,displayName,userPrincipalName,mail,department,jobTitle,accountEnabled,userType,createdDateTime,assignedLicenses";
     /// <summary>Licenses with counts and their apps, for the license picker and per-app switches.</summary>
     public const string SkuSelect = "skuId,skuPartNumber,prepaidUnits,consumedUnits,servicePlans,appliesTo,capabilityStatus";
@@ -124,6 +130,8 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                     changed += await SyncSignInsAsync(progress, cancellationToken);
                 if (Due(Registration, scope))
                     changed += await SyncRegistrationAsync(progress, cancellationToken);
+                if (Due(Activations, scope))
+                    changed += await SyncActivationsAsync(notes, progress, cancellationToken);
             }
             catch
             {
@@ -182,6 +190,8 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                 new("Licenses", "The tenant's licenses and how many are left", store.GetMark(Skus)?.SyncedAt, changes),
                 new("Last Sign-In Times", "When each person last signed in", store.GetMark(SignIns)?.SyncedAt, details),
                 new("MFA Registration", "Who has set up multi-factor sign-in, and who holds an admin role", store.GetMark(Registration)?.SyncedAt, details),
+                new("Microsoft 365 Apps Activations", "How many computers and mobile devices each person has activated the apps on (Microsoft updates it daily)",
+                    store.GetMark(Activations)?.SyncedAt, details),
                 new("Domains and Teams", "The tenant's domains, and which groups are Teams", store.GetMark(Domains)?.SyncedAt, details),
             ];
             if (exchange is not null)
@@ -377,6 +387,41 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
         {
             // No Entra ID P1, or no reports role: MFA stays "Not read". Not an error.
             store.SetMark(Registration, new SyncMark(null, _now()));
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// The activation report for everyone, stored whole each time. With names concealed in reports
+    /// it can't be matched to anyone, so nothing is stored and a note says how to show them.
+    /// </summary>
+    async Task<int> SyncActivationsAsync(List<string> notes, IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        try
+        {
+            progress?.Report("Reading Microsoft 365 Apps activations…");
+            var rows = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+            await foreach (var item in graph.GetAllAsync(ActivationReport.Path, cancellationToken))
+                if (ActivationReport.UserPrincipalName(item) is { } upn)
+                    rows[upn.ToLowerInvariant()] = item;
+            var changed = 0;
+            if (ActivationReport.IsConcealed(rows.Keys))
+                notes.Add(ActivationReport.ConcealedReason);
+            else
+            {
+                var changes = rows.Select(r => new EntityChange(r.Key, ToObject(r.Value))).ToList();
+                using var marker = JsonDocument.Parse("{}");
+                changes.Add(new EntityChange(ActivationsReadId, ToObject(marker.RootElement)));
+                changed = store.Apply(Activations, changes)
+                          + store.RemoveExcept(Activations, new HashSet<string>(rows.Keys.Append(ActivationsReadId), StringComparer.Ordinal));
+            }
+            store.SetMark(Activations, new SyncMark(null, _now()));
+            return changed;
+        }
+        catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.BadRequest)
+        {
+            // No reports role: the activation columns stay "Not read". Not an error.
+            store.SetMark(Activations, new SyncMark(null, _now()));
             return 0;
         }
     }

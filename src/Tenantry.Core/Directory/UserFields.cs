@@ -29,6 +29,9 @@ public static class UserFields
     public const string EmailAppsOn = "emailapps";
     public const string Mfa = "mfa";
     public const string AdminRole = "admin";
+    public const string OfficeComputers = "officepcs";
+    public const string OfficeMobile = "officemobile";
+    public const string OfficeLastActivated = "officeactivated";
 
     public const string Active = "Active";
     public const string Blocked = "Blocked";
@@ -180,6 +183,23 @@ public static class UserFields
             Key = AdminRole, Label = "Admin Role", Kind = FieldKind.Choice, Aliases = ["admin", "isadmin"],
             EmptyLabel = NotReadYet, ChoiceOrder = [IsAdmin, NotAdmin, NotReadYet],
             Text = u => u.Security is { } s ? (s.IsAdmin ? IsAdmin : NotAdmin) : null,
+        },
+
+        // From Microsoft's Microsoft 365 Apps activation report (needs a reports role; empty until read).
+        new()
+        {
+            Key = OfficeComputers, Label = "Office on Computers", Kind = FieldKind.Number, Aliases = ["officepcs", "activations", "pcs"],
+            Number = u => OfficeActivations.Computers(u.Activations),
+        },
+        new()
+        {
+            Key = OfficeMobile, Label = "Office on Phones and Tablets", Kind = FieldKind.Number, Aliases = ["officemobile", "phones"],
+            Number = u => OfficeActivations.Mobile(u.Activations),
+        },
+        new()
+        {
+            Key = OfficeLastActivated, Label = "Office Last Activated", Kind = FieldKind.Date, Aliases = ["officeactivated", "activated"],
+            EmptyLabel = "Never", Date = u => OfficeActivations.LastActivated(u.Activations) is { } d ? new DateTimeOffset(d.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero) : null,
         },
     ];
 }

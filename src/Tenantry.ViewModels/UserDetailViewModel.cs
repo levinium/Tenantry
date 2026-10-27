@@ -164,7 +164,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         new MailSection(User, _records, _pipeline, _canEdit, _index, OpenConvertMailbox),
         new OneDriveSection(User, _records as IOneDriveRecords, _pipeline, _canEdit, _index),
         new SecuritySection(User, _records as ISecurityRecords, _pipeline, _canEdit),
-        new DevicesSection(User, _records as IDeviceRecords, _pipeline, _canEdit),
+        new DevicesSection(User, _records as IDeviceRecords, _pipeline, _canEdit, _records as IAppActivationRecords),
         new ActivitySection(User, _records as IActivityRecords, _pipeline),
     ];
 

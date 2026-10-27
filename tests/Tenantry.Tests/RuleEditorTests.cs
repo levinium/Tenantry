@@ -260,6 +260,40 @@ public sealed class RuleEditorTests
         Assert.Equal("the sender is located", editor.Conditions[0].Label);
     }
 
+    [Fact]
+    public void Sign_ins_group_by_device_and_unknown_devices_by_system_and_browser()
+    {
+        var at = new DateTimeOffset(2026, 10, 20, 9, 0, 0, TimeSpan.Zero);
+        var devices = SignedInDevices.Group(
+        [
+            (at, "Outlook", "d1", "LAPTOP-1", "Windows 11", "Edge", "Azure AD joined", true, true, "New York, US"),
+            (at.AddDays(1), "Microsoft Teams", "d1", null, "Windows 11", "Edge", "Azure AD joined", true, true, null),
+            (at.AddDays(-2), "Microsoft Office", null, null, "MacOs", "Safari", null, null, null, null),
+            (at.AddDays(-3), "Microsoft Office", "", null, "MacOs", "Safari 18.6", null, null, null, null),
+        ]);
+
+        Assert.Equal(2, devices.Count);
+        Assert.Equal(("LAPTOP-1", "Entra joined", at.AddDays(1)), (devices[0].Name, devices[0].Trust, devices[0].LastSeen));
+        Assert.Equal(["Microsoft Teams", "Outlook"], devices[0].Apps);
+        Assert.Equal(("macOS device", "Not in Entra", false), (devices[1].Name, devices[1].Trust, devices[1].IsKnown));
+    }
+
+    [Fact]
+    public void Activations_count_the_busiest_product_against_the_limit()
+    {
+        IReadOnlyList<OfficeActivation> activations =
+        [
+            new("MICROSOFT 365 APPS FOR BUSINESS", new DateOnly(2026, 10, 1), 3, 1, 0, 1, 0, false),
+            new("OFFICE MOBILE APPS FOR OFFICE 365", null, 0, 0, 0, 2, 1, false),
+        ];
+        Assert.Equal((4, 3), (OfficeActivations.Computers(activations), OfficeActivations.Mobile(activations)));
+        Assert.Equal("Microsoft 365 Apps for business", activations[0].ProductName);
+        var row = new Tenantry.ViewModels.Records.ActivationRow(activations[0]);
+        Assert.True(row.IsNearLimit);
+        Assert.Equal("4 of 5 computers (Windows 3, Mac 1)", row.ComputersText);
+        Assert.Null(OfficeActivations.Computers(null));
+    }
+
     [Theory]
     [InlineData("Add recipients to the To box", "Add Recipients to the To Box")]
     [InlineData("Set the spam confidence level (SCL) to", "Set the Spam Confidence Level (SCL) To")]

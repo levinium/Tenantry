@@ -266,6 +266,69 @@ public sealed partial class DeviceItem : ObservableObject
     }
 }
 
+/// <summary>One Microsoft 365 Apps product and where it's activated, against the limit of five computers.</summary>
+public sealed class ActivationRow(OfficeActivation activation)
+{
+    public string Product => activation.ProductName;
+
+    public string ComputersText => activation.Computers == 0 ? "No computers"
+        : $"{activation.Computers} of {OfficeActivation.DeviceLimit} computers ({Platforms(("Windows", activation.Windows), ("Mac", activation.Mac))})";
+
+    public string MobileText => activation.Mobile == 0 ? "No phones or tablets"
+        : $"{activation.Mobile} phones or tablets ({Platforms(("iPhone and iPad", activation.Ios), ("Android", activation.Android), ("Windows Mobile", activation.Windows10Mobile))})";
+
+    public bool HasComputerLimit => activation.Computers > 0 || activation.Mobile == 0;
+
+    /// <summary>At four of five, the next new computer may be refused.</summary>
+    public bool IsNearLimit => activation.Computers >= OfficeActivation.DeviceLimit - 1;
+
+    public string LimitText => activation.Computers >= OfficeActivation.DeviceLimit ? "At the Limit" : "Near the Limit";
+
+    public BadgeKind LimitKind => activation.Computers >= OfficeActivation.DeviceLimit ? BadgeKind.Danger : BadgeKind.Warning;
+
+    public string LastText => (activation.LastActivated is { } d ? $"Last activated {d:d MMM yyyy}" : "")
+                              + (activation.SharedComputer ? (activation.LastActivated is null ? "" : " · ") + "Also on a shared computer" : "");
+
+    public bool HasLast => LastText.Length > 0;
+
+    static string Platforms(params (string Name, int Count)[] counts) =>
+        string.Join(", ", counts.Where(c => c.Count > 0).Select(c => $"{c.Name} {c.Count}"));
+}
+
+/// <summary>A device they signed in from (the sign-in log): what it is, which apps, when, and whether Entra knows it.</summary>
+public sealed class SignedInRow(SignedInDevice device, DateTimeOffset now, bool listedAbove)
+{
+    public string Name => device.Name;
+
+    public string Icon => device.Os switch
+    {
+        var os when os?.StartsWith("iOS", StringComparison.OrdinalIgnoreCase) == true || os?.StartsWith("Android", StringComparison.OrdinalIgnoreCase) == true => "Phone",
+        var os when os?.StartsWith("iPad", StringComparison.OrdinalIgnoreCase) == true => "Tablet",
+        _ => "Laptop",
+    };
+
+    public string Detail => string.Join(" · ", new[] { device.Os, device.Browser, device.Location }.Where(s => !string.IsNullOrEmpty(s)));
+
+    public string AppsText => device.Apps.Count == 0 ? "" : string.Join(", ", device.Apps);
+
+    public bool HasApps => device.Apps.Count > 0;
+
+    public string LastText => $"Last signed in {Display.Relative(device.LastSeen, now)}";
+
+    public string Trust => device.Trust;
+
+    public BadgeKind TrustKind => device.IsKnown ? BadgeKind.Neutral : BadgeKind.Warning;
+
+    public string? ComplianceText => device.Compliant switch { true => "Compliant", false => "Not Compliant", _ => null };
+
+    public BadgeKind ComplianceKind => device.Compliant == false ? BadgeKind.Danger : BadgeKind.Success;
+
+    public bool HasCompliance => ComplianceText is not null;
+
+    /// <summary>The same device is in Entra or Intune: its actions are in the list above.</summary>
+    public bool IsListedAbove => listedAbove;
+}
+
 /// <summary>
 /// The Devices tab (4c-2): the devices they use, from Entra (registered or joined) and Intune
 /// (managed), joined into one list. Each expands to its details, BitLocker recovery keys and local
@@ -279,9 +342,15 @@ public sealed partial class DevicesSection : RecordSection, IDisposable
     readonly Availability _canEdit;
     bool _loaded;
 
-    public DevicesSection(UserSummary user, IDeviceRecords? records, ChangePipeline? pipeline, Availability canEdit)
+    readonly IAppActivationRecords? _apps;
+    readonly Func<DateTimeOffset> _now;
+
+    public DevicesSection(UserSummary user, IDeviceRecords? records, ChangePipeline? pipeline, Availability canEdit, IAppActivationRecords? apps = null,
+        Func<DateTimeOffset>? now = null)
     {
         _user = user;
+        _apps = apps;
+        _now = now ?? (() => DateTimeOffset.Now);
         Records = records;
         _pipeline = pipeline;
         _canEdit = canEdit;
@@ -322,7 +391,115 @@ public sealed partial class DevicesSection : RecordSection, IDisposable
 
     public bool HasNoDevices => _loaded && Devices.Count == 0 && Unavailable is null && LoadError is null;
 
+    // ---- Microsoft 365 Apps -------------------------------------------------------------------
+
+    public bool HasAppsCard => _apps is not null;
+
+    public ObservableCollection<ActivationRow> Activations { get; } = [];
+
+    [ObservableProperty]
+    public partial bool ActivationsLoading { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasActivationsNote))]
+    public partial string? ActivationsNote { get; private set; }
+
+    public bool HasActivationsNote => ActivationsNote is not null;
+
+    public ObservableCollection<SignedInRow> SignedInFrom { get; } = [];
+
+    [ObservableProperty]
+    public partial bool SignedInLoading { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSignedInNote))]
+    public partial string? SignedInNote { get; private set; }
+
+    public bool HasSignedInNote => SignedInNote is not null;
+
+    bool _appsLoaded;
+
+    /// <summary>Activations and the devices they signed in from, each shown as soon as it arrives.</summary>
+    async Task LoadAppsAsync(CancellationToken cancellationToken)
+    {
+        if (_apps is null || _appsLoaded)
+            return;
+        _appsLoaded = true;
+        ActivationsLoading = SignedInLoading = true;
+        async Task Activated()
+        {
+            try
+            {
+                var read = await _apps.GetActivationsAsync(_user.UserPrincipalName, cancellationToken);
+                Activations.Clear();
+                foreach (var a in (read.Value ?? []).OrderByDescending(a => a.Computers).ThenBy(a => a.ProductName, StringComparer.CurrentCulture))
+                    Activations.Add(new ActivationRow(a));
+                ActivationsNote = read.Unavailable ?? (Activations.Count == 0 ? "They haven't activated Microsoft 365 Apps anywhere." : null);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                ActivationsNote = $"Couldn't read the activation report: {Friendly.Message(e)}";
+            }
+            finally
+            {
+                ActivationsLoading = false;
+            }
+        }
+        async Task SignedIn()
+        {
+            try
+            {
+                var read = await _apps.GetSignedInDevicesAsync(_user.Id, cancellationToken);
+                SignedInFrom.Clear();
+                var known = Devices.Select(d => d.Device.DeviceId).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+                foreach (var d in read.Value ?? [])
+                    SignedInFrom.Add(new SignedInRow(d, _now(), d.DeviceId is { } id && known.Contains(id)));
+                SignedInNote = read.Unavailable ?? (SignedInFrom.Count == 0 ? "No sign-ins in the last 30 days." : null);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                SignedInNote = $"Couldn't read the sign-in log: {Friendly.Message(e)}";
+            }
+            finally
+            {
+                SignedInLoading = false;
+            }
+        }
+        await Task.WhenAll(Activated(), SignedIn());
+    }
+
+    /// <summary>
+    /// Microsoft offers other apps no way to deactivate one installation; the admin center can.
+    /// Opens their page there (Account › Microsoft 365 activations).
+    /// </summary>
+    [RelayCommand]
+    void OpenActivations() => Platform.OpenUrl($"https://admin.microsoft.com/Adminportal/Home#/users/:/UserDetails/{_user.Id}");
+
+    ChangeTarget UserTarget => GroupAccess.Target(_user);
+
+    public bool IsSignOutPending => _pipeline?.PendingFor(_user.Id, "sessions") is not null;
+
+    public string SignOutText => IsSignOutPending ? "Undo Sign Out Everywhere" : "Sign Out Everywhere";
+
+    /// <summary>Signs them out of every app and browser (Entra's Revoke sessions); Office asks them to sign in again.</summary>
+    [RelayCommand]
+    void ToggleSignOut()
+    {
+        if (!CanEdit)
+            return;
+        if (_pipeline!.PendingFor(_user.Id, "sessions") is { } pending)
+            _pipeline.Unstage(pending);
+        else
+            _pipeline.Stage(new RevokeSessions(UserTarget));
+    }
+
     public override async Task LoadAsync(CancellationToken cancellationToken = default)
+    {
+        await LoadDevicesAsync(cancellationToken);
+        await LoadAppsAsync(cancellationToken);
+    }
+
+    async Task LoadDevicesAsync(CancellationToken cancellationToken)
     {
         if (_loaded || IsLoading || Records is null)
             return;
@@ -368,6 +545,8 @@ public sealed partial class DevicesSection : RecordSection, IDisposable
     {
         foreach (var device in Devices)
             device.Refresh();
+        OnPropertyChanged(nameof(IsSignOutPending));
+        OnPropertyChanged(nameof(SignOutText));
     }
 
     internal ChangeOp? PendingFor(string? targetId, string key) => targetId is null ? null : _pipeline?.PendingFor(targetId, key);

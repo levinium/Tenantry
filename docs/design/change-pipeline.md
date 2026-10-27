@@ -195,6 +195,23 @@ and their Intune devices (managed, by primary user).
   So these changes are covered by unit tests. The write guard refuses them on any device whose
   name doesn't start with the test marker.
 
+### Microsoft 365 Apps (Devices tab)
+
+The Devices tab ends with a Microsoft 365 Apps card:
+
+- **Activated on:** Microsoft's activation report (`beta/reports/getOffice365ActivationsUserDetail`,
+  JSON): per product, how many Windows and Mac computers and how many phones and tablets, against the
+  limit of five computers. The report counts devices; it doesn't name them. It's also synced daily
+  for the Users list (Office on Computers, Office on Phones and Tablets, Office Last Activated; view
+  "Office on 4+ Computers"). With names concealed in reports nothing can be matched, and a note says
+  where to show them.
+- **Signed in from:** the last 30 days of the sign-in log (interactive and background, with
+  `$select`, which measured several times faster), grouped by Entra device ID, or for a device
+  Entra doesn't know, by system and browser without versions. Devices also in the list above say so.
+- **Actions:** Sign Out Everywhere (Revoke sessions, to Pending changes) and Deactivate in the
+  Admin Center, which opens the person's page there. Microsoft offers other apps no API to list
+  or deactivate a single installation; the admin center uses a private one.
+
 ### OneDrive (4d-1)
 
 Graph reads the drive (`users/{id}/drive`: quota, web address, site ID); a 404 means no OneDrive

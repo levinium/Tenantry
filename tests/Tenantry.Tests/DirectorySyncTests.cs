@@ -55,6 +55,11 @@ public class DirectorySyncTests
             """)
         .On(HttpMethod.Get, "/reports/authenticationMethods/userRegistrationDetails", """
             {"value":[{"id":"u1","isAdmin":true,"isMfaRegistered":false,"methodsRegistered":["email"],"userPreferredMethodForSecondaryAuthentication":"none"}]}
+            """)
+        .On(HttpMethod.Get, "getOffice365ActivationsUserDetail", """
+            {"value":[{"userPrincipalName":"ada@contoso.example","displayName":"Ada","userActivationCounts":[
+              {"productType":"MICROSOFT 365 APPS FOR BUSINESS","lastActivatedDate":"2026-10-12","windows":3,"mac":1,"windows10Mobile":0,"ios":1,"android":0,"activatedOnSharedComputer":false},
+              {"productType":"OFFICE MOBILE APPS FOR OFFICE 365","lastActivatedDate":null,"windows":0,"mac":0,"windows10Mobile":0,"ios":2,"android":0,"activatedOnSharedComputer":false}]}]}
             """);
 
     static GraphClient Graph(FakeHttp http) => new(http.Client(), new FakeTokens(), delay: NoDelay.Instance);
@@ -77,6 +82,11 @@ public class DirectorySyncTests
         // From the MFA registration report: an admin with only email registered.
         Assert.Equal((false, true), (ada.Security!.MfaRegistered, ada.Security.IsAdmin));
         Assert.Null(users.Single(u => u.Id == "u2").Security);
+        // From the activation report: the busiest product counts against the limit; someone missing from it activated nothing.
+        Assert.Equal((4, 2), (OfficeActivations.Computers(ada.Activations), OfficeActivations.Mobile(ada.Activations)));
+        Assert.Equal(new DateOnly(2026, 10, 12), OfficeActivations.LastActivated(ada.Activations));
+        Assert.Equal(0, OfficeActivations.Computers(users.Single(u => u.Id == "u2").Activations));
+        Assert.Equal(4, OfficeActivations.Computers((await new CachedTenantDirectory(store, "Contoso").GetUserAsync("u1", Ct))!.Activations));
         Assert.DoesNotContain(users, u => u.Id == "ghost");
         Assert.Equal($"{Base}users/delta?$deltatoken=d1", store.GetMark(DirectorySync.Users)!.Cursor);
         Assert.Equal(Now, sync.LastSyncedAt);
@@ -134,6 +144,7 @@ public class DirectorySyncTests
         var http = new FakeHttp()
             .On(HttpMethod.Get, "users?$select=id,signInActivity", """{"error":{"code":"Authentication_RequestFromNonPremiumTenantOrB2CTenant","message":"premium"}}""", HttpStatusCode.Forbidden)
             .On(HttpMethod.Get, "/reports/authenticationMethods", """{"error":{"code":"Authentication_RequestFromNonPremiumTenantOrB2CTenant","message":"premium"}}""", HttpStatusCode.Forbidden)
+            .On(HttpMethod.Get, "getOffice365ActivationsUserDetail", """{"error":{"code":"UnknownError","message":"no reports role"}}""", HttpStatusCode.Forbidden)
             .On(HttpMethod.Get, "/subscribedSkus", """{"value":[]}""")
             .On(HttpMethod.Get, "users/delta?$select", $$"""{"value":[{"id":"u1","displayName":"Ada"}],"@odata.deltaLink":"{{Base}}users/delta?$deltatoken=d1"}""")
             .On(HttpMethod.Get, "groups/delta?$select", $$"""{"value":[],"@odata.deltaLink":"{{Base}}groups/delta?$deltatoken=gd1"}""")

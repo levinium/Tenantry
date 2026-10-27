@@ -131,7 +131,26 @@ public sealed partial class DemoTenantDirectory : ITenantDirectory
         var registered = random.NextDouble() > 0.12;
         var admin = u.Kind == UserKind.Member && random.NextDouble() < 0.04;
         string[] methods = registered ? random.NextDouble() < 0.7 ? ["microsoftAuthenticatorPush", "mobilePhone"] : ["mobilePhone"] : ["email"];
-        return u with { Security = new UserSecurity(registered, admin, methods, registered ? methods[0] : null) };
+        return WithActivations(u with { Security = new UserSecurity(registered, admin, methods, registered ? methods[0] : null) });
+    }
+
+    /// <summary>Microsoft 365 Apps for licensed members: usually one or two computers, sometimes near the limit of five, plus their phone.</summary>
+    static UserSummary WithActivations(UserSummary u)
+    {
+        if (u.Kind != UserKind.Member || u.Licenses.Count == 0 || u.Mailbox?.Type is "Shared" or "Room" or "Equipment")
+            return u with { Activations = [] };
+        var random = new Random(DemoUserRecords.StableSeed(u.Id) + 41);
+        var windows = random.NextDouble() < 0.08 ? random.Next(4, 6) : random.Next(1, 3);
+        var mac = random.NextDouble() < 0.15 ? 1 : 0;
+        var last = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-random.Next(1, 200)));
+        return u with
+        {
+            Activations =
+            [
+                new OfficeActivation("MICROSOFT 365 APPS FOR BUSINESS", last, windows, mac, 0, 0, 0, false),
+                new OfficeActivation("OFFICE MOBILE APPS FOR OFFICE 365", null, 0, 0, 0, random.Next(0, 2), random.Next(0, 2), false),
+            ],
+        };
     }
 
     /// <summary>
