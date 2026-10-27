@@ -309,6 +309,33 @@ Sites, and OneDrives.
   outside the organization, locked.
 - **Missing role:** without SharePoint Administrator the part is skipped with a note.
 
+### Site page (7b)
+
+Opening a site or OneDrive opens its page. Tabs: Overview (storage, plus activity from Microsoft's
+30-day usage report), Permissions, Sharing and Libraries. The last three read the site's own REST
+API (`{site}/_api/web/…`). The tenant's SharePoint token covers every host, OneDrives included.
+
+- **No access:** SharePoint shows a site's contents only to its members and admins. Being a
+  SharePoint or Global Administrator isn't enough (seen live: "Forbidden" on most sites), and an
+  archived site can't be read at all. Each tab says which, in plain words
+  (`UnauthorizedAccessException` → the note).
+- **Permissions:** site admins (`SiteUsers?$filter=IsSiteAdmin eq true`), then the Owners, Members
+  and Visitors groups (`AssociatedOwnerGroup…`), then the site's own groups.
+- **Claims:** sorted by `GraphUserRecords.Principal`:
+  - people and guests (`#ext#`, `urn:spo:guest`);
+  - a Microsoft 365 group's members or owners (`federateddirectoryclaimprovider|{id}[_o]`);
+  - Entra security groups;
+  - "Everyone" and "Everyone except external users";
+  - SharePoint's own accounts, which are hidden.
+- **Sharing links:** each link is a group `SharingLinks.{item}.{kind}.{link}`: Anonymous… means
+  anyone, Organization… means people in the organization, Flexible means specific people (its
+  members are the people). Guests are site users with guest claims.
+- **Libraries:** `lists?$filter=Hidden eq false` with item counts. A library opens to its 10
+  newest files. In a big library SharePoint refuses to sort (the list threshold, seen at 57,891
+  files), and the row says so.
+- **Activity:** the sites report is matched by site ID. The OneDrive report has no address, so it
+  is matched by the owner's sign-in name (seen live). Reports are cached for 30 minutes.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

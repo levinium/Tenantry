@@ -3,7 +3,7 @@
              xmlns:rec="using:Tenantry.ViewModels.Records"
              xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.DeviceSectionStatusView"
-             x:DataType="rec:DeviceSection">
+             x:DataType="rec:LiveSection">
   <!-- A device tab's wheel while it reads, and its note when something can't be shown. -->
   <StackPanel Spacing="8">
     <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">

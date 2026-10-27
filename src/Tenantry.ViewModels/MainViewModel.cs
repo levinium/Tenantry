@@ -65,13 +65,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         // SharePoint: one local copy of every site collection, shown as Sites and as OneDrives.
         object SitePreview(SiteSummary s) => new Records.SitePreviewViewModel(s, _index, OpenUser, OpenGroup);
         var sites = DataListViewModel.Create(SiteList.Sites(SitePreview), async ct => (await LoadSitesAsync(ct)).Where(s => s.Kind != SiteKind.OneDrive).ToArray(),
-            row => SharePoint!.Sites.PreviewRow(row), tenant.ListState, _now);
+            row => OpenSite((SiteSummary)row), tenant.ListState, _now);
         var oneDrives = DataListViewModel.Create(SiteList.OneDrives(SitePreview), async ct => (await LoadSitesAsync(ct)).Where(s => s.Kind == SiteKind.OneDrive).ToArray(),
-            row => SharePoint!.OneDrives.PreviewRow(row), tenant.ListState, _now);
+            row => OpenSite((SiteSummary)row), tenant.ListState, _now);
         foreach (var list in new[] { sites, oneDrives })
         {
-            // Site pages arrive in 7b: opening one shows it in the preview until then.
-            list.HasRecordPages = false;
+
             list.PrimaryAction = HasSync ? new ListPrimaryAction("Refresh Sites", "ArrowSync", true,
                 "Read sites and OneDrives from SharePoint again now (they're otherwise read hourly)", () => _ = RefreshSitesAsync()) : null;
         }
@@ -144,6 +143,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     public SharePointAreaViewModel SharePoint { get; }
 
     IReadOnlyList<SiteSummary> _sites = [];
+
+    /// <summary>Opens a site's or OneDrive's page, or switches to it if it is already open.</summary>
+    public void OpenSite(SiteSummary site) =>
+        OpenTab(t => t is SiteDetailViewModel p && p.Site.Id == site.Id,
+            () => new SiteDetailViewModel(site, _tenant.Records as ISiteRecords, _index, OpenUser, OpenGroup));
 
     async Task<IReadOnlyList<SiteSummary>> LoadSitesAsync(CancellationToken cancellationToken) =>
         _sites = await _tenant.Directory.GetSitesAsync(cancellationToken);
@@ -759,7 +763,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             {
                 SelectedSection = Sections.First(x => x.Key == "sharepoint");
                 SharePoint.SelectedPage = SharePointAreaViewModel.Pages[isDrive ? 1 : 0];
-                (isDrive ? SharePoint.OneDrives : SharePoint.Sites).PreviewRow(s);
+                OpenSite(s);
             }));
         }
         foreach (var (section, list) in AreaLists)

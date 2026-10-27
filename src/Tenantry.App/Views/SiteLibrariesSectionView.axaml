@@ -1,0 +1,82 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:dir="using:Tenantry.Core.Directory"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:conv="using:Tenantry.App.Converters"
+             x:Class="Tenantry.App.Views.SiteLibrariesSectionView"
+             x:DataType="rec:SiteLibrariesSection">
+  <UserControl.Resources>
+    <!-- A library: open it in the browser, or expand it to its latest files. -->
+    <DataTemplate x:Key="Library" x:DataType="rec:LibraryRow">
+      <Border Classes="valuerow">
+        <StackPanel Spacing="8">
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <Button Classes="ghost" Command="{Binding ToggleCommand}" IsHitTestVisible="{Binding CanExpand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                    Padding="0" ToolTip.Tip="Show or hide its latest files">
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Spacing="1">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                  <TextBlock Classes="caption" Text="{Binding Detail}" />
+                </StackPanel>
+                <Panel Grid.Column="2" VerticalAlignment="Center" IsVisible="{Binding CanExpand}">
+                  <ic:FluentIcon Icon="ChevronDown" FontSize="12" IsVisible="{Binding !IsExpanded}" />
+                  <ic:FluentIcon Icon="ChevronUp" FontSize="12" IsVisible="{Binding IsExpanded}" />
+                </Panel>
+              </Grid>
+            </Button>
+            <Button Grid.Column="1" Classes="rowaction" Command="{Binding OpenCommand}" VerticalAlignment="Center" ToolTip.Tip="Open it in the browser">
+              <ic:FluentIcon Icon="Open" FontSize="14" />
+            </Button>
+          </Grid>
+          <StackPanel Spacing="4" Margin="28,0,0,0" IsVisible="{Binding IsExpanded}">
+            <TextBlock Classes="muted" Text="Reading its latest files…" IsVisible="{Binding IsLoading}" />
+            <TextBlock Classes="caption" Text="{Binding Note}" IsVisible="{Binding HasNote}" TextWrapping="Wrap" />
+            <ItemsControl ItemsSource="{Binding Recent}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="dir:RecentFile">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,2">
+                    <SelectableTextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                      <TextBlock Classes="caption" Text="{Binding By}" />
+                      <TextBlock Classes="caption" Text="{Binding Modified, StringFormat='{}{0:d MMM yyyy h:mm tt}'}" />
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+  </UserControl.Resources>
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <views:DeviceSectionStatusView />
+    <Border Classes="card">
+      <StackPanel Spacing="10">
+        <TextBlock Classes="h3" Text="Document Libraries" />
+        <ItemsControl ItemsSource="{Binding Libraries}" ItemTemplate="{StaticResource Library}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+    <Border Classes="card" IsVisible="{Binding HasLists}">
+      <StackPanel Spacing="10">
+        <TextBlock Classes="h3" Text="Lists" />
+        <ItemsControl ItemsSource="{Binding Lists}" ItemTemplate="{StaticResource Library}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

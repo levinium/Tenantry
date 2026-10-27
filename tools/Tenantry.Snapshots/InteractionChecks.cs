@@ -586,7 +586,7 @@ static class InteractionChecks
             window.Close();
         });
 
-        Check("SharePoint: the sidebar opens Sites; the OneDrives tab switches lists; a name opens its preview with the owner", () =>
+        Check("SharePoint: the sidebar opens Sites; the OneDrives tab switches lists; a name opens its page with the owner", () =>
         {
             var (window, main, _) = OpenList();
             main.SharePoint.Sites.LoadAsync().GetAwaiter().GetResult();
@@ -599,8 +599,27 @@ static class InteractionChecks
             Settle();
             var drive = main.SharePoint.OneDrives.Rows.Cast<SiteSummary>().First();
             Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, drive) && b.IsEffectivelyVisible));
-            var preview = main.SharePoint.OneDrives.PreviewModel as SitePreviewViewModel;
-            Expect(preview?.Site == drive && preview.OwnerText == drive.OwnerName, "its preview shows its owner");
+            var page = main.SelectedTab as SiteDetailViewModel;
+            Expect(page?.Site == drive && page.Summary.OwnerText == drive.OwnerName, "its page opened, showing its owner");
+            // Every tab reads when shown, and a site the admin can't see inside says why instead of failing.
+            foreach (var section in page!.Sections)
+            {
+                page.SelectedSection = section;
+                for (var i = 0; i < 10; i++)
+                    Settle();
+            }
+            Expect(page.Sections.OfType<LiveSection>().All(s => !s.IsLoading), "every tab finished reading");
+            var locked = main.SharePoint.OneDrives.Rows.Cast<SiteSummary>().FirstOrDefault(s => s.IsArchived);
+            if (locked is not null)
+            {
+                main.OpenSite(locked);
+                var lockedPage = (SiteDetailViewModel)main.SelectedTab!;
+                var permissions = lockedPage.Sections.OfType<SitePermissionsSection>().Single();
+                lockedPage.SelectedSection = permissions;
+                for (var i = 0; i < 10; i++)
+                    Settle();
+                Expect(permissions.Note?.Contains("archived", StringComparison.Ordinal) == true, "an archived OneDrive says it's archived");
+            }
             window.Close();
         });
 

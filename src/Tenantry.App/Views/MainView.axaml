@@ -386,6 +386,9 @@
           <DataTemplate DataType="vm:DeviceDetailViewModel">
             <views:DeviceDetailView />
           </DataTemplate>
+          <DataTemplate DataType="vm:SiteDetailViewModel">
+            <views:SiteDetailView />
+          </DataTemplate>
           <DataTemplate DataType="vm:SharePointAreaViewModel">
             <views:SharePointAreaView />
           </DataTemplate>

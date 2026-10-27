@@ -645,6 +645,24 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "autopilot-light");
         editing.DevicesArea.SelectedPage = DevicesAreaViewModel.Pages[0];
 
+        // A site's page, every tab: a team site that's shared outside the organization.
+        editing.SharePoint.Sites.LoadAsync().GetAwaiter().GetResult();
+        editing.OpenSite(editing.SharePoint.Sites.Rows.Cast<SiteSummary>().Where(s => s.GroupId is not null).OrderByDescending(s => s.Sharing).ThenByDescending(s => s.IsTeam).First());
+        var sitePage = (SiteDetailViewModel)editing.SelectedTab!;
+        foreach (var section in sitePage.Sections)
+        {
+            sitePage.SelectedSection = section;
+            for (var i = 0; i < 20; i++)
+                Settle();
+            if (section is Tenantry.ViewModels.Records.SiteLibrariesSection libraries && libraries.Libraries.Count > 0)
+            {
+                libraries.Libraries[0].IsExpanded = true;
+                for (var i = 0; i < 10; i++)
+                    Settle();
+            }
+            Render(editing, $"site-{section.Key}-light", height: 1000);
+        }
+
         // New Group: a shared mailbox with two people given access.
         editing.Groups.RunPrimaryActionCommand.Execute(null);
         var newGroup = (Tenantry.ViewModels.Records.NewGroupViewModel)editing.Dialog!.Content;

@@ -8,15 +8,11 @@ using Tenantry.ViewModels.Editing;
 namespace Tenantry.ViewModels.Records;
 
 /// <summary>
-/// A tab of the device page. It reads once, the first time it's shown, with a wheel while it
-/// does; a read that isn't possible here (not managed by Intune, no role) leaves a note instead.
+/// A record page's tab that reads live: once, the first time it's shown, with a wheel while it
+/// does. A read that isn't possible here (no access, no role) leaves a note instead.
 /// </summary>
-public abstract partial class DeviceSection(DeviceDetailViewModel page) : RecordSection
+public abstract partial class LiveSection : RecordSection
 {
-    protected DeviceDetailViewModel Page => page;
-
-    protected DeviceSummary Device => page.Device;
-
     bool _loaded;
 
     [ObservableProperty]
@@ -43,6 +39,11 @@ public abstract partial class DeviceSection(DeviceDetailViewModel page) : Record
             await ReadAsync(cancellationToken);
             _loaded = true;
         }
+        catch (UnauthorizedAccessException e)
+        {
+            // Already in plain words (no access to a site's contents, an archived site).
+            Note = e.Message;
+        }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             Note = $"Couldn't read this: {Friendly.Message(e)}";
@@ -50,7 +51,13 @@ public abstract partial class DeviceSection(DeviceDetailViewModel page) : Record
         finally
         {
             IsLoading = false;
+            Loaded();
         }
+    }
+
+    /// <summary>After each read, for "nothing here" lines that depend on IsLoading.</summary>
+    protected virtual void Loaded()
+    {
     }
 
     /// <summary>Reads again next time it's shown (after changes to it were applied).</summary>
@@ -61,6 +68,14 @@ public abstract partial class DeviceSection(DeviceDetailViewModel page) : Record
     }
 
     protected abstract Task ReadAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>A tab of the device page.</summary>
+public abstract partial class DeviceSection(DeviceDetailViewModel page) : LiveSection
+{
+    protected DeviceDetailViewModel Page => page;
+
+    protected DeviceSummary Device => page.Device;
 
     /// <summary>Intune's tabs on a device Intune doesn't manage.</summary>
     protected const string NotManaged = "Intune doesn't manage this device, so it reports none of this. Enroll it in Intune to see it here.";

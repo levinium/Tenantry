@@ -11,7 +11,7 @@
     <DataTemplate x:Key="Policy" x:DataType="rec:DevicePolicyRow">
       <Border Classes="valuerow">
         <StackPanel Spacing="8">
-          <Button Classes="ghost" Command="{Binding ToggleCommand}" IsEnabled="{Binding CanExpand}" HorizontalAlignment="Stretch"
+          <Button Classes="ghost" Command="{Binding ToggleCommand}" IsHitTestVisible="{Binding CanExpand}" HorizontalAlignment="Stretch"
                   HorizontalContentAlignment="Stretch" Padding="0" ToolTip.Tip="Show or hide what it checks on this device">
             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
               <StackPanel Spacing="2">

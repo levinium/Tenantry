@@ -88,6 +88,21 @@
     <DataTemplate DataType="rec:DevicePreviewViewModel">
       <views:DevicePreviewView />
     </DataTemplate>
+    <DataTemplate DataType="rec:PrincipalRow">
+      <views:PrincipalRowView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:SiteOverviewSection">
+      <views:SiteOverviewSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:SitePermissionsSection">
+      <views:SitePermissionsSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:SiteSharingSection">
+      <views:SiteSharingSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:SiteLibrariesSection">
+      <views:SiteLibrariesSectionView />
+    </DataTemplate>
     <DataTemplate DataType="rec:SitePreviewViewModel">
       <views:SitePreviewView />
     </DataTemplate>

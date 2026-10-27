@@ -90,6 +90,13 @@ public sealed class SharePointAdmin(HttpClient http, ITokenSource tokens, GraphC
             $"{Text(loginName)}<Parameter Type=\"Boolean\">{(isAdmin ? "true" : "false")}</Parameter></Parameters></Method>",
             $"<Constructor Id=\"1\" TypeId=\"{TenantTypeId}\" />", cancellationToken);
 
+    /// <summary>
+    /// A GET on any site's REST API (<c>{siteUrl}/_api/…</c>), OneDrives included: the tenant's
+    /// SharePoint token covers every host (checked live).
+    /// </summary>
+    public async Task<JsonElement> GetSiteAsync(string url, CancellationToken cancellationToken = default) =>
+        JsonDocument.Parse(await SendAsync(HttpMethod.Get, url, null, "application/json;odata=nometadata", cancellationToken)).RootElement.Clone();
+
     /// <summary>The CSOM type of the filter Get-SPOSite passes (SPOSitePropertiesEnumerableFilter).</summary>
     const string SiteFilterTypeId = "{b92aeee2-c92c-4b67-abcc-024e471bc140}";
 

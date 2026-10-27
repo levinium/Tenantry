@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.SiteSharingSectionView"
+             x:DataType="rec:SiteSharingSection">
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <Border Classes="card">
+      <StackPanel Spacing="8">
+        <TextBlock Classes="h3" Text="External Sharing" />
+        <c:Badge Text="{Binding SettingText}" Kind="{Binding SettingKind}" HorizontalAlignment="Left" />
+        <TextBlock Text="{Binding SettingExplanation}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+    <views:DeviceSectionStatusView />
+    <Border Classes="card">
+      <StackPanel Spacing="10">
+        <StackPanel Spacing="2">
+          <TextBlock Classes="h3" Text="Sharing Links" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Links people made to share files and folders here, by who each lets in." />
+        </StackPanel>
+        <TextBlock Classes="muted" Text="Nobody has shared anything here with a link." IsVisible="{Binding HasNoLinks}" />
+        <ItemsControl ItemsSource="{Binding Links}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:LinkSummaryRow">
+              <Border Classes="valuerow">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <StackPanel Spacing="1">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                    <TextBlock Classes="caption" Text="{Binding Detail}" />
+                  </StackPanel>
+                  <c:Badge Grid.Column="1" Text="{Binding CountText}" Kind="{Binding Kind}" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <StackPanel Spacing="4" IsVisible="{Binding HasSharedWith}">
+          <TextBlock Classes="label" Text="SHARED WITH" />
+          <ItemsControl ItemsSource="{Binding SharedWith}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel Spacing="10">
+        <StackPanel Spacing="2">
+          <TextBlock Classes="h3" Text="Guests" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="People outside the organization who have been let into this site or something in it." />
+        </StackPanel>
+        <TextBlock Classes="muted" Text="No guests." IsVisible="{Binding HasNoGuests}" />
+        <ItemsControl ItemsSource="{Binding Guests}" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

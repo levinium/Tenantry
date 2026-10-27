@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.PrincipalRowView"
+             x:DataType="rec:PrincipalRow">
+  <!-- Someone with access: name (opens their record), what they are, their address. -->
+  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,3">
+    <StackPanel Spacing="1">
+      <Button Classes="link" Content="{Binding Name}" Command="{Binding OpenCommand}" IsVisible="{Binding CanOpen}" HorizontalAlignment="Left"
+              ToolTip.Tip="Open their record" />
+      <TextBlock Text="{Binding Name}" IsVisible="{Binding !CanOpen}" />
+      <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap" />
+    </StackPanel>
+    <c:Badge Grid.Column="1" Text="{Binding KindText}" Kind="{Binding KindKind}" VerticalAlignment="Center" />
+  </Grid>
+</UserControl>
