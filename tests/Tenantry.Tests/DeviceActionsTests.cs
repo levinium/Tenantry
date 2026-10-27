@@ -142,6 +142,23 @@ public sealed class DeviceActionsTests
     }
 
     [Fact]
+    public async Task Autopilot_profile_names_come_from_the_profiles_not_an_expand()
+    {
+        var http = new FakeHttp()
+            .On(HttpMethod.Get, "/windowsAutopilotDeploymentProfiles/p1/assignedDevices", """{"value":[{"id":"a1"}]}""")
+            .On(HttpMethod.Get, "/windowsAutopilotDeploymentProfiles?$select", """{"value":[{"id":"p1","displayName":"Standard Laptop"}]}""")
+            .On(HttpMethod.Get, "/windowsAutopilotDeviceIdentities", """
+                {"value":[{"id":"a1","serialNumber":"SN1","enrollmentState":"enrolled"},{"id":"a2","serialNumber":"SN2","enrollmentState":"notContacted"}]}
+                """);
+        var records = new GraphUserRecords(new GraphClient(http.Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore());
+
+        var devices = (await records.GetAutopilotDevicesAsync(Ct)).Value!;
+
+        Assert.Equal([("SN1", "Standard Laptop"), ("SN2", null)], devices.Select(d => (d.Serial, d.ProfileName)));
+        Assert.DoesNotContain(http.Requests, r => r.PathAndQuery.Contains("$expand", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Setting_a_group_tag_sends_it_and_reads_it_back()
     {
         var http = new FakeHttp()

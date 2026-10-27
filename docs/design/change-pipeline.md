@@ -274,8 +274,9 @@ Windows"). Rename, Change Primary User and Lost Mode are offered for one device 
 - **Command numbers:** `DeviceCommand` values are stored as numbers in the change log. New
   commands are added at the end only.
 - **Autopilot page:** Devices is now an area with two page tabs, Devices and Autopilot. Autopilot
-  is read live from beta `windowsAutopilotDeviceIdentities?$expand=deploymentProfile` when first
-  shown, and again on Refresh. Its views: no profile assigned, never set up, enrolled, no group
+  is read live from beta `windowsAutopilotDeviceIdentities` when first shown, and again on
+  Refresh. Expanding `deploymentProfile` on the list fails with a 500 (seen live), so profile
+  names come from `windowsAutopilotDeploymentProfiles/{id}/assignedDevices`. Its views: no profile assigned, never set up, enrolled, no group
   tag, not contacted in 180+ days. An enrolled device's preview links to its device page.
 - **Permissions:** Autopilot needs `DeviceManagementServiceConfig.ReadWrite.All`. Wipe, retire,
   locate, lost mode and key rotation need `DeviceManagementManagedDevices.PrivilegedOperations.All`.

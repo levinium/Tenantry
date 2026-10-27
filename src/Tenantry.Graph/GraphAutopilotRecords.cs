@@ -17,31 +17,44 @@ public sealed partial class GraphUserRecords : IAutopilotRecords
         List<JsonElement> items;
         try
         {
-            items = await Collect($"{AutopilotPath}?$expand=deploymentProfile", cancellationToken);
-        }
-        catch (GraphException e) when (e.Status == HttpStatusCode.BadRequest)
-        {
-            // The profile can't be expanded here: list without its name.
-            items = await TryCollectAsync(AutopilotPath, cancellationToken) ?? [];
+            // Not $expand=deploymentProfile: on the list Intune answers 500 (seen live). Names come from the profiles instead.
+            var profiles = ProfileNamesAsync(cancellationToken);
+            items = await Collect(AutopilotPath, cancellationToken);
+            var names = await profiles;
+            return new(items.Select(ToAutopilot)
+                .Select(d => names.TryGetValue(d.Id, out var name) ? d with { ProfileName = name } : d)
+                .OrderBy(d => d.Serial, StringComparer.OrdinalIgnoreCase).ToArray());
         }
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             return Available<IReadOnlyList<AutopilotDevice>>.Because(
                 "Autopilot needs an Intune role, and Tenantry's permission to read Intune's service settings (grant it from the banner at the top).");
         }
-        return new(items.Select(ToAutopilot).OrderBy(d => d.Serial, StringComparer.OrdinalIgnoreCase).ToArray());
     }
 
-    async Task<List<JsonElement>?> TryCollectAsync(string path, CancellationToken cancellationToken)
+    /// <summary>
+    /// Each Autopilot device's profile name, by device ID: a tenant has a handful of profiles, each
+    /// listing the devices assigned to it. Empty when they can't be read; the list still shows.
+    /// </summary>
+    async Task<Dictionary<string, string>> ProfileNamesAsync(CancellationToken cancellationToken)
     {
+        var names = new Dictionary<string, string>(StringComparer.Ordinal);
         try
         {
-            return await Collect(path, cancellationToken);
+            foreach (var profile in await Collect($"{Beta}deviceManagement/windowsAutopilotDeploymentProfiles?$select=id,displayName", cancellationToken))
+            {
+                if (Text(profile, "id") is not { } id || NonEmpty(profile, "displayName") is not { } name)
+                    continue;
+                foreach (var device in await Collect($"{Beta}deviceManagement/windowsAutopilotDeploymentProfiles/{id}/assignedDevices?$select=id", cancellationToken))
+                    if (Text(device, "id") is { } deviceId)
+                        names[deviceId] = name;
+            }
         }
-        catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+        catch (GraphException)
         {
-            return null;
+            // Profile names are a nicety: without them the column is empty.
         }
+        return names;
     }
 
     /// <summary>"pendingReset" → "Pending Reset", for states Microsoft adds later.</summary>
