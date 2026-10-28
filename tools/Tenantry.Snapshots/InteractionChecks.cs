@@ -1021,6 +1021,56 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("App Registrations: the page tab reads the list; a name opens the app's page; its Secrets tab shows the expired secret; Open Enterprise App opens the other half", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "appregs" }));
+            var area = main.SecurityArea;
+            for (var i = 0; i < 50 && area.Registrations.Total == 0; i++)
+                Settle();
+            Expect(area.ShowRegistrations && area.Registrations.Total > 0, "App Registrations is showing with apps");
+            var payroll = area.Registrations.Rows.Cast<AppRegistration>().First(r => r.Name == "Payroll Export");
+            Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, payroll) && b.IsEffectivelyVisible));
+            var page = main.SelectedTab as AppRegistrationPageViewModel;
+            Expect(page?.App.Id == payroll.Id, "the app's page opened");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<TabItem>().First(t => t.DataContext is AppSection { Key: "credentials" }));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var credentials = (AppSection)page!.SelectedSection!;
+            Expect(credentials.Key == "credentials" && credentials.Cards[0].RowItems.Any(r => r.Badges.Any(b => b.Text == "Expired")), "the expired secret is flagged");
+            Click(window, FindButton(window, b => b.Command == page.OpenPartnerCommand && b.IsEffectivelyVisible));
+            Expect(main.SelectedTab is EnterpriseAppPageViewModel { App.Name: "Payroll Export" }, "its enterprise app's page opened");
+            window.Close();
+        });
+
+        Check("Enterprise Apps: the page tab lists apps; a name opens its page; Permissions shows who consented, with their scopes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "enterprise" }));
+            var area = main.SecurityArea;
+            for (var i = 0; i < 50 && area.EnterpriseApps.Total == 0; i++)
+                Settle();
+            var fabrikam = area.EnterpriseApps.Rows.Cast<EnterpriseApp>().FirstOrDefault(r => r.Name == "Fabrikam Whiteboard");
+            Expect(fabrikam is not null, "the third-party app is in the default view");
+            Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, fabrikam) && b.IsEffectivelyVisible));
+            var page = main.SelectedTab as EnterpriseAppPageViewModel;
+            Expect(page?.App.Id == fabrikam!.Id, "the app's page opened");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<TabItem>().First(t => t.DataContext is AppSection { Key: "permissions" }));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var permissions = (AppSection)page!.SelectedSection!;
+            Expect(permissions.Cards.Count == 3 && permissions.Cards[2].RowItems.Count == 2 && permissions.Cards[2].RowItems.All(r => r.HasChips),
+                "the two people who consented are listed with their scopes");
+            Expect(window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "Files.ReadWrite" && t.IsEffectivelyVisible), "the scopes show as chips");
+            window.Close();
+        });
+
         Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
         {
             var (window, main, _) = OpenList();

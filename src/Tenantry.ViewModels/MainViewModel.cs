@@ -94,9 +94,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             tenant.Changes is null ? "This tenant can't be edited" : _manageRoles.Reason, tenant.Account, _index,
             tenant.Records as IConditionalAccessRecords, OpenCaPolicy,
             tenant.Changes is not null && Evaluate(Capabilities.ManageConditionalAccess).IsAvailable ? () => OpenCaEditor(null) : null,
-            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageConditionalAccess).Reason);
+            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageConditionalAccess).Reason,
+            tenant.Records as IAppRecords, OpenAppRegistration, OpenEnterpriseApp);
         SecurityArea.RolesRead += (_, _) => FollowRoles();
         SecurityArea.PoliciesRead += (_, _) => FollowPolicies();
+        SecurityArea.AppsRead += (_, _) => FollowApps();
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);
@@ -107,6 +109,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         SharePoint.Deleted.FollowSharedPreferences(shared);
         SecurityArea.Roles.FollowSharedPreferences(shared);
         SecurityArea.Policies.FollowSharedPreferences(shared);
+        SecurityArea.Registrations.FollowSharedPreferences(shared);
+        SecurityArea.EnterpriseApps.FollowSharedPreferences(shared);
         if (tenant.Changes is { } changes)
         {
             Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync);
@@ -265,6 +269,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         foreach (var page in Tabs.OfType<CaPolicyDetailViewModel>())
             if (directory.Policies.FirstOrDefault(p => p.Id == page.Policy.Id) is { } policy)
                 page.Update(CaPolicyRow.Of(policy, directory.Names));
+    }
+
+    static readonly AppDirectory NoApps = new([], []);
+
+    /// <summary>Opens an app registration's page, or switches to it if it is already open.</summary>
+    public void OpenAppRegistration(AppRegistration app) =>
+        OpenTab(t => t is AppRegistrationPageViewModel p && p.App.Id == app.Id,
+            () => new AppRegistrationPageViewModel(app, SecurityArea.Apps ?? NoApps, _tenant.Records as IAppRecords, _index, OpenUser, OpenEnterpriseApp, _now));
+
+    /// <summary>Opens an enterprise app's page, or switches to it if it is already open.</summary>
+    public void OpenEnterpriseApp(EnterpriseApp app) =>
+        OpenTab(t => t is EnterpriseAppPageViewModel p && p.App.Id == app.Id,
+            () => new EnterpriseAppPageViewModel(app, SecurityArea.Apps ?? NoApps, _tenant.Records as IAppRecords, _index, OpenUser, OpenGroup, OpenAppRegistration, _now));
+
+    /// <summary>Open app pages show the apps as just read.</summary>
+    void FollowApps()
+    {
+        if (SecurityArea.Apps is not { } directory)
+            return;
+        foreach (var page in Tabs.OfType<AppPageViewModel>().ToArray())
+            page.Update(directory);
     }
 
     /// <summary>Open role pages show the roles as just read.</summary>

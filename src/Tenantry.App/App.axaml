@@ -37,6 +37,12 @@
     <DataTemplate DataType="rec:CaPolicyPreviewViewModel">
       <views:CaPolicyPreviewView />
     </DataTemplate>
+    <DataTemplate DataType="rec:AppPreviewViewModel">
+      <views:AppPreviewView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:AppSection">
+      <views:AppSectionView />
+    </DataTemplate>
     <DataTemplate DataType="rec:RolePreviewViewModel">
       <views:RolePreviewView />
     </DataTemplate>

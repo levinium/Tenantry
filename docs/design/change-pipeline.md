@@ -497,6 +497,31 @@ Two more page tabs in Security & Compliance, read with the policies.
 - **Live:** a test IP location (documentation range, not trusted) made, renamed with a second
   range, and deleted; the guard refused a delete of the real location with 0 requests sent.
 
+### App registrations and enterprise apps (8c-1)
+
+Two more page tabs in Security & Compliance, filled by one live read (applications with their
+owners, then service principals; about 2 s for several hundred) and refreshed together.
+
+- **App Registrations list:** credential state (Current, Expires Soon, Some Expired, Expired,
+  None), next expiry, who can sign in, permission and owner counts. Views for expired or expiring
+  credentials, no owners, and apps other organizations can sign in to.
+- **Enterprise Apps list:** where each comes from (this organization: its app ID matches a
+  registration here; Microsoft: owned by Microsoft's tenants; otherwise third party), sign-in on or
+  off, assignment required, visible, single sign-on. The default view matches Entra's (apps tagged
+  as integrated); other views: third party, this organization's, sign-in off, SSO set up, all.
+- **App pages** share one layout: a header with flags and Open in Admin Center, plus a link to the
+  app's other half when both are here. Tabs are cards of rows. A registration has Overview
+  (IDs, audience, redirect URIs), Secrets & Certificates (status, hint or thumbprint, dates), API
+  Permissions (named from each API's scopes and app roles, with whether admin consent covers
+  each) and Owners. An enterprise app has Overview (including last sign-in), Users & Groups,
+  Permissions (admin consent, application permissions, and people who consented for themselves,
+  with their scopes) and Owners.
+- **Reads:** a page's details load once, in parallel, when a tab needs them (about 1 s). Last
+  sign-in comes from the beta sign-in activity report, which takes several seconds, so it fills in
+  on its own afterwards. A certificate's `customKeyIdentifier` is already a hex thumbprint.
+- **Read-only for now:** the actions (secrets, owners, consents, assignments, sign-in, delete)
+  come in 8c-2 through Pending changes.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

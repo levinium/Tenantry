@@ -24,6 +24,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         new("whatif", "What If", "QuestionCircle"),
         new("locations", "Named Locations", "Location"),
         new("strengths", "Authentication Strengths", "ShieldKeyhole"),
+        new("appregs", "App Registrations", "AppFolder"),
+        new("enterprise", "Enterprise Apps", "Apps"),
         new("roles", "Admin Roles", "PersonKey"),
         new("myroles", "My Roles", "PersonStar"),
         new("approvals", "Approvals", "ApprovalsApp"),
@@ -33,7 +35,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     /// <param name="newRole">Opens the custom-role editor for a new role; null when the admin can't edit.</param>
     public SecurityAreaViewModel(IRoleRecords? roles, ChangePipeline? pipeline, IListStateStore? listState, Func<DateTimeOffset> now,
         Action<RoleSummary> openRole, Action? newRole, string? cantEditReason, string? me = null, IDirectoryIndex? index = null,
-        IConditionalAccessRecords? ca = null, Action<CaPolicyRow>? openPolicy = null, Action? newPolicy = null, string? cantEditPolicies = null)
+        IConditionalAccessRecords? ca = null, Action<CaPolicyRow>? openPolicy = null, Action? newPolicy = null, string? cantEditPolicies = null,
+        IAppRecords? apps = null, Action<AppRegistration>? openRegistration = null, Action<EnterpriseApp>? openEnterprise = null)
     {
         _roles = roles;
         _ca = ca;
@@ -46,6 +49,13 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         WhatIf = new Records.WhatIfViewModel(ca, index ?? EmptyIndex.Instance);
         NamedLocations = new Records.LocationsViewModel(this, pipeline, newPolicy is not null, cantEditPolicies);
         AuthStrengths = new Records.StrengthsViewModel(this);
+        _apps = apps;
+        Registrations = DataListViewModel.Create(AppList.Registrations(a => RegistrationPreview(a, now(), openRegistration), now),
+            async ct => (await ReadAppsAsync(ct))?.Registrations ?? [], row => openRegistration?.Invoke((AppRegistration)row), listState, now);
+        Registrations.EmptyText = "No app registrations match.";
+        EnterpriseApps = DataListViewModel.Create(AppList.Enterprise(a => EnterprisePreview(a, openEnterprise)),
+            async ct => (await ReadAppsAsync(ct))?.EnterpriseApps ?? [], row => openEnterprise?.Invoke((EnterpriseApp)row), listState, now);
+        EnterpriseApps.EmptyText = "No apps match.";
         if (pipeline is not null)
             pipeline.Applied += (_, applied) =>
             {
@@ -149,14 +159,104 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals), nameof(ShowPolicies), nameof(ShowWhatIf), nameof(ShowLocations),
-        nameof(ShowStrengths))]
+        nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps))]
     public partial MailSecurityPage SelectedPage { get; set; }
+
+    // ---- Apps (8c) -------------------------------------------------------------------------------
+
+    readonly IAppRecords? _apps;
+    Task<AppDirectory?>? _appsRead;
+    bool _appsShown;
+
+    /// <summary>App registrations (8c).</summary>
+    public DataListViewModel Registrations { get; }
+
+    /// <summary>Enterprise apps (service principals) (8c).</summary>
+    public DataListViewModel EnterpriseApps { get; }
+
+    /// <summary>The apps as last read, for open app pages.</summary>
+    public AppDirectory? Apps { get; private set; }
+
+    /// <summary>Raised after each read of the apps.</summary>
+    public event EventHandler? AppsRead;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAppsNote))]
+    public partial string? AppsNote { get; private set; }
+
+    public bool HasAppsNote => AppsNote is not null;
+
+    /// <summary>One read serves both lists; Refresh starts a new one.</summary>
+    Task<AppDirectory?> ReadAppsAsync(CancellationToken cancellationToken) => _appsRead ??= ReadAppsNowAsync(cancellationToken);
+
+    async Task<AppDirectory?> ReadAppsNowAsync(CancellationToken cancellationToken)
+    {
+        if (_apps is null)
+        {
+            AppsNote = "Apps aren't available for this tenant.";
+            return null;
+        }
+        try
+        {
+            Apps = await _apps.GetAppsAsync(cancellationToken);
+            AppsNote = null;
+            AppsRead?.Invoke(this, EventArgs.Empty);
+            return Apps;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            AppsNote = $"Couldn't read apps: {Friendly.Message(e)}";
+            _appsRead = null;
+            return null;
+        }
+    }
+
+    [RelayCommand]
+    async Task RefreshApps()
+    {
+        _appsRead = null;
+        await Task.WhenAll(Registrations.ReloadAsync(busyText: "Reading apps from Entra…"), EnterpriseApps.ReloadAsync(busyText: "Reading apps from Entra…"));
+    }
+
+    static Records.AppPreviewViewModel RegistrationPreview(AppRegistration a, DateTimeOffset now, Action<AppRegistration>? open)
+    {
+        var state = a.CredentialState(now);
+        var badge = AppList.CredentialBadge(state);
+        return new Records.AppPreviewViewModel(a.Name, a.AppId,
+            badge.Text.Length > 0 ? [new Records.HealthChip($"Credentials {badge.Text}", badge.Kind, "Its client secrets and certificates")] : [],
+            [
+                new("Who Can Sign In", AppRegistration.AudienceText(a.Audience)),
+                new("Secrets", $"{a.Credentials.Count(c => c.IsSecret):N0}"),
+                new("Certificates", $"{a.Credentials.Count(c => !c.IsSecret):N0}"),
+                new("Next Expiry", a.NextExpiry(now) is { } end ? end.ToLocalTime().ToString("d MMM yyyy", System.Globalization.CultureInfo.CurrentCulture) : "None"),
+                new("API Permissions", $"{a.Requested.Count:N0}"),
+                new("Owners", a.Owners.Count == 0 ? "Nobody" : string.Join(", ", a.Owners.Select(o => o.Name))),
+            ],
+            "Open App", open is null ? null : () => open(a));
+    }
+
+    static Records.AppPreviewViewModel EnterprisePreview(EnterpriseApp a, Action<EnterpriseApp>? open) =>
+        new(a.Name, a.Publisher is { } p ? $"{p}{(a.IsVerifiedPublisher ? " (verified)" : "")}" : a.AppId,
+            [
+                .. a.IsEnabled ? Array.Empty<Records.HealthChip>() : [new Records.HealthChip("Sign-In Off", BadgeKind.Warning, "Nobody can sign in to it")],
+                new Records.HealthChip(EnterpriseApp.SourceText(a.Source), a.Source == AppSource.ThirdParty ? BadgeKind.Info : BadgeKind.Neutral, "Who makes it"),
+            ],
+            [
+                new("Application ID", a.AppId),
+                new("Assignment", a.AssignmentRequired ? "Required" : "Not required"),
+                new("Visible to People", a.IsVisible ? "Yes" : "No"),
+                new("Single Sign-On", EnterpriseApp.SsoText(a.SsoMode) ?? "None"),
+                new("Type", a.Type),
+            ],
+            "Open App", open is null ? null : () => open(a));
 
     public bool ShowRoles => SelectedPage.Key == "roles";
     public bool ShowPolicies => SelectedPage.Key == "ca";
     public bool ShowWhatIf => SelectedPage.Key == "whatif";
     public bool ShowLocations => SelectedPage.Key == "locations";
     public bool ShowStrengths => SelectedPage.Key == "strengths";
+    public bool ShowRegistrations => SelectedPage.Key == "appregs";
+    public bool ShowEnterpriseApps => SelectedPage.Key == "enterprise";
     public bool ShowMyRoles => SelectedPage.Key == "myroles";
     public bool ShowApprovals => SelectedPage.Key == "approvals";
 
@@ -170,6 +270,12 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         }
         if (ShowPolicies || ShowLocations || ShowStrengths)
             ReadPolicies();
+        if ((ShowRegistrations || ShowEnterpriseApps) && !_appsShown)
+        {
+            _appsShown = true;
+            _ = Registrations.LoadAsync();
+            _ = EnterpriseApps.LoadAsync();
+        }
         if (ShowMyRoles)
             MyRoles.Shown();
         if (ShowApprovals)

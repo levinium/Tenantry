@@ -1,0 +1,100 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.AppSectionView"
+             x:DataType="rec:AppSection">
+  <!-- A tab of an app's page: its cards, each with facts and rows. -->
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <views:DeviceSectionStatusView />
+    <ItemsControl ItemsSource="{Binding Cards}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="12" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:AppCard">
+          <Border Classes="card">
+            <StackPanel Spacing="10">
+              <StackPanel Spacing="2">
+                <TextBlock Classes="h3" Text="{Binding Title}" />
+                <TextBlock Classes="caption" Text="{Binding Caption}" IsVisible="{Binding HasCaption}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ItemsControl ItemsSource="{Binding FactLines}" IsVisible="{Binding HasFacts}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="8" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="rec:SummaryLine">
+                    <Grid ColumnDefinitions="170,*" ColumnSpacing="12">
+                      <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                      <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Classes="muted" Text="{Binding EmptyText}" IsVisible="{Binding ShowEmpty}" TextWrapping="Wrap" />
+              <ItemsControl ItemsSource="{Binding RowItems}" IsVisible="{Binding HasRows}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="6" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="rec:AppRow">
+                    <Border Classes="valuerow">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <StackPanel Spacing="3">
+                          <WrapPanel ItemSpacing="8" LineSpacing="4">
+                            <Button Classes="namelink" Content="{Binding Title}" Command="{Binding OpenCommand}" IsVisible="{Binding CanOpen}" ToolTip.Tip="Open their page" />
+                            <SelectableTextBlock Text="{Binding Title}" FontWeight="SemiBold" IsVisible="{Binding !CanOpen}" VerticalAlignment="Center" />
+                            <ItemsControl ItemsSource="{Binding Badges}">
+                              <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                  <WrapPanel ItemSpacing="6" LineSpacing="4" />
+                                </ItemsPanelTemplate>
+                              </ItemsControl.ItemsPanel>
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="rec:HealthChip">
+                                  <c:Badge Text="{Binding Text}" Kind="{Binding Kind}" ToolTip.Tip="{Binding Tip}" />
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending changes" />
+                          </WrapPanel>
+                          <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap" />
+                          <SelectableTextBlock Text="{Binding Code}" IsVisible="{Binding HasCode}" TextWrapping="Wrap" FontSize="12"
+                                               FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
+                          <ItemsControl ItemsSource="{Binding Chips}" IsVisible="{Binding HasChips}" Margin="0,2,0,0">
+                            <ItemsControl.ItemsPanel>
+                              <ItemsPanelTemplate>
+                                <WrapPanel ItemSpacing="6" LineSpacing="6" />
+                              </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="x:String">
+                                <Border Classes="chip">
+                                  <TextBlock Text="{Binding}" />
+                                </Border>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="danger-outline" Content="{Binding ActionText}" Command="{Binding DoCommand}" IsVisible="{Binding HasAction}"
+                                ToolTip.Tip="{Binding ActionTip}" VerticalAlignment="Top" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.AppPreviewView"
+             x:DataType="rec:AppPreviewViewModel">
+  <StackPanel Spacing="16">
+    <StackPanel Spacing="6">
+      <SelectableTextBlock Classes="h3" Text="{Binding Name}" TextWrapping="Wrap" />
+      <SelectableTextBlock Classes="caption" Text="{Binding Subtitle}" IsVisible="{Binding HasSubtitle}" TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding Badges}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="6" LineSpacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="rec:HealthChip">
+            <c:Badge Text="{Binding Text}" Kind="{Binding Kind}" ToolTip.Tip="{Binding Tip}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Button Classes="accent" Content="{Binding OpenText}" Command="{Binding OpenCommand}" IsVisible="{Binding CanOpen}" HorizontalAlignment="Left"
+              ToolTip.Tip="Its page, with everything about it" />
+    </StackPanel>
+
+    <ItemsControl ItemsSource="{Binding Facts}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="6" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:SummaryLine">
+          <Grid ColumnDefinitions="140,*" ColumnSpacing="8">
+            <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

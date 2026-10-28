@@ -810,6 +810,36 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
         Render(premium, "ca-strengths-light", height: 1100);
 
+        // Apps (8c-1): the registrations list, a registration's secrets, an enterprise app's permissions.
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
+        for (var i = 0; i < 20 && premium.SecurityArea.Registrations.Total == 0; i++)
+            Settle();
+        premium.SecurityArea.Registrations.SelectedRow =premium.SecurityArea.Registrations.Rows.Cast<AppRegistration>().First(r => r.Name == "Payroll Export");
+        Settle();
+        Render(premium, "apps-registrations-light", height: 900);
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "enterprise");
+        Settle();
+        Render(premium, "apps-enterprise-light", height: 900);
+        premium.OpenAppRegistration(premium.SecurityArea.Apps!.Registrations.First(r => r.Name == "Payroll Export"));
+        var registrationPage = (AppRegistrationPageViewModel)premium.SelectedTab!;
+        registrationPage.SelectedSection = registrationPage.Sections.Single(s => s.Key == "credentials");
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "app-registration-credentials-light", height: 1000);
+        registrationPage.SelectedSection = registrationPage.Sections.Single(s => s.Key == "permissions");
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "app-registration-permissions-light", height: 1000);
+        premium.OpenEnterpriseApp(premium.SecurityArea.Apps.EnterpriseApps.First(e => e.Name == "Fabrikam Whiteboard"));
+        var enterprisePage = (EnterpriseAppPageViewModel)premium.SelectedTab!;
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "app-enterprise-overview-light", height: 1100);
+        enterprisePage.SelectedSection = enterprisePage.Sections.Single(s => s.Key == "permissions");
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "app-enterprise-permissions-light", height: 1100);
+
         // New Group: a shared mailbox with two people given access.
         editing.Groups.RunPrimaryActionCommand.Execute(null);
         var newGroup = (Tenantry.ViewModels.Records.NewGroupViewModel)editing.Dialog!.Content;

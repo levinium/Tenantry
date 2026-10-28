@@ -401,6 +401,9 @@
           <DataTemplate DataType="vm:CaPolicyDetailViewModel">
             <views:CaPolicyDetailView />
           </DataTemplate>
+          <DataTemplate DataType="vm:AppPageViewModel">
+            <views:AppPageView />
+          </DataTemplate>
           <DataTemplate DataType="vm:RoleDetailViewModel">
             <views:RoleDetailView />
           </DataTemplate>

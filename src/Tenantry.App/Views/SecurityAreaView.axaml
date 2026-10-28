@@ -286,6 +286,57 @@
     </ScrollViewer>
     </Panel>
 
+    <!-- App registrations and enterprise apps (8c): read live together, with Refresh -->
+    <DockPanel IsVisible="{Binding ShowRegistrations}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshAppsCommand}" ToolTip.Tip="Read apps from Entra again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="Apps defined in this organization: how they sign in (secrets and certificates) and what they ask to do." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasAppsNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding AppsNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding Registrations}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+    <DockPanel IsVisible="{Binding ShowEnterpriseApps}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshAppsCommand}" ToolTip.Tip="Read apps from Entra again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="Every app people here can sign in to: who has access, and what they or an admin allowed it to do." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasAppsNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding AppsNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding EnterpriseApps}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
     <!-- Admin roles: read live, with Refresh; what PIM can't show here -->
     <DockPanel IsVisible="{Binding ShowRoles}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
