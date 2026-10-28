@@ -917,6 +917,63 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("New Policy: the button opens the editor; a template fills it (report-only, leaving you out); Done closes it with the policy in Pending changes", () =>
+        {
+            var (window, main, _) = OpenList(premium: true);
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            for (var i = 0; i < 50 && main.SecurityArea.Policies.Total == 0; i++)
+                Settle();
+            Settle();
+            var newPolicy = window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Command == main.SecurityArea.Policies.RunPrimaryActionCommand && b.IsEffectivelyVisible);
+            Expect(newPolicy is not null, "the New Policy button is showing");
+            Click(window, newPolicy!);
+            var editor = main.SelectedTab as CaPolicyEditorViewModel;
+            Expect(editor is { IsNew: true }, "the editor opened as a tab");
+            for (var i = 0; i < 20 && !editor!.ShowStarters; i++)
+                Settle();
+            var template = editor!.Templates.First(t => t.Name.Contains("legacy", StringComparison.OrdinalIgnoreCase));
+            Settle();
+            var start = window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Command == editor.StartCommand && ReferenceEquals(b.CommandParameter, template));
+            Expect(start is not null, $"the template's button is showing ({editor.Templates.Count} templates)");
+            Click(window, start!);
+            Settle();
+            Expect(editor.Name == template.Name && editor.State?.State == "enabledForReportingButNotEnforced", "the template filled it, in report-only");
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateCaPolicy), "the new policy is in Pending changes");
+            var done = FindButton(window, b => b.Command == editor.DoneCommand && b.IsEffectivelyVisible);
+            done.BringIntoView();
+            Settle();
+            Click(window, done);
+            Expect(!main.Tabs.Contains(editor) && main.Pending.Rows.Any(r => r.Change is CreateCaPolicy), "Done closed the editor and the policy stays pending");
+            window.Close();
+        });
+
+        Check("Edit Policy: the policy page opens the editor; ticking a kind of app stages one change to the policy", () =>
+        {
+            var (window, main, _) = OpenList(premium: true);
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            for (var i = 0; i < 50 && main.SecurityArea.Policies.Total == 0; i++)
+                Settle();
+            main.OpenCaPolicy(main.SecurityArea.Policies.Rows.Cast<CaPolicyRow>().First(r => r.Policy.Name == "Require MFA for everyone"));
+            var page = (CaPolicyDetailViewModel)main.SelectedTab!;
+            Settle();
+            Click(window, FindButton(window, b => b.Command == page.EditPolicyCommand && b.IsEffectivelyVisible));
+            var editor = main.SelectedTab as CaPolicyEditorViewModel;
+            Expect(editor is { IsNew: false } && !main.Pending!.Rows.Any(), "the editor opened on it with nothing pending yet");
+            Settle();
+            var any = window.GetVisualDescendants().OfType<CheckBox>().First(c => c.IsEffectivelyVisible && (c.Content as string) == "Any App");
+            any.BringIntoView();
+            Settle();
+            Click(window, any);
+            Settle();
+            var browser = window.GetVisualDescendants().OfType<CheckBox>().First(c => c.IsEffectivelyVisible && (c.Content as string) == "Browser");
+            browser.BringIntoView();
+            Settle();
+            Click(window, browser);
+            Expect(main.Pending!.Rows.Count(r => r.Change is UpdateCaPolicy) == 1, "one change to the policy is in Pending changes");
+            Expect(editor!.Lines.Any(l => l.Label == "Client Apps" && l.Value == "Browsers"), "the words beside it follow");
+            window.Close();
+        });
+
         Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
         {
             var (window, main, _) = OpenList();

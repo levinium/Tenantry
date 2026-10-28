@@ -90,6 +90,8 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(ReviewRoleRequest), "reviewRoleRequest")]
 [JsonDerivedType(typeof(SetCaPolicyState), "setCaPolicyState")]
 [JsonDerivedType(typeof(DeleteCaPolicy), "deleteCaPolicy")]
+[JsonDerivedType(typeof(CreateCaPolicy), "createCaPolicy")]
+[JsonDerivedType(typeof(UpdateCaPolicy), "updateCaPolicy")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -1587,4 +1589,33 @@ public sealed record DeleteCaPolicy(ChangeTarget Policy, string Detail) : CaPoli
     public override bool IsCaution => true;
     public override string? ConfirmPhrase => Policy.Name;
     public override bool IsNoChange => false;
+}
+
+/// <summary>A new policy from the editor, as Graph's JSON. One that starts On is a caution change.</summary>
+/// <param name="Policy">Kind "capolicy": Id and Name are the new policy's name.</param>
+/// <param name="Json">The whole policy (without read-only properties).</param>
+/// <param name="Description">The policy in a line, for the review.</param>
+public sealed record CreateCaPolicy(ChangeTarget Policy, string Json, string Description) : CaPolicyChange(Policy)
+{
+    public override string Key => "create";
+    public override string Label => $"New Policy \"{Policy.Name}\"";
+    public override string Before => "None";
+    public override string After => Description;
+    public override bool IsCaution => Json.Contains("\"state\":\"enabled\"", StringComparison.Ordinal);
+    public override bool IsNoChange => false;
+}
+
+/// <summary>
+/// An edit from the editor: the policy's name, state, conditions and controls as the editor left them
+/// (everything it didn't touch kept as Entra had it). Switching it On is a caution change.
+/// </summary>
+public sealed record UpdateCaPolicy(ChangeTarget Policy, string Json, string OldSummary, string NewSummary, bool TurnsOn) : CaPolicyChange(Policy)
+{
+    public override string Key => "edit";
+    public override string Label => $"Policy \"{Policy.Name}\"";
+    public override string Before => OldSummary;
+    public override string After => NewSummary;
+    public override bool IsCaution => TurnsOn;
+    public override bool IsNoChange => OldSummary == NewSummary && !TurnsOn;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is UpdateCaPolicy e ? this with { OldSummary = e.OldSummary } : this;
 }

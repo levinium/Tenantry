@@ -92,7 +92,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         SecurityArea = new SecurityAreaViewModel(tenant.Records as IRoleRecords, tenant.Changes, tenant.ListState, _now, OpenRole,
             tenant.Changes is not null && _manageRoles.IsAvailable && tenant.Records is IRoleRecords ? () => EditRole(null) : null,
             tenant.Changes is null ? "This tenant can't be edited" : _manageRoles.Reason, tenant.Account, _index,
-            tenant.Records as IConditionalAccessRecords, OpenCaPolicy);
+            tenant.Records as IConditionalAccessRecords, OpenCaPolicy,
+            tenant.Changes is not null && Evaluate(Capabilities.ManageConditionalAccess).IsAvailable ? () => OpenCaEditor(null) : null,
+            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageConditionalAccess).Reason);
         SecurityArea.RolesRead += (_, _) => FollowRoles();
         SecurityArea.PoliciesRead += (_, _) => FollowPolicies();
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
@@ -241,7 +243,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// <summary>Opens a Conditional Access policy's page, or switches to it if it is already open.</summary>
     public void OpenCaPolicy(CaPolicyRow row) =>
         OpenTab(t => t is CaPolicyDetailViewModel p && p.Policy.Id == row.Policy.Id,
-            () => new CaPolicyDetailViewModel(row, _tenant.Changes, Evaluate(Capabilities.ManageConditionalAccess)));
+            () => new CaPolicyDetailViewModel(row, _tenant.Changes, Evaluate(Capabilities.ManageConditionalAccess), p => OpenCaEditor(p)));
+
+    static readonly CaDirectory NoPolicies = new([], CaNames.Empty, []);
+
+    /// <summary>Opens the policy editor: a new policy, or one to change (its editor tab, if already open).</summary>
+    public void OpenCaEditor(CaPolicy? policy)
+    {
+        if (_tenant.Changes is not { } changes)
+            return;
+        OpenTab(t => policy is not null && t is CaPolicyEditorViewModel e && e.EditingId == policy.Id,
+            () => new CaPolicyEditorViewModel(policy, SecurityArea.CaDirectory ?? NoPolicies, changes, _tenant.Records as ICaEditingRecords,
+                _tenant.Records as IRoleRecords, _index, _tenant.Account, CloseTab));
+    }
 
     /// <summary>Open policy pages show the policies as just read.</summary>
     void FollowPolicies()

@@ -76,6 +76,9 @@ public static class TenantryPermissions
         // (listing it was refused without this, seen live).
         "DeviceManagementManagedDevices.PrivilegedOperations.All",
         "DeviceManagementServiceConfig.ReadWrite.All",
+        // Conditional Access (Phase 8, 2026-10-28): a policy can require accepting terms of use;
+        // listing them was refused without this (seen live).
+        "Agreement.Read.All",
     ]);
 
     public static readonly ApiPermissions Exchange = new(ExchangeAppId, "Office 365 Exchange Online", "https://outlook.office365.com",

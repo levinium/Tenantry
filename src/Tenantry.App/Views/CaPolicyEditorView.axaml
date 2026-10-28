@@ -1,0 +1,329 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:dir="using:Tenantry.Core.Directory"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.CaPolicyEditorView"
+             x:DataType="vm:CaPolicyEditorViewModel"
+             x:Name="Root">
+  <Grid ColumnDefinitions="*,380" ColumnSpacing="16" Margin="8,12,8,0">
+    <ScrollViewer>
+      <StackPanel Spacing="12" Margin="0,0,0,24">
+        <!-- Starting points for a new policy -->
+        <Border Classes="card" IsVisible="{Binding ShowStarters}">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Classes="h3" Text="Start From a Template" />
+                <TextBlock Classes="caption" TextWrapping="Wrap" Text="Microsoft's own starting points. Or start blank and choose everything yourself." />
+              </StackPanel>
+              <Button Grid.Column="1" Classes="outline" Content="Start Blank" Command="{Binding HideStartersCommand}" VerticalAlignment="Top" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Templates}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <UniformGrid Columns="2" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="dir:CaTemplate">
+                  <Button Classes="listrow" Command="{Binding #Root.((vm:CaPolicyEditorViewModel)DataContext).StartCommand}" CommandParameter="{Binding}"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,0,6,6">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="h3" Text="Name and State" />
+            </StackPanel>
+            <TextBox Text="{Binding Name}" PlaceholderText="Name, like Require MFA for admins" />
+            <ListBox ItemsSource="{Binding States}" SelectedItem="{Binding State}" Background="Transparent">
+              <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <UniformGrid Columns="3" />
+                </ItemsPanelTemplate>
+              </ListBox.ItemsPanel>
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:CaStateChoice">
+                  <StackPanel Spacing="2" Margin="2,4">
+                    <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                    <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </StackPanel>
+        </Border>
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="h3" Text="Who" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="The people it covers, and who it leaves out." />
+            </StackPanel>
+            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.WhoChoices}" SelectedItem="{Binding Who}" MinWidth="320" />
+            <StackPanel Spacing="8" IsVisible="{Binding WhoIsChosen}" Margin="16,0,0,0">
+              <TextBlock Classes="label" Text="PEOPLE" Margin="0,4,0,0" />
+              <views:ChipPickerView DataContext="{Binding IncludePeople}" />
+              <TextBlock Classes="label" Text="GROUPS" Margin="0,4,0,0" />
+              <views:ChipPickerView DataContext="{Binding IncludeGroups}" />
+              <TextBlock Classes="label" Text="ADMIN ROLES" Margin="0,4,0,0" />
+              <views:ChipPickerView DataContext="{Binding IncludeRoles}" />
+              <CheckBox IsChecked="{Binding IncludeGuests}" Content="Guests and External Users" />
+            </StackPanel>
+            <TextBlock Classes="label" Text="LEAVE OUT" Margin="0,4,0,0" />
+            <CheckBox IsChecked="{Binding LeaveMeOut}" IsVisible="{Binding CanLeaveMeOut}" Content="Me (Recommended, So It Can't Lock You Out)" />
+            <views:ChipPickerView DataContext="{Binding ExcludePeople}" />
+            <views:ChipPickerView DataContext="{Binding ExcludeGroups}" />
+            <views:ChipPickerView DataContext="{Binding ExcludeRoles}" />
+            <CheckBox IsChecked="{Binding ExcludeGuests}" Content="Guests and External Users" />
+          </StackPanel>
+        </Border>
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="h3" Text="Target Resources" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="The apps it covers, or a user action." />
+            </StackPanel>
+            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.TargetChoices}" SelectedItem="{Binding Target}" MinWidth="380" />
+            <StackPanel Spacing="6" IsVisible="{Binding AppsAreChosen}" Margin="16,0,0,0">
+              <views:AppPickerView DataContext="{Binding IncludeApps}" />
+            </StackPanel>
+            <StackPanel Spacing="6" IsVisible="{Binding IsAppTarget}">
+              <TextBlock Classes="label" Text="EXCEPT APPS" Margin="0,4,0,0" />
+              <views:AppPickerView DataContext="{Binding ExcludeApps}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="h3" Text="Conditions" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Narrow when it acts. Anything not set applies everywhere." />
+            </StackPanel>
+            <TextBlock Classes="label" Text="DEVICE PLATFORMS" Margin="0,4,0,0" />
+            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.PlatformModes}" SelectedItem="{Binding PlatformMode}" MinWidth="320" />
+            <StackPanel Spacing="6" IsVisible="{Binding PlatformsAreChosen}" Margin="16,0,0,0">
+              <ItemsControl ItemsSource="{Binding Platforms}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="16" LineSpacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ed:CheckOption">
+                  <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            </StackPanel>
+            <StackPanel Spacing="6" IsVisible="{Binding PlatformsSet}" Margin="16,0,0,0">
+              <TextBlock Classes="caption" Text="Except" />
+              <ItemsControl ItemsSource="{Binding ExcludePlatforms}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="16" LineSpacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ed:CheckOption">
+                  <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            </StackPanel>
+            <TextBlock Classes="label" Text="LOCATIONS" Margin="0,4,0,0" />
+            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.LocationModes}" SelectedItem="{Binding LocationMode}" MinWidth="320" />
+            <StackPanel Spacing="6" IsVisible="{Binding LocationsAreChosen}" Margin="16,0,0,0">
+              <views:ChipPickerView DataContext="{Binding IncludeLocations}" />
+            </StackPanel>
+            <StackPanel Spacing="6" IsVisible="{Binding LocationsSet}" Margin="16,0,0,0">
+              <CheckBox IsChecked="{Binding ExcludeTrusted}" Content="Except Trusted Locations" />
+              <views:ChipPickerView DataContext="{Binding ExcludeLocations}" />
+            </StackPanel>
+            <TextBlock Classes="label" Text="KINDS OF APP" Margin="0,4,0,0" />
+            <CheckBox IsChecked="{Binding AnyClientApp}" Content="Any App" />
+            <StackPanel IsVisible="{Binding ClientAppsAreChosen}" Margin="16,0,0,0">
+              <ItemsControl ItemsSource="{Binding ClientApps}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="16" LineSpacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ed:CheckOption">
+                  <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            </StackPanel>
+            <TextBlock Classes="label" Text="USER RISK (NEEDS ENTRA ID P2)" Margin="0,4,0,0" />
+            <ItemsControl ItemsSource="{Binding UserRisk}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="16" LineSpacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ed:CheckOption">
+                  <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Classes="label" Text="SIGN-IN RISK (NEEDS ENTRA ID P2)" Margin="0,4,0,0" />
+            <ItemsControl ItemsSource="{Binding SignInRisk}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="16" LineSpacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ed:CheckOption">
+                  <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Classes="label" Text="DEVICE FILTER" Margin="0,4,0,0" />
+            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.FilterModes}" SelectedItem="{Binding FilterMode}" MinWidth="320" />
+            <TextBox Text="{Binding FilterRule}" IsVisible="{Binding HasDeviceFilter}" PlaceholderText="device.trustType -eq &quot;ServerAD&quot;"
+                     FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
+            <TextBlock Classes="label" Text="AUTHENTICATION FLOWS" Margin="0,4,0,0" />
+            <ItemsControl ItemsSource="{Binding Flows}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="16" LineSpacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ed:CheckOption">
+                  <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="h3" Text="Grant" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="What a sign-in must do to get in." />
+            </StackPanel>
+            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.GrantModes}" SelectedItem="{Binding GrantMode}" MinWidth="380" />
+            <StackPanel Spacing="8" IsVisible="{Binding IsGrant}" Margin="16,0,0,0">
+              <ItemsControl ItemsSource="{Binding Controls}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="ed:CheckOption">
+                    <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" Margin="0,2" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Classes="caption" Text="Authentication Strength" VerticalAlignment="Center" />
+                <ComboBox ItemsSource="{Binding Strengths}" SelectedItem="{Binding Strength}" MinWidth="280" />
+              </StackPanel>
+              <StackPanel Spacing="4" IsVisible="{Binding HasTerms}">
+                <TextBlock Classes="caption" Text="Accepting Terms of Use" />
+                <ItemsControl ItemsSource="{Binding Terms}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="16" LineSpacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ed:CheckOption">
+                  <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+              </StackPanel>
+              <TextBlock Classes="caption" Text="{Binding TermsNote}" IsVisible="{Binding HasTermsNote}" TextWrapping="Wrap" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Classes="caption" Text="Require" VerticalAlignment="Center" />
+                <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.Operators}" SelectedItem="{Binding Operator}" MinWidth="200" />
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="h3" Text="Session" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="How the signed-in session behaves." />
+            </StackPanel>
+            <CheckBox IsChecked="{Binding AppEnforced}" Content="App-Enforced Restrictions (SharePoint and Exchange)" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="caption" Text="Defender for Cloud Apps" VerticalAlignment="Center" Width="170" />
+              <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.CloudAppModes}" SelectedItem="{Binding CloudApps}" MinWidth="220" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="caption" Text="Sign In Again" VerticalAlignment="Center" Width="170" />
+              <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.FrequencyModes}" SelectedItem="{Binding Frequency}" MinWidth="160" />
+              <NumericUpDown Value="{Binding FrequencyValue}" Minimum="1" Maximum="365" Increment="1" FormatString="0" Width="110" IsVisible="{Binding FrequencyIsTimed}" />
+              <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.FrequencyUnits}" SelectedItem="{Binding FrequencyUnit}" MinWidth="100" IsVisible="{Binding FrequencyIsTimed}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="caption" Text="Browser Sessions" VerticalAlignment="Center" Width="170" />
+              <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.BrowserModes}" SelectedItem="{Binding Browser}" MinWidth="240" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="caption" Text="Continuous Access Evaluation" VerticalAlignment="Center" Width="170" />
+              <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.CaeModes}" SelectedItem="{Binding Cae}" MinWidth="240" />
+            </StackPanel>
+            <CheckBox IsChecked="{Binding NoResilience}" Content="Turn Off Resilience Defaults" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- The policy in words, as it now stands; what's wrong; where it is -->
+    <ScrollViewer Grid.Column="1">
+      <StackPanel Spacing="12" Margin="0,0,0,24">
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h3" Text="The Policy" />
+            <ItemsControl ItemsSource="{Binding Lines}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="8" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="rec:SummaryLine">
+                  <StackPanel Spacing="1">
+                    <TextBlock Classes="label" Text="{Binding Label}" />
+                    <TextBlock Text="{Binding Value}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+        <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+                <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Classes="caption" Text="{Binding Status}" IsVisible="{Binding HasStatus}" TextWrapping="Wrap" />
+        <Button Classes="accent" Content="Done" Command="{Binding DoneCommand}" HorizontalAlignment="Left"
+                ToolTip.Tip="Close the editor; the policy stays in Pending changes until you apply or remove it" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

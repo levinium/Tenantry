@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:dir="using:Tenantry.Core.Directory"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.AppPickerView"
+             x:DataType="ed:AppPicker"
+             x:Name="Root">
+  <!-- Apps chosen as chips with ×; typing a name searches Entra's apps. -->
+  <StackPanel Spacing="6">
+    <ItemsControl ItemsSource="{Binding Items}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel ItemSpacing="6" LineSpacing="6" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="ed:PickOption">
+          <Border Classes="chip">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+              <Button Classes="chipx" Command="{Binding #Root.((ed:AppPicker)DataContext).RemoveCommand}" CommandParameter="{Binding}" ToolTip.Tip="Take it off">
+                <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+              </Button>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <TextBox Text="{Binding Query}" PlaceholderText="Find an app: type the start of its name" MaxWidth="420" HorizontalAlignment="Left" />
+    <TextBlock Classes="muted" Text="Searching…" IsVisible="{Binding IsSearching}" />
+    <ItemsControl ItemsSource="{Binding Results}" MaxWidth="420" HorizontalAlignment="Left">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="ed:PickOption">
+          <Button Classes="pickrow" Command="{Binding #Root.((ed:AppPicker)DataContext).PickCommand}" CommandParameter="{Binding}" HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Left">
+            <StackPanel Spacing="1">
+              <TextBlock Text="{Binding Name}" />
+              <TextBlock Classes="caption" Text="{Binding Detail}" />
+            </StackPanel>
+          </Button>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

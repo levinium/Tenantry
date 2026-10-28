@@ -212,7 +212,15 @@ public static class CaText
         Add("App Identity Risk", Join(Strings(c, "servicePrincipalRiskLevels")));
         Add("Insider Risk", c?["insiderRiskLevels"]?.GetValue<string>());
         Add("Device Filter", c?["devices"]?["deviceFilter"]?["rule"]?.GetValue<string>() is { } rule ? $"{c!["devices"]!["deviceFilter"]!["mode"]?.GetValue<string>()}: {rule}" : null);
-        Add("Authentication Flows", Strings(c?["authenticationFlows"], "transferMethods") is { Count: > 0 } flows ? Join(flows) : null);
+        // transferMethods is one comma-separated value ("deviceCodeFlow,authenticationTransfer").
+        Add("Authentication Flows", c?["authenticationFlows"]?["transferMethods"]?.GetValue<string>() is { Length: > 0 } flows
+            ? Join(flows.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(f => f switch
+            {
+                "deviceCodeFlow" => "device code sign-in",
+                "authenticationTransfer" => "authentication transfer",
+                _ => f,
+            }))
+            : null);
         Add("Then", Requires(policy, names));
         return lines;
 

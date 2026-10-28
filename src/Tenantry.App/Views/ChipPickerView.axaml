@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:dir="using:Tenantry.Core.Directory"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.ChipPickerView"
+             x:DataType="ed:ChipPicker"
+             x:Name="Root">
+  <!-- Chosen things as chips with ×, and a picker to add more. -->
+  <StackPanel Spacing="6">
+    <ItemsControl ItemsSource="{Binding Items}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel ItemSpacing="6" LineSpacing="6" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="ed:PickOption">
+          <Border Classes="chip">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+              <Button Classes="chipx" Command="{Binding #Root.((ed:ChipPicker)DataContext).RemoveCommand}" CommandParameter="{Binding}" ToolTip.Tip="Take it off">
+                <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+              </Button>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <views:PersonPickerView DataContext="{Binding Picker}" MaxWidth="420" HorizontalAlignment="Left" />
+  </StackPanel>
+</UserControl>

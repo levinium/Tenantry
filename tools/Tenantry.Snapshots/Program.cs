@@ -781,6 +781,17 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
         Render(premium, "ca-whatif-light", height: 1100);
 
+        // The policy editor (8b-2): a new policy's starters, then one from a template.
+        premium.OpenCaEditor(null);
+        var caEditor = (CaPolicyEditorViewModel)premium.SelectedTab!;
+        for (var i = 0; i < 20 && !caEditor.ShowStarters; i++)
+            Settle();
+        Render(premium, "ca-editor-starters-light", height: 1100);
+        caEditor.StartCommand.Execute(caEditor.Templates.First(t => t.Name.Contains("admins", StringComparison.Ordinal)));
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "ca-editor-light", height: 2400);
+
         // New Group: a shared mailbox with two people given access.
         editing.Groups.RunPrimaryActionCommand.Execute(null);
         var newGroup = (Tenantry.ViewModels.Records.NewGroupViewModel)editing.Dialog!.Content;

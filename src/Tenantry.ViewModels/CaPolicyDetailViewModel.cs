@@ -28,11 +28,14 @@ public sealed record CaStateChoice(string State, string Label, string Detail)
 public sealed partial class CaPolicyDetailViewModel : TabViewModel, IDisposable
 {
     readonly ChangePipeline? _pipeline;
+    readonly Action<CaPolicy>? _edit;
     bool _filling;
 
-    public CaPolicyDetailViewModel(CaPolicyRow row, ChangePipeline? pipeline, Availability canEdit)
+    /// <param name="edit">Opens the policy in the editor; null when it can't be edited.</param>
+    public CaPolicyDetailViewModel(CaPolicyRow row, ChangePipeline? pipeline, Availability canEdit, Action<CaPolicy>? edit = null)
     {
         _pipeline = pipeline;
+        _edit = edit;
         CanEdit = pipeline is not null && canEdit.IsAvailable;
         EditReason = pipeline is null ? "This tenant can't be edited" : canEdit.Reason ?? "";
         Row = row;
@@ -75,6 +78,11 @@ public sealed partial class CaPolicyDetailViewModel : TabViewModel, IDisposable
             return;
         _pipeline!.Stage(new SetCaPolicyState(Target, Policy.State, value.State));
     }
+
+    public bool CanEditPolicy => CanEdit && _edit is not null;
+
+    [RelayCommand]
+    void EditPolicy() => _edit?.Invoke(Policy);
 
     [RelayCommand]
     void Delete()

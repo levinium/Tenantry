@@ -453,6 +453,30 @@ opens as a page with its state switch, Delete, and the JSON Entra keeps. What If
   `analysisReasons` flags, put into words.
 - **Live:** a policy is listed a few seconds after it's made; the live test waits for it.
 
+### Conditional Access editor (8b-2)
+
+New Policy (on the list) and Edit Policy (on a policy's page) open the editor as a tab: name and
+state; who (everyone, or chosen people, groups, admin roles and guests; who's left out); target
+resources (every cloud app, Office 365, admin portals, chosen apps searched live, or a user action);
+conditions (platforms, locations, kinds of app, user and sign-in risk, device filter,
+authentication flows); grant (block, or allow requiring any or all of the controls, an
+authentication strength, terms of use); session controls. The policy reads back in words beside it.
+
+- **Starts safe:** a new policy starts from blank or one of Microsoft's templates
+  (`identity/conditionalAccess/templates`, 23 on the live tenant), in report-only, leaving the
+  signed-in admin out. Blocking everyone while On without leaving yourself out isn't staged.
+- **Keeps what it doesn't cover:** the editor works on the policy's JSON and rewrites only the
+  parts its controls describe; anything else (insider risk, token protection, settings Microsoft
+  adds later) is sent back as it was.
+- **Staging:** each valid edit stages one `CreateCaPolicy` or `UpdateCaPolicy`, replacing the
+  last; problems (as Entra would refuse, or a lockout) keep it out of Pending changes and are
+  listed. Turning a policy On is a caution change.
+- **Graph:** `ForWrite` strips read-only properties and OData annotations, and sends an
+  authentication strength by ID. A made policy is waited for (it's listed after a few seconds).
+- **Terms of use** need Tenantry's Agreement.Read.All permission (added; to be granted).
+- **Live:** a policy from a real Microsoft template, narrowed to the test person and Off, made,
+  edited (browser only, report-only), deleted and purged.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

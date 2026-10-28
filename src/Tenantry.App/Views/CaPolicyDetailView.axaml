@@ -27,6 +27,12 @@
                 <TextBlock Text="Open in Admin Center" />
               </StackPanel>
             </Button>
+            <Button Command="{Binding EditPolicyCommand}" IsVisible="{Binding CanEditPolicy}" ToolTip.Tip="Open it in the editor">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ic:FluentIcon Icon="Edit" FontSize="16" />
+                <TextBlock Text="Edit Policy" />
+              </StackPanel>
+            </Button>
             <Button Classes="danger-outline" Command="{Binding DeleteCommand}" IsVisible="{Binding CanEdit}"
                     ToolTip.Tip="Delete this policy (added to Pending changes; you type its name to confirm)">
               <StackPanel Orientation="Horizontal" Spacing="8">

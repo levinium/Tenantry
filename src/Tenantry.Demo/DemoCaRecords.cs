@@ -116,6 +116,8 @@ public sealed partial class DemoUserRecords : IConditionalAccessRecords
     /// <summary>Applies a Conditional Access change to the demo; false when it isn't one.</summary>
     public bool ApplyCa(ChangeOp change)
     {
+        if (ApplyCaEdit(change))
+            return true;
         var policies = CaPolicies();
         switch (change)
         {

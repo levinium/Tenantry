@@ -31,14 +31,16 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     /// <param name="newRole">Opens the custom-role editor for a new role; null when the admin can't edit.</param>
     public SecurityAreaViewModel(IRoleRecords? roles, ChangePipeline? pipeline, IListStateStore? listState, Func<DateTimeOffset> now,
         Action<RoleSummary> openRole, Action? newRole, string? cantEditReason, string? me = null, IDirectoryIndex? index = null,
-        IConditionalAccessRecords? ca = null, Action<CaPolicyRow>? openPolicy = null)
+        IConditionalAccessRecords? ca = null, Action<CaPolicyRow>? openPolicy = null, Action? newPolicy = null, string? cantEditPolicies = null)
     {
         _roles = roles;
         _ca = ca;
         Policies = DataListViewModel.Create(CaList.Definition(p => new Records.CaPolicyPreviewViewModel(p, openPolicy)),
             LoadPoliciesAsync, row => openPolicy?.Invoke((CaPolicyRow)row), listState, now);
         Policies.EmptyText = "No policies match.";
-        Policies.PrimaryAction = null;
+        Policies.PrimaryAction = newPolicy is not null
+            ? new ListPrimaryAction("New Policy", "Add", true, "Make a policy, blank or from one of Microsoft's templates; it starts in report-only", newPolicy)
+            : new ListPrimaryAction("New Policy", "Add", false, cantEditPolicies ?? "This tenant can't be edited");
         WhatIf = new Records.WhatIfViewModel(ca, index ?? EmptyIndex.Instance);
         if (pipeline is not null)
             pipeline.Applied += (_, applied) =>
