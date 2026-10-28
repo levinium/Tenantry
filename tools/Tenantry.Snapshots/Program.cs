@@ -837,6 +837,19 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
         Render(premium, "risk-detections-light", height: 900);
 
+        // Audit log (8e): one finished search with a record in the preview.
+        Tenantry.ViewModels.Records.AuditLogViewModel.CheckEvery = TimeSpan.Zero;
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "auditlog");
+        var audit = premium.SecurityArea.AuditLog;
+        audit.RecordTypes.Single(r => r.Value == "sharePointFileOperation").IsChecked = true;
+        audit.SearchCommand.Execute(null);
+        for (var i = 0; i < 40 && (audit.SelectedSearch?.Search.IsDone != true || audit.Results.Total == 0); i++)
+            Settle();
+        audit.Results.IsPreviewOpen = true;
+        audit.Results.SelectedRow = audit.Results.Rows[0];
+        Settle();
+        Render(premium, "audit-log-light", height: 1100);
+
         // Apps (8c-1): the registrations list, a registration's secrets, an enterprise app's permissions.
         premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
         for (var i = 0; i < 20 && premium.SecurityArea.Registrations.Total == 0; i++)

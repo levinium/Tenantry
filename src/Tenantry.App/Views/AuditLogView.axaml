@@ -1,0 +1,186 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:listviews="using:Tenantry.App.Lists"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.AuditLogView"
+             x:DataType="rec:AuditLogViewModel"
+             x:Name="Root">
+  <!-- Audit log search: a new search and past searches on the left, the chosen one's records on the right. -->
+  <Grid ColumnDefinitions="380,*" ColumnSpacing="16">
+    <ScrollViewer>
+      <StackPanel Spacing="12" Margin="0,0,0,24">
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h3" Text="New Search" />
+            <TextBlock Classes="caption" TextWrapping="Wrap"
+                       Text="Purview searches in the background and can take several minutes. Narrow searches finish sooner." />
+            <ItemsControl ItemsSource="{x:Static rec:AuditLogViewModel.Ranges}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="6" LineSpacing="6" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ed:EditorChoice">
+                  <Button Classes="outline" Content="{Binding Label}" Command="{Binding #Root.((rec:AuditLogViewModel)DataContext).SetRangeCommand}" CommandParameter="{Binding}"
+                          ToolTip.Tip="Set the dates to this" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="label" Text="FROM" />
+                <CalendarDatePicker SelectedDate="{Binding StartDate}" HorizontalAlignment="Stretch" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="4">
+                <TextBlock Classes="label" Text="TO (INCLUDED)" />
+                <CalendarDatePicker SelectedDate="{Binding EndDate}" HorizontalAlignment="Stretch" />
+              </StackPanel>
+            </Grid>
+            <StackPanel Spacing="4">
+              <TextBlock Classes="label" Text="PEOPLE" />
+              <views:ChipPickerView DataContext="{Binding People}" />
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Classes="label" Text="ACTIVITIES" />
+              <TextBox Text="{Binding Activities}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"
+                       PlaceholderText="Any, or one per line, like FileAccessed or Set-Mailbox" />
+            </StackPanel>
+            <Expander Header="Record Types (Any Unless Ticked)" HorizontalAlignment="Stretch">
+              <ItemsControl ItemsSource="{Binding RecordTypes}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="2" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="ed:CheckOption">
+                    <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Expander>
+            <Expander Header="More Filters" HorizontalAlignment="Stretch">
+              <StackPanel Spacing="8">
+                <TextBox Text="{Binding Keyword}" PlaceholderText="A word anywhere in the record" />
+                <TextBox Text="{Binding IpAddresses}" PlaceholderText="IP addresses, one per line" AcceptsReturn="True" MinHeight="50" />
+                <TextBox Text="{Binding ObjectIds}" PlaceholderText="Objects (file paths, IDs), one per line" AcceptsReturn="True" MinHeight="50" />
+                <TextBox Text="{Binding SearchName}" PlaceholderText="Name for the search (optional)" />
+              </StackPanel>
+            </Expander>
+            <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+                    <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                    <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Button Classes="accent" Command="{Binding SearchCommand}" IsEnabled="{Binding !IsStarting}" ToolTip.Tip="Start the search in Purview">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <ic:FluentIcon Icon="Search" FontSize="14" />
+                  <TextBlock Text="Search" />
+                </StackPanel>
+              </Button>
+              <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsStarting}">
+                <Panel Width="16" Height="16" VerticalAlignment="Center">
+                  <Ellipse Classes="spintrack" />
+                  <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                    <Arc.RenderTransform>
+                      <RotateTransform />
+                    </Arc.RenderTransform>
+                  </Arc>
+                </Panel>
+                <TextBlock Classes="muted" VerticalAlignment="Center" Text="Starting the search…" />
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="label" Text="SEARCHES" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding ReadCommand}" ToolTip.Tip="Read the searches from Purview again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+        </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+          <Panel Width="18" Height="18" VerticalAlignment="Center">
+            <Ellipse Classes="spintrack" />
+            <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+              <Arc.RenderTransform>
+                <RotateTransform />
+              </Arc.RenderTransform>
+            </Arc>
+          </Panel>
+          <TextBlock Classes="muted" VerticalAlignment="Center" Text="Reading searches from Purview…" />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasNote}">
+          <TextBlock TextWrapping="Wrap" Text="{Binding Note}" />
+        </Border>
+        <TextBlock Classes="muted" Text="No searches yet: start one above." IsVisible="{Binding HasNoSearches}" />
+        <ListBox ItemsSource="{Binding Searches}" SelectedItem="{Binding SelectedSearch}" Background="Transparent">
+          <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel />
+            </ItemsPanelTemplate>
+          </ListBox.ItemsPanel>
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="rec:AuditSearchRow">
+              <StackPanel Spacing="2" Margin="2,4">
+                <WrapPanel ItemSpacing="6" LineSpacing="4">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" />
+                  <Panel Width="14" Height="14" VerticalAlignment="Center" IsVisible="{Binding IsWaiting}">
+                    <Ellipse Classes="spintrack" />
+                    <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                      <Arc.RenderTransform>
+                        <RotateTransform />
+                      </Arc.RenderTransform>
+                    </Arc>
+                  </Panel>
+                  <c:Badge Text="{Binding StatusText}" Kind="{Binding StatusKind}" />
+                </WrapPanel>
+                <TextBlock Classes="caption" Text="{Binding Range}" />
+                <TextBlock Classes="caption" Text="{Binding Filters}" TextWrapping="Wrap" />
+                <TextBlock Classes="caption" Text="{Binding CountText}" IsVisible="{Binding HasCount}" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </StackPanel>
+    </ScrollViewer>
+
+    <DockPanel Grid.Column="1">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8" IsVisible="{Binding HasResultsNote}">
+        <Border Classes="banner neutral">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Panel Width="16" Height="16" VerticalAlignment="Center" IsVisible="{Binding SelectedWaiting}">
+              <Ellipse Classes="spintrack" />
+              <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                <Arc.RenderTransform>
+                  <RotateTransform />
+                </Arc.RenderTransform>
+              </Arc>
+            </Panel>
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding ResultsNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <TextBlock DockPanel.Dock="Top" Classes="muted" Text="Run a search, or choose one on the left, to see its records here." IsVisible="{Binding !HasSelection}" />
+      <ContentControl Content="{Binding Results}" IsVisible="{Binding HasSelection}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+  </Grid>
+</UserControl>

@@ -31,6 +31,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         new("riskyusers", "Risky Users", "PersonWarning"),
         new("riskdetections", "Risk Detections", "Warning"),
         new("riskyapps", "Risky Apps", "AppsListDetail"),
+        new("auditlog", "Audit Log", "DocumentSearch"),
         new("roles", "Admin Roles", "PersonKey"),
         new("myroles", "My Roles", "PersonStar"),
         new("approvals", "Approvals", "ApprovalsApp"),
@@ -43,7 +44,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         IConditionalAccessRecords? ca = null, Action<CaPolicyRow>? openPolicy = null, Action? newPolicy = null, string? cantEditPolicies = null,
         IAppRecords? apps = null, Action<AppRegistration>? openRegistration = null, Action<EnterpriseApp>? openEnterprise = null, Action? newApp = null, string? cantEditApps = null,
         IAuthMethodRecords? authMethods = null, bool canEditAuth = false, string? cantEditAuth = null,
-        IRiskRecords? risk = null, Availability? canManageRisk = null, Action<string>? openUserById = null, Action<string>? openAppById = null)
+        IRiskRecords? risk = null, Availability? canManageRisk = null, Action<string>? openUserById = null, Action<string>? openAppById = null,
+        IAuditRecords? audit = null)
     {
         _roles = roles;
         _ca = ca;
@@ -57,6 +59,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         NamedLocations = new Records.LocationsViewModel(this, pipeline, newPolicy is not null, cantEditPolicies);
         AuthStrengths = new Records.StrengthsViewModel(this);
         AuthMethodsPage = new Records.AuthMethodsViewModel(authMethods, pipeline, canEditAuth, cantEditAuth, index);
+        AuditLog = new Records.AuditLogViewModel(audit, index, listState, now);
         _apps = apps;
         _risk = risk;
         var riskEdit = pipeline is not null && canManageRisk?.IsAvailable == true;
@@ -213,7 +216,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals), nameof(ShowPolicies), nameof(ShowWhatIf), nameof(ShowLocations),
-        nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps), nameof(ShowDeletedApps), nameof(ShowAuthMethods), nameof(ShowRiskyUsers), nameof(ShowRiskDetections), nameof(ShowRiskyApps), nameof(RiskNote), nameof(HasRiskNote))]
+        nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps), nameof(ShowDeletedApps), nameof(ShowAuthMethods), nameof(ShowRiskyUsers), nameof(ShowRiskDetections), nameof(ShowRiskyApps), nameof(RiskNote), nameof(HasRiskNote), nameof(ShowAuditLog))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     // ---- Apps (8c) -------------------------------------------------------------------------------
@@ -276,6 +279,9 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         await Task.WhenAll(RiskyUsers.ReloadAsync(busyText: "Reading Identity Protection…"), RiskDetections.ReloadAsync(busyText: "Reading Identity Protection…"),
             RiskyApps.ReloadAsync(busyText: "Reading Identity Protection…"));
     }
+
+    /// <summary>Audit log search (8e).</summary>
+    public Records.AuditLogViewModel AuditLog { get; }
 
     /// <summary>Sign-in methods and security defaults (8d-1).</summary>
     public Records.AuthMethodsViewModel AuthMethodsPage { get; }
@@ -374,6 +380,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public bool ShowRiskyUsers => SelectedPage.Key == "riskyusers";
     public bool ShowRiskDetections => SelectedPage.Key == "riskdetections";
     public bool ShowRiskyApps => SelectedPage.Key == "riskyapps";
+    public bool ShowAuditLog => SelectedPage.Key == "auditlog";
     public bool ShowMyRoles => SelectedPage.Key == "myroles";
     public bool ShowApprovals => SelectedPage.Key == "approvals";
 
@@ -400,6 +407,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
             _ = RiskDetections.LoadAsync();
             _ = RiskyApps.LoadAsync();
         }
+        if (ShowAuditLog)
+            AuditLog.Shown();
         if (ShowAuthMethods)
             AuthMethodsPage.Shown();
         if (ShowDeletedApps)

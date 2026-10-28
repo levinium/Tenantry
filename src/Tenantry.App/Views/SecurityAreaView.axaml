@@ -407,7 +407,11 @@
           <listviews:ListViewCache />
         </ContentControl.DataTemplates>
       </ContentControl>
-    </DockPanel>    <!-- Sign-in methods and security defaults (8d-1) -->
+    </DockPanel>    <!-- Audit log search (8e) -->
+    <Panel IsVisible="{Binding ShowAuditLog}">
+      <views:AuditLogView DataContext="{Binding AuditLog}" />
+    </Panel>
+    <!-- Sign-in methods and security defaults (8d-1) -->
     <Panel IsVisible="{Binding ShowAuthMethods}">
       <views:AuthMethodsView DataContext="{Binding AuthMethodsPage}" />
     </Panel>

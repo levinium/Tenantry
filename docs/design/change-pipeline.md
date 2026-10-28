@@ -596,6 +596,25 @@ Three page tabs in Security & Compliance, read together (`IRiskRecords`), with R
 - **Live:** read only. The tenant has no P2: risky users say so, and detections and apps asked for the new
   permission (not granted yet).
 
+### Audit log search (8e)
+
+An Audit Log page tab in Security & Compliance, searching Purview's unified audit log through
+Graph's `security/auditLog/queries` (AuditLogsQuery.Read.All; the admin needs the Audit Logs role
+in Purview, or Compliance Administrator). Searching changes nothing, so it doesn't go through
+Pending changes.
+
+- **New search:** quick ranges (24 hours, 7, 30 or 90 days) or chosen dates (the end day is
+  included, up to now; within 180 days), people (picked, sent as sign-in names), activities (one
+  per line), record types (in words), and more filters: keyword, IP addresses, objects, a name.
+  Only filters given are sent.
+- **Waiting:** Purview runs a search in the background and can leave it queued for many minutes
+  (seen live). Searches are listed with Queued, Running, Done or Failed; unfinished ones are
+  checked every 20 seconds while Tenantry is open, with a wheel. Past searches (Purview keeps them)
+  are listed when the page opens.
+- **Results:** a finished search's records (up to 10,000; narrow the search for more) open in the
+  standard list: who, activity, when, service, object, address, record type, with filters,
+  sorting and CSV export. The preview shows the whole record, indented.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

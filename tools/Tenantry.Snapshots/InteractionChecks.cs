@@ -1202,6 +1202,41 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Audit Log: a range button and a record type, then Search; the search waits, finishes, and its records open with the whole record in the preview", () =>
+        {
+            AuditLogViewModel.CheckEvery = TimeSpan.Zero;
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "auditlog" }));
+            var page = main.SecurityArea.AuditLog;
+            Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is Tenantry.ViewModels.Editing.EditorChoice { Value: "30" }));
+            Expect(page.StartDate == DateTime.Now.Date.AddDays(-29), "Last 30 Days set the dates");
+            var types = window.GetVisualDescendants().OfType<Expander>().First(e => (e.Header as string)?.StartsWith("Record Types", StringComparison.Ordinal) == true);
+            Click(window, types.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.ToggleButton>().First());
+            Settle();
+            Expect(types.IsExpanded, "clicking Record Types opened the list");
+            var check =window.GetVisualDescendants().OfType<CheckBox>().First(c => c.IsEffectivelyVisible && (c.Content as string) == "SharePoint and OneDrive: Files");
+            check.BringIntoView();
+            Settle();
+            Click(window, check);
+            var search = FindButton(window, b => b.Command == page.SearchCommand && b.IsEffectivelyVisible);
+            search.BringIntoView();
+            Settle();
+            Click(window, search);
+            for (var i = 0; i < 50 && page.SelectedSearch?.Search.IsDone != true; i++)
+                Settle();
+            for (var i = 0; i < 20 && page.Results.Total == 0; i++)
+                Settle();
+            Expect(page.SelectedSearch?.StatusText == "Done" && page.Results.Total > 0, "the search finished and its records are listed");
+            page.Results.IsPreviewOpen = true;
+            page.Results.SelectedRow = page.Results.Rows[0];
+            Settle();
+            Expect(page.Results.PreviewModel is AuditRecordPreviewViewModel { Json.Length: > 10 }, "the preview shows the whole record");
+            window.Close();
+        });
+
         Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
         {
             var (window, main, _) = OpenList();

@@ -102,7 +102,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageAuthPolicy).Reason,
             tenant.Records as IRiskRecords, Evaluate(Capabilities.ManageRisk),
             id => { if (_index.User(id) is { } person) OpenUser(person); },
-            async id => { if ((await SecurityArea!.AppsAsync())?.EnterpriseApps.FirstOrDefault(e => e.Id == id) is { } app) OpenEnterpriseApp(app); });
+            async id => { if ((await SecurityArea!.AppsAsync())?.EnterpriseApps.FirstOrDefault(e => e.Id == id) is { } app) OpenEnterpriseApp(app); },
+            tenant.Records as IAuditRecords);
         SecurityArea.RolesRead += (_, _) => FollowRoles();
         SecurityArea.PoliciesRead += (_, _) => FollowPolicies();
         SecurityArea.AppsRead += (_, _) => FollowApps();
@@ -121,6 +122,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         SecurityArea.RiskyUsers.FollowSharedPreferences(shared);
         SecurityArea.RiskDetections.FollowSharedPreferences(shared);
         SecurityArea.RiskyApps.FollowSharedPreferences(shared);
+        SecurityArea.AuditLog.Results.FollowSharedPreferences(shared);
         if (tenant.Changes is { } changes)
         {
             Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync);
