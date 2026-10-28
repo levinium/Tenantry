@@ -28,6 +28,114 @@
       </TabStrip.ItemTemplate>
     </TabStrip>
 
+    <!-- Conditional Access: read live, with Refresh -->
+    <DockPanel IsVisible="{Binding ShowPolicies}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshPoliciesCommand}" ToolTip.Tip="Read Conditional Access from Entra again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="Rules every sign-in must meet: who, to which apps, from where, and what they require." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasCaNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding CaNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding Policies}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+
+    <!-- What If: which policies a sign-in would meet -->
+    <Panel IsVisible="{Binding ShowWhatIf}">
+    <ScrollViewer DataContext="{Binding WhatIf}" x:DataType="rec:WhatIfViewModel">
+      <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Left" Margin="0,0,0,24">
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="h3" Text="A Sign-In to Test" />
+              <TextBlock Classes="caption" TextWrapping="Wrap" Text="Entra works out which policies would apply, what they'd require, and why the others wouldn't. Nothing is changed." />
+            </StackPanel>
+            <Panel IsVisible="{Binding !HasPerson}">
+              <views:PersonPickerView DataContext="{Binding Picker}" MaxWidth="440" HorizontalAlignment="Left" />
+            </Panel>
+            <Border Classes="chip" HorizontalAlignment="Left" IsVisible="{Binding HasPerson}">
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Text="{Binding PersonName}" VerticalAlignment="Center" />
+                <Button Classes="chipx" Command="{Binding ClearPersonCommand}" ToolTip.Tip="Choose someone else">
+                  <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+                </Button>
+              </StackPanel>
+            </Border>
+            <Grid ColumnDefinitions="Auto,240,24,Auto,240" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+              <TextBlock Classes="caption" Text="App" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="1" ItemsSource="{x:Static rec:WhatIfViewModel.Apps}" SelectedItem="{Binding App}" HorizontalAlignment="Stretch" />
+              <TextBlock Grid.Column="3" Classes="caption" Text="Device Platform" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="4" ItemsSource="{x:Static rec:WhatIfViewModel.Platforms}" SelectedItem="{Binding Platform}" HorizontalAlignment="Stretch" />
+              <TextBlock Grid.Row="1" Classes="caption" Text="Kind of App" VerticalAlignment="Center" />
+              <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{x:Static rec:WhatIfViewModel.ClientApps}" SelectedItem="{Binding ClientApp}" HorizontalAlignment="Stretch" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Classes="caption" Text="Country (2 Letters)" VerticalAlignment="Center" />
+              <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding Country}" PlaceholderText="Like US or GB" MaxLength="2" />
+              <TextBlock Grid.Row="2" Classes="caption" Text="Sign-In Risk" VerticalAlignment="Center" />
+              <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{x:Static rec:WhatIfViewModel.Risks}" SelectedItem="{Binding SignInRisk}" HorizontalAlignment="Stretch" />
+              <TextBlock Grid.Row="2" Grid.Column="3" Classes="caption" Text="IP Address" VerticalAlignment="Center" />
+              <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding IpAddress}" PlaceholderText="Optional" />
+              <TextBlock Grid.Row="3" Classes="caption" Text="User Risk" VerticalAlignment="Center" />
+              <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{x:Static rec:WhatIfViewModel.Risks}" SelectedItem="{Binding UserRisk}" HorizontalAlignment="Stretch" />
+            </Grid>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Button Classes="accent" Content="Check" Command="{Binding CheckCommand}" ToolTip.Tip="Ask Entra which policies would apply" />
+              <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsChecking}">
+                <Panel Width="18" Height="18" VerticalAlignment="Center">
+                  <Ellipse Classes="spintrack" />
+                  <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                    <Arc.RenderTransform>
+                      <RotateTransform />
+                    </Arc.RenderTransform>
+                  </Arc>
+                </Panel>
+                <TextBlock Classes="muted" VerticalAlignment="Center" Text="Asking Entra…" />
+              </StackPanel>
+            </StackPanel>
+            <Border Classes="banner error" IsVisible="{Binding HasNote}">
+              <TextBlock TextWrapping="Wrap" Text="{Binding Note}" />
+            </Border>
+          </StackPanel>
+        </Border>
+        <TextBlock Classes="h3" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding Results}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:WhatIfRow">
+              <Border Classes="valuerow">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                    <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <c:Badge Grid.Column="1" Text="{Binding Verdict}" Kind="{Binding VerdictKind}" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </ScrollViewer>
+    </Panel>
+
     <!-- Admin roles: read live, with Refresh; what PIM can't show here -->
     <DockPanel IsVisible="{Binding ShowRoles}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">

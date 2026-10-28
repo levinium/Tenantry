@@ -705,6 +705,7 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
 
         // Security & Compliance (8a): Admin Roles with a role in the preview, a role's page (both tabs), the custom-role editor.
         editing.SelectedSection = editing.Sections.Single(s => s.Key == "security");
+        editing.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "roles");
         for (var i = 0; i < 20; i++)
             Settle();
         var userAdmin = editing.SecurityArea.Roles.Rows.Cast<RoleSummary>().First(r => r.Role.Name == "User Administrator");
@@ -744,7 +745,7 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         for (var i = 0; i < 20; i++)
             Settle();
         Render(premium, "pim-approvals-light");
-        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages[0];
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "roles");
         for (var i = 0; i < 20; i++)
             Settle();
         premium.OpenRole(premium.SecurityArea.Roles.Rows.Cast<RoleSummary>().First(r => r.Role.Name == "Security Administrator"));
@@ -757,6 +758,28 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         pimRole.Settings.ApprovalRequired = true;
         Settle();
         Render(premium, "pim-role-settings-light", height: 1200);
+
+        // Conditional Access (8b-1): the list with a policy in the preview, a policy's page, What If with results.
+        premium.SelectedSection = premium.Sections.Single(s => s.Key == "security");
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "ca");
+        premium.SelectedTab = premium.SecurityArea;
+        for (var i = 0; i < 20; i++)
+            Settle();
+        var mfaPolicy = premium.SecurityArea.Policies.Rows.Cast<CaPolicyRow>().First(r => r.Policy.Name.Contains("admins", StringComparison.Ordinal));
+        premium.SecurityArea.Policies.PreviewRow(mfaPolicy);
+        Render(premium, "ca-light");
+        premium.OpenCaPolicy(premium.SecurityArea.Policies.Rows.Cast<CaPolicyRow>().First(r => r.Policy.State == "disabled"));
+        Settle();
+        Render(premium, "ca-policy-light", height: 1100);
+        premium.SelectedSection = premium.Sections.Single(s => s.Key == "security");
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "whatif");
+        premium.SelectedTab = premium.SecurityArea;
+        premium.Users.LoadAsync().GetAwaiter().GetResult();
+        premium.SecurityArea.WhatIf.Person = premium.Users.Rows.Cast<UserSummary>().First(u => u.Security?.IsAdmin == true);
+        premium.SecurityArea.WhatIf.CheckCommand.Execute(null);
+        for (var i = 0; i < 20; i++)
+            Settle();
+        Render(premium, "ca-whatif-light", height: 1100);
 
         // New Group: a shared mailbox with two people given access.
         editing.Groups.RunPrimaryActionCommand.Execute(null);

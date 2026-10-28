@@ -34,6 +34,9 @@
     <DataTemplate DataType="rec:NewSiteViewModel">
       <views:NewSiteView />
     </DataTemplate>
+    <DataTemplate DataType="rec:CaPolicyPreviewViewModel">
+      <views:CaPolicyPreviewView />
+    </DataTemplate>
     <DataTemplate DataType="rec:RolePreviewViewModel">
       <views:RolePreviewView />
     </DataTemplate>

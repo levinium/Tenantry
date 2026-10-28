@@ -395,6 +395,9 @@
           <DataTemplate DataType="vm:SecurityAreaViewModel">
             <views:SecurityAreaView />
           </DataTemplate>
+          <DataTemplate DataType="vm:CaPolicyDetailViewModel">
+            <views:CaPolicyDetailView />
+          </DataTemplate>
           <DataTemplate DataType="vm:RoleDetailViewModel">
             <views:RoleDetailView />
           </DataTemplate>

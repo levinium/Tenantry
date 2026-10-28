@@ -20,6 +20,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     public static IReadOnlyList<MailSecurityPage> Pages { get; } =
     [
+        new("ca", "Conditional Access", "ShieldLock"),
+        new("whatif", "What If", "QuestionCircle"),
         new("roles", "Admin Roles", "PersonKey"),
         new("myroles", "My Roles", "PersonStar"),
         new("approvals", "Approvals", "ApprovalsApp"),
@@ -28,9 +30,22 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     /// <param name="openRole">Opens a role's page.</param>
     /// <param name="newRole">Opens the custom-role editor for a new role; null when the admin can't edit.</param>
     public SecurityAreaViewModel(IRoleRecords? roles, ChangePipeline? pipeline, IListStateStore? listState, Func<DateTimeOffset> now,
-        Action<RoleSummary> openRole, Action? newRole, string? cantEditReason, string? me = null, IDirectoryIndex? index = null)
+        Action<RoleSummary> openRole, Action? newRole, string? cantEditReason, string? me = null, IDirectoryIndex? index = null,
+        IConditionalAccessRecords? ca = null, Action<CaPolicyRow>? openPolicy = null)
     {
         _roles = roles;
+        _ca = ca;
+        Policies = DataListViewModel.Create(CaList.Definition(p => new Records.CaPolicyPreviewViewModel(p, openPolicy)),
+            LoadPoliciesAsync, row => openPolicy?.Invoke((CaPolicyRow)row), listState, now);
+        Policies.EmptyText = "No policies match.";
+        Policies.PrimaryAction = null;
+        WhatIf = new Records.WhatIfViewModel(ca, index ?? EmptyIndex.Instance);
+        if (pipeline is not null)
+            pipeline.Applied += (_, applied) =>
+            {
+                if (_policiesRead && applied.Any(c => c is CaPolicyChange))
+                    _ = Policies.ReloadAsync(busyText: "Reading policies again…");
+            };
         MyRoles = new Records.MyRolesViewModel(roles, pipeline, me, index ?? EmptyIndex.Instance);
         Approvals = new Records.ApprovalsViewModel(roles, pipeline);
         Roles = DataListViewModel.Create(RoleList.Definition(r => new Records.RolePreviewViewModel(r, openRole)),
@@ -54,6 +69,51 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     public DataListViewModel Roles { get; }
 
+    readonly IConditionalAccessRecords? _ca;
+    bool _policiesRead;
+
+    /// <summary>Conditional Access policies (8b).</summary>
+    public DataListViewModel Policies { get; }
+
+    /// <summary>Which policies a sign-in would meet.</summary>
+    public Records.WhatIfViewModel WhatIf { get; }
+
+    /// <summary>The policies as last read, with the names their IDs stand for.</summary>
+    public CaDirectory? CaDirectory { get; private set; }
+
+    /// <summary>Raised after each read of the policies, so open policy pages can show it.</summary>
+    public event EventHandler? PoliciesRead;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCaNote))]
+    public partial string? CaNote { get; private set; }
+
+    public bool HasCaNote => CaNote is not null;
+
+    async Task<IReadOnlyList<CaPolicyRow>> LoadPoliciesAsync(CancellationToken cancellationToken)
+    {
+        if (_ca is null)
+        {
+            CaNote = "Conditional Access isn't available for this tenant.";
+            return [];
+        }
+        try
+        {
+            CaDirectory = await _ca.GetPoliciesAsync(cancellationToken);
+            CaNote = null;
+            PoliciesRead?.Invoke(this, EventArgs.Empty);
+            return [.. CaDirectory.Policies.Select(p => CaPolicyRow.Of(p, CaDirectory.Names))];
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            CaNote = $"Couldn't read Conditional Access: {Friendly.Message(e)}";
+            return [];
+        }
+    }
+
+    [RelayCommand]
+    Task RefreshPolicies() => Policies.ReloadAsync(busyText: "Reading Conditional Access from Entra…");
+
     /// <summary>The signed-in admin's own eligible and switched-on roles (PIM).</summary>
     public Records.MyRolesViewModel MyRoles { get; }
 
@@ -67,10 +127,12 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public event EventHandler? RolesRead;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals))]
+    [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals), nameof(ShowPolicies), nameof(ShowWhatIf))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     public bool ShowRoles => SelectedPage.Key == "roles";
+    public bool ShowPolicies => SelectedPage.Key == "ca";
+    public bool ShowWhatIf => SelectedPage.Key == "whatif";
     public bool ShowMyRoles => SelectedPage.Key == "myroles";
     public bool ShowApprovals => SelectedPage.Key == "approvals";
 
@@ -81,6 +143,11 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         {
             _rolesRead = true;
             _ = Roles.LoadAsync();
+        }
+        if (ShowPolicies && !_policiesRead)
+        {
+            _policiesRead = true;
+            _ = Policies.LoadAsync();
         }
         if (ShowMyRoles)
             MyRoles.Shown();

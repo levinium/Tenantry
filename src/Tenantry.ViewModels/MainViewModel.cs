@@ -91,8 +91,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         _manageRoles = Evaluate(Capabilities.ManageRoles);
         SecurityArea = new SecurityAreaViewModel(tenant.Records as IRoleRecords, tenant.Changes, tenant.ListState, _now, OpenRole,
             tenant.Changes is not null && _manageRoles.IsAvailable && tenant.Records is IRoleRecords ? () => EditRole(null) : null,
-            tenant.Changes is null ? "This tenant can't be edited" : _manageRoles.Reason, tenant.Account, _index);
+            tenant.Changes is null ? "This tenant can't be edited" : _manageRoles.Reason, tenant.Account, _index,
+            tenant.Records as IConditionalAccessRecords, OpenCaPolicy);
         SecurityArea.RolesRead += (_, _) => FollowRoles();
+        SecurityArea.PoliciesRead += (_, _) => FollowPolicies();
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);
@@ -102,6 +104,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         SharePoint.OneDrives.FollowSharedPreferences(shared);
         SharePoint.Deleted.FollowSharedPreferences(shared);
         SecurityArea.Roles.FollowSharedPreferences(shared);
+        SecurityArea.Policies.FollowSharedPreferences(shared);
         if (tenant.Changes is { } changes)
         {
             Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync);
@@ -233,6 +236,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             return;
         ShowDialog(new Records.DialogViewModel(role is null ? "New Custom Role" : $"Edit {role.Name}", TenantName,
             new Records.CustomRoleEditorViewModel(changes, records, [.. (SecurityArea.Directory ?? NoRoles).Roles.Select(r => r.Role)], role, CloseDialog)));
+    }
+
+    /// <summary>Opens a Conditional Access policy's page, or switches to it if it is already open.</summary>
+    public void OpenCaPolicy(CaPolicyRow row) =>
+        OpenTab(t => t is CaPolicyDetailViewModel p && p.Policy.Id == row.Policy.Id,
+            () => new CaPolicyDetailViewModel(row, _tenant.Changes, Evaluate(Capabilities.ManageConditionalAccess)));
+
+    /// <summary>Open policy pages show the policies as just read.</summary>
+    void FollowPolicies()
+    {
+        if (SecurityArea.CaDirectory is not { } directory)
+            return;
+        foreach (var page in Tabs.OfType<CaPolicyDetailViewModel>())
+            if (directory.Policies.FirstOrDefault(p => p.Id == page.Policy.Id) is { } policy)
+                page.Update(CaPolicyRow.Of(policy, directory.Names));
     }
 
     /// <summary>Open role pages show the roles as just read.</summary>

@@ -181,3 +181,21 @@ public sealed partial class GraphChangeExecutor
         }
     }
 }
+
+/// <summary>Conditional Access changes (8b).</summary>
+public sealed partial class GraphChangeExecutor
+{
+    Task<ApplyResult> SetCaPolicyStateAsync(SetCaPolicyState change, CancellationToken cancellationToken) =>
+        GraphCheckedAsync(
+            ct => graph.PatchAsync($"identity/conditionalAccess/policies/{change.Policy.Id}", new JsonObject { ["state"] = change.New }, ct),
+            ct => graph.GetAsync($"identity/conditionalAccess/policies/{change.Policy.Id}?$select=state", ct),
+            answer => answer is { } p && p.TryGetProperty("state", out var s) && s.GetString() == change.New,
+            cancellationToken);
+
+    Task<ApplyResult> DeleteCaPolicyAsync(DeleteCaPolicy change, CancellationToken cancellationToken) =>
+        GraphCheckedAsync(
+            ct => graph.DeleteAsync($"identity/conditionalAccess/policies/{change.Policy.Id}", ct),
+            ct => graph.GetAsync($"identity/conditionalAccess/policies/{change.Policy.Id}", ct),
+            answer => answer is null,
+            cancellationToken);
+}

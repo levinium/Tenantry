@@ -755,6 +755,8 @@ static class InteractionChecks
             main.Users.LoadAsync().GetAwaiter().GetResult();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection { Key: "security" }));
             var area = main.SecurityArea;
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "roles" }));
             for (var i = 0; i < 50 && area.Roles.Total == 0; i++)
                 Settle();
             Expect(main.SelectedTab == area && area.Roles.Total > 0, "Admin Roles is showing with roles in use");
@@ -790,6 +792,7 @@ static class InteractionChecks
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            main.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "roles");
             for (var i = 0; i < 50 && main.SecurityArea.Roles.Total == 0; i++)
                 Settle();
             Settle();
@@ -852,6 +855,7 @@ static class InteractionChecks
         {
             var (window, main, _) = OpenList(premium: true);
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            main.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "roles");
             for (var i = 0; i < 50 && main.SecurityArea.Roles.Total == 0; i++)
                 Settle();
             main.OpenRole(main.SecurityArea.Roles.Rows.Cast<RoleSummary>().First(r => r.Role.Name == "Security Administrator"));
@@ -870,6 +874,46 @@ static class InteractionChecks
             page.Settings.MaxActivation = RoleSettingsSection.ActivationChoices.First(c => c.Value == TimeSpan.FromHours(4));
             Settle();
             Expect(main.Pending.Rows.Any(r => r.Change is SetRolePolicyRule { RuleId: RolePolicyRules.ActivationExpiry }), "the shorter activation is in Pending changes");
+            window.Close();
+        });
+
+        Check("Conditional Access: the sidebar opens the policies; a policy opens its page; choosing Off stages it and Delete stages a delete", () =>
+        {
+            var (window, main, _) = OpenList(premium: true);
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection { Key: "security" }));
+            var area = main.SecurityArea;
+            for (var i = 0; i < 50 && area.Policies.Total == 0; i++)
+                Settle();
+            Expect(area.ShowPolicies && area.Policies.Total > 0, "Conditional Access shows the policies");
+            var policy = area.Policies.Rows.Cast<CaPolicyRow>().First(r => r.Policy.State == "enabled");
+            Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, policy) && b.IsEffectivelyVisible));
+            var page = main.SelectedTab as CaPolicyDetailViewModel;
+            Expect(page?.Policy.Id == policy.Policy.Id && page.Lines.Count > 0, "its page opened with the policy in words");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is CaStateChoice { State: "disabled" }));
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetCaPolicyState { New: "disabled" }) && page!.HasPending, "switching it off is in Pending changes");
+            Click(window, FindButton(window, b => b.Command == page!.DeleteCommand && b.IsEffectivelyVisible));
+            Expect(main.Pending.Rows.Any(r => r.Change is DeleteCaPolicy), "deleting it is in Pending changes");
+            window.Close();
+        });
+
+        Check("What If: choosing a person and Check lists which policies apply and why the others don't", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.Users.LoadAsync().GetAwaiter().GetResult();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "whatif" }));
+            var whatIf = main.SecurityArea.WhatIf;
+            whatIf.Picker.Query = main.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member).DisplayName;
+            Settle();
+            Click(window, FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == whatIf.Picker));
+            Expect(whatIf.HasPerson, "the person was chosen");
+            Click(window, FindButton(window, b => b.Command == whatIf.CheckCommand && b.IsEffectivelyVisible));
+            for (var i = 0; i < 20 && whatIf.Results.Count == 0; i++)
+                Settle();
+            Expect(whatIf.Results.Any(r => r.Applies) && whatIf.Results.Any(r => !r.Applies && r.Detail.StartsWith("Because", StringComparison.Ordinal)) && whatIf.HasSummary,
+                "the results say what applies and why the rest don't");
             window.Close();
         });
 

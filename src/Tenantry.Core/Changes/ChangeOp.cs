@@ -88,6 +88,8 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(ExtendRoleAssignment), "extendRoleAssignment")]
 [JsonDerivedType(typeof(ActivateRole), "activateRole")]
 [JsonDerivedType(typeof(ReviewRoleRequest), "reviewRoleRequest")]
+[JsonDerivedType(typeof(SetCaPolicyState), "setCaPolicyState")]
+[JsonDerivedType(typeof(DeleteCaPolicy), "deleteCaPolicy")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -1548,4 +1550,41 @@ public sealed record ReviewRoleRequest(ChangeTarget Request, string ApprovalId, 
     public override bool IsCaution => Approve;
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+// ---- Conditional Access (8b) ----------------------------------------------------------------
+
+/// <summary>
+/// A change to one Conditional Access policy. Policies have no address, so the write guard judges
+/// the name: in Test mode only policies named zz-tenantry-test-… change.
+/// </summary>
+/// <param name="Policy">Kind "capolicy": Id is Entra's policy ID (its name, for a new one), Name its name.</param>
+public abstract record CaPolicyChange(ChangeTarget Policy) : ChangeOp
+{
+    public override ChangeTarget Target => Policy;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>On (enforced), Report-Only (only recorded) or Off. Switching a policy On is a caution change.</summary>
+public sealed record SetCaPolicyState(ChangeTarget Policy, string Old, string New) : CaPolicyChange(Policy)
+{
+    public override string Key => "state";
+    public override string Label => $"Policy \"{Policy.Name}\"";
+    public override string Before => Directory.CaPolicy.StateName(Old);
+    public override string After => Directory.CaPolicy.StateName(New);
+    public override bool IsCaution => New == "enabled" || Old == "enabled";
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetCaPolicyState e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>Deletes a policy (Entra keeps it 30 days in deleted items). The admin types its name to confirm.</summary>
+public sealed record DeleteCaPolicy(ChangeTarget Policy, string Detail) : CaPolicyChange(Policy)
+{
+    public override string Key => "delete";
+    public override string Label => $"Policy \"{Policy.Name}\"";
+    public override string Before => Detail;
+    public override string After => "Deleted";
+    public override bool IsCaution => true;
+    public override string? ConfirmPhrase => Policy.Name;
+    public override bool IsNoChange => false;
 }

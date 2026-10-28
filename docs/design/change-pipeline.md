@@ -429,6 +429,30 @@ screenshots and checks.
   patching the approval step assigned to the admin (`roleAssignmentApprovals/{id}/steps/{id}`). The
   guard judges who asked.
 
+### Conditional Access (8b-1)
+
+Security & Compliance opens on Conditional Access: every policy in plain words (who, apps,
+conditions, what it requires), read live when shown, on Refresh and after changes apply. A policy
+opens as a page with its state switch, Delete, and the JSON Entra keeps. What If tests a sign-in.
+
+- **Kept as Graph's JSON** (`CaPolicy.Json`): `CaText` reads it into labelled lines; the 8b-2
+  editor will change only what it understands, so settings Tenantry doesn't know survive.
+- **Names:** the IDs a policy holds are named in a few batched reads: people and groups
+  (`directoryObjects/getByIds`), roles (role definitions' template IDs), apps (`servicePrincipals`
+  by appId, 15 at a time), named locations and authentication strengths. Anyone no longer there is
+  said so.
+- **`SetCaPolicyState`:** `PATCH policies/{id}` with On, Report-Only or Off, read back. Switching
+  On (or away from On) is a caution change. **`DeleteCaPolicy`** asks for the policy's name; Entra
+  keeps deleted policies in its own deleted items (`identity/conditionalAccess/deletedItems`, beta),
+  not the directory's.
+- **Guard:** policies have no address, so the name is judged: only `zz-tenantry-test-` policies
+  change in Test mode.
+- **What If:** beta `identity/conditionalAccess/evaluate` with `signInIdentity`, `signInContext`
+  and `signInConditions` (the older field names answer 400; "any app" isn't accepted, so the page
+  offers common apps by ID). Each policy comes back with whether it applies and, if not,
+  `analysisReasons` flags, put into words.
+- **Live:** a policy is listed a few seconds after it's made; the live test waits for it.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.
