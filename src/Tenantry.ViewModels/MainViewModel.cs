@@ -97,7 +97,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageConditionalAccess).Reason,
             tenant.Records as IAppRecords, OpenAppRegistration, OpenEnterpriseApp,
             tenant.Changes is not null && Evaluate(Capabilities.ManageApps).IsAvailable && tenant.Records is IAppRecords ? NewApp : null,
-            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageApps).Reason);
+            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageApps).Reason,
+            tenant.Records as IAuthMethodRecords, tenant.Changes is not null && Evaluate(Capabilities.ManageAuthPolicy).IsAvailable,
+            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageAuthPolicy).Reason);
         SecurityArea.RolesRead += (_, _) => FollowRoles();
         SecurityArea.PoliciesRead += (_, _) => FollowPolicies();
         SecurityArea.AppsRead += (_, _) => FollowApps();

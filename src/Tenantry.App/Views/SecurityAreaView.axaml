@@ -337,6 +337,10 @@
         </ContentControl.DataTemplates>
       </ContentControl>
     </DockPanel>
+    <!-- Sign-in methods and security defaults (8d-1) -->
+    <Panel IsVisible="{Binding ShowAuthMethods}">
+      <views:AuthMethodsView DataContext="{Binding AuthMethodsPage}" />
+    </Panel>
     <!-- Deleted app registrations: restore or delete for good -->
     <Panel IsVisible="{Binding ShowDeletedApps}">
       <ScrollViewer>

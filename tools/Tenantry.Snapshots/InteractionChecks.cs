@@ -1131,6 +1131,38 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Authentication Methods: the tab lists methods; choosing one opens its editor; Off stages it; Security Defaults' switch stages too", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "authmethods" }));
+            var page = main.SecurityArea.AuthMethodsPage;
+            for (var i = 0; i < 50 && page.Methods.Count == 0; i++)
+                Settle();
+            Expect(page.Methods.Count >= 10 && page.Editor is AuthItemEditor { Id: "MicrosoftAuthenticator" }, "the methods are listed with the Authenticator open");
+            var fido = window.GetVisualDescendants().OfType<ListBoxItem>().FirstOrDefault(i => i.DataContext is AuthItemRow { Id: "Fido2" });
+            Expect(fido is not null, $"the Passkeys row is on screen ({window.GetVisualDescendants().OfType<ListBoxItem>().Count(i => i.DataContext is AuthItemRow)} rows)");
+            Click(window, fido!);
+            var editor = page.Editor as AuthItemEditor;
+            Expect(editor?.Id == "Fido2", "choosing Passkeys opened its editor");
+            Settle();
+            var off = window.GetVisualDescendants().OfType<ListBoxItem>().FirstOrDefault(i => i.DataContext is Tenantry.ViewModels.Editing.EditorChoice { Value: "disabled" } && i.IsEffectivelyVisible);
+            Expect(off is not null, "the Off choice is on screen");
+            Click(window, off!);
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetAuthMethodConfig { Method.Id: "Fido2", IsCaution: true }), "switching passkeys off is a caution change in Pending changes");
+            Expect(page.Methods.Single(m => m.Id == "Fido2").Pending && page.Editor == editor, "its row says Pending and the editor stays open");
+            var defaults = window.GetVisualDescendants().OfType<ListBoxItem>().FirstOrDefault(i => i.DataContext is AuthItemRow { Id: "securityDefaults" });
+            Expect(defaults is not null, "the Security Defaults row is on screen");
+            defaults!.BringIntoView();
+            Settle();
+            Click(window, defaults!);
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ToggleSwitch>().First(t => t.IsEffectivelyVisible && t.DataContext is SecurityDefaultsEditor));
+            Expect(main.Pending.Rows.Any(r => r.Change is SetSecurityDefaults { New: true }), "turning security defaults on is in Pending changes");
+            window.Close();
+        });
+
         Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
         {
             var (window, main, _) = OpenList();

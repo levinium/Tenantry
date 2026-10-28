@@ -154,7 +154,7 @@ public sealed class TenantConnector : ITenantConnector
             directory,
             new TenantContext(
                 new HashSet<string>([DirectoryRoles.UserAdministrator, DirectoryRoles.ExchangeAdministrator, DirectoryRoles.IntuneAdministrator,
-                    DirectoryRoles.SharePointAdministrator, DirectoryRoles.PrivilegedRoleAdministrator, DirectoryRoles.CloudApplicationAdministrator,
+                    DirectoryRoles.SharePointAdministrator, DirectoryRoles.PrivilegedRoleAdministrator, DirectoryRoles.CloudApplicationAdministrator, DirectoryRoles.AuthenticationPolicyAdministrator,
                     .. premium ? [DirectoryRoles.ConditionalAccessAdministrator] : Array.Empty<string>()]),
                 new HashSet<string>(premium ? ["EXCHANGE_S_STANDARD", "AAD_PREMIUM", "AAD_PREMIUM_P2"] : ["EXCHANGE_S_STANDARD"]),
                 OperatingSystem.IsWindows()),

@@ -30,6 +30,8 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             return new ApplyResult(ChangeOutcome.Applied, "Pass them this code (demo).", Reveal: "Tap" + Random.Shared.Next(100000, 999999).ToString(System.Globalization.CultureInfo.InvariantCulture) + "!x");
         if (records is not null && change is SiteChange && await records.ApplySiteAsync(change, cancellationToken) is { } site)
             return site;
+        if (records is not null && records.ApplyAuthMethods(change) is { } methods)
+            return methods;
         if (records is not null && records.ApplyApp(change) is { } app)
             return app;
         if (records is not null && records.ApplyCa(change))

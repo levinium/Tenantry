@@ -79,6 +79,13 @@ public static class TenantryPermissions
         // Conditional Access (Phase 8, 2026-10-28): a policy can require accepting terms of use;
         // listing them was refused without this (seen live).
         "Agreement.Read.All",
+        // Authentication methods and risk (Phase 8d, 2026-10-28): Policy.Read.All reads the
+        // methods policy and security defaults but can't change them; risk detections and risky
+        // apps answered "required scopes are missing" without the risk-event read (seen live).
+        "Policy.ReadWrite.AuthenticationMethod",
+        "Policy.ReadWrite.SecurityDefaults",
+        "IdentityRiskEvent.Read.All",
+        "IdentityRiskyServicePrincipal.ReadWrite.All",
     ]);
 
     public static readonly ApiPermissions Exchange = new(ExchangeAppId, "Office 365 Exchange Online", "https://outlook.office365.com",
@@ -112,6 +119,10 @@ public static class TenantryPermissions
         "DeviceManagementManagedDevices.PrivilegedOperations.All" => "wiping, retiring and locating devices",
         "DeviceManagementServiceConfig.ReadWrite.All" => "Autopilot",
         "Agreement.Read.All" => "requiring terms of use in Conditional Access",
+        "Policy.ReadWrite.AuthenticationMethod" => "changing which sign-in methods people can use",
+        "Policy.ReadWrite.SecurityDefaults" => "turning security defaults on or off",
+        "IdentityRiskEvent.Read.All" => "showing risk detections",
+        "IdentityRiskyServicePrincipal.ReadWrite.All" => "showing and dismissing risky apps",
         _ => null,
     };
 

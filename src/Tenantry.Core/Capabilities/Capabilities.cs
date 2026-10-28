@@ -53,7 +53,11 @@ public static class Capabilities
     public static readonly Capability ManageApps = new("apps.manage", "Manage App Registrations and Enterprise Apps",
         [ApplicationAdministrator, CloudApplicationAdministrator]);
 
+    /// <summary>The authentication methods policy (which sign-in methods, for whom) and security defaults.</summary>
+    public static readonly Capability ManageAuthPolicy = new("security.authMethodsPolicy", "Manage Sign-In Methods",
+        [AuthenticationPolicyAdministrator]);
+
     public static IReadOnlyList<Capability> All { get; } =
         [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess, ManageDevices,
-            ManageSites, ManageRoles, ManageApps];
+            ManageSites, ManageRoles, ManageApps, ManageAuthPolicy];
 }

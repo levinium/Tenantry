@@ -27,6 +27,7 @@ public static class DirectoryRoles
     public const string PrivilegedRoleAdministrator = "e8611ab8-c189-46e8-94e1-60213ab1f814";
     public const string HelpdeskAdministrator = "729827e3-9c14-49f7-bb1b-9608f156bbb8";
     public const string TeamsAdministrator = "69091246-20e8-4a56-aa4d-066075b2a7a8";
+    public const string AuthenticationPolicyAdministrator = "0526716b-113d-4c15-b2c8-68e3c22b9f80";
 
     static readonly Dictionary<string, string> Names = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -51,6 +52,7 @@ public static class DirectoryRoles
         [PrivilegedRoleAdministrator] = "Privileged Role Administrator",
         [HelpdeskAdministrator] = "Helpdesk Administrator",
         [TeamsAdministrator] = "Teams Administrator",
+        [AuthenticationPolicyAdministrator] = "Authentication Policy Administrator",
     };
 
     public static string NameOf(string templateId) => Names.GetValueOrDefault(templateId, templateId);

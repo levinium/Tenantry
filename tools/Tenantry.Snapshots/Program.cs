@@ -810,6 +810,20 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
         Render(premium, "ca-strengths-light", height: 1100);
 
+        // Authentication methods (8d-1): Temporary Access Pass open.
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "authmethods");
+        premium.SelectedTab = premium.SecurityArea;
+        for (var i = 0; i < 20 && premium.SecurityArea.AuthMethodsPage.Methods.Count == 0; i++)
+            Settle();
+        premium.SecurityArea.AuthMethodsPage.Selected = premium.SecurityArea.AuthMethodsPage.Methods.Single(m => m.Id == "TemporaryAccessPass");
+        for (var i = 0; i < 5; i++)
+            Settle();
+        Render(premium, "auth-methods-light", height: 1100);
+        premium.SecurityArea.AuthMethodsPage.Selected = premium.SecurityArea.AuthMethodsPage.Methods.Single(m => m.Id == "Sms");
+        for (var i = 0; i < 5; i++)
+            Settle();
+        Render(premium, "auth-methods-sms-light", height: 1100);
+
         // Apps (8c-1): the registrations list, a registration's secrets, an enterprise app's permissions.
         premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
         for (var i = 0; i < 20 && premium.SecurityArea.Registrations.Total == 0; i++)

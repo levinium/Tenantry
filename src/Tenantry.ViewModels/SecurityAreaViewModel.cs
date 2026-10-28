@@ -22,6 +22,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     [
         new("ca", "Conditional Access", "ShieldLock"),
         new("whatif", "What If", "QuestionCircle"),
+        new("authmethods", "Authentication Methods", "Key"),
         new("locations", "Named Locations", "Location"),
         new("strengths", "Authentication Strengths", "ShieldKeyhole"),
         new("appregs", "App Registrations", "AppFolder"),
@@ -37,7 +38,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public SecurityAreaViewModel(IRoleRecords? roles, ChangePipeline? pipeline, IListStateStore? listState, Func<DateTimeOffset> now,
         Action<RoleSummary> openRole, Action? newRole, string? cantEditReason, string? me = null, IDirectoryIndex? index = null,
         IConditionalAccessRecords? ca = null, Action<CaPolicyRow>? openPolicy = null, Action? newPolicy = null, string? cantEditPolicies = null,
-        IAppRecords? apps = null, Action<AppRegistration>? openRegistration = null, Action<EnterpriseApp>? openEnterprise = null, Action? newApp = null, string? cantEditApps = null)
+        IAppRecords? apps = null, Action<AppRegistration>? openRegistration = null, Action<EnterpriseApp>? openEnterprise = null, Action? newApp = null, string? cantEditApps = null,
+        IAuthMethodRecords? authMethods = null, bool canEditAuth = false, string? cantEditAuth = null)
     {
         _roles = roles;
         _ca = ca;
@@ -50,6 +52,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         WhatIf = new Records.WhatIfViewModel(ca, index ?? EmptyIndex.Instance);
         NamedLocations = new Records.LocationsViewModel(this, pipeline, newPolicy is not null, cantEditPolicies);
         AuthStrengths = new Records.StrengthsViewModel(this);
+        AuthMethodsPage = new Records.AuthMethodsViewModel(authMethods, pipeline, canEditAuth, cantEditAuth, index);
         _apps = apps;
         Registrations = DataListViewModel.Create(AppList.Registrations(a => RegistrationPreview(a, now(), openRegistration), now),
             async ct => (await ReadAppsAsync(ct))?.Registrations ?? [], row => openRegistration?.Invoke((AppRegistration)row), listState, now);
@@ -176,7 +179,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals), nameof(ShowPolicies), nameof(ShowWhatIf), nameof(ShowLocations),
-        nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps), nameof(ShowDeletedApps))]
+        nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps), nameof(ShowDeletedApps), nameof(ShowAuthMethods))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     // ---- Apps (8c) -------------------------------------------------------------------------------
@@ -190,6 +193,9 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     /// <summary>Enterprise apps (service principals) (8c).</summary>
     public DataListViewModel EnterpriseApps { get; }
+
+    /// <summary>Sign-in methods and security defaults (8d-1).</summary>
+    public Records.AuthMethodsViewModel AuthMethodsPage { get; }
 
     /// <summary>Deleted app registrations, with Restore and Delete Permanently.</summary>
     public Records.AppSection DeletedAppsSection { get; }
@@ -278,6 +284,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public bool ShowRegistrations => SelectedPage.Key == "appregs";
     public bool ShowEnterpriseApps => SelectedPage.Key == "enterprise";
     public bool ShowDeletedApps => SelectedPage.Key == "deletedapps";
+    public bool ShowAuthMethods => SelectedPage.Key == "authmethods";
     public bool ShowMyRoles => SelectedPage.Key == "myroles";
     public bool ShowApprovals => SelectedPage.Key == "approvals";
 
@@ -297,6 +304,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
             _ = Registrations.LoadAsync();
             _ = EnterpriseApps.LoadAsync();
         }
+        if (ShowAuthMethods)
+            AuthMethodsPage.Shown();
         if (ShowDeletedApps)
             _ = DeletedAppsSection.LoadAsync();
         if (ShowMyRoles)

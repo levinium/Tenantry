@@ -550,6 +550,32 @@ Adding, Removing or Revoking with Undo.
   deleted, restored, deleted and purged. The guard refused a real app with 0 requests sent.
   Certificate removal is covered by tests only, since the test app had no certificate.
 
+### Authentication methods (8d-1)
+
+A Security & Compliance page tab: every sign-in method on the left, then the policy's settings
+(registration campaign, system-preferred MFA, report suspicious activity, security defaults); the
+chosen one's editor on the right.
+
+- **Read** through beta `policies/authenticationMethodsPolicy`, which lists all 13 methods the
+  admin center shows (v1.0 leaves out hardware tokens, password and federated credentials), plus
+  v1.0 security defaults. Group IDs anywhere in the policy are named in one batched read.
+- **Editor:** state (On/Off; sections also Microsoft Managed), who (everyone, or chosen groups, minus
+  left-out groups), and typed settings from a catalog (`AuthMethods.Catalog`, `AuthSetting` with a
+  JSON path). Certificates and federated credentials say their rules live in the admin center.
+- **Staging:** each edit stages one `SetAuthMethodConfig` per method or section, replacing the last;
+  editing back to the original takes it out; problems (a Temporary Access Pass lifetime outside
+  its range, nobody chosen) keep it out. Switching a method on or off, or widening a weak one
+  (text, call, email), is a caution change. The PATCH carries only the type, state, targets and
+  the top-level objects the catalog edits, so the rest stays as it was. New targets copy the shape
+  of the method's existing ones (the Authenticator's mode, a passkey's profiles).
+- **Security defaults:** one switch, `SetSecurityDefaults`, a caution change; Entra refuses it while
+  Conditional Access policies are on, and the demo does the same.
+- **Permissions:** Policy.ReadWrite.AuthenticationMethod and Policy.ReadWrite.SecurityDefaults
+  (plus IdentityRiskEvent.Read.All and IdentityRiskyServicePrincipal.ReadWrite.All for 8d-2).
+  Role: Authentication Policy Administrator (`ManageAuthPolicy`).
+- **Live:** read-only. The policy is the organization's, so Test mode refuses every change to it
+  (checked: 0 requests sent).
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

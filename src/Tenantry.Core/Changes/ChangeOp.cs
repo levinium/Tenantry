@@ -107,6 +107,8 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(RestoreApp), "restoreApp")]
 [JsonDerivedType(typeof(PurgeApp), "purgeApp")]
 [JsonDerivedType(typeof(CreateAppRegistration), "createAppRegistration")]
+[JsonDerivedType(typeof(SetAuthMethodConfig), "setAuthMethodConfig")]
+[JsonDerivedType(typeof(SetSecurityDefaults), "setSecurityDefaults")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -1863,4 +1865,40 @@ public sealed record CreateAppRegistration(ChangeTarget App, string Audience, st
     public override string Before => "None";
     public override string After => Directory.AppRegistration.AudienceText(Audience) + (RedirectUri is null ? "" : $"; {Platform} redirect {RedirectUri}");
     public override bool IsNoChange => false;
+}
+
+// ---- Authentication methods (8d-1) ----------------------------------------------------------
+
+/// <summary>
+/// One sign-in method (kind "authmethod", Id = the method's ID such as "Fido2") or one of the
+/// policy's sections (kind "authpolicy", Id = "registrationCampaign", "systemCredentialPreferences"
+/// or "reportSuspiciousActivitySettings"), sent whole as Graph's JSON. Each edit replaces the last.
+/// The policy is the organization's, so Test mode refuses it (its name isn't a test name).
+/// </summary>
+/// <param name="Caution">Switching a method on or off, or turning on an easily intercepted one.</param>
+public sealed record SetAuthMethodConfig(ChangeTarget Method, string Json, string OldSummary, string NewSummary, bool Caution) : ChangeOp
+{
+    public override ChangeTarget Target => Method;
+    public override string Key => "config";
+    public override string Label => Method.Kind == "authpolicy" ? Method.Name : $"Sign-In Method {Method.Name}";
+    public override string Before => OldSummary;
+    public override string After => NewSummary;
+    public override bool IsCaution => Caution;
+    public override bool IsNoChange => OldSummary == NewSummary;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetAuthMethodConfig e ? this with { OldSummary = e.OldSummary } : this;
+}
+
+/// <summary>Security defaults: Microsoft's basic protections for tenants without Conditional Access. A caution change either way.</summary>
+public sealed record SetSecurityDefaults(bool Old, bool New) : ChangeOp
+{
+    public static readonly ChangeTarget Policy = new("securitydefaults", "securityDefaults", "Security Defaults", null);
+
+    public override ChangeTarget Target => Policy;
+    public override string Key => "enabled";
+    public override string Label => "Security Defaults";
+    public override string Before => Old ? "On" : "Off";
+    public override string After => New ? "On" : "Off";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetSecurityDefaults e ? this with { Old = e.Old } : this;
 }

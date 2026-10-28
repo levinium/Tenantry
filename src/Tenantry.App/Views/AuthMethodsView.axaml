@@ -1,0 +1,246 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.AuthMethodsView"
+             x:DataType="rec:AuthMethodsViewModel">
+  <!-- Sign-in methods and the policy's settings on the left; the chosen one's editor on the right. -->
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Button Classes="ghost" Command="{Binding ReadCommand}" ToolTip.Tip="Read the sign-in methods from Entra again">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+            <TextBlock Text="Refresh" />
+          </StackPanel>
+        </Button>
+        <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+                   Text="Which ways people can sign in and prove who they are, and who each one is for. Changes go to Pending changes." />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="18" Height="18" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" VerticalAlignment="Center" Text="Reading the sign-in methods from Entra…" />
+      </StackPanel>
+      <Border Classes="banner neutral" IsVisible="{Binding HasNote}">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+          <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Note}" />
+        </StackPanel>
+      </Border>
+      <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+          <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <Grid ColumnDefinitions="320,*" ColumnSpacing="16">
+      <ScrollViewer>
+        <StackPanel Spacing="8" Margin="0,0,0,24">
+          <TextBlock Classes="label" Text="SIGN-IN METHODS" />
+          <ListBox ItemsSource="{Binding Methods}" SelectedItem="{Binding Selected}" Background="Transparent">
+            <ListBox.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel />
+              </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="rec:AuthItemRow">
+                <StackPanel Spacing="2" Margin="2,4">
+                  <WrapPanel ItemSpacing="6" LineSpacing="4">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <c:Badge Text="{Binding StateText}" Kind="{Binding StateKind}" />
+                    <c:Badge Text="Pending" Kind="Warning" IsVisible="{Binding Pending}" ToolTip.Tip="Waiting in Pending changes" />
+                  </WrapPanel>
+                  <TextBlock Classes="caption" Text="{Binding Who}" IsVisible="{Binding HasWho}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock Classes="label" Text="POLICY SETTINGS" Margin="0,8,0,0" />
+          <ListBox ItemsSource="{Binding PolicySettings}" SelectedItem="{Binding Selected}" Background="Transparent">
+            <ListBox.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel />
+              </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="rec:AuthItemRow">
+                <StackPanel Spacing="2" Margin="2,4">
+                  <WrapPanel ItemSpacing="6" LineSpacing="4">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <c:Badge Text="{Binding StateText}" Kind="{Binding StateKind}" />
+                    <c:Badge Text="Pending" Kind="Warning" IsVisible="{Binding Pending}" ToolTip.Tip="Waiting in Pending changes" />
+                  </WrapPanel>
+                  <TextBlock Classes="caption" Text="{Binding Who}" IsVisible="{Binding HasWho}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </StackPanel>
+      </ScrollViewer>
+
+      <ScrollViewer Grid.Column="1">
+        <ContentControl Content="{Binding Editor}" MaxWidth="820" HorizontalAlignment="Left" Margin="0,0,0,24">
+          <ContentControl.DataTemplates>
+            <DataTemplate x:DataType="rec:AuthItemEditor">
+              <Border Classes="card">
+                <StackPanel Spacing="14">
+                  <StackPanel Spacing="4">
+                    <WrapPanel ItemSpacing="8">
+                      <TextBlock Classes="h2" Text="{Binding Title}" VerticalAlignment="Center" />
+                      <c:Badge Text="In Pending Changes" Kind="Warning" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+                    </WrapPanel>
+                    <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <Border Classes="banner neutral" IsVisible="{Binding HasManagedElsewhere}">
+                    <TextBlock Text="{Binding ManagedElsewhere}" TextWrapping="Wrap" />
+                  </Border>
+
+                  <StackPanel Spacing="6" IsEnabled="{Binding CanEdit}">
+                    <TextBlock Classes="label" Text="STATE" />
+                    <ListBox ItemsSource="{Binding States}" SelectedItem="{Binding State}" Background="Transparent" HorizontalAlignment="Left">
+                      <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Orientation="Horizontal" Spacing="6" />
+                        </ItemsPanelTemplate>
+                      </ListBox.ItemsPanel>
+                      <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="ed:EditorChoice">
+                          <TextBlock Text="{Binding Label}" Margin="10,2" />
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                  </StackPanel>
+
+                  <StackPanel Spacing="8" IsVisible="{Binding HasTargets}" IsEnabled="{Binding CanEdit}">
+                    <TextBlock Classes="label" Text="WHO CAN USE IT" />
+                    <CheckBox IsChecked="{Binding Everyone}" Content="Everyone" />
+                    <StackPanel Spacing="6" IsVisible="{Binding !Everyone}">
+                      <ItemsControl ItemsSource="{Binding IncludeGroups}">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate>
+                            <WrapPanel ItemSpacing="6" LineSpacing="6" />
+                          </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="rec:TargetChip">
+                            <Border Classes="chip">
+                              <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                <Button Classes="chipx" Command="{Binding RemoveCommand}" ToolTip.Tip="Take it off">
+                                  <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+                                </Button>
+                              </StackPanel>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <views:PersonPickerView DataContext="{Binding IncludePicker}" MaxWidth="420" HorizontalAlignment="Left" />
+                    </StackPanel>
+                    <StackPanel Spacing="6" IsVisible="{Binding HasExclusions}" Margin="0,6,0,0">
+                      <TextBlock Classes="label" Text="LEAVE OUT" />
+                      <ItemsControl ItemsSource="{Binding ExcludeGroups}">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate>
+                            <WrapPanel ItemSpacing="6" LineSpacing="6" />
+                          </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="rec:TargetChip">
+                            <Border Classes="chip">
+                              <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                <Button Classes="chipx" Command="{Binding RemoveCommand}" ToolTip.Tip="Take it off">
+                                  <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+                                </Button>
+                              </StackPanel>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <views:PersonPickerView DataContext="{Binding ExcludePicker}" MaxWidth="420" HorizontalAlignment="Left" />
+                    </StackPanel>
+                    <TextBlock Classes="caption" Text="{Binding WhoText}" TextWrapping="Wrap" />
+                  </StackPanel>
+
+                  <StackPanel Spacing="10" IsVisible="{Binding HasSettings}" IsEnabled="{Binding CanEdit}">
+                    <TextBlock Classes="label" Text="SETTINGS" />
+                    <ItemsControl ItemsSource="{Binding Settings}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Spacing="10" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="rec:AuthSettingEditor">
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel Spacing="2" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                              <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Panel Grid.Column="1" VerticalAlignment="Center">
+                              <ToggleSwitch IsChecked="{Binding IsOn}" IsVisible="{Binding IsBool}" OnContent="Yes" OffContent="No" />
+                              <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsNumber}">
+                                <NumericUpDown Value="{Binding Number}" Minimum="{Binding Min}" Maximum="{Binding Max}" Increment="1" FormatString="0" Width="140" />
+                                <TextBlock Classes="caption" Text="{Binding Unit}" VerticalAlignment="Center" Width="72" />
+                              </StackPanel>
+                              <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Choice}" IsVisible="{Binding IsChoice}" MinWidth="200">
+                                <ComboBox.ItemTemplate>
+                                  <DataTemplate x:DataType="ed:EditorChoice">
+                                    <TextBlock Text="{Binding Label}" />
+                                  </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                              </ComboBox>
+                            </Panel>
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+
+                  <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+                          <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                          <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+            <DataTemplate x:DataType="rec:SecurityDefaultsEditor">
+              <Border Classes="card">
+                <StackPanel Spacing="12">
+                  <WrapPanel ItemSpacing="8">
+                    <TextBlock Classes="h2" Text="{Binding Title}" VerticalAlignment="Center" />
+                    <c:Badge Text="In Pending Changes" Kind="Warning" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+                  </WrapPanel>
+                  <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+                  <ToggleSwitch IsChecked="{Binding IsOn}" IsEnabled="{Binding CanEdit}" OnContent="On" OffContent="Off" />
+                  <Border Classes="banner neutral">
+                    <TextBlock Text="{Binding Note}" TextWrapping="Wrap" />
+                  </Border>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ContentControl.DataTemplates>
+        </ContentControl>
+      </ScrollViewer>
+    </Grid>
+  </DockPanel>
+</UserControl>
