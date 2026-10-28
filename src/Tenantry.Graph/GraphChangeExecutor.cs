@@ -127,6 +127,9 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         DeleteCaPolicy d => await DeleteCaPolicyAsync(d, cancellationToken),
         CreateCaPolicy c => await CreateCaPolicyAsync(c, cancellationToken),
         UpdateCaPolicy u => await UpdateCaPolicyAsync(u, cancellationToken),
+        CreateNamedLocation c => await CreateNamedLocationAsync(c, cancellationToken),
+        UpdateNamedLocation u => await UpdateNamedLocationAsync(u, cancellationToken),
+        DeleteNamedLocation d => await DeleteNamedLocationAsync(d, cancellationToken),
         _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 

@@ -34,10 +34,32 @@ public sealed record CaNames(
 }
 
 /// <summary>A named location (trusted or not): IP ranges or countries.</summary>
-public sealed record NamedLocation(string Id, string Name, bool IsTrusted, string Kind, IReadOnlyList<string> Places);
+/// <param name="Kind">"IP Ranges" or "Countries".</param>
+/// <param name="Places">CIDR ranges, or two-letter country codes.</param>
+/// <param name="IncludeUnknown">Countries only: also covers addresses no country can be found for.</param>
+/// <param name="ByGps">Countries only: judged by the Authenticator app's GPS, not the IP address.</param>
+public sealed record NamedLocation(string Id, string Name, bool IsTrusted, string Kind, IReadOnlyList<string> Places, bool IncludeUnknown = false, bool ByGps = false)
+{
+    public const string IpRanges = "IP Ranges";
+    public const string Countries = "Countries";
 
-/// <summary>Every policy, with the names its IDs stand for and the named locations.</summary>
-public sealed record CaDirectory(IReadOnlyList<CaPolicy> Policies, CaNames Names, IReadOnlyList<NamedLocation> Locations);
+    public bool IsIp => Kind == IpRanges;
+}
+
+/// <summary>An authentication strength: which sign-in methods (or combinations) count.</summary>
+/// <param name="Combinations">Graph's combinations ("password,microsoftAuthenticatorPush", "fido2").</param>
+public sealed record AuthStrength(string Id, string Name, string? Description, bool IsBuiltIn, IReadOnlyList<string> Combinations);
+
+/// <summary>Every policy, with the names its IDs stand for, the named locations and the authentication strengths.</summary>
+public sealed record CaDirectory(IReadOnlyList<CaPolicy> Policies, CaNames Names, IReadOnlyList<NamedLocation> Locations, IReadOnlyList<AuthStrength>? Strengths = null)
+{
+    public IReadOnlyList<AuthStrength> AllStrengths => Strengths ?? [];
+
+    /// <summary>Policies that name a location (included or left out): a location in use can't be deleted.</summary>
+    public IReadOnlyList<CaPolicy> UsingLocation(string id) =>
+        [.. Policies.Where(p => CaJson.Strings(p.Node, "conditions/locations/includeLocations").Concat(CaJson.Strings(p.Node, "conditions/locations/excludeLocations"))
+            .Contains(id, StringComparer.OrdinalIgnoreCase))];
+}
 
 /// <summary>A sign-in to test against the policies (What If).</summary>
 /// <param name="AppId">The app signed in to ("All" for any cloud app).</param>
@@ -287,5 +309,97 @@ public sealed record CaPolicyRow(CaPolicy Policy, string Who, string Except, str
         var lines = CaText.Lines(node, names);
         string Line(string label) => lines.FirstOrDefault(l => l.Label == label).Text ?? "";
         return new CaPolicyRow(policy, Line("Who"), Line("Except"), Line("Apps"), Line("Then"), lines);
+    }
+}
+
+/// <summary>Named locations in Graph's shape, checked; and authentication methods in words.</summary>
+public static class CaPlaces
+{
+    /// <summary>"203.0.113.0/24" or "2001:db8::/32": an address and a prefix length that fits it.</summary>
+    public static bool IsCidr(string text)
+    {
+        var slash = text.IndexOf('/');
+        if (slash < 0 || !System.Net.IPAddress.TryParse(text[..slash], out var address) || !int.TryParse(text[(slash + 1)..], out var bits))
+            return false;
+        return bits >= 0 && bits <= (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? 128 : 32);
+    }
+
+    /// <summary>What's wrong with a location before it can be saved, in plain words.</summary>
+    public static IReadOnlyList<string> Problems(string name, bool ip, IReadOnlyList<string> places, IEnumerable<NamedLocation> others, string? editingId)
+    {
+        var problems = new List<string>();
+        if (name.Trim().Length == 0)
+            problems.Add("Give it a name.");
+        else if (others.Any(o => o.Id != editingId && string.Equals(o.Name, name.Trim(), StringComparison.OrdinalIgnoreCase)))
+            problems.Add($"There's already a location called \"{name.Trim()}\".");
+        if (places.Count == 0)
+            problems.Add(ip ? "Add at least one IP range, like 203.0.113.0/24." : "Add at least one country code, like US.");
+        foreach (var bad in places.Where(p => ip ? !IsCidr(p) : !(p.Length == 2 && p.All(char.IsAsciiLetter))).Take(3))
+            problems.Add(ip ? $"\"{bad}\" isn't an IP range (an address, a slash and a prefix length, like 203.0.113.0/24)." : $"\"{bad}\" isn't a two-letter country code.");
+        return problems;
+    }
+
+    /// <summary>A location as Graph takes it on create or change.</summary>
+    public static JsonObject Json(string name, bool ip, bool trusted, IReadOnlyList<string> places, bool includeUnknown, bool byGps) => ip
+        ? new JsonObject
+        {
+            ["@odata.type"] = "#microsoft.graph.ipNamedLocation",
+            ["displayName"] = name.Trim(),
+            ["isTrusted"] = trusted,
+            ["ipRanges"] = new JsonArray([.. places.Select(p => (JsonNode)new JsonObject
+            {
+                ["@odata.type"] = p.Contains(':', StringComparison.Ordinal) ? "#microsoft.graph.iPv6CidrRange" : "#microsoft.graph.iPv4CidrRange",
+                ["cidrAddress"] = p,
+            })]),
+        }
+        : new JsonObject
+        {
+            ["@odata.type"] = "#microsoft.graph.countryNamedLocation",
+            ["displayName"] = name.Trim(),
+            ["countriesAndRegions"] = new JsonArray([.. places.Select(p => (JsonNode)p.ToUpperInvariant())]),
+            ["includeUnknownCountriesAndRegions"] = includeUnknown,
+            ["countryLookupMethod"] = byGps ? "authenticatorAppGps" : "clientIpAddress",
+        };
+
+    /// <summary>A location from the JSON <see cref="Json"/> made (or Graph sent).</summary>
+    public static NamedLocation Read(string id, string json)
+    {
+        var node = JsonNode.Parse(json)!.AsObject();
+        var ip = node["@odata.type"]?.GetValue<string>() == "#microsoft.graph.ipNamedLocation";
+        return new NamedLocation(id, node["displayName"]?.GetValue<string>() ?? "A location", node["isTrusted"]?.GetValue<bool>() == true,
+            ip ? NamedLocation.IpRanges : NamedLocation.Countries,
+            ip ? [.. (node["ipRanges"] as JsonArray ?? []).Select(r => r?["cidrAddress"]?.GetValue<string>()).OfType<string>()]
+               : [.. (node["countriesAndRegions"] as JsonArray ?? []).Select(c => c?.GetValue<string>()).OfType<string>()],
+            node["includeUnknownCountriesAndRegions"]?.GetValue<bool>() == true, node["countryLookupMethod"]?.GetValue<string>() == "authenticatorAppGps");
+    }
+
+    static readonly Dictionary<string, string> MethodWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["password"] = "password",
+        ["voice"] = "phone call",
+        ["sms"] = "text message",
+        ["hardwareOath"] = "hardware token",
+        ["softwareOath"] = "authenticator code",
+        ["microsoftAuthenticatorPush"] = "Authenticator notification",
+        ["deviceBasedPush"] = "Authenticator passwordless",
+        ["fido2"] = "security key or passkey",
+        ["windowsHelloForBusiness"] = "Windows Hello",
+        ["x509CertificateSingleFactor"] = "certificate",
+        ["x509CertificateMultiFactor"] = "certificate (multifactor)",
+        ["temporaryAccessPassOneTime"] = "Temporary Access Pass (one use)",
+        ["temporaryAccessPassMultiUse"] = "Temporary Access Pass",
+        ["federatedSingleFactor"] = "federated sign-in",
+        ["federatedMultiFactor"] = "federated MFA",
+        ["email"] = "email code",
+        ["qrCodePin"] = "QR code and PIN",
+    };
+
+    /// <summary>"password,microsoftAuthenticatorPush" → "Password and Authenticator notification".</summary>
+    public static string Combination(string combination)
+    {
+        var parts = combination.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(m => MethodWords.TryGetValue(m, out var w) ? w : m).ToArray();
+        var text = string.Join(" and ", parts);
+        return text.Length == 0 ? combination : char.ToUpperInvariant(text[0]) + text[1..];
     }
 }

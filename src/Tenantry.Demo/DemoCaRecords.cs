@@ -13,7 +13,21 @@ public sealed partial class DemoUserRecords : IConditionalAccessRecords
 {
     List<CaPolicy>? _caPolicies;
 
-    static readonly NamedLocation Office = new("loc-office", "Head Office", true, "IP Ranges", ["203.0.113.0/24"]);
+    static readonly NamedLocation Office = new("loc-office", "Head Office", true, NamedLocation.IpRanges, ["203.0.113.0/24"]);
+
+    readonly List<NamedLocation> _locations = [Office, new("loc-home", "Home Countries", false, NamedLocation.Countries, ["US", "CA"])];
+
+    /// <summary>Microsoft's three built-in authentication strengths, as Entra lists them.</summary>
+    static readonly AuthStrength[] Strengths =
+    [
+        new("00000000-0000-0000-0000-000000000002", "Multifactor authentication", "Combinations of methods that satisfy strong authentication, such as a password and SMS", true,
+            ["windowsHelloForBusiness", "fido2", "x509CertificateMultiFactor", "deviceBasedPush", "temporaryAccessPassOneTime", "password,microsoftAuthenticatorPush",
+                "password,softwareOath", "password,hardwareOath", "password,sms", "password,voice"]),
+        new("00000000-0000-0000-0000-000000000003", "Passwordless MFA", "Passwordless methods that satisfy strong authentication, such as Passwordless sign-in with the Microsoft Authenticator", true,
+            ["windowsHelloForBusiness", "fido2", "x509CertificateMultiFactor", "deviceBasedPush"]),
+        new("00000000-0000-0000-0000-000000000004", "Phishing-resistant MFA", "Phishing-resistant, Passwordless methods for the strongest authentication, such as a FIDO2 security key", true,
+            ["windowsHelloForBusiness", "fido2", "x509CertificateMultiFactor"]),
+    ];
 
     static CaPolicy Policy(string id, string name, string state, int ageDays, JsonObject conditions, JsonObject? grant, JsonObject? session = null)
     {
@@ -84,8 +98,8 @@ public sealed partial class DemoUserRecords : IConditionalAccessRecords
         Task.FromResult(new CaDirectory([.. CaPolicies().OrderBy(p => p.Name, StringComparer.CurrentCulture)],
             new CaNames(new Dictionary<string, string>(), new Dictionary<string, string>(),
                 Catalog.ToDictionary(c => c.Id, c => c.Name), new Dictionary<string, string>(),
-                new Dictionary<string, string> { [Office.Id] = Office.Name }, new Dictionary<string, string>()),
-            [Office]));
+                _locations.ToDictionary(l => l.Id, l => l.Name), Strengths.ToDictionary(x => x.Id, x => x.Name)),
+            [.. _locations.OrderBy(l => l.Name, StringComparer.CurrentCulture)], Strengths));
 
     public async Task<IReadOnlyList<WhatIfResult>> WhatIfAsync(WhatIfInput input, CancellationToken cancellationToken = default)
     {
@@ -118,6 +132,20 @@ public sealed partial class DemoUserRecords : IConditionalAccessRecords
     {
         if (ApplyCaEdit(change))
             return true;
+        switch (change)
+        {
+            case CreateNamedLocation create:
+                _locations.Add(CaPlaces.Read($"loc-{Guid.NewGuid():N}", create.Json));
+                return true;
+            case UpdateNamedLocation update:
+                var at = _locations.FindIndex(l => l.Id == update.Location.Id);
+                if (at >= 0)
+                    _locations[at] = CaPlaces.Read(update.Location.Id, update.Json);
+                return true;
+            case DeleteNamedLocation delete:
+                _locations.RemoveAll(l => l.Id == delete.Location.Id);
+                return true;
+        }
         var policies = CaPolicies();
         switch (change)
         {

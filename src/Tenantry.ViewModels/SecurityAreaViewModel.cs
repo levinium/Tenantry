@@ -22,6 +22,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     [
         new("ca", "Conditional Access", "ShieldLock"),
         new("whatif", "What If", "QuestionCircle"),
+        new("locations", "Named Locations", "Location"),
+        new("strengths", "Authentication Strengths", "ShieldKeyhole"),
         new("roles", "Admin Roles", "PersonKey"),
         new("myroles", "My Roles", "PersonStar"),
         new("approvals", "Approvals", "ApprovalsApp"),
@@ -42,10 +44,12 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
             ? new ListPrimaryAction("New Policy", "Add", true, "Make a policy, blank or from one of Microsoft's templates; it starts in report-only", newPolicy)
             : new ListPrimaryAction("New Policy", "Add", false, cantEditPolicies ?? "This tenant can't be edited");
         WhatIf = new Records.WhatIfViewModel(ca, index ?? EmptyIndex.Instance);
+        NamedLocations = new Records.LocationsViewModel(this, pipeline, newPolicy is not null, cantEditPolicies);
+        AuthStrengths = new Records.StrengthsViewModel(this);
         if (pipeline is not null)
             pipeline.Applied += (_, applied) =>
             {
-                if (_policiesRead && applied.Any(c => c is CaPolicyChange))
+                if (_policiesRead && applied.Any(c => c is CaPolicyChange or NamedLocationChange))
                     _ = Policies.ReloadAsync(busyText: "Reading policies again…");
             };
         MyRoles = new Records.MyRolesViewModel(roles, pipeline, me, index ?? EmptyIndex.Instance);
@@ -76,6 +80,21 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     /// <summary>Conditional Access policies (8b).</summary>
     public DataListViewModel Policies { get; }
+
+    /// <summary>Named locations (8b-3).</summary>
+    public Records.LocationsViewModel NamedLocations { get; }
+
+    /// <summary>Authentication strengths (8b-3).</summary>
+    public Records.StrengthsViewModel AuthStrengths { get; }
+
+    /// <summary>Reads the policies (with their locations and strengths) the first time any page needs them.</summary>
+    public void ReadPolicies()
+    {
+        if (_policiesRead)
+            return;
+        _policiesRead = true;
+        _ = Policies.LoadAsync();
+    }
 
     /// <summary>Which policies a sign-in would meet.</summary>
     public Records.WhatIfViewModel WhatIf { get; }
@@ -129,12 +148,15 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public event EventHandler? RolesRead;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals), nameof(ShowPolicies), nameof(ShowWhatIf))]
+    [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals), nameof(ShowPolicies), nameof(ShowWhatIf), nameof(ShowLocations),
+        nameof(ShowStrengths))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     public bool ShowRoles => SelectedPage.Key == "roles";
     public bool ShowPolicies => SelectedPage.Key == "ca";
     public bool ShowWhatIf => SelectedPage.Key == "whatif";
+    public bool ShowLocations => SelectedPage.Key == "locations";
+    public bool ShowStrengths => SelectedPage.Key == "strengths";
     public bool ShowMyRoles => SelectedPage.Key == "myroles";
     public bool ShowApprovals => SelectedPage.Key == "approvals";
 
@@ -146,11 +168,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
             _rolesRead = true;
             _ = Roles.LoadAsync();
         }
-        if (ShowPolicies && !_policiesRead)
-        {
-            _policiesRead = true;
-            _ = Policies.LoadAsync();
-        }
+        if (ShowPolicies || ShowLocations || ShowStrengths)
+            ReadPolicies();
         if (ShowMyRoles)
             MyRoles.Shown();
         if (ShowApprovals)

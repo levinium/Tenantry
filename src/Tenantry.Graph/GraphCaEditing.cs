@@ -97,3 +97,47 @@ public sealed partial class GraphChangeExecutor
             cancellationToken);
     }
 }
+
+/// <summary>Named locations (8b-3).</summary>
+public sealed partial class GraphChangeExecutor
+{
+    const string Locations = "identity/conditionalAccess/namedLocations";
+
+    async Task<ApplyResult> CreateNamedLocationAsync(CreateNamedLocation change, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await graph.PostAsync(Locations, JsonNode.Parse(change.Json)!.AsObject(), cancellationToken);
+            return new ApplyResult(ChangeOutcome.Applied);
+        }
+        catch (GraphException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, Describe(e));
+        }
+    }
+
+    /// <summary>Graph needs the location's @odata.type on a change, as on create.</summary>
+    Task<ApplyResult> UpdateNamedLocationAsync(UpdateNamedLocation change, CancellationToken cancellationToken)
+    {
+        var body = JsonNode.Parse(change.Json)!.AsObject();
+        var name = body["displayName"]?.GetValue<string>();
+        return GraphCheckedAsync(
+            ct => graph.PatchAsync($"{Locations}/{change.Location.Id}", body, ct),
+            ct => graph.GetAsync($"{Locations}/{change.Location.Id}", ct),
+            answer => answer is { } l && l.GetProperty("displayName").GetString() == name,
+            cancellationToken);
+    }
+
+    async Task<ApplyResult> DeleteNamedLocationAsync(DeleteNamedLocation change, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await DeleteIfThereAsync($"{Locations}/{change.Location.Id}", cancellationToken);
+            return new ApplyResult(ChangeOutcome.Applied);
+        }
+        catch (GraphException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, Describe(e));
+        }
+    }
+}

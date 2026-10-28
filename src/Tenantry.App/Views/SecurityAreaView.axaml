@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
              xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
              xmlns:views="using:Tenantry.App.Views"
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:conv="using:Tenantry.App.Converters"
@@ -128,6 +129,155 @@
                   </StackPanel>
                   <c:Badge Grid.Column="1" Text="{Binding Verdict}" Kind="{Binding VerdictKind}" VerticalAlignment="Center" />
                 </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </ScrollViewer>
+    </Panel>
+
+    <!-- Named locations: places policies name -->
+    <Panel IsVisible="{Binding ShowLocations}">
+    <ScrollViewer DataContext="{Binding NamedLocations}" x:DataType="rec:LocationsViewModel">
+      <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Left" Margin="0,0,0,24">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="Places Conditional Access policies can include or leave out: IP ranges (like an office's connection, which can be marked trusted) or countries." />
+          <Button Grid.Column="1" Classes="accent" Command="{Binding AddCommand}" IsEnabled="{Binding CanEdit}" ToolTip.Tip="Add an IP range or a list of countries">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="Add" FontSize="14" />
+              <TextBlock Text="Add Location" />
+            </StackPanel>
+          </Button>
+        </Grid>
+        <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card" IsVisible="{Binding IsFormOpen}">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h3" Text="{Binding FormTitle}" />
+            <TextBox Text="{Binding Name}" PlaceholderText="Name, like Head Office" />
+            <ListBox ItemsSource="{x:Static rec:LocationsViewModel.Kinds}" SelectedItem="{Binding Kind}" Background="Transparent">
+              <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <UniformGrid Columns="2" />
+                </ItemsPanelTemplate>
+              </ListBox.ItemsPanel>
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="ed:EditorChoice">
+                  <StackPanel Spacing="2" Margin="2,4">
+                    <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                    <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBox Text="{Binding PlacesText}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" PlaceholderText="{Binding PlacesHint}"
+                     FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
+            <CheckBox IsChecked="{Binding Trusted}" IsVisible="{Binding IsIp}" Content="Trusted (Policies That Leave Out Trusted Places Skip It)" />
+            <StackPanel Spacing="6" IsVisible="{Binding !IsIp}">
+              <CheckBox IsChecked="{Binding IncludeUnknown}" Content="Include Addresses No Country Can Be Found For" />
+              <CheckBox IsChecked="{Binding ByGps}" Content="Judge by the Authenticator App's GPS (Not the IP Address)" />
+            </StackPanel>
+            <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+                    <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                    <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding SaveCommand}" ToolTip.Tip="Nothing changes until you apply the pending changes" />
+              <Button Content="Cancel" Command="{Binding CancelCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <TextBlock Classes="muted" Text="No named locations yet." IsVisible="{Binding HasNone}" />
+        <ItemsControl ItemsSource="{Binding Locations}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:LocationRow">
+              <Border Classes="card">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                  <StackPanel Spacing="4">
+                    <WrapPanel ItemSpacing="8" LineSpacing="4">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                      <c:Badge Text="{Binding KindText}" Kind="Neutral" />
+                      <c:Badge Text="Trusted" Kind="Info" IsVisible="{Binding IsTrusted}" />
+                      <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending changes" />
+                    </WrapPanel>
+                    <SelectableTextBlock Text="{Binding Places}" TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" FontSize="12" />
+                    <TextBlock Classes="caption" Text="{Binding Extra}" IsVisible="{Binding HasExtra}" />
+                    <TextBlock Classes="caption" Text="{Binding UsedText}" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                    <Button Classes="outline" Content="Edit" Command="{Binding EditCommand}" IsVisible="{Binding !HasState}"
+                            IsEnabled="{Binding $parent[ScrollViewer].((rec:LocationsViewModel)DataContext).CanEdit}" ToolTip.Tip="Change its name, places or trust" />
+                    <Button Classes="danger-outline" Content="Delete" Command="{Binding DeleteCommand}" IsVisible="{Binding !HasState}" IsEnabled="{Binding CanDelete}"
+                            ToolTip.Tip="{Binding DeleteTip}" ToolTip.ShowOnDisabled="True" />
+                    <Button Classes="danger-outline undo" Content="Undo" Command="{Binding UndoCommand}" IsVisible="{Binding CanUndo}"
+                            ToolTip.Tip="Take the change back out of Pending changes" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </ScrollViewer>
+    </Panel>
+
+    <!-- Authentication strengths: which methods each counts -->
+    <Panel IsVisible="{Binding ShowStrengths}">
+    <ScrollViewer DataContext="{Binding AuthStrengths}" x:DataType="rec:StrengthsViewModel">
+      <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Left" Margin="0,0,0,24">
+        <TextBlock Classes="caption" TextWrapping="Wrap"
+                   Text="A policy can require an authentication strength instead of plain MFA: only the sign-in methods (or combinations) listed for it count." />
+        <ItemsControl ItemsSource="{Binding Strengths}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:StrengthRow">
+              <Border Classes="card">
+                <StackPanel Spacing="6">
+                  <WrapPanel ItemSpacing="8" LineSpacing="4">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <c:Badge Text="{Binding TypeText}" Kind="Neutral" />
+                  </WrapPanel>
+                  <TextBlock Classes="caption" Text="{Binding Description}" IsVisible="{Binding HasDescription}" TextWrapping="Wrap" />
+                  <TextBlock Classes="label" Text="ANY OF THESE" Margin="0,4,0,0" />
+                  <ItemsControl ItemsSource="{Binding Methods}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <WrapPanel ItemSpacing="6" LineSpacing="6" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <Border Classes="chip">
+                          <TextBlock Text="{Binding}" />
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Classes="caption" Text="{Binding UsedText}" />
+                </StackPanel>
               </Border>
             </DataTemplate>
           </ItemsControl.ItemTemplate>

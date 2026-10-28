@@ -792,6 +792,24 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
         Render(premium, "ca-editor-light", height: 2400);
 
+        // Named locations and authentication strengths (8b-3): the list with the add form open.
+        premium.SelectedSection = premium.Sections.Single(s => s.Key == "security");
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "locations");
+        premium.SelectedTab = premium.SecurityArea;
+        for (var i = 0; i < 20 && premium.SecurityArea.NamedLocations.Locations.Count == 0; i++)
+            Settle();
+        var locations = premium.SecurityArea.NamedLocations;
+        locations.AddCommand.Execute(null);
+        locations.Name = "Branch Office";
+        locations.PlacesText = "198.51.100.0/24";
+        Settle();
+        Render(premium, "ca-locations-light", height: 1100);
+        locations.CancelCommand.Execute(null);
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "strengths");
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "ca-strengths-light", height: 1100);
+
         // New Group: a shared mailbox with two people given access.
         editing.Groups.RunPrimaryActionCommand.Execute(null);
         var newGroup = (Tenantry.ViewModels.Records.NewGroupViewModel)editing.Dialog!.Content;

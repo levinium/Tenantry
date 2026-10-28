@@ -477,6 +477,26 @@ authentication strength, terms of use); session controls. The policy reads back 
 - **Live:** a policy from a real Microsoft template, narrowed to the test person and Off, made,
   edited (browser only, report-only), deleted and purged.
 
+### Named locations and authentication strengths (8b-3)
+
+Two more page tabs in Security & Compliance, read with the policies.
+
+- **Named Locations:** cards for each location (IP ranges or countries, trusted, which policies
+  use it). Add Location and Edit open one form: name, kind, places one per line, Trusted (IP
+  ranges), and for countries "include unknown" and "judge by the Authenticator app's GPS". Places
+  are checked before staging (CIDR with a prefix that fits; two-letter country codes; unique name).
+- **Staging:** `CreateNamedLocation`, `UpdateNamedLocation` (making a location trusted is a caution
+  change) and `DeleteNamedLocation`, guarded by name. A location a policy names can't be deleted;
+  its Delete is off and says why. Pending ones show Adding, Changing or Deleting with Undo.
+- **Graph:** `identity/conditionalAccess/namedLocations`; create and PATCH send the `@odata.type`
+  (`ipNamedLocation` with `iPv4CidrRange`/`iPv6CidrRange`, or `countryNamedLocation`), then the
+  location is read back by name. `CaPlaces.Read` turns that JSON back into a location (demo and
+  pending rows).
+- **Authentication Strengths:** cards for Microsoft's built-in strengths and any custom ones, each
+  method combination in words, and how many policies require it. Read-only.
+- **Live:** a test IP location (documentation range, not trusted) made, renamed with a second
+  range, and deleted; the guard refused a delete of the real location with 0 requests sent.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

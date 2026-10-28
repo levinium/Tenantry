@@ -29,14 +29,22 @@ public sealed partial class GraphUserRecords : IConditionalAccessRecords
                 ? l.TryGetProperty("ipRanges", out var r) ? r.EnumerateArray().Select(x => Text(x, "cidrAddress")).OfType<string>().ToArray() : []
                 : l.TryGetProperty("countriesAndRegions", out var c) ? c.EnumerateArray().Select(x => x.GetString()).OfType<string>().ToArray() : [];
             locations.Add(new NamedLocation(Text(l, "id") ?? "", Text(l, "displayName") ?? "A location",
-                l.TryGetProperty("isTrusted", out var t) && t.ValueKind == JsonValueKind.True, ip ? "IP Ranges" : "Countries", places));
+                l.TryGetProperty("isTrusted", out var t) && t.ValueKind == JsonValueKind.True, ip ? NamedLocation.IpRanges : NamedLocation.Countries, places,
+                l.TryGetProperty("includeUnknownCountriesAndRegions", out var u) && u.ValueKind == JsonValueKind.True,
+                Text(l, "countryLookupMethod") == "authenticatorAppGps"));
         }
 
         var strengths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var strengthList = new List<AuthStrength>();
         try
         {
-            await foreach (var s in graph.GetAllAsync($"{Ca}authenticationStrength/policies?$select=id,displayName", cancellationToken))
+            await foreach (var s in graph.GetAllAsync($"{Ca}authenticationStrength/policies", cancellationToken))
+            {
                 strengths[Text(s, "id") ?? ""] = Text(s, "displayName") ?? "An authentication strength";
+                strengthList.Add(new AuthStrength(Text(s, "id") ?? "", Text(s, "displayName") ?? "An authentication strength", Text(s, "description"),
+                    Text(s, "policyType") == "builtIn",
+                    s.TryGetProperty("allowedCombinations", out var c) ? [.. c.EnumerateArray().Select(x => x.GetString()).OfType<string>()] : []));
+            }
         }
         catch (GraphException)
         {
@@ -72,7 +80,8 @@ public sealed partial class GraphUserRecords : IConditionalAccessRecords
 
         return new CaDirectory([.. policies.OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)],
             new CaNames(people, groups, roles, apps, locations.ToDictionary(l => l.Id, l => l.Name, StringComparer.OrdinalIgnoreCase), strengths),
-            [.. locations.OrderBy(l => l.Name, StringComparer.CurrentCultureIgnoreCase)]);
+            [.. locations.OrderBy(l => l.Name, StringComparer.CurrentCultureIgnoreCase)],
+            [.. strengthList.OrderBy(s => s.IsBuiltIn ? 0 : 1).ThenBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase)]);
     }
 
     public async Task<IReadOnlyList<WhatIfResult>> WhatIfAsync(WhatIfInput input, CancellationToken cancellationToken = default)

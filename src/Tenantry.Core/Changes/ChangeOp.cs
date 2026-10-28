@@ -92,6 +92,9 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(DeleteCaPolicy), "deleteCaPolicy")]
 [JsonDerivedType(typeof(CreateCaPolicy), "createCaPolicy")]
 [JsonDerivedType(typeof(UpdateCaPolicy), "updateCaPolicy")]
+[JsonDerivedType(typeof(CreateNamedLocation), "createNamedLocation")]
+[JsonDerivedType(typeof(UpdateNamedLocation), "updateNamedLocation")]
+[JsonDerivedType(typeof(DeleteNamedLocation), "deleteNamedLocation")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -1618,4 +1621,49 @@ public sealed record UpdateCaPolicy(ChangeTarget Policy, string Json, string Old
     public override bool IsCaution => TurnsOn;
     public override bool IsNoChange => OldSummary == NewSummary && !TurnsOn;
     public override ChangeOp Since(ChangeOp earlier) => earlier is UpdateCaPolicy e ? this with { OldSummary = e.OldSummary } : this;
+}
+
+/// <summary>
+/// A change to a named location. Locations have no address, so the write guard judges the name:
+/// in Test mode only locations named zz-tenantry-test-… change.
+/// </summary>
+/// <param name="Location">Kind "location": Id is Entra's ID (the name, for a new one), Name its name.</param>
+public abstract record NamedLocationChange(ChangeTarget Location) : ChangeOp
+{
+    public override ChangeTarget Target => Location;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>A new named location. Marking one trusted is a caution change: policies that leave out trusted places then skip it.</summary>
+public sealed record CreateNamedLocation(ChangeTarget Location, string Json, string Description, bool Trusted) : NamedLocationChange(Location)
+{
+    public override string Key => "create";
+    public override string Label => $"New Location \"{Location.Name}\"";
+    public override string Before => "None";
+    public override string After => Description;
+    public override bool IsCaution => Trusted;
+    public override bool IsNoChange => false;
+}
+
+/// <summary>A named location's name, places or trust changed. Making it trusted is a caution change.</summary>
+public sealed record UpdateNamedLocation(ChangeTarget Location, string Json, string OldSummary, string NewSummary, bool BecomesTrusted) : NamedLocationChange(Location)
+{
+    public override string Key => "edit";
+    public override string Label => $"Location \"{Location.Name}\"";
+    public override string Before => OldSummary;
+    public override string After => NewSummary;
+    public override bool IsCaution => BecomesTrusted;
+    public override bool IsNoChange => OldSummary == NewSummary;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is UpdateNamedLocation e ? this with { OldSummary = e.OldSummary } : this;
+}
+
+/// <summary>Deletes a named location (Entra refuses while a policy names it).</summary>
+public sealed record DeleteNamedLocation(ChangeTarget Location, string Detail) : NamedLocationChange(Location)
+{
+    public override string Key => "delete";
+    public override string Label => $"Location \"{Location.Name}\"";
+    public override string Before => Detail;
+    public override string After => "Deleted";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
 }

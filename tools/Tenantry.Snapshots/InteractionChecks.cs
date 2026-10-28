@@ -974,6 +974,53 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Named Locations: Add Location opens the form; Add to Pending changes stages it; a location a policy uses can't be deleted; Edit stages a change", () =>
+        {
+            var (window, main, _) = OpenList(premium: true);
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "locations" }));
+            var page = main.SecurityArea.NamedLocations;
+            for (var i = 0; i < 50 && page.Locations.Count == 0; i++)
+                Settle();
+            Expect(page.Locations.Count == 2, "the page read the locations");
+            Click(window, FindButton(window, b => b.Command == page.AddCommand && b.IsEffectivelyVisible));
+            Expect(page.IsFormOpen, "the form opened");
+            Settle();
+            window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.PlaceholderText == "Name, like Head Office").Text = "Branch Office";
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.Editing.EditorChoice { Value: NamedLocation.IpRanges }));
+            window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.AcceptsReturn).Text = "198.51.100.0/24";
+            Settle();
+            Click(window, FindButton(window, b => b.Command == page.SaveCommand && b.IsEffectivelyVisible));
+            Expect(!page.IsFormOpen && main.Pending!.Rows.Any(r => r.Change is CreateNamedLocation { Location.Name: "Branch Office" }), "the new location is in Pending changes and the form closed");
+            Expect(page.Locations.Any(l => l.Name == "Branch Office" && l.StateText == "Adding"), "it shows as Adding");
+            var office = page.Locations.Single(l => l.Name == "Head Office");
+            Expect(!FindButton(window, b => b.Command == office.DeleteCommand && b.IsEffectivelyVisible).IsEffectivelyEnabled, "Head Office's Delete is off, since a policy uses it");
+            var home = page.Locations.Single(l => l.Name == "Home Countries");
+            Click(window, FindButton(window, b => b.Command == home.EditCommand && b.IsEffectivelyVisible));
+            Expect(page.IsFormOpen && page.Name == "Home Countries" && !page.IsIp, "Edit opened the form on it");
+            Settle();
+            window.GetVisualDescendants().OfType<CheckBox>().First(c => c.IsEffectivelyVisible && c.IsChecked == false && (c.Content as string)!.StartsWith("Include", StringComparison.Ordinal)).IsChecked = true;
+            Click(window, FindButton(window, b => b.Command == page.SaveCommand && b.IsEffectivelyVisible));
+            Expect(main.Pending!.Rows.Any(r => r.Change is UpdateNamedLocation) && page.Locations.Single(l => l.Name == "Home Countries").StateText == "Changing",
+                $"the change is in Pending changes ({string.Join("; ", page.Problems)}; open {page.IsFormOpen}; {string.Join(", ", main.Pending.Rows.Select(r => r.Change.GetType().Name))})");
+            window.Close();
+        });
+
+        Check("Authentication Strengths: the page tab lists Microsoft's built-in strengths with their methods in words", () =>
+        {
+            var (window, main, _) = OpenList(premium: true);
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "strengths" }));
+            var page = main.SecurityArea.AuthStrengths;
+            for (var i = 0; i < 50 && page.Strengths.Count == 0; i++)
+                Settle();
+            Expect(page.Strengths.Count == 3 && page.Strengths.All(s => s.TypeText == "Built-In"), "three built-in strengths");
+            Expect(page.Strengths.First().Methods.Contains("Password and Authenticator notification"), "methods read in words");
+            window.Close();
+        });
+
         Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
         {
             var (window, main, _) = OpenList();
