@@ -97,6 +97,24 @@ public static class TenantryPermissions
 
     public static IReadOnlyList<ApiPermissions> All { get; } = [Graph, Exchange, SharePoint];
 
+    /// <summary>
+    /// What a permission lets Tenantry do, in words, for the "grant missing permissions" banner. Ones
+    /// added after the first release are listed, since those are the ones a tenant can be missing.
+    /// </summary>
+    public static string? Purpose(string scope) => scope switch
+    {
+        "User-PasswordProfile.ReadWrite.All" => "resetting passwords",
+        "IdentityRiskyUser.ReadWrite.All" => "confirming or dismissing risky users",
+        "DelegatedPermissionGrant.ReadWrite.All" => "revoking app consents",
+        "AppRoleAssignment.ReadWrite.All" => "removing app assignments",
+        "BitlockerKey.Read.All" => "showing BitLocker recovery keys",
+        "DeviceLocalCredential.Read.All" => "showing local admin passwords",
+        "DeviceManagementManagedDevices.PrivilegedOperations.All" => "wiping, retiring and locating devices",
+        "DeviceManagementServiceConfig.ReadWrite.All" => "Autopilot",
+        "Agreement.Read.All" => "requiring terms of use in Conditional Access",
+        _ => null,
+    };
+
     /// <summary>What the setup sign-in needs in order to create and consent the app registration.</summary>
     public static IReadOnlyList<string> BootstrapScopes { get; } =
     [

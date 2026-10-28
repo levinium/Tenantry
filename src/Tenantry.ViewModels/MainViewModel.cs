@@ -706,9 +706,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     public bool HasMissingPermissions => MissingPermissions.Count > 0 && _tenant.UpdatePermissions is not null;
 
-    public string PermissionsText =>
-        $"Some features need {(MissingPermissions.Count == 1 ? "a permission" : $"{MissingPermissions.Count} permissions")} {TenantName} hasn't granted Tenantry yet " +
-        "(for example, resetting passwords). A Global Administrator or Cloud Application Administrator can grant them in one step; you'll sign in to approve.";
+    public string PermissionsText
+    {
+        get
+        {
+            var uses = MissingPermissions.Select(Core.Permissions.TenantryPermissions.Purpose).OfType<string>().Distinct().ToArray();
+            return $"Some features need {(MissingPermissions.Count == 1 ? "a permission" : $"{MissingPermissions.Count} permissions")} {TenantName} hasn't granted Tenantry yet" +
+                   (uses.Length > 0 ? $" ({string.Join("; ", uses)})" : "") +
+                   ". A Global Administrator or Cloud Application Administrator can grant them in one step; you'll sign in to approve.";
+        }
+    }
 
     public string PermissionsList => "Missing: " + string.Join(", ", MissingPermissions);
 
