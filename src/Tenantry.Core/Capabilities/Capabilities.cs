@@ -7,6 +7,8 @@ public static class Capabilities
 {
     static readonly string[] EntraP1 = ["AAD_PREMIUM", "AAD_PREMIUM_P2"];
     const string EntraP1Label = "Microsoft Entra ID P1 or P2";
+    static readonly string[] EntraP2 = ["AAD_PREMIUM_P2"];
+    const string EntraP2Label = "Microsoft Entra ID P2";
 
     public static readonly Capability ReadUsers = new("users.read", "View Users", []);
 
@@ -57,7 +59,11 @@ public static class Capabilities
     public static readonly Capability ManageAuthPolicy = new("security.authMethodsPolicy", "Manage Sign-In Methods",
         [AuthenticationPolicyAdministrator]);
 
+    /// <summary>Identity Protection: confirming people and apps compromised, or dismissing their risk.</summary>
+    public static readonly Capability ManageRisk = new("security.risk", "Manage Risky Users and Apps",
+        [SecurityAdministrator], EntraP2, EntraP2Label);
+
     public static IReadOnlyList<Capability> All { get; } =
         [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess, ManageDevices,
-            ManageSites, ManageRoles, ManageApps, ManageAuthPolicy];
+            ManageSites, ManageRoles, ManageApps, ManageAuthPolicy, ManageRisk];
 }

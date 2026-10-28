@@ -109,6 +109,7 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(CreateAppRegistration), "createAppRegistration")]
 [JsonDerivedType(typeof(SetAuthMethodConfig), "setAuthMethodConfig")]
 [JsonDerivedType(typeof(SetSecurityDefaults), "setSecurityDefaults")]
+[JsonDerivedType(typeof(SetAppRisk), "setAppRisk")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -1901,4 +1902,18 @@ public sealed record SetSecurityDefaults(bool Old, bool New) : ChangeOp
     public override bool IsCaution => true;
     public override bool IsNoChange => Old == New;
     public override ChangeOp Since(ChangeOp earlier) => earlier is SetSecurityDefaults e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>
+/// Identity Protection for an app (8d-2): confirm it was compromised (its risk goes to high, so
+/// risk-based policies act on it: a caution change) or dismiss the risk. Guarded by the app's name.
+/// </summary>
+public sealed record SetAppRisk(ChangeTarget App, bool Compromised) : AppChange(App)
+{
+    public override string Key => "risk";
+    public override string Label => $"Risk for App \"{App.Name}\"";
+    public override string Before => "At Risk";
+    public override string After => Compromised ? "Confirmed Compromised (Risk High)" : "Dismissed";
+    public override bool IsCaution => Compromised;
+    public override bool IsNoChange => false;
 }

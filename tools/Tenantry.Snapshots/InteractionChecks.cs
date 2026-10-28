@@ -1163,6 +1163,45 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Risky Users (P2): the tab lists people at risk; a row's preview shows detections; Dismiss Risk stages it and the preview offers Undo", () =>
+        {
+            var (window, main, _) = OpenList(premium: true);
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "riskyusers" }));
+            var area = main.SecurityArea;
+            for (var i = 0; i < 50 && area.RiskyUsers.Total == 0; i++)
+                Settle();
+            Expect(area.RiskyUsers.Rows.Count == 3 && !area.HasRiskNote, "three people at risk, no note");
+            area.RiskyUsers.IsPreviewOpen = true;
+            area.RiskyUsers.SelectedRow = area.RiskyUsers.Rows[0];
+            Settle();
+            var preview = area.RiskyUsers.PreviewModel as RiskPreviewViewModel;
+            Expect(preview is { HasDetections: true }, "the preview lists what was detected");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is RiskButton { Text: "Dismiss Risk" }));
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetUserRisk { Compromised: false }), "dismissing is in Pending changes");
+            Settle();
+            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.DataContext is RiskButton { Text: "Undo" }), "the preview now offers Undo");
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "riskdetections" }));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Expect(area.RiskDetections.Total > 0, "Risk Detections shows the detections");
+            window.Close();
+        });
+
+        Check("Risky Users without P2: the page says it needs Microsoft Entra ID P2", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "riskyusers" }));
+            for (var i = 0; i < 20 && !main.SecurityArea.HasRiskNote; i++)
+                Settle();
+            Expect(main.SecurityArea.RiskNote == Tenantry.Core.Directory.Risk.NeedsP2, "the P2 note shows");
+            Expect(window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible && t.Text == Tenantry.Core.Directory.Risk.NeedsP2), "and is on screen");
+            window.Close();
+        });
+
         Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
         {
             var (window, main, _) = OpenList();

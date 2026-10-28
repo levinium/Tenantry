@@ -576,6 +576,26 @@ chosen one's editor on the right.
 - **Live:** read-only. The policy is the organization's, so Test mode refuses every change to it
   (checked: 0 requests sent).
 
+### Identity Protection (8d-2)
+
+Three page tabs in Security & Compliance, read together (`IRiskRecords`), with Refresh.
+
+- **Risky Users:** level, state, detail, last updated. Views: at risk, high risk, confirmed
+  compromised, everyone with history. The preview lists what was detected for that person and offers
+  Confirm Compromised (caution) and Dismiss Risk (`SetUserRisk`, the op the person's Security tab
+  uses); once staged it offers Undo. Checking rows opens bulk Confirm and Dismiss (Dismiss skips
+  people not at risk).
+- **Risk Detections:** each detection in words (unfamiliar sign-in properties, anonymous IP,
+  leaked credentials…), with level, place, address and when; views for still at risk, high, last 7 days.
+- **Risky Apps:** service principals at risk, with Confirm and Dismiss (`SetAppRisk`, guarded by the
+  app's name; `identityProtection/riskyServicePrincipals/confirmCompromised|dismiss`).
+- **Gating:** without Entra ID P2 Graph answers 403 "not licensed": the page says it needs P2. A
+  missing permission answers 403 "required scopes are missing": the page says to grant
+  permissions. Each list says which. Risky apps need Workload ID Premium. The demo answers the
+  same way unless it acts as a P2 tenant. Actions need Security Administrator and P2 (`ManageRisk`).
+- **Live:** read only. The tenant has no P2: risky users say so, and detections and apps asked for the new
+  permission (not granted yet).
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

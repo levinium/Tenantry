@@ -337,7 +337,77 @@
         </ContentControl.DataTemplates>
       </ContentControl>
     </DockPanel>
-    <!-- Sign-in methods and security defaults (8d-1) -->
+    <!-- Identity Protection (8d-2): read together, with Refresh; P2 or a permission may be missing -->
+    <DockPanel IsVisible="{Binding ShowRiskyUsers}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="People Identity Protection thinks may be compromised. Confirm or dismiss to teach it; risk-based policies act on the level." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasRiskNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding RiskNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding RiskyUsers}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>    <DockPanel IsVisible="{Binding ShowRiskDetections}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Each sign-in or account event that raised someone's risk, and why." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasRiskNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding RiskNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding RiskDetections}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>    <DockPanel IsVisible="{Binding ShowRiskyApps}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Apps (service principals) whose sign-ins or credentials look compromised." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasRiskNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding RiskNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding RiskyApps}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>    <!-- Sign-in methods and security defaults (8d-1) -->
     <Panel IsVisible="{Binding ShowAuthMethods}">
       <views:AuthMethodsView DataContext="{Binding AuthMethodsPage}" />
     </Panel>

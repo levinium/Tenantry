@@ -824,6 +824,19 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
         Render(premium, "auth-methods-sms-light", height: 1100);
 
+        // Identity Protection (8d-2): risky users with a preview, then the detections.
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "riskyusers");
+        for (var i = 0; i < 20 && premium.SecurityArea.RiskyUsers.Total == 0; i++)
+            Settle();
+        premium.SecurityArea.RiskyUsers.IsPreviewOpen = true;
+        premium.SecurityArea.RiskyUsers.SelectedRow = premium.SecurityArea.RiskyUsers.Rows[0];
+        Settle();
+        Render(premium, "risky-users-light", height: 900);
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "riskdetections");
+        for (var i = 0; i < 5; i++)
+            Settle();
+        Render(premium, "risk-detections-light", height: 900);
+
         // Apps (8c-1): the registrations list, a registration's secrets, an enterprise app's permissions.
         premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
         for (var i = 0; i < 20 && premium.SecurityArea.Registrations.Total == 0; i++)

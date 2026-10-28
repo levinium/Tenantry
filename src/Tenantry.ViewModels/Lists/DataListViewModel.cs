@@ -1070,6 +1070,13 @@ public sealed partial class DataListViewModel : TabViewModel
         OnPropertyChanged(nameof(CanExpandPreview));
     }
 
+    /// <summary>Builds the one-row preview again (after Pending changes changed what it offers).</summary>
+    public void RefreshPreview()
+    {
+        if (!HasSelection)
+            UpdatePreview();
+    }
+
     [RelayCommand]
     public void TogglePreview() => IsPreviewOpen = !IsPreviewOpen && HasPreview;
 

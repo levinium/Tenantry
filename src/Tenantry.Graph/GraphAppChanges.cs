@@ -32,6 +32,8 @@ public sealed partial class GraphChangeExecutor
         RestoreApp r => AppStepAsync(ct => graph.PostAsync($"directory/deletedItems/{r.App.Id}/restore", new JsonObject(), ct), cancellationToken),
         PurgeApp p => AppStepAsync(ct => DeleteIfThereAsync($"directory/deletedItems/{p.App.Id}", ct), cancellationToken),
         CreateAppRegistration c => CreateAppRegistrationAsync(c, cancellationToken),
+        SetAppRisk r => AppStepAsync(ct => graph.PostAsync($"identityProtection/riskyServicePrincipals/{(r.Compromised ? "confirmCompromised" : "dismiss")}",
+            new JsonObject { ["servicePrincipalIds"] = new JsonArray(r.App.Id) }, ct), cancellationToken),
         _ => Task.FromResult(new ApplyResult(ChangeOutcome.Failed, "Tenantry can't apply this kind of change yet.")),
     };
 

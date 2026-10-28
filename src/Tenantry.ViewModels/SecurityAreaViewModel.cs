@@ -28,6 +28,9 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         new("appregs", "App Registrations", "AppFolder"),
         new("enterprise", "Enterprise Apps", "Apps"),
         new("deletedapps", "Deleted Apps", "Delete"),
+        new("riskyusers", "Risky Users", "PersonWarning"),
+        new("riskdetections", "Risk Detections", "Warning"),
+        new("riskyapps", "Risky Apps", "AppsListDetail"),
         new("roles", "Admin Roles", "PersonKey"),
         new("myroles", "My Roles", "PersonStar"),
         new("approvals", "Approvals", "ApprovalsApp"),
@@ -39,7 +42,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         Action<RoleSummary> openRole, Action? newRole, string? cantEditReason, string? me = null, IDirectoryIndex? index = null,
         IConditionalAccessRecords? ca = null, Action<CaPolicyRow>? openPolicy = null, Action? newPolicy = null, string? cantEditPolicies = null,
         IAppRecords? apps = null, Action<AppRegistration>? openRegistration = null, Action<EnterpriseApp>? openEnterprise = null, Action? newApp = null, string? cantEditApps = null,
-        IAuthMethodRecords? authMethods = null, bool canEditAuth = false, string? cantEditAuth = null)
+        IAuthMethodRecords? authMethods = null, bool canEditAuth = false, string? cantEditAuth = null,
+        IRiskRecords? risk = null, Availability? canManageRisk = null, Action<string>? openUserById = null, Action<string>? openAppById = null)
     {
         _roles = roles;
         _ca = ca;
@@ -54,6 +58,36 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         AuthStrengths = new Records.StrengthsViewModel(this);
         AuthMethodsPage = new Records.AuthMethodsViewModel(authMethods, pipeline, canEditAuth, cantEditAuth, index);
         _apps = apps;
+        _risk = risk;
+        var riskEdit = pipeline is not null && canManageRisk?.IsAvailable == true;
+        var riskAvailability = pipeline is null ? Availability.No("This tenant can't be edited") : canManageRisk ?? Availability.No("");
+        RiskyUsers = DataListViewModel.Create(Records.RiskLists.Users(u => Records.RiskLists.UserPreview(u, () => Risks, pipeline, riskEdit, openUserById)),
+            async ct => (await ReadRiskAsync(ct))?.Users ?? [], row => openUserById?.Invoke(((RiskyUser)row).Id), listState, now);
+        RiskyUsers.EmptyText = "Nobody matches.";
+        RiskyUsers.HasRecordPages = false;
+        RiskyUsers.SelectionPanel = (rows, uncheck) => Records.RiskLists.UsersPanel(rows, uncheck, pipeline, riskAvailability);
+        RiskDetections = DataListViewModel.Create(Records.RiskLists.Detections(d => Records.RiskLists.DetectionPreview(d, openUserById)),
+            async ct => (await ReadRiskAsync(ct))?.Detections ?? [], row => { if (((RiskDetection)row).UserId is { } id) openUserById?.Invoke(id); }, listState, now);
+        RiskDetections.EmptyText = "No detections match.";
+        RiskDetections.HasRecordPages = false;
+        RiskyApps = DataListViewModel.Create(Records.RiskLists.Apps(a => Records.RiskLists.AppPreview(a, pipeline, riskEdit, openAppById)),
+            async ct => (await ReadRiskAsync(ct))?.Apps ?? [], row => openAppById?.Invoke(((RiskyApp)row).Id), listState, now);
+        RiskyApps.EmptyText = "No apps match.";
+        RiskyApps.HasRecordPages = false;
+        RiskyApps.SelectionPanel = (rows, uncheck) => Records.RiskLists.AppsPanel(rows, uncheck, pipeline, riskAvailability);
+        if (pipeline is not null)
+        {
+            pipeline.Changed += (_, _) =>
+            {
+                RiskyUsers.RefreshPreview();
+                RiskyApps.RefreshPreview();
+            };
+            pipeline.Applied += (_, applied) =>
+            {
+                if (_riskShown && applied.Any(c => c is SetUserRisk or SetAppRisk))
+                    _ = RefreshRisk();
+            };
+        }
         Registrations = DataListViewModel.Create(AppList.Registrations(a => RegistrationPreview(a, now(), openRegistration), now),
             async ct => (await ReadAppsAsync(ct))?.Registrations ?? [], row => openRegistration?.Invoke((AppRegistration)row), listState, now);
         Registrations.EmptyText = "No app registrations match.";
@@ -179,7 +213,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals), nameof(ShowPolicies), nameof(ShowWhatIf), nameof(ShowLocations),
-        nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps), nameof(ShowDeletedApps), nameof(ShowAuthMethods))]
+        nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps), nameof(ShowDeletedApps), nameof(ShowAuthMethods), nameof(ShowRiskyUsers), nameof(ShowRiskDetections), nameof(ShowRiskyApps), nameof(RiskNote), nameof(HasRiskNote))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     // ---- Apps (8c) -------------------------------------------------------------------------------
@@ -193,6 +227,55 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     /// <summary>Enterprise apps (service principals) (8c).</summary>
     public DataListViewModel EnterpriseApps { get; }
+
+    // ---- Identity Protection (8d-2) ----------------------------------------------------------------
+
+    readonly IRiskRecords? _risk;
+    Task<RiskDirectory?>? _riskRead;
+    bool _riskShown;
+
+    /// <summary>The risk lists as last read.</summary>
+    public RiskDirectory? Risks { get; private set; }
+
+    public DataListViewModel RiskyUsers { get; }
+    public DataListViewModel RiskDetections { get; }
+    public DataListViewModel RiskyApps { get; }
+
+    /// <summary>Why the shown risk page can't be read (no P2, a missing permission), above its list.</summary>
+    public string? RiskNote => Risks is not { } r ? null
+        : ShowRiskyUsers ? r.UsersUnavailable : ShowRiskDetections ? r.DetectionsUnavailable : ShowRiskyApps ? r.AppsUnavailable : null;
+
+    public bool HasRiskNote => RiskNote is not null;
+
+    /// <summary>One read serves the three lists; Refresh starts a new one.</summary>
+    Task<RiskDirectory?> ReadRiskAsync(CancellationToken cancellationToken) => _riskRead ??= ReadRiskNowAsync(cancellationToken);
+
+    async Task<RiskDirectory?> ReadRiskNowAsync(CancellationToken cancellationToken)
+    {
+        if (_risk is null)
+            return null;
+        try
+        {
+            Risks = await _risk.GetRiskAsync(cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            Risks = new RiskDirectory([], [], [], $"Couldn't read risky users: {Friendly.Message(e)}", $"Couldn't read detections: {Friendly.Message(e)}",
+                $"Couldn't read risky apps: {Friendly.Message(e)}");
+            _riskRead = null;
+        }
+        OnPropertyChanged(nameof(RiskNote));
+        OnPropertyChanged(nameof(HasRiskNote));
+        return Risks;
+    }
+
+    [RelayCommand]
+    async Task RefreshRisk()
+    {
+        _riskRead = null;
+        await Task.WhenAll(RiskyUsers.ReloadAsync(busyText: "Reading Identity Protection…"), RiskDetections.ReloadAsync(busyText: "Reading Identity Protection…"),
+            RiskyApps.ReloadAsync(busyText: "Reading Identity Protection…"));
+    }
 
     /// <summary>Sign-in methods and security defaults (8d-1).</summary>
     public Records.AuthMethodsViewModel AuthMethodsPage { get; }
@@ -236,6 +319,9 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
             return null;
         }
     }
+
+    /// <summary>The apps, read now if no page has read them yet (to open one from elsewhere).</summary>
+    public Task<AppDirectory?> AppsAsync() => ReadAppsAsync(CancellationToken.None);
 
     [RelayCommand]
     async Task RefreshApps()
@@ -285,6 +371,9 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public bool ShowEnterpriseApps => SelectedPage.Key == "enterprise";
     public bool ShowDeletedApps => SelectedPage.Key == "deletedapps";
     public bool ShowAuthMethods => SelectedPage.Key == "authmethods";
+    public bool ShowRiskyUsers => SelectedPage.Key == "riskyusers";
+    public bool ShowRiskDetections => SelectedPage.Key == "riskdetections";
+    public bool ShowRiskyApps => SelectedPage.Key == "riskyapps";
     public bool ShowMyRoles => SelectedPage.Key == "myroles";
     public bool ShowApprovals => SelectedPage.Key == "approvals";
 
@@ -303,6 +392,13 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
             _appsShown = true;
             _ = Registrations.LoadAsync();
             _ = EnterpriseApps.LoadAsync();
+        }
+        if ((ShowRiskyUsers || ShowRiskDetections || ShowRiskyApps) && !_riskShown)
+        {
+            _riskShown = true;
+            _ = RiskyUsers.LoadAsync();
+            _ = RiskDetections.LoadAsync();
+            _ = RiskyApps.LoadAsync();
         }
         if (ShowAuthMethods)
             AuthMethodsPage.Shown();
