@@ -80,13 +80,6 @@ public sealed partial class GraphChangeExecutor
         }
     }
 
-    Task<ApplyResult> RemoveRoleAssignmentAsync(RemoveRoleAssignment change, CancellationToken cancellationToken) =>
-        GraphCheckedAsync(
-            ct => graph.DeleteAsync($"roleManagement/directory/roleAssignments/{change.AssignmentId}", ct),
-            ct => graph.GetAsync($"roleManagement/directory/roleAssignments/{change.AssignmentId}", ct),
-            answer => answer is null,
-            cancellationToken);
-
     Task<ApplyResult> RevokeAppConsentAsync(RevokeAppConsent change, CancellationToken cancellationToken) =>
         GraphCheckedAsync(
             ct => graph.DeleteAsync($"oauth2PermissionGrants/{change.GrantId}", ct),

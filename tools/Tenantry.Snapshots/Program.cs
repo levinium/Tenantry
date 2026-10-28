@@ -703,6 +703,31 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "deleted-sites-light");
         editing.SharePoint.SelectedPage = SharePointAreaViewModel.Pages[0];
 
+        // Security & Compliance (8a): Admin Roles with a role in the preview, a role's page (both tabs), the custom-role editor.
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "security");
+        for (var i = 0; i < 20; i++)
+            Settle();
+        var userAdmin = editing.SecurityArea.Roles.Rows.Cast<RoleSummary>().First(r => r.Role.Name == "User Administrator");
+        editing.SecurityArea.Roles.PreviewRow(userAdmin);
+        Render(editing, "roles-light");
+        editing.OpenRole(userAdmin);
+        var rolePage = (RoleDetailViewModel)editing.SelectedTab!;
+        Settle();
+        Render(editing, "role-assignments-light", height: 1100);
+        rolePage.SelectedSection = rolePage.Sections[1];
+        Settle();
+        Render(editing, "role-permissions-light");
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "security");
+        editing.SecurityArea.Roles.RunPrimaryActionCommand.Execute(null);
+        var roleEditor = (Tenantry.ViewModels.Records.CustomRoleEditorViewModel)editing.Dialog!.Content;
+        for (var i = 0; i < 20 && roleEditor.IsLoading; i++)
+            Settle();
+        roleEditor.Name = "Password Reset Desk";
+        roleEditor.Template = roleEditor.StartFrom.First(r => r.Name == "Helpdesk Administrator");
+        Settle();
+        Render(editing, "custom-role-light", height: 1200);
+        editing.CloseDialogCommand.Execute(null);
+
         // New Group: a shared mailbox with two people given access.
         editing.Groups.RunPrimaryActionCommand.Execute(null);
         var newGroup = (Tenantry.ViewModels.Records.NewGroupViewModel)editing.Dialog!.Content;

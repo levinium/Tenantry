@@ -511,6 +511,8 @@ public partial class DataListView : UserControl
                 var badge = new Badge { Margin = new Thickness(12, 0) };
                 badge.Bind(Badge.TextProperty, Row(r => c.Badge!(r).Text));
                 badge.Bind(Badge.KindProperty, Row(r => c.Badge!(r).Kind));
+                // No text, no pill (a role that isn't privileged).
+                badge.Bind(IsVisibleProperty, Row(r => !string.IsNullOrEmpty(c.Badge!(r).Text)));
                 return badge;
             }
             case CellKind.Badges:

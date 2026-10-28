@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.RolePermissionsSectionView"
+             x:DataType="rec:RolePermissionsSection">
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <Border Classes="card">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="h3" Text="What It Allows" />
+        <TextBlock Classes="caption" TextWrapping="Wrap"
+                   Text="Grouped by what each permission acts on. Built-in roles can't be changed; make a custom role to choose permissions." />
+      </StackPanel>
+    </Border>
+    <TextBlock Classes="muted" Text="Entra doesn't list this role's permissions." IsVisible="{Binding HasNone}" />
+    <ItemsControl ItemsSource="{Binding Groups}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="8" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:PermissionGroup">
+          <Border Classes="card">
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="h3" Text="{Binding Title}" />
+                <c:Badge Grid.Column="1" Text="{Binding CountText}" Kind="Neutral" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding Items}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel ItemSpacing="6" LineSpacing="6" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String">
+                    <Border Classes="chip">
+                      <TextBlock Text="{Binding}" />
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

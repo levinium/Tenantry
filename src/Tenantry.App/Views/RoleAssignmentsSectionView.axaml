@@ -1,0 +1,102 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.RoleAssignmentsSectionView"
+             x:DataType="rec:RoleAssignmentsSection">
+  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+    <!-- Give the role to someone -->
+    <Border Classes="card">
+      <StackPanel Spacing="10">
+        <StackPanel Spacing="2">
+          <TextBlock Classes="h3" Text="Give the Role" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Added to Pending changes; nobody gets it until you apply them." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+          </StackPanel>
+        </Border>
+        <StackPanel Spacing="10" IsVisible="{Binding CanEdit}">
+          <Panel IsVisible="{Binding !HasPicked}">
+            <views:PersonPickerView DataContext="{Binding Picker}" MaxWidth="440" HorizontalAlignment="Left" />
+          </Panel>
+          <Border Classes="chip" HorizontalAlignment="Left" IsVisible="{Binding HasPicked}">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Text="{Binding PickedName}" VerticalAlignment="Center" />
+              <Button Classes="chipx" Command="{Binding ClearPickedCommand}" ToolTip.Tip="Choose someone else">
+                <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+              </Button>
+            </StackPanel>
+          </Border>
+          <StackPanel Spacing="4" IsVisible="{Binding HasUnits}">
+            <TextBlock Classes="caption" Text="For" />
+            <ComboBox ItemsSource="{Binding Scopes}" SelectedItem="{Binding Scope}" PlaceholderText="The Whole Organization" MinWidth="280" />
+          </StackPanel>
+          <StackPanel Spacing="8" IsVisible="{Binding HasPim}">
+            <StackPanel Orientation="Horizontal" Spacing="16">
+              <RadioButton GroupName="rolekind" IsChecked="{Binding !Eligible}" Content="Active: Holds It Now" />
+              <RadioButton GroupName="rolekind" IsChecked="{Binding Eligible}" Content="Eligible: Switches It On When Needed" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="caption" Text="Ends On (Empty: Never)" VerticalAlignment="Center" />
+              <CalendarDatePicker SelectedDate="{Binding Until}" PlaceholderText="Never" Width="180" />
+            </StackPanel>
+            <TextBox Text="{Binding Justification}" PlaceholderText="Why (shown in PIM's history)" MaxWidth="560" HorizontalAlignment="Left" />
+          </StackPanel>
+          <TextBlock Classes="caption" Text="{Binding PimNote}" IsVisible="{Binding HasPimNote}" TextWrapping="Wrap" />
+          <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding AddCommand}" HorizontalAlignment="Left" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- Who holds it -->
+    <Border Classes="card">
+      <StackPanel Spacing="10">
+        <TextBlock Classes="h3" Text="Who Holds It" />
+        <TextBlock Classes="muted" Text="Nobody holds this role." IsVisible="{Binding HasNoRows}" />
+        <ItemsControl ItemsSource="{Binding Rows}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:RoleGrantRow">
+              <Border Classes="valuerow">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                  <StackPanel Spacing="1">
+                    <Button Classes="link" Content="{Binding Name}" Command="{Binding OpenCommand}" IsVisible="{Binding CanOpen}" HorizontalAlignment="Left"
+                            ToolTip.Tip="Open their record" />
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" IsVisible="{Binding !CanOpen}" />
+                    <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap" />
+                    <TextBlock Classes="caption" TextWrapping="Wrap">
+                      <Run Text="{Binding ScopeText}" />
+                      <Run Text=" · " />
+                      <Run Text="{Binding EndsText}" />
+                    </TextBlock>
+                  </StackPanel>
+                  <WrapPanel Grid.Column="1" ItemSpacing="6" VerticalAlignment="Center">
+                    <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending changes" />
+                    <c:Badge Text="{Binding KindText}" Kind="{Binding KindKind}" />
+                    <c:Badge Text="{Binding TypeText}" Kind="Neutral" />
+                  </WrapPanel>
+                  <Panel Grid.Column="2" VerticalAlignment="Center">
+                    <Button Classes="danger-outline" Classes.undo="{Binding HasState}" Content="{Binding ActionText}" Command="{Binding DoCommand}"
+                            IsVisible="{Binding HasAction}" ToolTip.Tip="{Binding ActionTip}" />
+                    <TextBlock Classes="caption" Text="{Binding Locked}" IsVisible="{Binding IsLocked}" VerticalAlignment="Center" />
+                  </Panel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

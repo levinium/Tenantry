@@ -80,6 +80,10 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(DeleteSite), "deleteSite")]
 [JsonDerivedType(typeof(RestoreSite), "restoreSite")]
 [JsonDerivedType(typeof(CreateSite), "createSite")]
+[JsonDerivedType(typeof(AddRoleAssignment), "addRoleAssignment")]
+[JsonDerivedType(typeof(CreateCustomRole), "createCustomRole")]
+[JsonDerivedType(typeof(UpdateCustomRole), "updateCustomRole")]
+[JsonDerivedType(typeof(DeleteCustomRole), "deleteCustomRole")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -761,13 +765,18 @@ public sealed record CreateTemporaryAccessPass(ChangeTarget User, int Minutes, b
     public override ChangeOp Since(ChangeOp earlier) => this;
 }
 
-/// <summary>Takes away a directory role they hold directly.</summary>
-public sealed record RemoveRoleAssignment(ChangeTarget User, string AssignmentId, string RoleName) : ChangeOp
+/// <summary>
+/// Takes away a directory role someone (or a group, or an app) holds directly. One made through PIM
+/// (<see cref="ViaPim"/>) is removed through PIM, by its role and scope.
+/// </summary>
+/// <param name="User">Who holds it (kind "user", "group" or "app").</param>
+public sealed record RemoveRoleAssignment(ChangeTarget User, string AssignmentId, string RoleName, string? RoleId = null, string? ScopeId = null,
+    Directory.RoleGrantKind Kind = Directory.RoleGrantKind.Active, bool ViaPim = false) : ChangeOp
 {
     public override ChangeTarget Target => User;
     public override string Key => "role:" + AssignmentId;
     public override string Label => $"Role {RoleName}";
-    public override string Before => "Assigned";
+    public override string Before => Kind == Directory.RoleGrantKind.Eligible ? "Eligible" : "Assigned";
     public override string After => "Removed";
     public override bool IsCaution => true;
     public override bool IsNoChange => false;
@@ -1385,4 +1394,90 @@ public sealed record CreateSite(ChangeTarget Site, string SiteUrl, Directory.Sit
     }.OfType<string>());
     public override bool IsNoChange => false;
     public override IReadOnlyList<ChangeTarget> Guarded => [Site, .. Owners];
+}
+
+// ---- Admin roles (8a) -----------------------------------------------------------------------
+
+/// <summary>
+/// Gives someone (a person, a role-assignable group or an app) a directory role, for the whole
+/// organization or one administrative unit. Without PIM it's active and permanent
+/// (roleAssignments); through PIM it can be eligible or end on a date. Giving a privileged role is
+/// a caution change. The write guard checks who receives it.
+/// </summary>
+/// <param name="Principal">Who (kind "user", "group" or "app").</param>
+/// <param name="ScopeId">"/" or "/administrativeUnits/{id}".</param>
+/// <param name="End">When it ends (PIM only); null for permanent.</param>
+public sealed record AddRoleAssignment(ChangeTarget Principal, Directory.RolePrincipalType PrincipalType, string RoleId, string RoleName, bool Privileged,
+    string ScopeId, string ScopeName, Directory.RoleGrantKind Kind = Directory.RoleGrantKind.Active, DateTimeOffset? End = null, string? Justification = null)
+    : ChangeOp
+{
+    /// <summary>Through PIM: eligible, or ending on a date.</summary>
+    public bool ViaPim => Kind == Directory.RoleGrantKind.Eligible || End is not null;
+
+    public override ChangeTarget Target => Principal;
+    public override string Key => $"addrole:{RoleId}:{ScopeId}";
+    public override string Label => $"Role {RoleName}";
+    public override string Before => "Not Assigned";
+    public override string After => string.Join(", ", new[]
+    {
+        Kind == Directory.RoleGrantKind.Eligible ? "Eligible" : "Active",
+        ScopeId == "/" ? null : $"for {ScopeName}",
+        End is { } end ? $"until {end:d MMM yyyy}" : "permanently",
+    }.OfType<string>());
+    public override bool IsCaution => Privileged;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
+/// A custom role: one change to it. Roles have no address, so the write guard judges the name: in
+/// Test mode only roles named zz-tenantry-test-… change. Custom roles need Entra ID P1.
+/// </summary>
+/// <param name="Role">Kind "role": Id is the role's ID (its name, for a new one), Name its name.</param>
+public abstract record CustomRoleChange(ChangeTarget Role) : ChangeOp
+{
+    public override ChangeTarget Target => Role;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+
+    protected static string Count(int n) => n == 1 ? "1 permission" : $"{n} permissions";
+}
+
+public sealed record CreateCustomRole(ChangeTarget Role, string Description, IReadOnlyList<string> Actions) : CustomRoleChange(Role)
+{
+    public override string Key => "create";
+    public override string Label => $"New Custom Role \"{Role.Name}\"";
+    public override string Before => "None";
+    public override string After => Count(Actions.Count);
+    public override bool IsNoChange => false;
+}
+
+/// <summary>Renames a custom role, or changes its description or permissions. Taking permissions away is a caution change.</summary>
+public sealed record UpdateCustomRole(ChangeTarget Role, string NewName, string OldDescription, string NewDescription, IReadOnlyList<string> OldActions,
+    IReadOnlyList<string> NewActions) : CustomRoleChange(Role)
+{
+    public override string Key => "edit";
+    public override string Label => $"Custom Role \"{Role.Name}\"";
+    public override string Before => Count(OldActions.Count);
+    public override string After => string.Join("; ", new[]
+    {
+        NewName != Role.Name ? $"named \"{NewName}\"" : null,
+        NewDescription != OldDescription ? "new description" : null,
+        NewActions.Except(OldActions).Count() is var added and > 0 ? $"{added} added" : null,
+        OldActions.Except(NewActions).Count() is var removed and > 0 ? $"{removed} removed" : null,
+    }.OfType<string>()) is { Length: > 0 } what ? $"{Count(NewActions.Count)} ({what})" : Count(NewActions.Count);
+    public override bool IsCaution => OldActions.Except(NewActions).Any();
+    public override bool IsNoChange => NewName == Role.Name && NewDescription == OldDescription && OldActions.ToHashSet().SetEquals(NewActions);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is UpdateCustomRole e ? this with { OldDescription = e.OldDescription, OldActions = e.OldActions } : this;
+}
+
+/// <summary>Deletes a custom role; Entra refuses while anyone holds it. The admin types its name to confirm.</summary>
+public sealed record DeleteCustomRole(ChangeTarget Role, string Detail) : CustomRoleChange(Role)
+{
+    public override string Key => "delete";
+    public override string Label => $"Custom Role \"{Role.Name}\"";
+    public override string Before => Detail;
+    public override string After => "Deleted";
+    public override bool IsCaution => true;
+    public override string? ConfirmPhrase => Role.Name;
+    public override bool IsNoChange => false;
 }

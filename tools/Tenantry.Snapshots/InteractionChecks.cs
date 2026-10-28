@@ -749,6 +749,74 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Security & Compliance: the sidebar opens Admin Roles; a role opens its page; Remove stages it and picking someone then Add gives the role", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.Users.LoadAsync().GetAwaiter().GetResult();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection { Key: "security" }));
+            var area = main.SecurityArea;
+            for (var i = 0; i < 50 && area.Roles.Total == 0; i++)
+                Settle();
+            Expect(main.SelectedTab == area && area.Roles.Total > 0, "Admin Roles is showing with roles in use");
+            var helpdesk = area.Roles.Rows.Cast<RoleSummary>().First(r => r.Role.Name == "User Administrator");
+            Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, helpdesk) && b.IsEffectivelyVisible));
+            var page = main.SelectedTab as RoleDetailViewModel;
+            Expect(page?.Role.Role.Id == helpdesk.Role.Id, "the role's page opened");
+            for (var i = 0; i < 5; i++)
+                Settle();
+            var holder = page!.Assignments.Rows.First(r => r.ActionText == "Remove");
+            var remove = FindButton(window, b => b.Command == holder.DoCommand);
+            remove.BringIntoView();
+            Settle();
+            Click(window, remove);
+            Expect(main.Pending!.Rows.Any(r => r.Change is RemoveRoleAssignment), "taking it away is in Pending changes");
+            page.Assignments.Picker.Query = main.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member).DisplayName;
+            Settle();
+            var option = FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == page.Assignments.Picker);
+            option.BringIntoView();
+            Settle();
+            Click(window, option);
+            Expect(page.Assignments.HasPicked, "the person was chosen");
+            var add = FindButton(window, b => b.Command == page.Assignments.AddCommand && b.IsEffectivelyVisible);
+            add.BringIntoView();
+            Settle();
+            Click(window, add);
+            Expect(main.Pending.Rows.Any(r => r.Change is AddRoleAssignment { Kind: RoleGrantKind.Active }), "giving the role is in Pending changes");
+            Expect(page.Assignments.Rows.Any(r => r.StateText == "Adding") && page.HasPending, "an Adding row appeared and the header says what's pending");
+            window.Close();
+        });
+
+        Check("New Custom Role: the button opens the editor; Start From ticks permissions; Add stages the role and closes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            for (var i = 0; i < 50 && main.SecurityArea.Roles.Total == 0; i++)
+                Settle();
+            Settle();
+            var primary = window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Command == main.SecurityArea.Roles.RunPrimaryActionCommand && b.IsEffectivelyVisible);
+            Expect(primary is not null, $"the New Custom Role button is showing (roles {main.SecurityArea.Roles.Total}, tab {main.SelectedTab?.Title})");
+            Click(window, primary!);
+            var editor = main.Dialog?.Content as CustomRoleEditorViewModel ?? throw new InvalidOperationException("the editor didn't open");
+            for (var i = 0; i < 20 && editor.IsLoading; i++)
+                Settle();
+            editor.Name = "Zz-tenantry-test Desk";
+            editor.Template = editor.StartFrom.First(r => r.Name == "Helpdesk Administrator");
+            Settle();
+            Expect(editor.Shown.Count(p => p.IsChecked) > 0, "the template's permissions were ticked");
+            var box = window.GetVisualDescendants().OfType<CheckBox>().First(c => c.DataContext is PermissionChoice { IsChecked: false });
+            box.BringIntoView();
+            Settle();
+            Click(window, box);
+            Expect(((PermissionChoice)box.DataContext!).IsChecked, "clicking a box ticks it");
+            var save = window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Command == editor.SaveCommand);
+            Expect(save is not null, $"the editor's Add button is showing (problems: {string.Join("; ", editor.Problems)})");
+            save!.BringIntoView();
+            Settle();
+            Click(window, save!);
+            Expect(main.Dialog is null && main.Pending!.Rows.Any(r => r.Change is CreateCustomRole c && c.Actions.Count >= 3), "the role is in Pending changes and the editor closed");
+            window.Close();
+        });
+
         Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
         {
             var (window, main, _) = OpenList();

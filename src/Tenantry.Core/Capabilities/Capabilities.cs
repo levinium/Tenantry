@@ -45,7 +45,11 @@ public static class Capabilities
     public static readonly Capability ManageSites = new("sites.manage", "Manage SharePoint Sites and OneDrives",
         [SharePointAdministrator]);
 
+    /// <summary>Admin roles: giving and taking away roles, and custom roles (Entra ID P1 for custom roles).</summary>
+    public static readonly Capability ManageRoles = new("roles.manage", "Manage Admin Roles",
+        [PrivilegedRoleAdministrator]);
+
     public static IReadOnlyList<Capability> All { get; } =
         [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess, ManageDevices,
-            ManageSites];
+            ManageSites, ManageRoles];
 }

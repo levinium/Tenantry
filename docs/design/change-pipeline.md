@@ -379,6 +379,31 @@ can be restored.
 - **Each CSOM method was checked to exist** by aiming it at a test address that doesn't exist:
   SharePoint answered "not found", never "method doesn't exist".
 
+### Admin roles (8a-1)
+
+The Security & Compliance area's Admin Roles page lists every directory role with who holds it,
+read live (`IRoleRecords.GetRolesAsync`) when first shown, on Refresh, and after role changes
+apply. A role opens as a page: Assignments (who, where, how long; add and remove) and Permissions
+(what it allows, grouped by what each acts on). New Custom Role opens an editor.
+
+- **Reads:** role definitions from beta (only beta has `isPrivileged`; beta refuses pages under
+  20). With PIM, active and eligible assignments come from the schedule instances; without
+  Entra ID P2 every PIM read answers 400 `AadPremiumLicenseRequired` (seen live), so active
+  assignments come from `roleAssignments` and the page says why eligible ones are missing. Some
+  assignments point at roles the list leaves out (seen live: 4 apps'); those roles are read one by
+  one.
+- **`AddRoleAssignment`:** without PIM, `POST roleAssignments` (active, permanent), read back by
+  principal and role. Eligible or time-limited ones go through PIM's schedule requests
+  (`adminAssign`, with an expiry). Giving a privileged role is a caution change. The guard judges
+  who receives it.
+- **`RemoveRoleAssignment`:** `DELETE roleAssignments/{id}`, or PIM's `adminRemove` by role and
+  scope for one made through PIM. The only Global Administrator can't be removed here; an
+  activated role ends on its own.
+- **Custom roles** (`CreateCustomRole`, `UpdateCustomRole`, `DeleteCustomRole`): role definitions
+  with `rolePermissions.allowedResourceActions`, chosen from the `microsoft.directory` resource
+  actions (beta; about 800, privileged ones marked). Guarded by name. Deleting asks for the name.
+  The editor can start from another role's permissions, and Shift-click ticks a range.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

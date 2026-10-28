@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:listviews="using:Tenantry.App.Lists"
+             x:Class="Tenantry.App.Views.SecurityAreaView"
+             x:DataType="vm:SecurityAreaViewModel">
+  <DockPanel>
+    <!-- The area's pages -->
+    <TabStrip DockPanel.Dock="Top" Classes="pagetabs" Margin="0,8,0,10" ItemsSource="{x:Static vm:SecurityAreaViewModel.Pages}" SelectedItem="{Binding SelectedPage}">
+      <TabStrip.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel />
+        </ItemsPanelTemplate>
+      </TabStrip.ItemsPanel>
+      <TabStrip.ItemTemplate>
+        <DataTemplate x:DataType="ms:MailSecurityPage">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="15" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+          </StackPanel>
+        </DataTemplate>
+      </TabStrip.ItemTemplate>
+    </TabStrip>
+
+    <!-- Admin roles: read live, with Refresh; what PIM can't show here -->
+    <DockPanel IsVisible="{Binding ShowRoles}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshRolesCommand}" ToolTip.Tip="Read admin roles from Entra again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="Who can administer what. Privileged roles can change security settings or reach everyone's data: keep them few." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasRolesNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding RolesNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding Roles}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+  </DockPanel>
+</UserControl>

@@ -11,7 +11,6 @@ namespace Tenantry.Demo;
 public sealed partial class DemoUserRecords : ISecurityRecords
 {
     readonly Dictionary<string, List<AuthMethod>> _methods = new(StringComparer.Ordinal);
-    readonly Dictionary<string, List<RoleHeld>> _roles = new(StringComparer.Ordinal);
     readonly Dictionary<string, List<AppConsent>> _consents = new(StringComparer.Ordinal);
 
     async Task<UserSummary> PersonAsync(string userId, CancellationToken cancellationToken) =>
@@ -68,15 +67,8 @@ public sealed partial class DemoUserRecords : ISecurityRecords
 
     public async Task<(IReadOnlyList<RoleHeld> Active, Available<IReadOnlyList<RoleHeld>> Eligible)> GetRolesAsync(string userId, CancellationToken cancellationToken = default)
     {
-        if (!_roles.TryGetValue(userId, out var roles))
-        {
-            var person = await PersonAsync(userId, cancellationToken);
-            roles = person.Security?.IsAdmin == true
-                ? [new RoleHeld($"ra-{userId}", new Random(StableSeed(userId)).NextDouble() < 0.3 ? "Global Administrator" : "User Administrator", "The whole organization")]
-                : [];
-            _roles[userId] = roles;
-        }
-        return (roles.ToArray(), Available<IReadOnlyList<RoleHeld>>.Because("Eligible roles (Privileged Identity Management) need Microsoft Entra ID P2."));
+        var roles = await HeldAsync(userId, cancellationToken);
+        return (roles, Available<IReadOnlyList<RoleHeld>>.Because("Eligible roles (Privileged Identity Management) need Microsoft Entra ID P2."));
     }
 
     public Task<IReadOnlyList<AppConsent>> GetAppConsentsAsync(string userId, CancellationToken cancellationToken = default)
@@ -112,9 +104,8 @@ public sealed partial class DemoUserRecords : ISecurityRecords
         RemoveAuthMethod m when _methods.TryGetValue(m.User.Id, out var list) => list.RemoveAll(x => x.Id == m.MethodId) >= 0,
         AddPhoneMethod p when _methods.TryGetValue(p.User.Id, out var list) => Added(list, new AuthMethod($"ph-{p.PhoneType}-{p.User.Id}", "phoneMethods", "Phone",
             $"{p.Number} ({p.PhoneType switch { "alternateMobile" => "alternate", "office" => "office", _ => "mobile" }})", DateTimeOffset.UtcNow, true)),
-        RemoveRoleAssignment r when _roles.TryGetValue(r.User.Id, out var list) => list.RemoveAll(x => x.AssignmentId == r.AssignmentId) >= 0,
         RevokeAppConsent c when _consents.TryGetValue(c.User.Id, out var list) => list.RemoveAll(x => x.GrantId == c.GrantId) >= 0,
-        RemoveAuthMethod or AddPhoneMethod or RemoveRoleAssignment or RevokeAppConsent or SetUserRisk => true,
+        RemoveAuthMethod or AddPhoneMethod or RevokeAppConsent or SetUserRisk => true,
         _ => false,
     };
 

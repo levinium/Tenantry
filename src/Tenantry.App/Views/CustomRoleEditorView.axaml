@@ -1,0 +1,98 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:dir="using:Tenantry.Core.Directory"
+             x:Class="Tenantry.App.Views.CustomRoleEditorView"
+             x:DataType="rec:CustomRoleEditorViewModel">
+  <StackPanel Spacing="16" Width="720" HorizontalAlignment="Left">
+    <Border Classes="banner error" IsVisible="{Binding HasLoadError}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding LoadError}" />
+    </Border>
+
+    <StackPanel Spacing="10">
+      <TextBlock Classes="label" Text="NAME AND DESCRIPTION" />
+      <TextBox Text="{Binding Name}" PlaceholderText="Name, like Password Reset Desk" />
+      <TextBox Text="{Binding Description}" PlaceholderText="What it's for (optional)" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" />
+    </StackPanel>
+
+    <StackPanel Spacing="10">
+      <TextBlock Classes="label" Text="PERMISSIONS" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Classes="caption" Text="Start From" VerticalAlignment="Center" />
+        <ComboBox ItemsSource="{Binding StartFrom}" SelectedItem="{Binding Template}" PlaceholderText="Copy another role's permissions…" MinWidth="320"
+                  ToolTip.Tip="Ticks the same permissions that role has; you can change them after">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="dir:AdminRole">
+              <TextBlock Text="{Binding Name}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+        <TextBox Text="{Binding Search}" PlaceholderText="Search permissions: users, password, groups…" />
+        <CheckBox Grid.Column="1" IsChecked="{Binding OnlyChosen}" Content="Only Chosen" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="2" Classes="caption" Text="{Binding ChosenText}" VerticalAlignment="Center" />
+      </Grid>
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="18" Height="18" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" VerticalAlignment="Center" Text="Reading the permissions a role can have…" />
+      </StackPanel>
+      <TextBlock Classes="muted" Text="No permissions match." IsVisible="{Binding HasNoMatch}" />
+      <Border Classes="card" Padding="12,8" MaxHeight="420">
+        <ScrollViewer x:Name="PermissionScroll">
+          <ItemsControl x:Name="PermissionList" ItemsSource="{Binding Shown}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <VirtualizingStackPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="rec:PermissionChoice">
+                <StackPanel Spacing="2" Margin="0,2">
+                  <TextBlock Classes="label" Text="{Binding Heading}" IsVisible="{Binding HasHeading}" Margin="0,8,0,2" />
+                  <CheckBox IsChecked="{Binding IsChecked}" Click="OnPermissionClick" ToolTip.Tip="Shift-click to tick or untick everything since the last one">
+                    <StackPanel Spacing="1">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{Binding Item}" />
+                        <c:Badge Text="Privileged" Kind="Warning" IsVisible="{Binding IsPrivileged}" />
+                      </StackPanel>
+                      <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="600" />
+                    </StackPanel>
+                  </CheckBox>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Border>
+    </StackPanel>
+
+    <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="x:String">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+            <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Command="{Binding SaveCommand}" Content="{Binding SaveText}"
+              ToolTip.Tip="Nothing changes until you apply the pending changes" />
+      <Button Command="{Binding CancelCommand}" Content="Cancel" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

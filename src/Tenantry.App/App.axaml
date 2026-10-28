@@ -34,6 +34,18 @@
     <DataTemplate DataType="rec:NewSiteViewModel">
       <views:NewSiteView />
     </DataTemplate>
+    <DataTemplate DataType="rec:RolePreviewViewModel">
+      <views:RolePreviewView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:CustomRoleEditorViewModel">
+      <views:CustomRoleEditorView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:RoleAssignmentsSection">
+      <views:RoleAssignmentsSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:RolePermissionsSection">
+      <views:RolePermissionsSectionView />
+    </DataTemplate>
     <DataTemplate DataType="rec:DeletedSitePreviewViewModel">
       <views:DeletedSitePreviewView />
     </DataTemplate>

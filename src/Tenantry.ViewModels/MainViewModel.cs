@@ -87,6 +87,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                     new Records.NewSiteViewModel(siteMaking, _index, SharePointRoot(), _sites, _tenant.Account, CloseDialog))))
             : new ListPrimaryAction("New Site", "GlobeAdd", false, tenant.Changes is null ? "This tenant can't be edited" : _manageSites.Reason ?? "");
         SharePoint = new SharePointAreaViewModel(sites, oneDrives, tenant.Records as IDeletedSiteRecords, tenant.Changes, _manageSites, tenant.ListState, _now);
+        // Security & Compliance: admin roles (8a), read live.
+        _manageRoles = Evaluate(Capabilities.ManageRoles);
+        SecurityArea = new SecurityAreaViewModel(tenant.Records as IRoleRecords, tenant.Changes, tenant.ListState, _now, OpenRole,
+            tenant.Changes is not null && _manageRoles.IsAvailable && tenant.Records is IRoleRecords ? () => EditRole(null) : null,
+            tenant.Changes is null ? "This tenant can't be edited" : _manageRoles.Reason);
+        SecurityArea.RolesRead += (_, _) => FollowRoles();
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);
@@ -94,6 +100,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         DevicesArea.Autopilot.FollowSharedPreferences(shared);
         SharePoint.Sites.FollowSharedPreferences(shared);
         SharePoint.OneDrives.FollowSharedPreferences(shared);
+        SharePoint.Deleted.FollowSharedPreferences(shared);
+        SecurityArea.Roles.FollowSharedPreferences(shared);
         if (tenant.Changes is { } changes)
         {
             Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync);
@@ -121,7 +129,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             new NavSection("mail", "Mail & Security", MailSecurity is null ? "Mail & Security needs Exchange Online" : mailSecurity.Reason),
             new NavSection("sharepoint", "SharePoint & OneDrive", readUsers.Reason),
             new NavSection("devices", "Devices", readUsers.Reason),
-            new NavSection("security", "Security & Compliance", Later),
+            new NavSection("security", "Security & Compliance", readUsers.Reason),
         ];
         Tabs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasRecordTabs));
         CheckPreviewsWhenTheySettle();
@@ -205,6 +213,38 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         }
     }
 
+    /// <summary>The Security &amp; Compliance area's tab: Admin Roles (8a), as pages.</summary>
+    public SecurityAreaViewModel SecurityArea { get; }
+
+    readonly Availability _manageRoles;
+
+    static readonly RoleDirectory NoRoles = new([], [], null);
+
+    /// <summary>Opens a role's page, or switches to it if it is already open.</summary>
+    public void OpenRole(RoleSummary role) =>
+        OpenTab(t => t is RoleDetailViewModel p && p.Role.Role.Id == role.Role.Id,
+            () => new RoleDetailViewModel(role, SecurityArea.Directory ?? NoRoles, _tenant.Changes, _manageRoles, _index, OpenUser, OpenGroup,
+                _tenant.Changes is not null && _manageRoles.IsAvailable ? r => EditRole(r) : null));
+
+    /// <summary>Opens the custom-role editor: a new role, or one to change.</summary>
+    void EditRole(AdminRole? role)
+    {
+        if (_tenant.Changes is not { } changes || _tenant.Records is not IRoleRecords records)
+            return;
+        ShowDialog(new Records.DialogViewModel(role is null ? "New Custom Role" : $"Edit {role.Name}", TenantName,
+            new Records.CustomRoleEditorViewModel(changes, records, [.. (SecurityArea.Directory ?? NoRoles).Roles.Select(r => r.Role)], role, CloseDialog)));
+    }
+
+    /// <summary>Open role pages show the roles as just read.</summary>
+    void FollowRoles()
+    {
+        if (SecurityArea.Directory is not { } directory)
+            return;
+        foreach (var page in Tabs.OfType<RoleDetailViewModel>())
+            if (directory.Roles.FirstOrDefault(r => r.Role.Id == page.Role.Role.Id) is { } role)
+                page.Update(role, directory);
+    }
+
     /// <summary>Mail &amp; security (quarantine, message trace…); null when the tenant has no Exchange reads.</summary>
     public MailSecurity.MailSecurityViewModel? MailSecurity { get; }
 
@@ -215,7 +255,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// <summary>Each sidebar entry's tab: a list, or an area with pages of its own.</summary>
     IEnumerable<(string Section, TabViewModel Tab)> AreaTabs =>
     [
-        ("users", Users), ("groups", Groups), ("devices", DevicesArea), ("sharepoint", SharePoint),
+        ("users", Users), ("groups", Groups), ("devices", DevicesArea), ("sharepoint", SharePoint), ("security", SecurityArea),
         .. MailSecurity is null ? Array.Empty<(string, TabViewModel)>() : [("mail", (TabViewModel)MailSecurity)],
     ];
 
@@ -579,6 +619,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                 Tabs[0] = tab;
             SelectedTab = tab;
         }
+        if (value?.Key == "security")
+            SecurityArea.Shown();
     }
 
     /// <summary>The tab strip only appears once a record is open beside the list.</summary>

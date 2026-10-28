@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.RolePreviewView"
+             x:DataType="rec:RolePreviewViewModel">
+  <StackPanel Spacing="16">
+    <StackPanel Spacing="6">
+      <SelectableTextBlock Classes="h3" Text="{Binding Name}" TextWrapping="Wrap" />
+      <WrapPanel ItemSpacing="6" LineSpacing="4">
+        <c:Badge Text="Privileged" Kind="Warning" IsVisible="{Binding IsPrivileged}" ToolTip.Tip="Can change security settings or reach everyone's data" />
+        <c:Badge Text="{Binding TypeText}" Kind="Neutral" />
+      </WrapPanel>
+      <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+      <Button Classes="accent" Content="Open Role" Command="{Binding OpenCommand}" IsVisible="{Binding CanOpen}" HorizontalAlignment="Left"
+              ToolTip.Tip="Its assignments and permissions, to change" />
+    </StackPanel>
+
+    <ItemsControl ItemsSource="{Binding Facts}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="6" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:SummaryLine">
+          <Grid ColumnDefinitions="140,*" ColumnSpacing="8">
+            <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <Border Classes="divider" />
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label" Text="HELD BY" />
+      <TextBlock Classes="muted" Text="Nobody." IsVisible="{Binding !HasHolders}" />
+      <ItemsControl ItemsSource="{Binding Holders}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="rec:SummaryLine">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+              <TextBlock Grid.Column="1" Classes="caption" Text="{Binding Value}" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Classes="caption" Text="{Binding MoreText}" IsVisible="{Binding HasMore}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>
