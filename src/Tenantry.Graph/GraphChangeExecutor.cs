@@ -119,6 +119,10 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         CreateCustomRole c => await CreateCustomRoleAsync(c, cancellationToken),
         UpdateCustomRole u => await UpdateCustomRoleAsync(u, cancellationToken),
         DeleteCustomRole d => await DeleteCustomRoleAsync(d, cancellationToken),
+        SetRolePolicyRule r => await SetRolePolicyRuleAsync(r, cancellationToken),
+        ExtendRoleAssignment e => await ExtendRoleAssignmentAsync(e, cancellationToken),
+        ActivateRole a => await ActivateRoleAsync(a, cancellationToken),
+        ReviewRoleRequest r => await ReviewRoleRequestAsync(r, cancellationToken),
         _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 

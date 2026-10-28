@@ -54,5 +54,171 @@
         </ContentControl.DataTemplates>
       </ContentControl>
     </DockPanel>
+    <!-- My Roles (PIM): the admin's own eligible roles, to switch on -->
+    <Panel IsVisible="{Binding ShowMyRoles}">
+    <ScrollViewer DataContext="{Binding MyRoles}" x:DataType="rec:MyRolesViewModel">
+      <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Left" Margin="0,0,0,24">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding ReadAgainCommand}" ToolTip.Tip="Read your roles from Entra again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="Roles you're eligible for stay off until you switch one on, for a few hours, when you need it." />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+          <Panel Width="18" Height="18" VerticalAlignment="Center">
+            <Ellipse Classes="spintrack" />
+            <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+              <Arc.RenderTransform>
+                <RotateTransform />
+              </Arc.RenderTransform>
+            </Arc>
+          </Panel>
+          <TextBlock Classes="muted" VerticalAlignment="Center" Text="Reading your roles…" />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Note}" />
+          </StackPanel>
+        </Border>
+        <Border Classes="card" IsVisible="{Binding HasActive}">
+          <StackPanel Spacing="8">
+            <TextBlock Classes="h3" Text="Switched On" />
+            <ItemsControl ItemsSource="{Binding Active}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="6" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="rec:MyRoleRow">
+                  <Border Classes="valuerow">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                      <StackPanel Spacing="1">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                        <TextBlock Classes="caption" Text="{Binding Detail}" />
+                      </StackPanel>
+                      <c:Badge Grid.Column="1" Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" VerticalAlignment="Center" />
+                      <Button Grid.Column="2" Classes="danger-outline" Content="Switch Off" Command="{Binding DeactivateCommand}" IsVisible="{Binding IsActivated}"
+                              VerticalAlignment="Center" ToolTip.Tip="End it now, before it runs out (added to Pending changes)" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" IsVisible="{Binding !HasNote}">
+          <StackPanel Spacing="8">
+            <TextBlock Classes="h3" Text="Eligible" />
+            <TextBlock Classes="muted" Text="You aren't eligible for any roles." IsVisible="{Binding HasNoEligible}" />
+            <ItemsControl ItemsSource="{Binding Eligible}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="6" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="rec:MyRoleRow">
+                  <Border Classes="valuerow">
+                    <StackPanel Spacing="8">
+                      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="1">
+                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                          <TextBlock Classes="caption" Text="{Binding Detail}" />
+                        </StackPanel>
+                        <c:Badge Grid.Column="1" Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" VerticalAlignment="Center" />
+                        <Button Grid.Column="2" Classes="outline" Content="Switch On…" Command="{Binding OpenCommand}" VerticalAlignment="Center"
+                                ToolTip.Tip="Choose how long and say why" />
+                      </Grid>
+                      <StackPanel Spacing="8" IsVisible="{Binding IsOpen}" Margin="0,4,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <TextBlock Classes="caption" Text="For (Hours)" VerticalAlignment="Center" />
+                          <ComboBox ItemsSource="{Binding HourChoices}" SelectedItem="{Binding Hours}" MinWidth="90" />
+                        </StackPanel>
+                        <TextBox Text="{Binding Justification}" PlaceholderText="Why you need it" Width="480" HorizontalAlignment="Left" />
+                        <TextBox Text="{Binding Ticket}" PlaceholderText="Ticket number" Width="260" HorizontalAlignment="Left" IsVisible="{Binding NeedsTicket}" />
+                        <TextBlock Classes="caption" Text="{Binding Needs}" IsVisible="{Binding HasNeeds}" TextWrapping="Wrap" />
+                        <TextBlock Classes="caption" Text="{Binding Error}" IsVisible="{Binding HasError}" Foreground="{DynamicResource BadgeWarningFg}" />
+                        <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding ActivateCommand}" HorizontalAlignment="Left" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+    </Panel>
+
+    <!-- Approvals (PIM): requests waiting for the admin -->
+    <Panel IsVisible="{Binding ShowApprovals}">
+    <ScrollViewer DataContext="{Binding Approvals}" x:DataType="rec:ApprovalsViewModel">
+      <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Left" Margin="0,0,0,24">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding ReadAgainCommand}" ToolTip.Tip="Read requests from Entra again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Requests to switch a role on that are waiting for your answer." />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+          <Panel Width="18" Height="18" VerticalAlignment="Center">
+            <Ellipse Classes="spintrack" />
+            <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+              <Arc.RenderTransform>
+                <RotateTransform />
+              </Arc.RenderTransform>
+            </Arc>
+          </Panel>
+          <TextBlock Classes="muted" VerticalAlignment="Center" Text="Reading requests waiting for you…" />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Note}" />
+          </StackPanel>
+        </Border>
+        <TextBlock Classes="muted" Text="Nothing is waiting for you." IsVisible="{Binding HasNone}" />
+        <ItemsControl ItemsSource="{Binding Requests}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="rec:RoleRequestRow">
+              <Border Classes="card">
+                <StackPanel Spacing="8">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Who}" FontWeight="SemiBold" />
+                      <TextBlock Text="{Binding What}" />
+                      <TextBlock Classes="caption" Text="{Binding Why}" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding When}" />
+                    </StackPanel>
+                    <c:Badge Grid.Column="1" Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" VerticalAlignment="Top" />
+                  </Grid>
+                  <TextBox Text="{Binding Reason}" PlaceholderText="Your reason (optional)" Width="480" HorizontalAlignment="Left" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="accent" Content="Approve" Command="{Binding ApproveCommand}" ToolTip.Tip="Added to Pending changes" />
+                    <Button Classes="danger-outline" Content="Deny" Command="{Binding DenyCommand}" ToolTip.Tip="Added to Pending changes" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </ScrollViewer>
+    </Panel>
   </DockPanel>
 </UserControl>

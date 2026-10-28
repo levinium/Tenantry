@@ -404,6 +404,31 @@ apply. A role opens as a page: Assignments (who, where, how long; add and remove
   actions (beta; about 800, privileged ones marked). Guarded by name. Deleting asks for the name.
   The editor can start from another role's permissions, and Shift-click ticks a range.
 
+### Privileged Identity Management (8a-2)
+
+PIM needs Entra ID P2. Without it most reads answer 400 `AadPremiumLicenseRequired` and the
+approver and own-role reads answer 403 "The tenant has not onboarded to PIM" (both seen live); every
+PIM page then says P2 is needed. The demo can act as a P2 tenant (`ConnectDemo(premium: true)`) for
+screenshots and checks.
+
+- **Role settings** (the role page's Settings tab): read from the role's management policy
+  (`roleManagementPolicyAssignments`, `$expand=policy($expand=rules)`). `RolePolicyRules` reads the
+  six rules the portal shows (activation length; what activating needs: MFA, reason, ticket;
+  approval and approvers; how long eligible and active assignments last; what giving one active
+  needs) and rewrites only the fields a change means to. Each edit stages `SetRolePolicyRule` (one
+  per rule, so editing it again replaces it, and putting it back drops it); loosening a rule is a
+  caution change. Sent with `PATCH policies/roleManagementPolicies/{id}/rules/{ruleId}`.
+- **`ExtendRoleAssignment`:** PIM's `adminUpdate` with a new end ("Extend a Year" on a time-limited
+  assignment).
+- **`ActivateRole`** (My Roles): `selfActivate` with a duration (up to the role's activation
+  length) and, as its settings need, a reason and ticket; `selfDeactivate` to end it early. PIM wants
+  the admin's object ID, read from `/me` when only the sign-in name is known. A request needing
+  approval reports "sent for approval".
+- **`ReviewRoleRequest`** (Approvals): requests from
+  `roleAssignmentScheduleRequests/filterByCurrentUser(on='approver')` (beta), answered by
+  patching the approval step assigned to the admin (`roleAssignmentApprovals/{id}/steps/{id}`). The
+  guard judges who asked.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

@@ -728,6 +728,36 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "custom-role-light", height: 1200);
         editing.CloseDialogCommand.Execute(null);
 
+        // PIM (8a-2), from the demo acting as a tenant with Entra ID P2: My Roles with a form open, Approvals, a role's Settings tab.
+        var premium = new MainViewModel(new TenantConnector().ConnectDemo(premium: true) with { ListState = new Tenantry.Core.Lists.MemoryListStateStore() }, () => { });
+        premium.InitializeAsync().GetAwaiter().GetResult();
+        premium.SelectedSection = premium.Sections.Single(s => s.Key == "security");
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "myroles");
+        for (var i = 0; i < 20; i++)
+            Settle();
+        premium.SecurityArea.MyRoles.Eligible[0].OpenCommand.Execute(null);
+        premium.SecurityArea.MyRoles.Eligible[0].Justification = "Reviewing last week's sign-in alerts";
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "pim-myroles-light");
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "approvals");
+        for (var i = 0; i < 20; i++)
+            Settle();
+        Render(premium, "pim-approvals-light");
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages[0];
+        for (var i = 0; i < 20; i++)
+            Settle();
+        premium.OpenRole(premium.SecurityArea.Roles.Rows.Cast<RoleSummary>().First(r => r.Role.Name == "Security Administrator"));
+        var pimRole = (RoleDetailViewModel)premium.SelectedTab!;
+        Settle();
+        Render(premium, "pim-role-assignments-light", height: 1100);
+        pimRole.SelectedSection = pimRole.Settings;
+        for (var i = 0; i < 10; i++)
+            Settle();
+        pimRole.Settings.ApprovalRequired = true;
+        Settle();
+        Render(premium, "pim-role-settings-light", height: 1200);
+
         // New Group: a shared mailbox with two people given access.
         editing.Groups.RunPrimaryActionCommand.Execute(null);
         var newGroup = (Tenantry.ViewModels.Records.NewGroupViewModel)editing.Dialog!.Content;

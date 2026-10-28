@@ -78,7 +78,7 @@ public sealed record ResourceAction(string Name, string? Description, bool IsPri
 public sealed record RoleDirectory(IReadOnlyList<RoleSummary> Roles, IReadOnlyList<AdminUnit> Units, string? PimUnavailable)
 {
     /// <summary>What a PIM read says without Entra ID P2.</summary>
-    public const string PimNeedsP2 = "Eligible and time-limited assignments (Privileged Identity Management) need Microsoft Entra ID P2.";
+    public const string PimNeedsP2 = "Privileged Identity Management (eligible and time-limited roles, switching roles on, approvals and role settings) needs Microsoft Entra ID P2.";
 }
 
 /// <summary>Admin roles, read live from Entra (they aren't kept in the local copy).</summary>
@@ -88,6 +88,18 @@ public interface IRoleRecords
 
     /// <summary>Every permission a custom role can be given (Entra's microsoft.directory actions).</summary>
     Task<IReadOnlyList<ResourceAction>> GetResourceActionsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>The role's PIM settings; unavailable without Entra ID P2.</summary>
+    Task<Available<RoleSettings>> GetRoleSettingsAsync(string roleId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Available<RoleSettings>.Because(RoleDirectory.PimNeedsP2));
+
+    /// <summary>The signed-in admin's own eligible and activated roles (PIM).</summary>
+    Task<Available<IReadOnlyList<RoleGrant>>> GetMyRolesAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(Available<IReadOnlyList<RoleGrant>>.Because(RoleDirectory.PimNeedsP2));
+
+    /// <summary>Activation requests waiting for the signed-in admin's approval (PIM).</summary>
+    Task<Available<IReadOnlyList<RoleRequest>>> GetApprovalsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(Available<IReadOnlyList<RoleRequest>>.Because(RoleDirectory.PimNeedsP2));
 }
 
 /// <summary>The Admin Roles list's fields.</summary>

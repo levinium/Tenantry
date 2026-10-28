@@ -37,6 +37,13 @@ public sealed partial class RoleGrantRow
     internal Action? OpenAction { get; init; }
     public bool CanOpen => OpenAction is not null;
 
+    /// <summary>Moves a time-limited assignment's end a year on (PIM); null when it can't be extended.</summary>
+    internal Action? ExtendAction { get; init; }
+    public bool CanExtend => ExtendAction is not null;
+
+    [RelayCommand]
+    void Extend() => ExtendAction?.Invoke();
+
     [RelayCommand]
     void Do() => Act?.Invoke();
 
@@ -148,6 +155,8 @@ public sealed partial class RoleAssignmentsSection : RecordSection
         foreach (var g in role.Grants)
         {
             var removing = pending.OfType<RemoveRoleAssignment>().FirstOrDefault(r => r.AssignmentId == g.Id);
+            var extending = pending.OfType<ExtendRoleAssignment>().FirstOrDefault(x => x.Principal.Id == g.PrincipalId && x.Kind == g.Kind && x.ScopeId == g.ScopeId);
+            ChangeOp? waiting = (ChangeOp?)removing ?? extending;
             var locked = g.Activated ? $"Ends on its own{(g.End is { } end ? $" {end.ToLocalTime():d MMM h:mm tt}" : "")}"
                 : lastGlobal && g.PrincipalType == RolePrincipalType.User ? "The only Global Administrator"
                 : null;
@@ -164,13 +173,17 @@ public sealed partial class RoleAssignmentsSection : RecordSection
                 TypeText = RoleGrant.TypeName(g.PrincipalType),
                 KindText = g.Activated ? "Activated" : g.Kind == RoleGrantKind.Eligible ? "Eligible" : "Active",
                 ScopeText = g.ScopeId == "/" ? "Whole organization" : g.ScopeName,
-                EndsText = g.End is { } until ? $"Until {until.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture)}" : "Permanent",
-                StateText = removing is null ? null : "Removing",
-                ActionText = !CanEdit || (locked is not null && removing is null) ? null : removing is null ? "Remove" : "Undo",
-                ActionTip = removing is null ? "Take the role away (added to Pending changes)" : "Keep it (takes the change out of Pending changes)",
-                Act = removing is not null ? () => _page.Pipeline!.Unstage(removing)
+                EndsText = (extending?.NewEnd ?? g.End) is { } until ? $"Until {until.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture)}" : "Permanent",
+                StateText = removing is not null ? "Removing" : extending is not null ? "Extending" : null,
+                ActionText = !CanEdit || (locked is not null && waiting is null) ? null : waiting is null ? "Remove" : "Undo",
+                ActionTip = waiting is null ? "Take the role away (added to Pending changes)" : "Take the change back out of Pending changes",
+                Act = waiting is not null ? () => _page.Pipeline!.Unstage(waiting)
                     : () => _page.Pipeline!.Stage(new RemoveRoleAssignment(target, g.Id, role.Role.Name, role.Role.Id, g.ScopeId, g.Kind, g.ViaPim)),
                 Locked = CanEdit ? locked : null,
+                ExtendAction = CanEdit && g.ViaPim && g.End is { } ends && !g.Activated && waiting is null
+                    ? () => _page.Pipeline!.Stage(new ExtendRoleAssignment(target, role.Role.Id, role.Role.Name, g.ScopeId, g.Kind, ends,
+                        (ends > DateTimeOffset.UtcNow ? ends : DateTimeOffset.UtcNow).AddYears(1)))
+                    : null,
                 OpenAction = g.PrincipalType switch
                 {
                     RolePrincipalType.User when _page.Index.User(g.PrincipalId) is { } u && _page.OpenUserAction is { } openUser => () => openUser(u),
@@ -255,4 +268,164 @@ public sealed class RolePermissionsSection : RecordSection
         Summary = _page.Role.Role.AllowedActions.Count == 1 ? "1 permission" : $"{_page.Role.Role.AllowedActions.Count:N0} permissions";
         OnPropertyChanged(nameof(HasNone));
     }
+}
+
+/// <summary>A duration offered in a settings choice ("8 hours", "1 year").</summary>
+public sealed record DurationChoice(TimeSpan? Value, string Label)
+{
+    public override string ToString() => Label;
+}
+
+/// <summary>
+/// The role's PIM settings, as the Entra admin center's Role settings page has them: how long an
+/// activation lasts and what it needs, who approves, and how long assignments last. Each change goes
+/// to Pending changes as it's made (one change per rule, so editing a rule again replaces it).
+/// </summary>
+public sealed partial class RoleSettingsSection : LiveSection
+{
+    readonly RoleDetailViewModel _page;
+    RoleSettings? _original;
+    bool _filling;
+
+    public RoleSettingsSection(RoleDetailViewModel page)
+    {
+        _page = page;
+        ApproverPicker = new PersonPicker("Add an approver: type a name",
+            () => GroupAccess.People(_page.Index).Where(o => Approvers.All(a => a.Id != o.Id)),
+            o =>
+            {
+                Approvers.Add(new RoleApprover(o.Id, o.Name));
+                Stage(RolePolicyRules.Approval);
+            });
+    }
+
+    public override string Key => "settings";
+    public override string Title => "Settings";
+    public override string Icon => "Settings";
+    public override string LoadingText => "Reading the role's PIM settings…";
+
+    public bool CanEdit => _page.CanEdit && _original is not null;
+    public bool IsLoaded => _original is not null;
+
+    public static IReadOnlyList<DurationChoice> ActivationChoices { get; } =
+        [.. new[] { 1, 2, 4, 6, 8, 10, 12, 24 }.Select(h => new DurationChoice(TimeSpan.FromHours(h), RolePolicyRules.Words(TimeSpan.FromHours(h))))];
+
+    public static IReadOnlyList<DurationChoice> AssignmentChoices { get; } =
+    [
+        new(null, "Permanent Allowed"),
+        .. new[] { 15, 30, 90, 180, 365 }.Select(d => new DurationChoice(TimeSpan.FromDays(d), $"Up to {RolePolicyRules.Words(TimeSpan.FromDays(d))}")),
+    ];
+
+    [ObservableProperty] public partial DurationChoice? MaxActivation { get; set; }
+    [ObservableProperty] public partial bool ActivationMfa { get; set; }
+    [ObservableProperty] public partial bool ActivationJustification { get; set; }
+    [ObservableProperty] public partial bool ActivationTicket { get; set; }
+    [ObservableProperty] public partial bool ApprovalRequired { get; set; }
+    [ObservableProperty] public partial DurationChoice? EligibleMax { get; set; }
+    [ObservableProperty] public partial DurationChoice? ActiveMax { get; set; }
+    [ObservableProperty] public partial bool ActiveMfa { get; set; }
+    [ObservableProperty] public partial bool ActiveJustification { get; set; }
+
+    public ObservableCollection<RoleApprover> Approvers { get; } = [];
+
+    public PersonPicker ApproverPicker { get; }
+
+    [RelayCommand]
+    void RemoveApprover(RoleApprover approver)
+    {
+        Approvers.Remove(approver);
+        Stage(RolePolicyRules.Approval);
+    }
+
+    partial void OnMaxActivationChanged(DurationChoice? value) => Stage(RolePolicyRules.ActivationExpiry);
+    partial void OnActivationMfaChanged(bool value) => Stage(RolePolicyRules.ActivationRequirements);
+    partial void OnActivationJustificationChanged(bool value) => Stage(RolePolicyRules.ActivationRequirements);
+    partial void OnActivationTicketChanged(bool value) => Stage(RolePolicyRules.ActivationRequirements);
+    partial void OnApprovalRequiredChanged(bool value) => Stage(RolePolicyRules.Approval);
+    partial void OnEligibleMaxChanged(DurationChoice? value) => Stage(RolePolicyRules.EligibleExpiry);
+    partial void OnActiveMaxChanged(DurationChoice? value) => Stage(RolePolicyRules.ActiveExpiry);
+    partial void OnActiveMfaChanged(bool value) => Stage(RolePolicyRules.ActiveRequirements);
+    partial void OnActiveJustificationChanged(bool value) => Stage(RolePolicyRules.ActiveRequirements);
+
+    protected override async Task ReadAsync(CancellationToken cancellationToken)
+    {
+        if (_page.Records is not { } records)
+        {
+            Note = "Role settings aren't available for this tenant.";
+            return;
+        }
+        var read = await records.GetRoleSettingsAsync(_page.Role.Role.Id, cancellationToken);
+        Note = read.Unavailable;
+        _original = read.Value;
+        if (_original is { } s)
+            Fill(s);
+        Summary = _original is { } o ? $"Activations up to {RolePolicyRules.Words(o.MaxActivation)}" : "";
+        OnPropertyChanged(nameof(CanEdit));
+        OnPropertyChanged(nameof(IsLoaded));
+    }
+
+    void Fill(RoleSettings s)
+    {
+        _filling = true;
+        MaxActivation = ActivationChoices.FirstOrDefault(c => c.Value == s.MaxActivation) ?? new DurationChoice(s.MaxActivation, RolePolicyRules.Words(s.MaxActivation));
+        ActivationMfa = s.ActivationMfa;
+        ActivationJustification = s.ActivationJustification;
+        ActivationTicket = s.ActivationTicket;
+        ApprovalRequired = s.ApprovalRequired;
+        Approvers.Clear();
+        foreach (var a in s.Approvers)
+            Approvers.Add(a);
+        EligibleMax = Choice(s.EligibleMax);
+        ActiveMax = Choice(s.ActiveMax);
+        ActiveMfa = s.ActiveMfa;
+        ActiveJustification = s.ActiveJustification;
+        _filling = false;
+    }
+
+    static DurationChoice Choice(TimeSpan? max) =>
+        AssignmentChoices.FirstOrDefault(c => c.Value == max) ?? new DurationChoice(max, max is { } m ? $"Up to {RolePolicyRules.Words(m)}" : "Permanent Allowed");
+
+    static string Requirements(bool mfa, bool justification, bool ticket)
+    {
+        var parts = new[] { mfa ? "MFA" : null, justification ? "a reason" : null, ticket ? "a ticket number" : null }.OfType<string>().ToArray();
+        return parts.Length == 0 ? "Nothing" : string.Join(", ", parts);
+    }
+
+    static string Approval(bool required, IEnumerable<RoleApprover> approvers) =>
+        !required ? "Not needed" : approvers.Any() ? "Needed from " + string.Join(", ", approvers.Select(a => a.Name)) : "Needed (from the Privileged Role Administrators)";
+
+    static string Expiry(TimeSpan? max) => max is { } m ? $"Up to {RolePolicyRules.Words(m)}" : "Permanent allowed";
+
+    /// <summary>Stages the rule as it now stands; staging it back to how it was drops the change.</summary>
+    void Stage(string ruleId)
+    {
+        if (_filling || _original is not { } o || !_page.CanEdit || !o.Rules.TryGetValue(ruleId, out var rule))
+            return;
+        var (label, old, @new, json, loosens) = ruleId switch
+        {
+            RolePolicyRules.ActivationExpiry => ("Activation Length", RolePolicyRules.Words(o.MaxActivation), RolePolicyRules.Words(MaxActivation?.Value ?? o.MaxActivation),
+                RolePolicyRules.WithExpiration(rule, MaxActivation?.Value ?? o.MaxActivation), (MaxActivation?.Value ?? o.MaxActivation) > o.MaxActivation),
+            RolePolicyRules.ActivationRequirements => ("Activation Needs", Requirements(o.ActivationMfa, o.ActivationJustification, o.ActivationTicket),
+                Requirements(ActivationMfa, ActivationJustification, ActivationTicket),
+                RolePolicyRules.WithRequirements(rule, Needed(ActivationMfa, ActivationJustification, ActivationTicket)),
+                (o.ActivationMfa && !ActivationMfa) || (o.ActivationJustification && !ActivationJustification) || (o.ActivationTicket && !ActivationTicket)),
+            RolePolicyRules.Approval => ("Approval", Approval(o.ApprovalRequired, o.Approvers), Approval(ApprovalRequired, Approvers),
+                RolePolicyRules.WithApproval(rule, ApprovalRequired, [.. Approvers]), o.ApprovalRequired && !ApprovalRequired),
+            RolePolicyRules.EligibleExpiry => ("Eligible Assignments", Expiry(o.EligibleMax), Expiry(EligibleMax?.Value),
+                RolePolicyRules.WithExpiration(rule, EligibleMax?.Value), Looser(o.EligibleMax, EligibleMax?.Value)),
+            RolePolicyRules.ActiveExpiry => ("Active Assignments", Expiry(o.ActiveMax), Expiry(ActiveMax?.Value),
+                RolePolicyRules.WithExpiration(rule, ActiveMax?.Value), Looser(o.ActiveMax, ActiveMax?.Value)),
+            _ => ("Active Assignments Need", Requirements(o.ActiveMfa, o.ActiveJustification, false), Requirements(ActiveMfa, ActiveJustification, false),
+                RolePolicyRules.WithRequirements(rule, Needed(ActiveMfa, ActiveJustification, false)),
+                (o.ActiveMfa && !ActiveMfa) || (o.ActiveJustification && !ActiveJustification)),
+        };
+        _page.Pipeline!.Stage(new SetRolePolicyRule(new ChangeTarget("role", _page.Role.Role.Id, _page.Role.Role.Name, null), o.PolicyId, ruleId, label, old, @new, json,
+            loosens));
+    }
+
+    static IEnumerable<string> Needed(bool mfa, bool justification, bool ticket) =>
+        new[] { mfa ? RolePolicyRules.Mfa : null, justification ? RolePolicyRules.Justification : null, ticket ? RolePolicyRules.Ticket : null }.OfType<string>();
+
+    /// <summary>Allowing longer (or permanent) assignments than before loosens the rule.</summary>
+    static bool Looser(TimeSpan? before, TimeSpan? after) => before is { } b && (after is null || after > b);
 }

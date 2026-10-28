@@ -72,6 +72,8 @@ public sealed partial class DemoUserRecords : IRoleRecords
         if ((await directory.GetGroupsAsync(cancellationToken)).FirstOrDefault(g => g.Kind == GroupKind.Security && !g.IsDynamic) is { } helpdesk)
             grants.Add(new RoleGrant("ra-group-helpdesk", Catalog[4].Id, helpdesk.Id, helpdesk.DisplayName, null, RolePrincipalType.Group, "/", "Organization",
                 RoleGrantKind.Active));
+        if (pim)
+            await AddPimGrantsAsync(grants, cancellationToken);
         return _roleGrants = grants;
     }
 
@@ -80,7 +82,7 @@ public sealed partial class DemoUserRecords : IRoleRecords
         var grants = await GrantsAsync(cancellationToken);
         var byRole = grants.ToLookup(g => g.RoleId);
         return new RoleDirectory([.. _roleCatalog!.Select(r => new RoleSummary(r, [.. byRole[r.Id].OrderBy(g => g.PrincipalName, StringComparer.CurrentCulture)]))],
-            [new AdminUnit("au-east", "East Office")], RoleDirectory.PimNeedsP2);
+            [new AdminUnit("au-east", "East Office")], pim ? null : RoleDirectory.PimNeedsP2);
     }
 
     public Task<IReadOnlyList<ResourceAction>> GetResourceActionsAsync(CancellationToken cancellationToken = default) =>
@@ -102,6 +104,8 @@ public sealed partial class DemoUserRecords : IRoleRecords
     public async Task<bool> ApplyRoleAsync(ChangeOp change, CancellationToken cancellationToken = default)
     {
         var grants = await GrantsAsync(cancellationToken);
+        if (await ApplyPimAsync(change, grants, cancellationToken))
+            return true;
         switch (change)
         {
             case AddRoleAssignment add:

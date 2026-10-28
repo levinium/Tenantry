@@ -46,6 +46,9 @@
     <DataTemplate DataType="rec:RolePermissionsSection">
       <views:RolePermissionsSectionView />
     </DataTemplate>
+    <DataTemplate DataType="rec:RoleSettingsSection">
+      <views:RoleSettingsSectionView />
+    </DataTemplate>
     <DataTemplate DataType="rec:DeletedSitePreviewViewModel">
       <views:DeletedSitePreviewView />
     </DataTemplate>

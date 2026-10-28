@@ -21,14 +21,18 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public static IReadOnlyList<MailSecurityPage> Pages { get; } =
     [
         new("roles", "Admin Roles", "PersonKey"),
+        new("myroles", "My Roles", "PersonStar"),
+        new("approvals", "Approvals", "ApprovalsApp"),
     ];
 
     /// <param name="openRole">Opens a role's page.</param>
     /// <param name="newRole">Opens the custom-role editor for a new role; null when the admin can't edit.</param>
     public SecurityAreaViewModel(IRoleRecords? roles, ChangePipeline? pipeline, IListStateStore? listState, Func<DateTimeOffset> now,
-        Action<RoleSummary> openRole, Action? newRole, string? cantEditReason)
+        Action<RoleSummary> openRole, Action? newRole, string? cantEditReason, string? me = null, IDirectoryIndex? index = null)
     {
         _roles = roles;
+        MyRoles = new Records.MyRolesViewModel(roles, pipeline, me, index ?? EmptyIndex.Instance);
+        Approvals = new Records.ApprovalsViewModel(roles, pipeline);
         Roles = DataListViewModel.Create(RoleList.Definition(r => new Records.RolePreviewViewModel(r, openRole)),
             LoadRolesAsync, row => openRole((RoleSummary)row), listState, now);
         Roles.EmptyText = "No roles match.";
@@ -50,6 +54,12 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     public DataListViewModel Roles { get; }
 
+    /// <summary>The signed-in admin's own eligible and switched-on roles (PIM).</summary>
+    public Records.MyRolesViewModel MyRoles { get; }
+
+    /// <summary>Activation requests waiting for the signed-in admin (PIM).</summary>
+    public Records.ApprovalsViewModel Approvals { get; }
+
     /// <summary>The roles as last read, with the administrative units and PIM's availability.</summary>
     public RoleDirectory? Directory { get; private set; }
 
@@ -57,10 +67,12 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public event EventHandler? RolesRead;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowRoles))]
+    [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     public bool ShowRoles => SelectedPage.Key == "roles";
+    public bool ShowMyRoles => SelectedPage.Key == "myroles";
+    public bool ShowApprovals => SelectedPage.Key == "approvals";
 
     /// <summary>Reads the roles the first time the area is shown.</summary>
     public void Shown()
@@ -70,6 +82,10 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
             _rolesRead = true;
             _ = Roles.LoadAsync();
         }
+        if (ShowMyRoles)
+            MyRoles.Shown();
+        if (ShowApprovals)
+            Approvals.Shown();
     }
 
     partial void OnSelectedPageChanged(MailSecurityPage value) => Shown();

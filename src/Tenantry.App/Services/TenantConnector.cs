@@ -139,10 +139,13 @@ public sealed class TenantConnector : ITenantConnector
     /// The demo signs in as a User and Exchange Administrator in a tenant without Entra ID P1,
     /// so it shows both kinds of gated feature (missing role, missing license) out of the box.
     /// </summary>
-    public ConnectedTenant ConnectDemo()
+    public ConnectedTenant ConnectDemo() => ConnectDemo(premium: false);
+
+    /// <param name="premium">Act as a tenant with Entra ID P2 (PIM), for screenshots and checks of those pages.</param>
+    public ConnectedTenant ConnectDemo(bool premium)
     {
         var directory = new DemoTenantDirectory();
-        var records = new DemoUserRecords(directory);
+        var records = new DemoUserRecords(directory, pim: premium);
         var passwordStyle = new MemoryPasswordStyleStore();
         var account = DemoUserRecords.Account;
         return new ConnectedTenant(
@@ -152,7 +155,7 @@ public sealed class TenantConnector : ITenantConnector
             new TenantContext(
                 new HashSet<string>([DirectoryRoles.UserAdministrator, DirectoryRoles.ExchangeAdministrator, DirectoryRoles.IntuneAdministrator,
                     DirectoryRoles.SharePointAdministrator, DirectoryRoles.PrivilegedRoleAdministrator]),
-                new HashSet<string>(["EXCHANGE_S_STANDARD"]),
+                new HashSet<string>(premium ? ["EXCHANGE_S_STANDARD", "AAD_PREMIUM", "AAD_PREMIUM_P2"] : ["EXCHANGE_S_STANDARD"]),
                 OperatingSystem.IsWindows()),
             IsDemo: true,
             // Demo edits change the generated people in memory; nothing real, so no Test mode.

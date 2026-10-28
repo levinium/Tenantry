@@ -91,7 +91,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         _manageRoles = Evaluate(Capabilities.ManageRoles);
         SecurityArea = new SecurityAreaViewModel(tenant.Records as IRoleRecords, tenant.Changes, tenant.ListState, _now, OpenRole,
             tenant.Changes is not null && _manageRoles.IsAvailable && tenant.Records is IRoleRecords ? () => EditRole(null) : null,
-            tenant.Changes is null ? "This tenant can't be edited" : _manageRoles.Reason);
+            tenant.Changes is null ? "This tenant can't be edited" : _manageRoles.Reason, tenant.Account, _index);
         SecurityArea.RolesRead += (_, _) => FollowRoles();
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
@@ -224,7 +224,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     public void OpenRole(RoleSummary role) =>
         OpenTab(t => t is RoleDetailViewModel p && p.Role.Role.Id == role.Role.Id,
             () => new RoleDetailViewModel(role, SecurityArea.Directory ?? NoRoles, _tenant.Changes, _manageRoles, _index, OpenUser, OpenGroup,
-                _tenant.Changes is not null && _manageRoles.IsAvailable ? r => EditRole(r) : null));
+                _tenant.Changes is not null && _manageRoles.IsAvailable ? r => EditRole(r) : null, _tenant.Records as IRoleRecords));
 
     /// <summary>Opens the custom-role editor: a new role, or one to change.</summary>
     void EditRole(AdminRole? role)

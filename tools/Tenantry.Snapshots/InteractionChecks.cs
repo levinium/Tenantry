@@ -817,6 +817,62 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("PIM: My Roles opens a role's switch-on form; Add asks for a reason, then stages it; Approvals' Approve stages the answer", () =>
+        {
+            var (window, main, _) = OpenList(premium: true);
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            var area = main.SecurityArea;
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "myroles" }));
+            for (var i = 0; i < 50 && area.MyRoles.Eligible.Count == 0; i++)
+                Settle();
+            Expect(area.MyRoles.Eligible.Count > 0, "My Roles lists the eligible roles");
+            var row = area.MyRoles.Eligible[0];
+            Click(window, FindButton(window, b => b.Command == row.OpenCommand && b.IsEffectivelyVisible));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Expect(row.IsOpen, "the switch-on form opened");
+            var add = FindButton(window, b => b.Command == row.ActivateCommand && b.IsEffectivelyVisible);
+            Click(window, add);
+            Expect(row.HasError && !main.Pending!.Rows.Any(), "without a reason it says why and stages nothing");
+            row.Justification = "Checking an alert";
+            Settle();
+            Click(window, add);
+            Expect(main.Pending!.Rows.Any(r => r.Change is ActivateRole { On: true }) && !row.IsOpen, "switching it on is in Pending changes and the form closed");
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "approvals" }));
+            for (var i = 0; i < 50 && area.Approvals.Requests.Count == 0; i++)
+                Settle();
+            var request = area.Approvals.Requests.First();
+            Click(window, FindButton(window, b => b.Command == request.ApproveCommand && b.IsEffectivelyVisible));
+            Expect(main.Pending.Rows.Any(r => r.Change is ReviewRoleRequest { Approve: true }) && request.StateText == "Approving", "approving is in Pending changes");
+            window.Close();
+        });
+
+        Check("Role page, Settings tab (PIM): changing the activation length stages the rule; Extend a Year stages a new end", () =>
+        {
+            var (window, main, _) = OpenList(premium: true);
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            for (var i = 0; i < 50 && main.SecurityArea.Roles.Total == 0; i++)
+                Settle();
+            main.OpenRole(main.SecurityArea.Roles.Rows.Cast<RoleSummary>().First(r => r.Role.Name == "Security Administrator"));
+            var page = (RoleDetailViewModel)main.SelectedTab!;
+            Settle();
+            var extend = page.Assignments.Rows.First(r => r.CanExtend);
+            var button = FindButton(window, b => b.Command == extend.ExtendCommand && b.IsEffectivelyVisible);
+            button.BringIntoView();
+            Settle();
+            Click(window, button);
+            Expect(main.Pending!.Rows.Any(r => r.Change is ExtendRoleAssignment), "extending is in Pending changes");
+            Click(window, window.GetVisualDescendants().OfType<TabItem>().First(t => t.DataContext is RoleSettingsSection));
+            for (var i = 0; i < 20 && !page.Settings.IsLoaded; i++)
+                Settle();
+            Expect(page.Settings.CanEdit, "the settings read and can be changed");
+            page.Settings.MaxActivation = RoleSettingsSection.ActivationChoices.First(c => c.Value == TimeSpan.FromHours(4));
+            Settle();
+            Expect(main.Pending.Rows.Any(r => r.Change is SetRolePolicyRule { RuleId: RolePolicyRules.ActivationExpiry }), "the shorter activation is in Pending changes");
+            window.Close();
+        });
+
         Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
         {
             var (window, main, _) = OpenList();
@@ -869,9 +925,10 @@ static class InteractionChecks
     }
 
     /// <summary>The demo tenant, editable (Pending changes on, Test mode on), on its Users list.</summary>
-    static (MainWindow Window, MainViewModel Main, ShellViewModel Shell) OpenList()
+    /// <param name="premium">The demo acting as a tenant with Entra ID P2 (PIM).</param>
+    static (MainWindow Window, MainViewModel Main, ShellViewModel Shell) OpenList(bool premium = false)
     {
-        var demo = new TenantConnector().ConnectDemo();
+        var demo = new TenantConnector().ConnectDemo(premium);
         if (demo.Directory is Tenantry.Demo.DemoTenantDirectory directory)
             directory.CheckTakes = TimeSpan.Zero;
         var main = new MainViewModel(demo with

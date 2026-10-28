@@ -84,6 +84,10 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(CreateCustomRole), "createCustomRole")]
 [JsonDerivedType(typeof(UpdateCustomRole), "updateCustomRole")]
 [JsonDerivedType(typeof(DeleteCustomRole), "deleteCustomRole")]
+[JsonDerivedType(typeof(SetRolePolicyRule), "setRolePolicyRule")]
+[JsonDerivedType(typeof(ExtendRoleAssignment), "extendRoleAssignment")]
+[JsonDerivedType(typeof(ActivateRole), "activateRole")]
+[JsonDerivedType(typeof(ReviewRoleRequest), "reviewRoleRequest")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -1480,4 +1484,68 @@ public sealed record DeleteCustomRole(ChangeTarget Role, string Detail) : Custom
     public override bool IsCaution => true;
     public override string? ConfirmPhrase => Role.Name;
     public override bool IsNoChange => false;
+}
+
+// ---- Privileged Identity Management (8a-2) ---------------------------------------------------
+
+/// <summary>
+/// One rule of a role's PIM settings (activation length, what activating needs, approval, how long
+/// assignments last), sent whole as Graph's rule JSON. The role is the target, judged by name, so
+/// Test mode refuses every built-in role. Loosening a rule (no MFA, no approval) is a caution change.
+/// </summary>
+/// <param name="Role">Kind "role": Id is the role's ID, Name its name.</param>
+public sealed record SetRolePolicyRule(ChangeTarget Role, string PolicyId, string RuleId, string SettingLabel, string Old, string New, string Rule,
+    bool Loosens = false) : ChangeOp
+{
+    public override ChangeTarget Target => Role;
+    public override string Key => "rule:" + RuleId;
+    public override string Label => $"{Role.Name}: {SettingLabel}";
+    public override string Before => Old;
+    public override string After => New;
+    public override bool IsCaution => Loosens;
+    public override bool IsNoChange => string.Equals(Old, New, StringComparison.Ordinal);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetRolePolicyRule e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>Moves a time-limited assignment's end (PIM's adminUpdate). The write guard checks who holds it.</summary>
+public sealed record ExtendRoleAssignment(ChangeTarget Principal, string RoleId, string RoleName, string ScopeId, Directory.RoleGrantKind Kind,
+    DateTimeOffset? OldEnd, DateTimeOffset NewEnd) : ChangeOp
+{
+    public override ChangeTarget Target => Principal;
+    public override string Key => $"extendrole:{RoleId}:{ScopeId}:{Kind}";
+    public override string Label => $"Role {RoleName} Ends";
+    public override string Before => OldEnd is { } o ? $"{o:d MMM yyyy}" : "Never";
+    public override string After => $"{NewEnd:d MMM yyyy}";
+    public override bool IsNoChange => OldEnd == NewEnd;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is ExtendRoleAssignment e ? this with { OldEnd = e.OldEnd } : this;
+}
+
+/// <summary>
+/// The signed-in admin switches one of their eligible roles on for a while (selfActivate), or off
+/// again early (selfDeactivate). The target is the admin, so Test mode refuses it.
+/// </summary>
+public sealed record ActivateRole(ChangeTarget Me, string RoleId, string RoleName, string ScopeId, bool On, int Hours = 0, string? Justification = null,
+    string? Ticket = null) : ChangeOp
+{
+    public override ChangeTarget Target => Me;
+    public override string Key => $"activate:{RoleId}:{ScopeId}";
+    public override string Label => $"Role {RoleName}";
+    public override string Before => On ? "Eligible" : "Activated";
+    public override string After => On ? $"Activated for {Directory.RolePolicyRules.Words(TimeSpan.FromHours(Hours))}" : "Deactivated";
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Approves or denies someone's request to activate a role. The write guard checks who asked.</summary>
+/// <param name="Request">Kind "rolerequest": Id the request, Name "who: role", Address the requester's sign-in name.</param>
+public sealed record ReviewRoleRequest(ChangeTarget Request, string ApprovalId, bool Approve, string Justification) : ChangeOp
+{
+    public override ChangeTarget Target => Request;
+    public override string Key => "review";
+    public override string Label => $"Request {Request.Name}";
+    public override string Before => "Waiting for approval";
+    public override string After => Approve ? "Approved" : "Denied";
+    public override bool IsCaution => Approve;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
 }

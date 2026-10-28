@@ -19,8 +19,9 @@ public sealed partial class RoleDetailViewModel : TabViewModel, IDisposable
 
     /// <param name="editRole">Opens the custom-role editor on this role.</param>
     public RoleDetailViewModel(RoleSummary role, RoleDirectory directory, ChangePipeline? pipeline, Availability canEdit, IDirectoryIndex? index = null,
-        Action<UserSummary>? openUser = null, Action<GroupSummary>? openGroup = null, Action<AdminRole>? editRole = null)
+        Action<UserSummary>? openUser = null, Action<GroupSummary>? openGroup = null, Action<AdminRole>? editRole = null, IRoleRecords? records = null)
     {
+        Records = records;
         Role = role;
         Directory = directory;
         _pipeline = pipeline;
@@ -31,7 +32,8 @@ public sealed partial class RoleDetailViewModel : TabViewModel, IDisposable
         CanEdit = pipeline is not null && canEdit.IsAvailable;
         EditReason = pipeline is null ? "This tenant can't be edited" : canEdit.Reason ?? "";
         Assignments = new RoleAssignmentsSection(this);
-        Sections = [Assignments, new RolePermissionsSection(this)];
+        Settings = new RoleSettingsSection(this);
+        Sections = [Assignments, new RolePermissionsSection(this), Settings];
         SelectedSection = Sections[0];
         if (_pipeline is not null)
             _pipeline.Changed += OnPendingChanged;
@@ -45,6 +47,9 @@ public sealed partial class RoleDetailViewModel : TabViewModel, IDisposable
     internal Action<GroupSummary>? OpenGroupAction { get; }
     internal Action<AdminRole>? EditRoleAction { get; }
     internal ChangePipeline? Pipeline => _pipeline;
+    internal IRoleRecords? Records { get; }
+
+    public RoleSettingsSection Settings { get; }
 
     public bool CanEdit { get; }
     public string EditReason { get; }
@@ -70,6 +75,8 @@ public sealed partial class RoleDetailViewModel : TabViewModel, IDisposable
     [ObservableProperty]
     public partial RecordSection? SelectedSection { get; set; }
 
+    partial void OnSelectedSectionChanged(RecordSection? value) => _ = value?.LoadAsync();
+
     /// <summary>What's waiting in Pending changes for this role.</summary>
     public string? PendingText
     {
@@ -78,6 +85,8 @@ public sealed partial class RoleDetailViewModel : TabViewModel, IDisposable
             var labels = Pending.Select(p => p switch
             {
                 AddRoleAssignment a => $"give it to {a.Principal.Name}",
+                ExtendRoleAssignment x => $"{x.Principal.Name} until {x.NewEnd:d MMM yyyy}",
+                SetRolePolicyRule r => $"{r.SettingLabel.ToLowerInvariant()} → {r.After}",
                 RemoveRoleAssignment r => $"take it from {r.User.Name}",
                 _ => $"{p.Label.ToLowerInvariant()} → {p.After}",
             }).ToArray();
@@ -92,6 +101,8 @@ public sealed partial class RoleDetailViewModel : TabViewModel, IDisposable
     {
         AddRoleAssignment a => a.RoleId == Role.Role.Id,
         RemoveRoleAssignment r => r.RoleId == Role.Role.Id || Role.Grants.Any(g => g.Id == r.AssignmentId),
+        ExtendRoleAssignment x => x.RoleId == Role.Role.Id,
+        SetRolePolicyRule r => r.Role.Id == Role.Role.Id,
         CustomRoleChange c => c.Role.Id == Role.Role.Id,
         _ => false,
     }) ?? [];

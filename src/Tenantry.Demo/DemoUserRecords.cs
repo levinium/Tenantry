@@ -9,7 +9,8 @@ namespace Tenantry.Demo;
 /// plus a generated office, phone and address, seeded per person so they never change.
 /// Edits made in the demo are kept here for the session.
 /// </summary>
-public sealed partial class DemoUserRecords(DemoTenantDirectory directory) : IUserRecords
+/// <param name="pim">Act as a tenant with Entra ID P2: eligible roles, role settings, activation and approvals.</param>
+public sealed partial class DemoUserRecords(DemoTenantDirectory directory, bool pim = false) : IUserRecords
 {
     readonly Dictionary<string, Dictionary<string, string?>> _edited = new(StringComparer.Ordinal);
     readonly Dictionary<string, string?> _managers = new(StringComparer.Ordinal);

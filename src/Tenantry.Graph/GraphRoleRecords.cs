@@ -17,8 +17,13 @@ namespace Tenantry.Graph;
 /// </summary>
 public sealed partial class GraphUserRecords : IRoleRecords
 {
+    /// <summary>
+    /// PIM isn't there: 400 AadPremiumLicenseRequired from most reads, and 403 "The tenant has not
+    /// onboarded to PIM" from the approver and own-role reads (both seen live without Entra ID P2).
+    /// </summary>
     static bool NeedsPremium(GraphException e) =>
-        e.Status is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden && (e.Code ?? "").Contains("Premium", StringComparison.OrdinalIgnoreCase);
+        e.Status is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden
+        && ((e.Code ?? "").Contains("Premium", StringComparison.OrdinalIgnoreCase) || e.Message.Contains("onboarded to PIM", StringComparison.OrdinalIgnoreCase));
 
     public async Task<RoleDirectory> GetRolesAsync(CancellationToken cancellationToken = default)
     {
@@ -114,5 +119,81 @@ public sealed partial class GraphUserRecords : IRoleRecords
             if (Text(a, "name") is { } name)
                 actions.Add(new ResourceAction(name, Text(a, "description"), Flag(a, "isPrivileged") == true));
         return _actions = [.. actions.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)];
+    }
+}
+
+/// <summary>PIM reads (8a-2): a role's settings, the admin's own roles, and approvals waiting for them.</summary>
+public sealed partial class GraphUserRecords
+{
+    public async Task<Available<RoleSettings>> GetRoleSettingsAsync(string roleId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var assignment = await graph.GetAsync("policies/roleManagementPolicyAssignments?$filter=scopeId eq '/' and scopeType eq 'DirectoryRole' and " +
+                                                  $"roleDefinitionId eq '{roleId}'&$expand=policy($expand=rules)", cancellationToken);
+            var first = assignment.TryGetProperty("value", out var v) && v.GetArrayLength() > 0 ? v[0] : default;
+            if (first.ValueKind != JsonValueKind.Object || !first.TryGetProperty("policy", out var policy))
+                return Available<RoleSettings>.Because("Entra has no PIM settings for this role.");
+            var rules = policy.GetProperty("rules").EnumerateArray()
+                .ToDictionary(r => Text(r, "id") ?? "", r => r.GetRawText(), StringComparer.Ordinal);
+            return new(RolePolicyRules.Read(Text(policy, "id") ?? "", rules));
+        }
+        catch (GraphException e) when (NeedsPremium(e))
+        {
+            return Available<RoleSettings>.Because(RoleDirectory.PimNeedsP2);
+        }
+    }
+
+    public async Task<Available<IReadOnlyList<RoleGrant>>> GetMyRolesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var mine = new List<RoleGrant>();
+            async Task ReadAsync(string collection, RoleGrantKind kind)
+            {
+                await foreach (var a in graph.GetAllAsync($"roleManagement/directory/{collection}/filterByCurrentUser(on='principal')?$expand=roleDefinition($select=displayName)",
+                                   cancellationToken))
+                {
+                    var name = a.TryGetProperty("roleDefinition", out var d) && d.ValueKind == JsonValueKind.Object ? Text(d, "displayName") : null;
+                    var scope = Text(a, "directoryScopeId") ?? "/";
+                    mine.Add(new RoleGrant(Text(a, "id") ?? "", Text(a, "roleDefinitionId") ?? "", Text(a, "principalId") ?? "", name ?? "A role", null,
+                        RolePrincipalType.User, scope, scope == "/" ? "Organization" : "One part of the organization", kind, When(a, "startDateTime"), When(a, "endDateTime"),
+                        true, string.Equals(Text(a, "assignmentType"), "Activated", StringComparison.OrdinalIgnoreCase)));
+                }
+            }
+            await ReadAsync("roleEligibilityScheduleInstances", RoleGrantKind.Eligible);
+            await ReadAsync("roleAssignmentScheduleInstances", RoleGrantKind.Active);
+            return new([.. mine.OrderBy(g => g.PrincipalName, StringComparer.CurrentCulture)]);
+        }
+        catch (GraphException e) when (NeedsPremium(e))
+        {
+            return Available<IReadOnlyList<RoleGrant>>.Because(RoleDirectory.PimNeedsP2);
+        }
+    }
+
+    public async Task<Available<IReadOnlyList<RoleRequest>>> GetApprovalsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var requests = new List<RoleRequest>();
+            await foreach (var r in graph.GetAllAsync($"{Beta}roleManagement/directory/roleAssignmentScheduleRequests/filterByCurrentUser(on='approver')" +
+                                                      "?$filter=status eq 'PendingApproval'&$expand=principal,roleDefinition", cancellationToken))
+            {
+                var principal = r.TryGetProperty("principal", out var p) && p.ValueKind == JsonValueKind.Object ? p : default;
+                var role = r.TryGetProperty("roleDefinition", out var d) && d.ValueKind == JsonValueKind.Object ? d : default;
+                var duration = r.TryGetProperty("scheduleInfo", out var s) && s.TryGetProperty("expiration", out var x) && Text(x, "duration") is { } iso
+                    ? RolePolicyRules.Duration(iso) : (TimeSpan?)null;
+                requests.Add(new RoleRequest(Text(r, "id") ?? "", Text(r, "approvalId") ?? "", Text(r, "roleDefinitionId") ?? "",
+                    role.ValueKind == JsonValueKind.Object ? Text(role, "displayName") ?? "A role" : "A role",
+                    Text(r, "principalId") ?? "", principal.ValueKind == JsonValueKind.Object ? Text(principal, "displayName") ?? "Someone" : "Someone",
+                    principal.ValueKind == JsonValueKind.Object ? Text(principal, "userPrincipalName") : null,
+                    Text(r, "justification"), When(r, "createdDateTime"), duration, Text(r, "directoryScopeId") is "/" or null ? "Organization" : "One part of the organization"));
+            }
+            return new([.. requests.OrderBy(r => r.Requested)]);
+        }
+        catch (GraphException e) when (NeedsPremium(e))
+        {
+            return Available<IReadOnlyList<RoleRequest>>.Because(RoleDirectory.PimNeedsP2);
+        }
     }
 }
