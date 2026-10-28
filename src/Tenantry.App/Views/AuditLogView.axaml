@@ -17,7 +17,7 @@
           <StackPanel Spacing="10">
             <TextBlock Classes="h3" Text="New Search" />
             <TextBlock Classes="caption" TextWrapping="Wrap"
-                       Text="Purview searches in the background and can take several minutes. Narrow searches finish sooner." />
+                       Text="Purview searches in the background and can take up to an hour. Narrow searches (fewer days, chosen people or record types) finish sooner." />
             <ItemsControl ItemsSource="{x:Static rec:AuditLogViewModel.Ranges}">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>

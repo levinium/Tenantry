@@ -20,7 +20,7 @@ public sealed record AuditSearchRow(AuditSearch Search)
     public string StatusText => Search.StatusText;
     public BadgeKind StatusKind => Search.Status switch { "succeeded" => BadgeKind.Success, "failed" or "cancelled" => BadgeKind.Danger, _ => BadgeKind.Info };
     public bool IsWaiting => !Search.IsFinished;
-    public string? CountText => Search.IsDone ? Search.ApproximateCount is { } n ? $"{n:N0} records" + (Search.LimitExceeded ? " (more than Purview returns)" : "") : null : null;
+    public string? CountText => Search.IsDone ? Search.ApproximateCount is { } n ? $"About {n:N0} records" + (Search.LimitExceeded ? " (more than Purview returns)" : "") : null : null;
     public bool HasCount => CountText is not null;
 
     public string Filters
@@ -326,7 +326,7 @@ public sealed partial class AuditLogViewModel : ObservableObject
         {
             null => null,
             { Search.IsDone: true } => null,
-            { IsWaiting: true } => "Purview is still running this search. It can take several minutes; it's checked every so often, so you can leave this page open.",
+            { IsWaiting: true } => "Purview is still running this search. Searches can take up to an hour; it's checked every so often while Tenantry is open, and stays in the list if you close it.",
             _ => "This search didn't finish. Run it again.",
         };
         if (row is { Search.IsDone: true } && _records is not null)

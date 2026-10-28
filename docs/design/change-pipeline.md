@@ -607,13 +607,18 @@ Pending changes.
   included, up to now; within 180 days), people (picked, sent as sign-in names), activities (one
   per line), record types (in words), and more filters: keyword, IP addresses, objects, a name.
   Only filters given are sent.
-- **Waiting:** Purview runs a search in the background and can leave it queued for many minutes
-  (seen live). Searches are listed with Queued, Running, Done or Failed; unfinished ones are
+- **Waiting:** Purview runs a search in the background, slowly: live, a one-day Entra search sat
+  queued about 6 minutes, then was still running after 40 more. Searches are listed with Queued, Running, Done or Failed; unfinished ones are
   checked every 20 seconds while Tenantry is open, with a wheel. Past searches (Purview keeps them)
   are listed when the page opens.
 - **Results:** a finished search's records (up to 10,000; narrow the search for more) open in the
   standard list: who, activity, when, service, object, address, record type, with filters,
   sorting and CSV export. The preview shows the whole record, indented.
+- **Live:** searches listed, started and checked through Tenantry's reader. A second search waited
+  about 40 minutes queued behind the first (Purview seems to run one at a time). The finished probe
+  search (one day of Entra records) read back 300 records, each with person, time, record type in
+  words and the whole record; paging was complete at every page size. Purview's count said 497:
+  it's an estimate, so the list says "About".
 
 ### New User and New Group
 
