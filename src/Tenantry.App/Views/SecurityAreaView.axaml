@@ -337,6 +337,12 @@
         </ContentControl.DataTemplates>
       </ContentControl>
     </DockPanel>
+    <!-- Deleted app registrations: restore or delete for good -->
+    <Panel IsVisible="{Binding ShowDeletedApps}">
+      <ScrollViewer>
+        <ContentControl Content="{Binding DeletedAppsSection}" HorizontalAlignment="Left" Margin="0,0,0,24" />
+      </ScrollViewer>
+    </Panel>
     <!-- Admin roles: read live, with Refresh; what PIM can't show here -->
     <DockPanel IsVisible="{Binding ShowRoles}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">

@@ -49,7 +49,11 @@ public static class Capabilities
     public static readonly Capability ManageRoles = new("roles.manage", "Manage Admin Roles",
         [PrivilegedRoleAdministrator]);
 
+    /// <summary>Apps: credentials, owners, consents, assignments, sign-in settings, and making, deleting and restoring apps.</summary>
+    public static readonly Capability ManageApps = new("apps.manage", "Manage App Registrations and Enterprise Apps",
+        [ApplicationAdministrator, CloudApplicationAdministrator]);
+
     public static IReadOnlyList<Capability> All { get; } =
         [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess, ManageDevices,
-            ManageSites, ManageRoles];
+            ManageSites, ManageRoles, ManageApps];
 }

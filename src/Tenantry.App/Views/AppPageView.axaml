@@ -17,6 +17,7 @@
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
           <TextBlock Classes="h1" Text="{Binding Title}" TextWrapping="Wrap" />
           <SelectableTextBlock Classes="caption" Text="{Binding Subtitle}" />
+          <TextBlock Classes="caption pendingtext" Text="{Binding PendingText}" IsVisible="{Binding HasPending}" TextWrapping="Wrap" />
           <ItemsControl ItemsSource="{Binding Badges}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
@@ -41,6 +42,12 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
               <ic:FluentIcon Icon="Open" FontSize="16" />
               <TextBlock Text="{Binding PartnerText}" />
+            </StackPanel>
+          </Button>
+          <Button Classes="danger-outline" Command="{Binding DeleteCommand}" IsVisible="{Binding CanDelete}" ToolTip.Tip="{Binding DeleteTip}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ic:FluentIcon Icon="Delete" FontSize="16" />
+              <TextBlock Text="{Binding DeleteText}" />
             </StackPanel>
           </Button>
         </StackPanel>

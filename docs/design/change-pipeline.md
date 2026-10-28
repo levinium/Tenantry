@@ -519,8 +519,36 @@ owners, then service principals; about 2 s for several hundred) and refreshed to
 - **Reads:** a page's details load once, in parallel, when a tab needs them (about 1 s). Last
   sign-in comes from the beta sign-in activity report, which takes several seconds, so it fills in
   on its own afterwards. A certificate's `customKeyIdentifier` is already a hex thumbprint.
-- **Read-only for now:** the actions (secrets, owners, consents, assignments, sign-in, delete)
-  come in 8c-2 through Pending changes.
+
+### App actions (8c-2)
+
+Every change targets the app (kind `appregistration` or `enterpriseapp`) and is guarded by its
+name, plus the person for owner and access changes. Rows waiting in Pending changes show
+Adding, Removing or Revoking with Undo.
+
+- **Secrets & Certificates:** Add Secret (what it's for; 6, 12 or 24 months). The value comes back
+  once as `ApplyResult.Reveal` and the tray shows it as "Client Secret … for …"; it's never stored
+  or logged. Removing a secret or certificate needs the app's name typed. A secret goes through
+  `removePassword`. A certificate is removed by PATCHing `keyCredentials` with the others, as Graph
+  returned them (`removeKey` needs a proof signed by the app's own key).
+- **Owners** (both kinds): pick a person to add; Remove is a caution change.
+- **API Permissions:** Grant Admin Consent for the permissions not yet consented (a caution
+  change). It makes the enterprise app if needed, adds delegated scopes to the existing
+  AllPrincipals grant per API (or makes one), and adds only the app role assignments it lacks.
+- **Enterprise app Settings:** switches for sign-in, assignment required and visible (the
+  `HideApp` tag; the other tags go back unchanged). Flipping one back takes it out of Pending
+  changes. Sign-in off and assignment required on are caution changes.
+- **Users & Groups:** pick a person or group, as one of the app's roles; Remove.
+- **Permissions:** Revoke a whole admin consent, an application permission, or one person's consent.
+- **Delete:** an app registration (it goes to Deleted Apps for 30 days, with its enterprise app) or
+  an enterprise app (not Microsoft's own). Both need the name typed. A deleted app's open page closes.
+- **Deleted Apps** page: Restore, or Delete Permanently (name typed).
+- **New App Registration** (the list's button): name, who can sign in, and an optional redirect
+  (https, or http only for localhost). It's made with its enterprise app.
+- **Live:** a test app made, given a secret (removed), an owner (removed), each setting switched
+  and back, access for the test person (removed), admin consent for User.Read (revoked), then
+  deleted, restored, deleted and purged. The guard refused a real app with 0 requests sent.
+  Certificate removal is covered by tests only, since the test app had no certificate.
 
 ### New User and New Group
 

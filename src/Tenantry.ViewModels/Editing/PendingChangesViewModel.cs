@@ -115,7 +115,8 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     /// <summary>Two or more passwords (a bulk reset): copy or save them all at once.</summary>
     public bool HasManyReveals => Reveals.Count > 1;
 
-    public string RevealsHeader => $"{Reveals.Count} new passwords. Shown once and never stored: copy or save them now, then pass each on securely.";
+    public string RevealsHeader => $"{Reveals.Count} new {(Reveals.All(r => r.Label.StartsWith("Client Secret", StringComparison.Ordinal)) ? "client secrets" : "passwords and codes")}. "
+        + "Shown once and never stored: copy or save them now, then pass each on securely.";
 
     [ObservableProperty]
     public partial bool AllCopied { get; private set; }
@@ -233,8 +234,12 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         {
             var results = await _pipeline.ApplyAsync();
             foreach (var (change, result) in results.Where(r => r.Result.Reveal is not null))
-                Reveals.Add(new RevealRow(change is CreateTemporaryAccessPass ? $"Temporary Access Pass for {change.Target.Name}" : $"New Password for {change.Target.Name}",
-                    result.Reveal!, DismissReveal, change.Target));
+                Reveals.Add(new RevealRow(change switch
+                    {
+                        CreateTemporaryAccessPass => $"Temporary Access Pass for {change.Target.Name}",
+                        AddAppSecret s => $"Client Secret \"{s.Description}\" for {change.Target.Name}",
+                        _ => $"New Password for {change.Target.Name}",
+                    }, result.Reveal!, DismissReveal, change.Target));
             AllCopied = false;
             RevealsChanged();
             _problems.Clear();

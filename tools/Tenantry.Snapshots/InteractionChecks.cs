@@ -1071,6 +1071,66 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("App page: Add Secret stages a secret; Remove on the expired one shows Undo; Delete App stages a delete that needs the name typed", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            main.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
+            for (var i = 0; i < 50 && main.SecurityArea.Registrations.Total == 0; i++)
+                Settle();
+            main.OpenAppRegistration(main.SecurityArea.Apps!.Registrations.Single(r => r.Name == "Payroll Export"));
+            var page = (AppRegistrationPageViewModel)main.SelectedTab!;
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<TabItem>().First(t => t.DataContext is AppSection { Key: "credentials" }));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.PlaceholderText?.StartsWith("What it's for", StringComparison.Ordinal) == true);
+            box.Text = "Rotation";
+            Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && Labelled(b, "Add Secret")));
+            Expect(main.Pending!.Rows.Any(r => r.Change is AddAppSecret { Description: "Rotation" }), "the new secret is in Pending changes");
+            for (var i = 0; i < 5; i++)
+                Settle();
+            var remove = FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is AppRow { Title: "Nightly export", ActionText: "Remove" });
+            Click(window, remove);
+            for (var i = 0; i < 5; i++)
+                Settle();
+            Expect(main.Pending.Rows.Any(r => r.Change is RemoveAppCredential), "removing the expired secret is in Pending changes");
+            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.DataContext is AppRow { Title: "Nightly export", ActionText: "Undo" }),
+                "its row now offers Undo");
+            Click(window, FindButton(window, b => b.Command == page.DeleteCommand && b.IsEffectivelyVisible));
+            Expect(main.Pending.Rows.Any(r => r.Change is DeleteApp { ConfirmPhrase: "Payroll Export" }) && page.HasPending, "deleting it is pending and needs its name typed");
+            window.Close();
+        });
+
+        Check("New App Registration: the list's button opens the form; Add stages it and closes; an enterprise app's switch stages a setting", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "appregs" }));
+            for (var i = 0; i < 50 && main.SecurityArea.Registrations.Total == 0; i++)
+                Settle();
+            Click(window, FindButton(window, b => b.Command == main.SecurityArea.Registrations.RunPrimaryActionCommand && b.IsEffectivelyVisible));
+            var form = main.Dialog?.Content as NewAppViewModel;
+            Expect(form is not null, "the New App Registration popup opened");
+            Settle();
+            Click(window, FindButton(window, b => b.Command == form!.AddCommand && b.IsEffectivelyVisible));
+            Expect(main.Dialog is not null && form!.HasProblems, "Add without a name stays open and says why");
+            form!.Name = "Expense Reports";
+            Settle();
+            Click(window, FindButton(window, b => b.Command == form.AddCommand && b.IsEffectivelyVisible));
+            Expect(main.Dialog is null && main.Pending!.Rows.Any(r => r.Change is CreateAppRegistration), "Add put it in Pending changes and closed the popup");
+
+            main.OpenEnterpriseApp(main.SecurityArea.Apps!.EnterpriseApps.Single(e => e.Name == "Fabrikam Whiteboard"));
+            for (var i = 0; i < 5; i++)
+                Settle();
+            var signIn = window.GetVisualDescendants().OfType<ToggleSwitch>().First(t => t.IsEffectivelyVisible);
+            Click(window, signIn);
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetEnterpriseAppSetting { Setting: "enabled", New: false }), "turning sign-in off is in Pending changes");
+            window.Close();
+        });
+
         Check("Devices: checking rows opens the selection panel; Delete Stale Devices stages only the stale ones", () =>
         {
             var (window, main, _) = OpenList();

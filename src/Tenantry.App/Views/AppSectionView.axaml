@@ -3,6 +3,8 @@
              xmlns:rec="using:Tenantry.ViewModels.Records"
              xmlns:views="using:Tenantry.App.Views"
              xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.AppSectionView"
              x:DataType="rec:AppSection">
   <!-- A tab of an app's page: its cards, each with facts and rows. -->
@@ -22,6 +24,78 @@
                 <TextBlock Classes="h3" Text="{Binding Title}" />
                 <TextBlock Classes="caption" Text="{Binding Caption}" IsVisible="{Binding HasCaption}" TextWrapping="Wrap" />
               </StackPanel>
+              <ContentControl Content="{Binding Form}" IsVisible="{Binding HasForm}">
+                <ContentControl.DataTemplates>
+                  <!-- A new client secret: what it's for and how long it lasts -->
+                  <DataTemplate x:DataType="rec:AddSecretForm">
+                    <Border Classes="valuerow">
+                      <StackPanel Spacing="8">
+                        <TextBlock Classes="label" Text="ADD A CLIENT SECRET" />
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                          <TextBox Text="{Binding Description}" PlaceholderText="What it's for, like Nightly export" />
+                          <ComboBox Grid.Column="1" ItemsSource="{x:Static rec:AddSecretForm.Lengths}" SelectedItem="{Binding Length}" MinWidth="150">
+                            <ComboBox.ItemTemplate>
+                              <DataTemplate x:DataType="ed:EditorChoice">
+                                <TextBlock Text="{Binding Label}" />
+                              </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                          </ComboBox>
+                          <Button Grid.Column="2" Classes="accent" Content="Add Secret" Command="{Binding AddCommand}"
+                                  ToolTip.Tip="Added to Pending changes; its value is shown to you once after applying" />
+                        </Grid>
+                        <TextBlock Classes="caption" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" Foreground="{DynamicResource BadgeWarningFg}" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                  <!-- A person (or group) to add, as a role when the app has several -->
+                  <DataTemplate x:DataType="rec:AppPickForm">
+                    <StackPanel Spacing="8">
+                      <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasRoles}">
+                        <TextBlock Classes="label" Text="AS" VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding Role}" MinWidth="220">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="ed:EditorChoice">
+                              <TextBlock Text="{Binding Label}" />
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </StackPanel>
+                      <views:PersonPickerView DataContext="{Binding Picker}" MaxWidth="440" HorizontalAlignment="Left" />
+                    </StackPanel>
+                  </DataTemplate>
+                  <!-- On/off settings, each staged as it's flipped -->
+                  <DataTemplate x:DataType="rec:AppToggleForm">
+                    <ItemsControl ItemsSource="{Binding Toggles}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Spacing="10" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="rec:AppToggle">
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel Spacing="2">
+                              <WrapPanel ItemSpacing="8">
+                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending changes" />
+                              </WrapPanel>
+                              <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsOn}" IsEnabled="{Binding CanEdit}" OnContent="Yes" OffContent="No" VerticalAlignment="Center" />
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </DataTemplate>
+                  <!-- One action for the whole card (Grant Admin Consent) -->
+                  <DataTemplate x:DataType="rec:AppButtonForm">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                      <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Classes="accent" Content="{Binding Text}" Command="{Binding ActCommand}" ToolTip.Tip="{Binding Tip}" />
+                    </Grid>
+                  </DataTemplate>
+                </ContentControl.DataTemplates>
+              </ContentControl>
               <ItemsControl ItemsSource="{Binding FactLines}" IsVisible="{Binding HasFacts}">
                 <ItemsControl.ItemsPanel>
                   <ItemsPanelTemplate>
@@ -84,8 +158,11 @@
                             </ItemsControl.ItemTemplate>
                           </ItemsControl>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="danger-outline" Content="{Binding ActionText}" Command="{Binding DoCommand}" IsVisible="{Binding HasAction}"
-                                ToolTip.Tip="{Binding ActionTip}" VerticalAlignment="Top" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                          <Button Classes="outline" Content="{Binding AltText}" Command="{Binding AltCommand}" IsVisible="{Binding HasAlt}" ToolTip.Tip="{Binding AltTip}" />
+                          <Button Classes="danger-outline" Classes.undo="{Binding IsUndo}" Content="{Binding ActionText}" Command="{Binding DoCommand}" IsVisible="{Binding HasAction}"
+                                  ToolTip.Tip="{Binding ActionTip}" />
+                        </StackPanel>
                       </Grid>
                     </Border>
                   </DataTemplate>

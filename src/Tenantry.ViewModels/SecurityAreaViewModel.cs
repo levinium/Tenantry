@@ -26,6 +26,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         new("strengths", "Authentication Strengths", "ShieldKeyhole"),
         new("appregs", "App Registrations", "AppFolder"),
         new("enterprise", "Enterprise Apps", "Apps"),
+        new("deletedapps", "Deleted Apps", "Delete"),
         new("roles", "Admin Roles", "PersonKey"),
         new("myroles", "My Roles", "PersonStar"),
         new("approvals", "Approvals", "ApprovalsApp"),
@@ -36,7 +37,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public SecurityAreaViewModel(IRoleRecords? roles, ChangePipeline? pipeline, IListStateStore? listState, Func<DateTimeOffset> now,
         Action<RoleSummary> openRole, Action? newRole, string? cantEditReason, string? me = null, IDirectoryIndex? index = null,
         IConditionalAccessRecords? ca = null, Action<CaPolicyRow>? openPolicy = null, Action? newPolicy = null, string? cantEditPolicies = null,
-        IAppRecords? apps = null, Action<AppRegistration>? openRegistration = null, Action<EnterpriseApp>? openEnterprise = null)
+        IAppRecords? apps = null, Action<AppRegistration>? openRegistration = null, Action<EnterpriseApp>? openEnterprise = null, Action? newApp = null, string? cantEditApps = null)
     {
         _roles = roles;
         _ca = ca;
@@ -56,6 +57,22 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         EnterpriseApps = DataListViewModel.Create(AppList.Enterprise(a => EnterprisePreview(a, openEnterprise)),
             async ct => (await ReadAppsAsync(ct))?.EnterpriseApps ?? [], row => openEnterprise?.Invoke((EnterpriseApp)row), listState, now);
         EnterpriseApps.EmptyText = "No apps match.";
+        Registrations.PrimaryAction = newApp is not null
+            ? new ListPrimaryAction("New App Registration", "Add", true, "Register an app (with its enterprise app) so it can sign people in or call Microsoft Graph", newApp)
+            : new ListPrimaryAction("New App Registration", "Add", false, cantEditApps ?? "This tenant can't be edited");
+        DeletedAppsSection = Records.DeletedApps.Section(apps, pipeline, newApp is not null);
+        if (pipeline is not null)
+        {
+            pipeline.Changed += (_, _) => DeletedAppsSection.Rebuild();
+            pipeline.Applied += (_, applied) =>
+            {
+                if (!applied.Any(c => c is AppChange))
+                    return;
+                if (_appsShown)
+                    _ = RefreshApps();
+                DeletedAppsSection.Rebuild();
+            };
+        }
         if (pipeline is not null)
             pipeline.Applied += (_, applied) =>
             {
@@ -159,7 +176,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals), nameof(ShowPolicies), nameof(ShowWhatIf), nameof(ShowLocations),
-        nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps))]
+        nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps), nameof(ShowDeletedApps))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     // ---- Apps (8c) -------------------------------------------------------------------------------
@@ -173,6 +190,9 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     /// <summary>Enterprise apps (service principals) (8c).</summary>
     public DataListViewModel EnterpriseApps { get; }
+
+    /// <summary>Deleted app registrations, with Restore and Delete Permanently.</summary>
+    public Records.AppSection DeletedAppsSection { get; }
 
     /// <summary>The apps as last read, for open app pages.</summary>
     public AppDirectory? Apps { get; private set; }
@@ -257,6 +277,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public bool ShowStrengths => SelectedPage.Key == "strengths";
     public bool ShowRegistrations => SelectedPage.Key == "appregs";
     public bool ShowEnterpriseApps => SelectedPage.Key == "enterprise";
+    public bool ShowDeletedApps => SelectedPage.Key == "deletedapps";
     public bool ShowMyRoles => SelectedPage.Key == "myroles";
     public bool ShowApprovals => SelectedPage.Key == "approvals";
 
@@ -276,6 +297,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
             _ = Registrations.LoadAsync();
             _ = EnterpriseApps.LoadAsync();
         }
+        if (ShowDeletedApps)
+            _ = DeletedAppsSection.LoadAsync();
         if (ShowMyRoles)
             MyRoles.Shown();
         if (ShowApprovals)

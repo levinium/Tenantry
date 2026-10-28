@@ -95,7 +95,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             tenant.Records as IConditionalAccessRecords, OpenCaPolicy,
             tenant.Changes is not null && Evaluate(Capabilities.ManageConditionalAccess).IsAvailable ? () => OpenCaEditor(null) : null,
             tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageConditionalAccess).Reason,
-            tenant.Records as IAppRecords, OpenAppRegistration, OpenEnterpriseApp);
+            tenant.Records as IAppRecords, OpenAppRegistration, OpenEnterpriseApp,
+            tenant.Changes is not null && Evaluate(Capabilities.ManageApps).IsAvailable && tenant.Records is IAppRecords ? NewApp : null,
+            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageApps).Reason);
         SecurityArea.RolesRead += (_, _) => FollowRoles();
         SecurityArea.PoliciesRead += (_, _) => FollowPolicies();
         SecurityArea.AppsRead += (_, _) => FollowApps();
@@ -276,20 +278,31 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// <summary>Opens an app registration's page, or switches to it if it is already open.</summary>
     public void OpenAppRegistration(AppRegistration app) =>
         OpenTab(t => t is AppRegistrationPageViewModel p && p.App.Id == app.Id,
-            () => new AppRegistrationPageViewModel(app, SecurityArea.Apps ?? NoApps, _tenant.Records as IAppRecords, _index, OpenUser, OpenEnterpriseApp, _now));
+            () => new AppRegistrationPageViewModel(app, SecurityArea.Apps ?? NoApps, _tenant.Records as IAppRecords, _index, OpenUser, OpenEnterpriseApp, _now,
+                _tenant.Changes, Evaluate(Capabilities.ManageApps)));
 
     /// <summary>Opens an enterprise app's page, or switches to it if it is already open.</summary>
     public void OpenEnterpriseApp(EnterpriseApp app) =>
         OpenTab(t => t is EnterpriseAppPageViewModel p && p.App.Id == app.Id,
-            () => new EnterpriseAppPageViewModel(app, SecurityArea.Apps ?? NoApps, _tenant.Records as IAppRecords, _index, OpenUser, OpenGroup, OpenAppRegistration, _now));
+            () => new EnterpriseAppPageViewModel(app, SecurityArea.Apps ?? NoApps, _tenant.Records as IAppRecords, _index, OpenUser, OpenGroup, OpenAppRegistration, _now,
+                _tenant.Changes, Evaluate(Capabilities.ManageApps)));
+
+    /// <summary>Opens New App Registration as a popup.</summary>
+    void NewApp()
+    {
+        if (_tenant.Changes is { } changes)
+            ShowDialog(new Records.DialogViewModel("New App Registration", TenantName, new Records.NewAppViewModel(changes, CloseDialog)));
+    }
 
     /// <summary>Open app pages show the apps as just read.</summary>
     void FollowApps()
     {
         if (SecurityArea.Apps is not { } directory)
             return;
+        // A page whose app was deleted closes.
         foreach (var page in Tabs.OfType<AppPageViewModel>().ToArray())
-            page.Update(directory);
+            if (!page.Update(directory))
+                CloseTab(page);
     }
 
     /// <summary>Open role pages show the roles as just read.</summary>

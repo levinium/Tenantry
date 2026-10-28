@@ -40,6 +40,9 @@
     <DataTemplate DataType="rec:AppPreviewViewModel">
       <views:AppPreviewView />
     </DataTemplate>
+    <DataTemplate DataType="rec:NewAppViewModel">
+      <views:NewAppView />
+    </DataTemplate>
     <DataTemplate DataType="rec:AppSection">
       <views:AppSectionView />
     </DataTemplate>

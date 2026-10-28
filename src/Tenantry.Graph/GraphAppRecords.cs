@@ -219,5 +219,12 @@ public sealed partial class GraphUserRecords : IAppRecords
         return null;
     }
 
+    public async Task<IReadOnlyList<DeletedApp>> GetDeletedAppsAsync(CancellationToken cancellationToken = default)
+    {
+        var deleted = new List<DeletedApp>();
+        await foreach (var d in graph.GetAllAsync("directory/deletedItems/microsoft.graph.application?$select=id,appId,displayName,deletedDateTime&$top=999", cancellationToken))
+            deleted.Add(new DeletedApp(Text(d, "id") ?? "", Text(d, "appId") ?? "", Text(d, "displayName") ?? "An app", When(d, "deletedDateTime")));
+        return deleted;
+    }
     const string DefaultAccess = AppUserAssignment.DefaultAccess;
 }

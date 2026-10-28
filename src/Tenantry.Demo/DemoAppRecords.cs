@@ -1,3 +1,4 @@
+using Tenantry.Core.Changes;
 using Tenantry.Core.Directory;
 
 namespace Tenantry.Demo;
@@ -128,4 +129,130 @@ public sealed partial class DemoUserRecords : IAppRecords
 
     public Task<DateTimeOffset?> GetLastSignInAsync(EnterpriseApp app, CancellationToken cancellationToken = default) =>
         Task.FromResult<DateTimeOffset?>(app.IsEnabled && app.Source != AppSource.Microsoft ? DateTimeOffset.UtcNow.AddHours(-(app.Name.Length * 7 % 90)) : null);
+
+    readonly List<DeletedApp> _deletedApps = [];
+
+    public async Task<IReadOnlyList<DeletedApp>> GetDeletedAppsAsync(CancellationToken cancellationToken = default)
+    {
+        await EnsureAppsAsync(cancellationToken);
+        return [.. _deletedApps];
+    }
+
+    EnterpriseAppDetail DetailFor(string spId) =>
+        _enterpriseDetails.GetValueOrDefault(spId) ?? new EnterpriseAppDetail([], [], [], [], [(AppUserAssignment.DefaultAccess, "Default Access")]);
+
+    void Edit(string appId, Func<AppRegistration, AppRegistration> change)
+    {
+        var at = _registrations!.FindIndex(r => r.Id == appId);
+        if (at >= 0)
+            _registrations[at] = change(_registrations[at]);
+    }
+
+    void EditEnterprise(string spId, Func<EnterpriseApp, EnterpriseApp> change)
+    {
+        var at = _enterprise!.FindIndex(e => e.Id == spId);
+        if (at >= 0)
+            _enterprise[at] = change(_enterprise[at]);
+    }
+
+    /// <summary>Applies an app change to the demo; null when it isn't one.</summary>
+    public ApplyResult? ApplyApp(ChangeOp change)
+    {
+        if (change is not AppChange app || _registrations is null)
+            return null;
+        var id = app.App.Id;
+        switch (change)
+        {
+            case RemoveAppCredential r:
+                Edit(id, a => a with { Credentials = [.. a.Credentials.Where(c => c.Id != r.KeyId)] });
+                break;
+            case AddAppSecret s:
+                Edit(id, a => a with { Credentials = [.. a.Credentials, new AppCredential($"k-{Guid.NewGuid():N}", true, s.Description, "Dmo", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMonths(s.Months))] });
+                return new ApplyResult(ChangeOutcome.Applied, "Copy it now (demo).", Reveal: "Dmo8Q~" + Guid.NewGuid().ToString("N")[..28]);
+            case SetAppOwner o when app.IsRegistration:
+                Edit(id, a => a with { Owners = o.Add ? [.. a.Owners, new AppOwner(o.Owner.Id, o.Owner.Name, o.Owner.Address)] : [.. a.Owners.Where(x => x.Id != o.Owner.Id)] });
+                break;
+            case SetAppOwner o:
+                var withOwners = DetailFor(id);
+                _enterpriseDetails[id] = withOwners with
+                {
+                    Owners = o.Add ? [.. withOwners.Owners, new AppOwner(o.Owner.Id, o.Owner.Name, o.Owner.Address)] : [.. withOwners.Owners.Where(x => x.Id != o.Owner.Id)],
+                };
+                break;
+            case SetEnterpriseAppSetting s:
+                EditEnterprise(id, e => s.Setting switch
+                {
+                    "enabled" => e with { IsEnabled = s.New },
+                    "assignment" => e with { AssignmentRequired = s.New },
+                    _ => e with { IsVisible = s.New },
+                });
+                break;
+            case AddAppUserAssignment a:
+                var assigned = DetailFor(id);
+                _enterpriseDetails[id] = assigned with
+                {
+                    Assignments = [.. assigned.Assignments, new AppUserAssignment($"as-{Guid.NewGuid():N}", a.Principal.Id, a.Principal.Name, a.PrincipalType, a.RoleId, a.RoleName, DateTimeOffset.UtcNow)],
+                };
+                break;
+            case RemoveAppUserAssignment r:
+                var unassigned = DetailFor(id);
+                _enterpriseDetails[id] = unassigned with { Assignments = [.. unassigned.Assignments.Where(x => x.Id != r.AssignmentId)] };
+                break;
+            case RevokeAppGrant g:
+                var revoked = DetailFor(id);
+                _enterpriseDetails[id] = revoked with
+                {
+                    DelegatedGrants = [.. revoked.DelegatedGrants.Where(x => x.Id != g.GrantId)],
+                    AppPermissions = [.. revoked.AppPermissions.Where(x => x.Id != g.GrantId)],
+                };
+                break;
+            case GrantAdminConsent c:
+                if (_enterprise!.FirstOrDefault(e => e.AppId == c.AppId) is not { } sp)
+                {
+                    var reg = _registrations.First(r => r.AppId == c.AppId);
+                    sp = new EnterpriseApp($"sp-{Guid.NewGuid():N}", reg.AppId, reg.Name, "Northgate", false, AppSource.ThisOrganization, "Application", true, false, true, true, DateTimeOffset.UtcNow);
+                    _enterprise!.Add(sp);
+                }
+                var consented = DetailFor(sp.Id);
+                var scopes = c.Items.Where(i => !i.IsApplication).Select(i => i.Name).ToArray();
+                _enterpriseDetails[sp.Id] = consented with
+                {
+                    DelegatedGrants = scopes.Length == 0 ? consented.DelegatedGrants
+                        : [.. consented.DelegatedGrants.Where(x => x.PrincipalId is not null), new DelegatedGrant($"g-{Guid.NewGuid():N}", GraphSp, "Microsoft Graph", null, null,
+                            [.. consented.DelegatedGrants.Where(x => x.PrincipalId is null).SelectMany(x => x.Scopes).Union(scopes)])],
+                    AppPermissions = [.. consented.AppPermissions, .. c.Items.Where(i => i.IsApplication && consented.AppPermissions.All(p => p.RoleId != i.PermissionId))
+                        .Select(i => new AppPermissionGrant($"ar-{Guid.NewGuid():N}", i.ResourceId, i.Resource, i.PermissionId, i.Name, DateTimeOffset.UtcNow))],
+                };
+                break;
+            case DeleteApp d when app.IsRegistration:
+                if (_registrations.FirstOrDefault(r => r.Id == id) is { } gone)
+                {
+                    _registrations.Remove(gone);
+                    _enterprise!.RemoveAll(e => e.AppId == gone.AppId);
+                    _deletedApps.Add(new DeletedApp(gone.Id, gone.AppId, gone.Name, DateTimeOffset.UtcNow));
+                }
+                break;
+            case DeleteApp:
+                _enterprise!.RemoveAll(e => e.Id == id);
+                break;
+            case RestoreApp:
+                if (_deletedApps.FirstOrDefault(d => d.Id == id) is { } back)
+                {
+                    _deletedApps.Remove(back);
+                    _registrations.Add(new AppRegistration(back.Id, back.AppId, back.Name, "AzureADMyOrg", DateTimeOffset.UtcNow, [], [], [], []));
+                }
+                break;
+            case PurgeApp:
+                _deletedApps.RemoveAll(d => d.Id == id);
+                break;
+            case CreateAppRegistration c:
+                var made = new AppRegistration($"app-{Guid.NewGuid():N}", Guid.NewGuid().ToString(), c.App.Name, c.Audience, DateTimeOffset.UtcNow, [], [],
+                    c.RedirectUri is { } uri ? [(c.Platform ?? "Web", uri)] : [], []);
+                _registrations.Add(made);
+                _enterprise!.Add(new EnterpriseApp($"sp-{Guid.NewGuid():N}", made.AppId, made.Name, "Northgate", false, AppSource.ThisOrganization, "Application", true, false, true, true,
+                    DateTimeOffset.UtcNow));
+                return new ApplyResult(ChangeOutcome.Applied, $"Application (client) ID {made.AppId}");
+        }
+        return new ApplyResult(ChangeOutcome.Applied);
+    }
 }

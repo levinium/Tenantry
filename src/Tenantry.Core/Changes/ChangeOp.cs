@@ -95,6 +95,18 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(CreateNamedLocation), "createNamedLocation")]
 [JsonDerivedType(typeof(UpdateNamedLocation), "updateNamedLocation")]
 [JsonDerivedType(typeof(DeleteNamedLocation), "deleteNamedLocation")]
+[JsonDerivedType(typeof(RemoveAppCredential), "removeAppCredential")]
+[JsonDerivedType(typeof(AddAppSecret), "addAppSecret")]
+[JsonDerivedType(typeof(SetAppOwner), "setAppOwner")]
+[JsonDerivedType(typeof(SetEnterpriseAppSetting), "setEnterpriseAppSetting")]
+[JsonDerivedType(typeof(AddAppUserAssignment), "addAppUserAssignment")]
+[JsonDerivedType(typeof(RemoveAppUserAssignment), "removeAppUserAssignment")]
+[JsonDerivedType(typeof(RevokeAppGrant), "revokeAppGrant")]
+[JsonDerivedType(typeof(GrantAdminConsent), "grantAdminConsent")]
+[JsonDerivedType(typeof(DeleteApp), "deleteApp")]
+[JsonDerivedType(typeof(RestoreApp), "restoreApp")]
+[JsonDerivedType(typeof(PurgeApp), "purgeApp")]
+[JsonDerivedType(typeof(CreateAppRegistration), "createAppRegistration")]
 public abstract record ChangeOp
 {
     [JsonIgnore]
@@ -1665,5 +1677,190 @@ public sealed record DeleteNamedLocation(ChangeTarget Location, string Detail) :
     public override string Before => Detail;
     public override string After => "Deleted";
     public override bool IsCaution => true;
+    public override bool IsNoChange => false;
+}
+
+// ---- Apps (8c-2) ------------------------------------------------------------------------------
+
+/// <summary>
+/// A change to an app: an app registration (kind "appregistration", Id = the application's object
+/// ID) or an enterprise app (kind "enterpriseapp", Id = the service principal's ID). The app is
+/// judged by its name, so Test mode allows only zz-tenantry-test- apps.
+/// </summary>
+public abstract record AppChange(ChangeTarget App) : ChangeOp
+{
+    public const string Registration = "appregistration";
+    public const string Enterprise = "enterpriseapp";
+
+    public override ChangeTarget Target => App;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+    public bool IsRegistration => App.Kind == Registration;
+}
+
+/// <summary>Removes a client secret or certificate. Anything still signing in with it stops working, so the admin types the app's name.</summary>
+/// <param name="Detail">The credential in a line ("Expires 1 Jun 2027"), for the review.</param>
+public sealed record RemoveAppCredential(ChangeTarget App, string KeyId, bool IsSecret, string CredentialName, string Detail) : AppChange(App)
+{
+    public override string Key => "credential:" + KeyId;
+    public override string Label => $"{(IsSecret ? "Client Secret" : "Certificate")} \"{CredentialName}\"";
+    public override string Before => Detail;
+    public override string After => "Removed";
+    public override bool IsCaution => true;
+    public override string? ConfirmPhrase => App.Name;
+    public override bool IsNoChange => false;
+}
+
+/// <summary>Adds a client secret. Its value is shown once after applying and never stored.</summary>
+public sealed record AddAppSecret(ChangeTarget App, string Description, int Months) : AppChange(App)
+{
+    public override string Key => "newsecret:" + Description;
+    public override string Label => "New Client Secret";
+    public override string Before => "None";
+    public override string After => $"\"{Description}\", expires in {Months} months (shown to you once)";
+    public override bool IsNoChange => false;
+}
+
+/// <summary>Makes someone an owner of the app (they can then change its settings and credentials), or takes that away.</summary>
+public sealed record SetAppOwner(ChangeTarget App, ChangeTarget Owner, bool Add) : AppChange(App)
+{
+    public override string Key => "owner:" + Owner.Id;
+    public override string Label => $"Owner {Owner.Name}";
+    public override string Before => Add ? "Not an owner" : "Owner";
+    public override string After => Add ? "Owner" : "Not an owner";
+    public override bool IsCaution => !Add;
+    public override bool IsNoChange => false;
+    public override IReadOnlyList<ChangeTarget> Guarded => [App, Owner];
+}
+
+/// <summary>An enterprise app's on/off settings: sign-in, assignment required, visible to people.</summary>
+/// <param name="Setting">"enabled", "assignment" or "visible".</param>
+public sealed record SetEnterpriseAppSetting(ChangeTarget App, string Setting, bool Old, bool New) : AppChange(App)
+{
+    public override string Key => "setting:" + Setting;
+    public override string Label => Setting switch
+    {
+        "enabled" => "Sign-In",
+        "assignment" => "Assignment Required",
+        _ => "Visible to People",
+    };
+    public override string Before => Words(Old);
+    public override string After => Words(New);
+
+    string Words(bool on) => Setting switch
+    {
+        "enabled" => on ? "On" : "Off: nobody can sign in",
+        "assignment" => on ? "Yes: only people and groups given access" : "No: anyone in the organization",
+        _ => on ? "Yes" : "No: hidden from My Apps",
+    };
+
+    /// <summary>Turning sign-in off, or requiring assignment, can stop people signing in.</summary>
+    public override bool IsCaution => (Setting == "enabled" && !New) || (Setting == "assignment" && New);
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetEnterpriseAppSetting e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>Gives a person or group access to an enterprise app, as one of its roles.</summary>
+/// <param name="PrincipalType">"User" or "Group".</param>
+public sealed record AddAppUserAssignment(ChangeTarget App, ChangeTarget Principal, string PrincipalType, string RoleId, string RoleName) : AppChange(App)
+{
+    public override string Key => $"assign:{Principal.Id}:{RoleId}";
+    public override string Label => $"Access for {Principal.Name}";
+    public override string Before => "None";
+    public override string After => RoleName;
+    public override bool IsNoChange => false;
+    public override IReadOnlyList<ChangeTarget> Guarded => [App, Principal];
+}
+
+/// <summary>Takes a person's or group's access to an enterprise app away.</summary>
+public sealed record RemoveAppUserAssignment(ChangeTarget App, string AssignmentId, string PrincipalName, string RoleName) : AppChange(App)
+{
+    public override string Key => "assignment:" + AssignmentId;
+    public override string Label => $"Access for {PrincipalName}";
+    public override string Before => RoleName;
+    public override string After => "Removed";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
+}
+
+/// <summary>
+/// Takes back permissions an enterprise app was given: a delegated consent (an admin's for
+/// everyone, or one person's) or an application permission it holds.
+/// </summary>
+/// <param name="What">The permissions in a line ("Microsoft Graph: User.Read, Mail.Send").</param>
+/// <param name="Who">"Everyone (admin consent)", a person's name, or "The app itself".</param>
+public sealed record RevokeAppGrant(ChangeTarget App, string GrantId, bool IsApplicationPermission, string What, string Who) : AppChange(App)
+{
+    public override string Key => "grant:" + GrantId;
+    public override string Label => $"Permission {What}";
+    public override string Before => $"Allowed for {Who}";
+    public override string After => "Revoked";
+    public override bool IsCaution => true;
+    public override bool IsNoChange => false;
+}
+
+/// <summary>One permission an admin consents to: on an API (its service principal ID), delegated (by scope name) or application (by app role ID).</summary>
+public sealed record ConsentItem(string ResourceId, string Resource, string PermissionId, string Name, bool IsApplication);
+
+/// <summary>
+/// Grants admin consent for the permissions an app registration asks for (as the admin center's
+/// "Grant admin consent" does): delegated ones for everyone, application ones to the app itself.
+/// Makes the app's enterprise app first when it has none here. A caution change.
+/// </summary>
+public sealed record GrantAdminConsent(ChangeTarget App, string AppId, IReadOnlyList<ConsentItem> Items) : AppChange(App)
+{
+    public override string Key => "consent";
+    public override string Label => "Admin Consent";
+    public override string Before => "Not given for these";
+    public override string After => string.Join(", ", Items.Select(i => i.Name));
+    public override bool IsCaution => true;
+    public override bool IsNoChange => Items.Count == 0;
+}
+
+/// <summary>
+/// Deletes an app registration (it goes to Deleted Apps for 30 days, and its enterprise app with
+/// it) or an enterprise app (its consents and assignments go too). The admin types the app's name.
+/// </summary>
+public sealed record DeleteApp(ChangeTarget App, string Detail) : AppChange(App)
+{
+    public override string Key => "delete";
+    public override string Label => IsRegistration ? $"App Registration \"{App.Name}\"" : $"Enterprise App \"{App.Name}\"";
+    public override string Before => Detail;
+    public override string After => IsRegistration ? "Deleted (restorable for 30 days)" : "Deleted";
+    public override bool IsCaution => true;
+    public override string? ConfirmPhrase => App.Name;
+    public override bool IsNoChange => false;
+}
+
+/// <summary>Brings back a deleted app registration.</summary>
+public sealed record RestoreApp(ChangeTarget App, string Detail) : AppChange(App)
+{
+    public override string Key => "restore";
+    public override string Label => $"Deleted App \"{App.Name}\"";
+    public override string Before => Detail;
+    public override string After => "Restored";
+    public override bool IsNoChange => false;
+}
+
+/// <summary>Deletes a deleted app registration for good. The admin types its name.</summary>
+public sealed record PurgeApp(ChangeTarget App, string Detail) : AppChange(App)
+{
+    public override string Key => "purge";
+    public override string Label => $"Deleted App \"{App.Name}\"";
+    public override string Before => Detail;
+    public override string After => "Deleted permanently";
+    public override bool IsCaution => true;
+    public override string? ConfirmPhrase => App.Name;
+    public override bool IsNoChange => false;
+}
+
+/// <summary>A new app registration, with its enterprise app so it can be used here.</summary>
+/// <param name="App">Kind "appregistration"; Id and Name are the new app's name.</param>
+/// <param name="Platform">"Web", "Single-Page App" or "Mobile and Desktop" for <paramref name="RedirectUri"/>, or null.</param>
+public sealed record CreateAppRegistration(ChangeTarget App, string Audience, string? Platform, string? RedirectUri) : AppChange(App)
+{
+    public override string Key => "create";
+    public override string Label => $"New App \"{App.Name}\"";
+    public override string Before => "None";
+    public override string After => Directory.AppRegistration.AudienceText(Audience) + (RedirectUri is null ? "" : $"; {Platform} redirect {RedirectUri}");
     public override bool IsNoChange => false;
 }
