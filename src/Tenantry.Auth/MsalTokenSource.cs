@@ -43,7 +43,8 @@ public sealed class MsalTokenSource : ITokenSource
     public bool IsPersistent { get; private set; }
 
     /// <param name="cacheFolder">Folder for the encrypted token cache, or null to keep tokens in memory only.</param>
-    public static async Task<MsalTokenSource> CreateAsync(string clientId, string tenantId, string? cacheFolder, string? loginHint = null)
+    /// <param name="cacheName">A second cache beside the main one (its own keychain entry), or null for the main one.</param>
+    public static async Task<MsalTokenSource> CreateAsync(string clientId, string tenantId, string? cacheFolder, string? loginHint = null, string? cacheName = null)
     {
         var app = PublicClientApplicationBuilder.Create(clientId)
             .WithAuthority(AzureCloudInstance.AzurePublic, tenantId)
@@ -52,19 +53,19 @@ public sealed class MsalTokenSource : ITokenSource
             .Build();
         var source = new MsalTokenSource(app, loginHint);
         if (cacheFolder is not null)
-            source.IsPersistent = await TryPersistAsync(app, cacheFolder);
+            source.IsPersistent = await TryPersistAsync(app, cacheFolder, cacheName);
         return source;
     }
 
-    static async Task<bool> TryPersistAsync(IPublicClientApplication app, string folder)
+    static async Task<bool> TryPersistAsync(IPublicClientApplication app, string folder, string? name)
     {
         try
         {
-            var properties = new StorageCreationPropertiesBuilder("msal.cache", folder)
-                .WithMacKeyChain("Tenantry.TokenCache", "Tenantry")
+            var properties = new StorageCreationPropertiesBuilder(name is null ? "msal.cache" : $"msal-{name}.cache", folder)
+                .WithMacKeyChain("Tenantry.TokenCache", name is null ? "Tenantry" : $"Tenantry.{name}")
                 .WithLinuxKeyring("org.tenantry.tokencache", MsalCacheHelper.LinuxKeyRingDefaultCollection,
                     "Tenantry token cache", new KeyValuePair<string, string>("Product", "Tenantry"),
-                    new KeyValuePair<string, string>("Version", "1"))
+                    new KeyValuePair<string, string>("Version", name is null ? "1" : $"1-{name}"))
                 .Build();
             var helper = await MsalCacheHelper.CreateAsync(properties);
             helper.VerifyPersistence();

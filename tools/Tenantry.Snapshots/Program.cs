@@ -850,6 +850,47 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Settle();
         Render(premium, "audit-log-light", height: 1100);
 
+        // eDiscovery (8f-1): the cases with a preview, a case's holds, the hold editor, and what a search found.
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "cases");
+        for (var i = 0; i < 20 && premium.SecurityArea.Cases.Total == 0; i++)
+            Settle();
+        premium.SecurityArea.Cases.IsPreviewOpen = true;
+        premium.SecurityArea.Cases.SelectedRow = premium.SecurityArea.Cases.Rows.Cast<EdCase>().First(c => c.Name == "Vendor Contract Review");
+        Settle();
+        Render(premium, "ediscovery-cases-light", height: 900);
+        premium.OpenCase(premium.SecurityArea.EDiscovery!.Cases.First(c => c.Name == "Vendor Contract Review"));
+        var casePage = (EdCasePageViewModel)premium.SelectedTab!;
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "ediscovery-case-overview-light", height: 1000);
+        casePage.SelectedSection = casePage.Sections.Single(s => s.Key == "holds");
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "ediscovery-case-holds-light", height: 1000);
+        var holdForm = (Tenantry.ViewModels.Records.AppButtonForm)((Tenantry.ViewModels.Records.AppSection)casePage.SelectedSection).Cards[0].Form!;
+        holdForm.ActCommand.Execute(null);
+        var holdEditor = (Tenantry.ViewModels.Records.EdItemEditorViewModel)premium.Dialog!.Content;
+        holdEditor.Name = "Keep invoices";
+        holdEditor.Query = "subject:invoice AND sent>=2026-01-01";
+        holdEditor.Mailboxes.Mode = holdEditor.Mailboxes.Modes.Single(m => m.Value == Tenantry.ViewModels.Records.PlacesEditor.Chosen);
+        foreach (var who in premium.Users.Rows.Cast<UserSummary>().Where(u => u.Mailbox is not null).Take(2))
+        {
+            holdEditor.Mailboxes.Picker.Query = who.DisplayName;
+            holdEditor.Mailboxes.Picker.PickCommand.Execute(holdEditor.Mailboxes.Picker.Results.First());
+        }
+        Settle();
+        Render(premium, "ediscovery-hold-editor-light", height: 1100);
+        premium.CloseDialogCommand.Execute(null);
+        premium.OpenSearch(premium.SecurityArea.EDiscovery.Searches.First(s => s.Name == "Contract emails"));
+        var searchPage = (EdSearchPageViewModel)premium.SelectedTab!;
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "ediscovery-search-overview-light", height: 1000);
+        searchPage.SelectedSection = searchPage.Sections.Single(s => s.Key == "found");
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "ediscovery-search-found-light", height: 900);
+
         // Apps (8c-1): the registrations list, a registration's secrets, an enterprise app's permissions.
         premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
         for (var i = 0; i < 20 && premium.SecurityArea.Registrations.Total == 0; i++)

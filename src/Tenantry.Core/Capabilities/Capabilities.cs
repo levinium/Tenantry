@@ -63,7 +63,14 @@ public static class Capabilities
     public static readonly Capability ManageRisk = new("security.risk", "Manage Risky Users and Apps",
         [SecurityAdministrator], EntraP2, EntraP2Label);
 
+    /// <summary>
+    /// eDiscovery: cases, searches, holds. Purview also checks its own role groups (eDiscovery
+    /// Manager), so a refusal from Purview names what's missing.
+    /// </summary>
+    public static readonly Capability ManageEDiscovery = new("compliance.ediscovery", "Manage eDiscovery Cases, Searches and Holds",
+        [ComplianceAdministrator]);
+
     public static IReadOnlyList<Capability> All { get; } =
         [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess, ManageDevices,
-            ManageSites, ManageRoles, ManageApps, ManageAuthPolicy, ManageRisk];
+            ManageSites, ManageRoles, ManageApps, ManageAuthPolicy, ManageRisk, ManageEDiscovery];
 }

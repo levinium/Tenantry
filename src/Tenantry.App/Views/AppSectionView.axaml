@@ -87,6 +87,15 @@
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
                   </DataTemplate>
+                  <!-- A text to change (a case's description), saved to Pending changes -->
+                  <DataTemplate x:DataType="rec:AppTextForm">
+                    <StackPanel Spacing="6">
+                      <TextBox Text="{Binding Text}" PlaceholderText="{Binding Placeholder}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"
+                               IsReadOnly="{Binding !CanEdit}" />
+                      <Button Classes="accent" Content="Save to Pending Changes" Command="{Binding SaveCommand}" IsVisible="{Binding IsChanged}"
+                              HorizontalAlignment="Left" ToolTip.Tip="Nothing changes until you apply" />
+                    </StackPanel>
+                  </DataTemplate>
                   <!-- One action for the whole card (Grant Admin Consent) -->
                   <DataTemplate x:DataType="rec:AppButtonForm">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -124,7 +133,7 @@
                       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                         <StackPanel Spacing="3">
                           <WrapPanel ItemSpacing="8" LineSpacing="4">
-                            <Button Classes="namelink" Content="{Binding Title}" Command="{Binding OpenCommand}" IsVisible="{Binding CanOpen}" ToolTip.Tip="Open their page" />
+                            <Button Classes="namelink" Content="{Binding Title}" Command="{Binding OpenCommand}" IsVisible="{Binding CanOpen}" ToolTip.Tip="{Binding OpenTip}" />
                             <SelectableTextBlock Text="{Binding Title}" FontWeight="SemiBold" IsVisible="{Binding !CanOpen}" VerticalAlignment="Center" />
                             <ItemsControl ItemsSource="{Binding Badges}">
                               <ItemsControl.ItemsPanel>
@@ -159,6 +168,7 @@
                           </ItemsControl>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                          <Button Classes="outline" Content="{Binding EditText}" Command="{Binding EditCommand}" IsVisible="{Binding HasEdit}" ToolTip.Tip="{Binding EditTip}" />
                           <Button Classes="outline" Content="{Binding AltText}" Command="{Binding AltCommand}" IsVisible="{Binding HasAlt}" ToolTip.Tip="{Binding AltTip}" />
                           <Button Classes="danger-outline" Classes.undo="{Binding IsUndo}" Content="{Binding ActionText}" Command="{Binding DoCommand}" IsVisible="{Binding HasAction}"
                                   ToolTip.Tip="{Binding ActionTip}" />

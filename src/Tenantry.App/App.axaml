@@ -49,6 +49,12 @@
     <DataTemplate DataType="rec:NewAppViewModel">
       <views:NewAppView />
     </DataTemplate>
+    <DataTemplate DataType="rec:NewCaseViewModel">
+      <views:NewCaseView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:EdItemEditorViewModel">
+      <views:EdItemEditorView />
+    </DataTemplate>
     <DataTemplate DataType="rec:AppSection">
       <views:AppSectionView />
     </DataTemplate>

@@ -1264,6 +1264,97 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("eDiscovery: the sidebar opens Cases; a case opens its page; a hold's Turn Off stages it; New Hold opens the editor, a picked mailbox becomes a chip, and Save stages the hold and closes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "cases" }));
+            var area = main.SecurityArea;
+            for (var i = 0; i < 20 && area.Cases.Total == 0; i++)
+                Settle();
+            Expect(area.Cases.Total > 0, "the cases are listed");
+            area.Cases.ApplyView(area.Cases.Views.Single(v => v.View.Id == "active"));
+            area.Cases.IsPreviewOpen = true;
+            area.Cases.SelectedRow = area.Cases.Rows.Cast<Tenantry.Core.Directory.EdCase>().Single(c => c.Name == "Vendor Contract Review");
+            Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && Labelled(b, "Open Case")));
+            var page = main.SelectedTab as EdCasePageViewModel ?? throw new InvalidOperationException("the case page didn't open");
+            Click(window, window.GetVisualDescendants().OfType<TabItem>().First(t => t.DataContext is AppSection { Key: "holds" }));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is AppRow { Title: "Contract hold" } && b.Content as string == "Change"));
+            var changing = main.Dialog?.Content as EdItemEditorViewModel ?? throw new InvalidOperationException("Change didn't open the hold");
+            Expect(!changing.IsNew && changing.Mailboxes.Chips.Count == 2, "the editor shows the hold's two mailboxes");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == changing.CancelCommand));
+            Expect(main.Dialog is null && main.Pending!.Rows.Count == 0, "Cancel closes it with nothing staged");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is AppRow { Title: "Contract hold" } && b.Content as string == "Turn Off"));
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetHoldEnabled { New: false }), "turning the hold off is in Pending changes");
+            Settle();
+            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.DataContext is AppRow { Title: "Contract hold", IsUndo: true }),
+                "the hold's row now offers Undo");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is AppButtonForm && b.Content as string == "New Hold"));
+            var editor = main.Dialog?.Content as EdItemEditorViewModel ?? throw new InvalidOperationException("the hold editor didn't open");
+            editor.Name = "Keep it";
+            Settle();
+            var chosen = window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.IsEffectivelyVisible && i.DataContext is Tenantry.ViewModels.Editing.EditorChoice { Value: "chosen" });
+            Click(window, chosen);
+            Expect(editor.Mailboxes.IsChosen, "Chosen shows the mailbox picker");
+            editor.Mailboxes.Picker.Query = main.Users.Rows.Cast<UserSummary>().First(u => u.Mailbox is not null).DisplayName;
+            Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is Tenantry.ViewModels.Editing.PickOption));
+            Expect(editor.Mailboxes.Chips.Count == 1, "the picked mailbox is a chip");
+            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.DataContext is PlaceChip), "with a × to take it off");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == editor.SaveCommand));
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateHold { Hold.Name: "Keep it" }), "the new hold is in Pending changes");
+            Expect(main.Dialog is null, "the editor closed");
+            window.Close();
+        });
+
+        Check("Content Searches: a search opens its page; What It Found lists each place; Run Search shows the wheel, then finishes", () =>
+        {
+            EdSearchPageViewModel.CheckEvery = TimeSpan.Zero;
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "searches" }));
+            var area = main.SecurityArea;
+            for (var i = 0; i < 20 && area.Searches.Total == 0; i++)
+                Settle();
+            main.OpenSearch(area.Searches.Rows.Cast<Tenantry.Core.Directory.EdSearch>().Single(s => s.Name == "Contract emails"));
+            Settle();
+            var page = main.SelectedTab as EdSearchPageViewModel ?? throw new InvalidOperationException("the search page didn't open");
+            Click(window, window.GetVisualDescendants().OfType<TabItem>().First(t => t.DataContext is AppSection { Key: "found" }));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Expect(window.GetVisualDescendants().OfType<SelectableTextBlock>().Count(t => t.IsEffectivelyVisible && t.DataContext is AppRow) >= 3, "each place is a row");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is PageButton { Text: "Run Search" }));
+            Expect(page.IsBusy || page.Search.LastRun > DateTimeOffset.UtcNow.AddMinutes(-1), "running shows the wheel (or has finished)");
+            for (var i = 0; i < 30 && page.IsBusy; i++)
+                Settle();
+            Expect(!page.IsBusy && page.Search.Status == "Completed", "the run finished");
+            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.DataContext is PageButton { Text: "Run Search" }), "Run Search is back");
+            window.Close();
+        });
+
+        Check("New Case: the list's button opens the form; Add with no name says why; with one it stages the case and closes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "cases" }));
+            for (var i = 0; i < 20 && main.SecurityArea.Cases.Total == 0; i++)
+                Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && Labelled(b, "New Case")));
+            var form = main.Dialog?.Content as NewCaseViewModel ?? throw new InvalidOperationException("the form didn't open");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == form.AddCommand));
+            Expect(form.HasProblems && main.Dialog is not null, "no name: it says why and stays open");
+            form.Name = "Insurance Claim";
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == form.AddCommand));
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateCase { Case.Name: "Insurance Claim" }) && main.Dialog is null, "the case is in Pending changes and the form closed");
+            window.Close();
+        });
+
         Console.WriteLine(_failed == 0 ? "ALL INTERACTION CHECKS PASSED" : $"{_failed} INTERACTION CHECK(S) FAILED");
         return _failed == 0 ? 0 : 1;
     }

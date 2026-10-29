@@ -62,7 +62,10 @@ public sealed class TenantConnector : ITenantConnector
 
         var entities = OpenLocalCopy(profile.Id, folder);
         var account = tokens.Account ?? "";
-        var exchange = new RestCmdletRunner(Http, NoRedirectHttp, tokens, profile.TenantId);
+        // Purview needs a second sign-in (see TenantryPermissions.ExchangePowerShellClientId); it's
+        // asked for the first time a Purview page reads anything, as the same account.
+        var purview = await MsalTokenSource.CreateAsync(TenantryPermissions.ExchangePowerShellClientId, profile.TenantId, folder, tokens.Account, cacheName: "purview");
+        var exchange = new RestCmdletRunner(Http, NoRedirectHttp, new PurviewTokens(tokens, purview), profile.TenantId);
         var sharePoint = new SharePointAdmin(Http, tokens, graph);
         var passwordStyle = new JsonPasswordStyleStore(folder);
         var syncSettings = new Tenantry.Core.Directory.JsonSyncSettingsStore(folder);
@@ -155,7 +158,7 @@ public sealed class TenantConnector : ITenantConnector
             new TenantContext(
                 new HashSet<string>([DirectoryRoles.UserAdministrator, DirectoryRoles.ExchangeAdministrator, DirectoryRoles.IntuneAdministrator,
                     DirectoryRoles.SharePointAdministrator, DirectoryRoles.PrivilegedRoleAdministrator, DirectoryRoles.CloudApplicationAdministrator, DirectoryRoles.AuthenticationPolicyAdministrator,
-                    .. premium ? [DirectoryRoles.ConditionalAccessAdministrator, DirectoryRoles.SecurityAdministrator] : Array.Empty<string>()]),
+                    DirectoryRoles.ComplianceAdministrator, .. premium ? [DirectoryRoles.ConditionalAccessAdministrator, DirectoryRoles.SecurityAdministrator] : Array.Empty<string>()]),
                 new HashSet<string>(premium ? ["EXCHANGE_S_STANDARD", "AAD_PREMIUM", "AAD_PREMIUM_P2"] : ["EXCHANGE_S_STANDARD"]),
                 OperatingSystem.IsWindows()),
             IsDemo: true,

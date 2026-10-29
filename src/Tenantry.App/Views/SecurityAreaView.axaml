@@ -407,7 +407,56 @@
           <listviews:ListViewCache />
         </ContentControl.DataTemplates>
       </ContentControl>
-    </DockPanel>    <!-- Audit log search (8e) -->
+    </DockPanel>    <!-- eDiscovery (8f-1): cases and searches, read live from Purview together, with Refresh -->
+    <DockPanel IsVisible="{Binding ShowCases}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshEDiscoveryCommand}" ToolTip.Tip="Read cases and searches from Purview again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Cases group the searches and holds for one matter, and the people who work on it. Open a case to search, hold content or add members. Purview asks you to sign in once more the first time (as Exchange PowerShell does)." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasEDiscoveryNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EDiscoveryNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding Cases}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+    <DockPanel IsVisible="{Binding ShowSearches}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshEDiscoveryCommand}" ToolTip.Tip="Read cases and searches from Purview again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Every content search, in a case or not. Open one to see what it found in each place, or run it again. Purview asks you to sign in once more the first time (as Exchange PowerShell does)." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasEDiscoveryNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EDiscoveryNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding Searches}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+    <!-- Audit log search (8e) -->
     <Panel IsVisible="{Binding ShowAuditLog}">
       <views:AuditLogView DataContext="{Binding AuditLog}" />
     </Panel>

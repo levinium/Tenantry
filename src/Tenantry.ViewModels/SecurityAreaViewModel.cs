@@ -32,6 +32,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         new("riskdetections", "Risk Detections", "Warning"),
         new("riskyapps", "Risky Apps", "AppsListDetail"),
         new("auditlog", "Audit Log", "DocumentSearch"),
+        new("cases", "eDiscovery Cases", "Briefcase"),
+        new("searches", "Content Searches", "SearchSquare"),
         new("roles", "Admin Roles", "PersonKey"),
         new("myroles", "My Roles", "PersonStar"),
         new("approvals", "Approvals", "ApprovalsApp"),
@@ -45,7 +47,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         IAppRecords? apps = null, Action<AppRegistration>? openRegistration = null, Action<EnterpriseApp>? openEnterprise = null, Action? newApp = null, string? cantEditApps = null,
         IAuthMethodRecords? authMethods = null, bool canEditAuth = false, string? cantEditAuth = null,
         IRiskRecords? risk = null, Availability? canManageRisk = null, Action<string>? openUserById = null, Action<string>? openAppById = null,
-        IAuditRecords? audit = null)
+        IAuditRecords? audit = null, IEDiscoveryRecords? eDiscovery = null, Action<EdCase>? openCase = null, Action<EdSearch>? openSearch = null,
+        Action? newCase = null, Action? newSearch = null, string? cantEditEDiscovery = null)
     {
         _roles = roles;
         _ca = ca;
@@ -60,6 +63,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         AuthStrengths = new Records.StrengthsViewModel(this);
         AuthMethodsPage = new Records.AuthMethodsViewModel(authMethods, pipeline, canEditAuth, cantEditAuth, index);
         AuditLog = new Records.AuditLogViewModel(audit, index, listState, now);
+        InitEDiscovery(eDiscovery, pipeline, listState, now, openCase, openSearch, newCase, newSearch, cantEditEDiscovery);
         _apps = apps;
         _risk = risk;
         var riskEdit = pipeline is not null && canManageRisk?.IsAvailable == true;
@@ -216,7 +220,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals), nameof(ShowPolicies), nameof(ShowWhatIf), nameof(ShowLocations),
-        nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps), nameof(ShowDeletedApps), nameof(ShowAuthMethods), nameof(ShowRiskyUsers), nameof(ShowRiskDetections), nameof(ShowRiskyApps), nameof(RiskNote), nameof(HasRiskNote), nameof(ShowAuditLog))]
+        nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps), nameof(ShowDeletedApps), nameof(ShowAuthMethods), nameof(ShowRiskyUsers), nameof(ShowRiskDetections), nameof(ShowRiskyApps), nameof(RiskNote), nameof(HasRiskNote), nameof(ShowAuditLog),
+        nameof(ShowCases), nameof(ShowSearches))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     // ---- Apps (8c) -------------------------------------------------------------------------------
@@ -409,6 +414,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         }
         if (ShowAuditLog)
             AuditLog.Shown();
+        EDiscoveryShown();
         if (ShowAuthMethods)
             AuthMethodsPage.Shown();
         if (ShowDeletedApps)

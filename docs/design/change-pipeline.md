@@ -620,6 +620,56 @@ Pending changes.
   words and the whole record; paging was complete at every page size. Purview's count said 497:
   it's an estimate, so the list says "About".
 
+### eDiscovery cases, searches and holds (8f-1)
+
+Two page tabs in Security & Compliance, eDiscovery Cases and Content Searches, read live from
+Purview's cmdlets on the Security & Compliance endpoint (`IEDiscoveryRecords`). The cmdlets answer
+in about a second and need no billing; Graph's eDiscovery API takes about 6 seconds a call and,
+per Microsoft, needs Purview pay-as-you-go billing on Standard-licensed tenants. Editing needs
+Compliance Administrator (`ManageEDiscovery`); Purview also checks its own eDiscovery role groups
+and its refusal is shown as it comes.
+
+- **Lists:** cases (Active, Closed, All) and every search, in a case or not (one read of the
+  cases, then each case's searches, eight at a time). Listing gives no counts, so a search's counts
+  and places come from reading it alone; per-place counts come from its `SearchStatistics` JSON.
+  Purview's times have no zone and are UTC.
+- **Case page** (`EdCasePageViewModel`, on the shared `CardPageViewModel`): Overview (details,
+  description saved to Pending changes), Searches (open, delete, New Search), Holds (Change,
+  Turn Off/On, Delete, New Hold), Members (pick to add, remove). The header has Close Case or
+  Reopen Case and Delete Case. A closed case offers no new searches or holds.
+- **Search page** (`EdSearchPageViewModel`): Overview (status, query, places, counts, places it
+  couldn't search) and What It Found (one row per place). Run Search counts again (a read, not a
+  staged change) and the page checks every 10 seconds with a wheel until Purview finishes.
+- **Editor** (`EdItemEditorViewModel`, one popup for searches and holds): name, keyword query
+  (checked for unclosed quotes and brackets, and lower-case and/or/not, which Purview searches
+  for as words), mailboxes and sites/OneDrives each None, All (searches only) or Chosen (chips
+  from a picker), public folders, and a description for searches.
+- **Changes** (`EdChange`): CreateCase, SetCaseClosed (caution with holds on), SetCaseDescription,
+  DeleteCase (typed name; Purview refuses while holds remain), SetCaseMember, CreateSearch and
+  UpdateSearch (run once saved; places sent as Add/Remove…Location for what changed),
+  DeleteSearch, CreateHold (a hold policy plus its rule; the policy is removed again if the rule
+  fails), UpdateHold (caution when it releases anything), SetHoldEnabled, DeleteHold (typed name;
+  a deleted hold reads "PendingDeletion" while Purview lifts it).
+- **Guard:** cases, searches and holds are judged by name, and every mailbox and site they cover
+  is judged too, so Test mode allows only zz-tenantry-test- items over test places. "All
+  mailboxes" is never a test place.
+- **Second sign-in (search-only session):** since 2025 Purview runs searches, search actions,
+  holds and retention changes only for a "search-only" session, which `Connect-IPPSSession
+  -EnableSearchOnlySession` makes by asking for a token for `https://dataservice.o365filtering.com`
+  instead of the compliance audience, sent to the same InvokeCommand endpoint. Without it
+  Start-ComplianceSearch fails ("open a new session ... with the -EnableSearchOnlySession flag")
+  and New-CaseHoldPolicy makes a policy that "failed to be deployed". An organization's own app
+  can't be granted that audience (AADSTS650057), so every Purview call gets its token from a
+  second sign-in with Microsoft's Exchange PowerShell client (`PurviewTokens`), cached separately
+  ("purview"). It is asked for the first time a Purview page reads anything.
+- **Live (test objects, Test mode on):** through the second sign-in, a test case was made,
+  described, closed and reopened; a member added and removed; a search over a test mailbox made,
+  run (about a minute), changed and deleted; a hold made, changed, turned off and deleted. The
+  guard refused "All mailboxes" with no request sent. Listed holds come back with empty places,
+  so each is read by name. A deleted hold stays listed as "PendingDeletion" (and turned off) while
+  Purview lifts it, from about 90 seconds to about 20 minutes, and the case can't be deleted until
+  it's gone; the page shows it as Being Deleted.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

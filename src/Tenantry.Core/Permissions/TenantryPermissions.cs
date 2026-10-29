@@ -38,6 +38,18 @@ public static class TenantryPermissions
     /// </summary>
     public const string GraphCommandLineToolsClientId = "14d82eec-204b-4c2f-b7e8-296a70dab67e";
 
+    /// <summary>
+    /// Microsoft's "Exchange REST API Based Powershell" client, used only for Purview calls.
+    /// Since 2025 Purview runs searches, search actions, holds and retention changes only for a
+    /// "search-only" session (Connect-IPPSSession -EnableSearchOnlySession), which is a token for
+    /// <see cref="SearchOnlyAudience"/>; an organization's own app can't be granted that audience
+    /// (AADSTS650057, seen live), so this client signs in a second time for it.
+    /// </summary>
+    public const string ExchangePowerShellClientId = "fb78d390-0c51-40cd-8e17-fdbfab77341b";
+
+    /// <summary>The audience of a search-only session's token (sent to the same Purview endpoint).</summary>
+    public const string SearchOnlyAudience = "https://dataservice.o365filtering.com";
+
     public static readonly ApiPermissions Graph = new(GraphAppId, "Microsoft Graph", "https://graph.microsoft.com",
     [
         "openid", "profile", "offline_access",

@@ -35,11 +35,23 @@ public sealed partial class AppRow
     internal Action? OpenAction { get; init; }
     public bool CanOpen => OpenAction is not null;
 
+    /// <summary>What clicking the name does.</summary>
+    public string OpenTip { get; init; } = "Open their page";
+
     /// <summary>A second, gentler button beside the first (Restore beside Delete Permanently).</summary>
     public string? AltText { get; init; }
     public string? AltTip { get; init; }
     internal Action? AltAct { get; init; }
     public bool HasAlt => AltText is not null && AltAct is not null;
+
+    /// <summary>A first, plain button (Change), before the others.</summary>
+    public string? EditText { get; init; }
+    public string? EditTip { get; init; }
+    internal Action? EditAct { get; init; }
+    public bool HasEdit => EditText is not null && EditAct is not null;
+
+    [RelayCommand]
+    void Edit() => EditAct?.Invoke();
 
     [RelayCommand]
     void Alt() => AltAct?.Invoke();
@@ -59,6 +71,7 @@ public sealed partial class AppRow
         Badges = Badges,
         Chips = Chips,
         OpenAction = OpenAction,
+        OpenTip = OpenTip,
         StateText = state,
         ActionText = actionText,
         ActionTip = tip,
@@ -238,6 +251,35 @@ public sealed partial class AppToggle : ObservableObject
 
 /// <summary>Switches on a card.</summary>
 public sealed record AppToggleForm(IReadOnlyList<AppToggle> Toggles);
+
+/// <summary>
+/// A text to change on a card (a case's description). Save puts the change in Pending changes;
+/// it shows the pending value until applied.
+/// </summary>
+public sealed partial class AppTextForm(string label, string? value, string placeholder, bool canEdit, Action<string> save) : ObservableObject
+{
+    public string Label => label;
+    public string Placeholder => placeholder;
+    public bool CanEdit => canEdit;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsChanged))]
+    public partial string Text { get; set; } = value ?? "";
+
+    string _saved = value ?? "";
+
+    public bool IsChanged => Text.Trim() != _saved.Trim();
+
+    [RelayCommand]
+    void Save()
+    {
+        if (!canEdit || !IsChanged)
+            return;
+        _saved = Text;
+        OnPropertyChanged(nameof(IsChanged));
+        save(Text.Trim());
+    }
+}
 
 /// <summary>A button on a card (Grant Admin Consent), with a line about what it does.</summary>
 public sealed partial class AppButtonForm(string text, string detail, string tip, Action act) : ObservableObject

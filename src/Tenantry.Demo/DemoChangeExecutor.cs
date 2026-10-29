@@ -36,6 +36,8 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             return methods;
         if (records is not null && records.ApplyApp(change) is { } app)
             return app;
+        if (records is not null && records.ApplyEDiscovery(change) is { } eDiscovery)
+            return eDiscovery;
         if (records is not null && records.ApplyCa(change))
             return new ApplyResult(ChangeOutcome.Applied);
         if (records is not null && await records.ApplyRoleAsync(change, cancellationToken))

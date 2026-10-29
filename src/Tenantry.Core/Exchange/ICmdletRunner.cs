@@ -75,7 +75,9 @@ public sealed class CmdletException(string cmdlet, int status, string message)
     public bool IsNotFound => Detail.Contains("ManagementObjectNotFoundException", StringComparison.Ordinal)
         || Detail.Contains("RecipientNotFoundException", StringComparison.Ordinal)
         // A folder permission that's gone (seen live after Remove-MailboxFolderPermission).
-        || Detail.Contains("UserNotFoundInPermissionEntryException", StringComparison.Ordinal);
+        || Detail.Contains("UserNotFoundInPermissionEntryException", StringComparison.Ordinal)
+        // Purview: a case that's gone ("The compliance case … doesn't exist"), seen live after deleting it.
+        || Detail.Contains("ComplianceCaseTaskException", StringComparison.Ordinal) && Detail.Contains("doesn't exist", StringComparison.Ordinal);
 
     /// <summary>Exchange's message without its internal prefix (also used for errors inside a batch).</summary>
     public static string Plain(string text)

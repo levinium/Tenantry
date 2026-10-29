@@ -103,10 +103,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             tenant.Records as IRiskRecords, Evaluate(Capabilities.ManageRisk),
             id => { if (_index.User(id) is { } person) OpenUser(person); },
             async id => { if ((await SecurityArea!.AppsAsync())?.EnterpriseApps.FirstOrDefault(e => e.Id == id) is { } app) OpenEnterpriseApp(app); },
-            tenant.Records as IAuditRecords);
+            tenant.Records as IAuditRecords, tenant.Records as IEDiscoveryRecords, OpenCase, OpenSearch,
+            EdEditable ? NewCase : null, EdEditable ? () => EdContextFor().NewSearch(null) : null,
+            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageEDiscovery).Reason);
         SecurityArea.RolesRead += (_, _) => FollowRoles();
         SecurityArea.PoliciesRead += (_, _) => FollowPolicies();
         SecurityArea.AppsRead += (_, _) => FollowApps();
+        SecurityArea.EDiscoveryRead += (_, _) => FollowEDiscovery();
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);
@@ -123,6 +126,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         SecurityArea.RiskDetections.FollowSharedPreferences(shared);
         SecurityArea.RiskyApps.FollowSharedPreferences(shared);
         SecurityArea.AuditLog.Results.FollowSharedPreferences(shared);
+        SecurityArea.Cases.FollowSharedPreferences(shared);
+        SecurityArea.Searches.FollowSharedPreferences(shared);
         if (tenant.Changes is { } changes)
         {
             Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync);
@@ -302,6 +307,42 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     {
         if (_tenant.Changes is { } changes)
             ShowDialog(new Records.DialogViewModel("New App Registration", TenantName, new Records.NewAppViewModel(changes, CloseDialog)));
+    }
+
+    bool EdEditable => _tenant.Changes is not null && _tenant.Records is IEDiscoveryRecords && Evaluate(Capabilities.ManageEDiscovery).IsAvailable;
+
+    /// <summary>What eDiscovery pages and popups share.</summary>
+    EdContext EdContextFor() => new((IEDiscoveryRecords)_tenant.Records!, _index, _tenant.Changes, Evaluate(Capabilities.ManageEDiscovery), () => _sites,
+        (title, content) => ShowDialog(new Records.DialogViewModel(title, TenantName, content)), CloseDialog, OpenSearch, () => SecurityArea.EDiscovery);
+
+    /// <summary>Opens a case's page, or switches to it if it is already open.</summary>
+    public void OpenCase(EdCase eCase) =>
+        OpenTab(t => t is EdCasePageViewModel p && p.Case.Id == eCase.Id, () => new EdCasePageViewModel(eCase, EdContextFor()));
+
+    /// <summary>Opens a search's page, or switches to it if it is already open.</summary>
+    public void OpenSearch(EdSearch search) =>
+        OpenTab(t => t is EdSearchPageViewModel p && p.Search.Name == search.Name && p.Search.CaseName == search.CaseName,
+            () => new EdSearchPageViewModel(search, EdContextFor()));
+
+    /// <summary>Opens New Case as a popup.</summary>
+    void NewCase()
+    {
+        if (_tenant.Changes is { } changes)
+            ShowDialog(new Records.DialogViewModel("New Case", TenantName,
+                new Records.NewCaseViewModel(changes, SecurityArea.EDiscovery?.Cases.Select(c => c.Name) ?? [], CloseDialog)));
+    }
+
+    /// <summary>Open case and search pages show eDiscovery as just read; pages of deleted ones close.</summary>
+    void FollowEDiscovery()
+    {
+        if (SecurityArea.EDiscovery is not { } directory)
+            return;
+        foreach (var page in Tabs.OfType<EdCasePageViewModel>().ToArray())
+            if (!page.Update(directory))
+                CloseTab(page);
+        foreach (var page in Tabs.OfType<EdSearchPageViewModel>().ToArray())
+            if (!page.Update(directory))
+                CloseTab(page);
     }
 
     /// <summary>Open app pages show the apps as just read.</summary>

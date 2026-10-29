@@ -11,16 +11,18 @@ public sealed partial class GraphChangeExecutor
     /// <summary>
     /// Runs a cmdlet, then reads back with <paramref name="read"/> until <paramref name="done"/>
     /// holds (Exchange can take a few seconds to show a change). A read that says the object is
-    /// gone counts as an empty answer, for removals.
+    /// gone counts as an empty answer, for removals. Security &amp; Compliance cmdlets go to
+    /// <see cref="CmdletEndpoint.Compliance"/>.
     /// </summary>
     async Task<ApplyResult> RunCheckedAsync(string cmdlet, Dictionary<string, object?> parameters,
-        Func<CancellationToken, Task<IReadOnlyList<JsonElement>>>? read, Func<IReadOnlyList<JsonElement>, bool> done, CancellationToken cancellationToken)
+        Func<CancellationToken, Task<IReadOnlyList<JsonElement>>>? read, Func<IReadOnlyList<JsonElement>, bool> done, CancellationToken cancellationToken,
+        CmdletEndpoint endpoint = CmdletEndpoint.Exchange)
     {
         if (exchange is null)
             return NoExchange;
         try
         {
-            await exchange.InvokeAsync(CmdletEndpoint.Exchange, cmdlet, parameters, cancellationToken);
+            await exchange.InvokeAsync(endpoint, cmdlet, parameters, cancellationToken);
         }
         catch (CmdletException e)
         {

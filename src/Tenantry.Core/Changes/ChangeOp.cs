@@ -110,6 +110,18 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetAuthMethodConfig), "setAuthMethodConfig")]
 [JsonDerivedType(typeof(SetSecurityDefaults), "setSecurityDefaults")]
 [JsonDerivedType(typeof(SetAppRisk), "setAppRisk")]
+[JsonDerivedType(typeof(CreateCase), "createCase")]
+[JsonDerivedType(typeof(SetCaseClosed), "setCaseClosed")]
+[JsonDerivedType(typeof(SetCaseDescription), "setCaseDescription")]
+[JsonDerivedType(typeof(DeleteCase), "deleteCase")]
+[JsonDerivedType(typeof(SetCaseMember), "setCaseMember")]
+[JsonDerivedType(typeof(CreateSearch), "createSearch")]
+[JsonDerivedType(typeof(UpdateSearch), "updateSearch")]
+[JsonDerivedType(typeof(DeleteSearch), "deleteSearch")]
+[JsonDerivedType(typeof(CreateHold), "createHold")]
+[JsonDerivedType(typeof(UpdateHold), "updateHold")]
+[JsonDerivedType(typeof(SetHoldEnabled), "setHoldEnabled")]
+[JsonDerivedType(typeof(DeleteHold), "deleteHold")]
 public abstract record ChangeOp
 {
     [JsonIgnore]

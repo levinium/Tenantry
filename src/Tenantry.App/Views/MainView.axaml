@@ -404,6 +404,9 @@
           <DataTemplate DataType="vm:AppPageViewModel">
             <views:AppPageView />
           </DataTemplate>
+          <DataTemplate DataType="vm:CardPageViewModel">
+            <views:CardPageView />
+          </DataTemplate>
           <DataTemplate DataType="vm:RoleDetailViewModel">
             <views:RoleDetailView />
           </DataTemplate>

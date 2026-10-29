@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.NewCaseView"
+             x:DataType="rec:NewCaseViewModel">
+  <!-- New Case: a name and what it's about. -->
+  <StackPanel Spacing="14" Width="560">
+    <TextBlock Classes="caption" TextWrapping="Wrap"
+               Text="A case holds searches and holds for one matter, and the people who work on it. You add searches and holds after it's made." />
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="NAME" />
+      <TextBox Text="{Binding Name}" PlaceholderText="A short name, like Vendor Contract Review" />
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="DESCRIPTION (OPTIONAL)" />
+      <TextBox Text="{Binding Description}" PlaceholderText="What it's about" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" />
+    </StackPanel>
+    <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="x:String">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+            <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding AddCommand}" ToolTip.Tip="Nothing changes until you apply" />
+      <Button Content="Cancel" Command="{Binding CancelCommand}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>
