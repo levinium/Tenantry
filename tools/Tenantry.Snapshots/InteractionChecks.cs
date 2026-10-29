@@ -1463,6 +1463,32 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Sign-In History: the page tab reads the archive; a range chip re-reads it; Failed narrows the list; the preview opens the person", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "reports");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStripItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "signins" }));
+            var history = main.Reports.SignIns;
+            for (var i = 0; i < 30 && history.List.Total == 0; i++)
+                Settle();
+            var week = history.List.Total;
+            Expect(week > 0 && history.Summary.StartsWith("This computer holds", StringComparison.Ordinal), "the last 7 days are listed, with what the archive holds");
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.IsEffectivelyVisible && i.DataContext is Tenantry.ViewModels.Editing.EditorChoice { Value: "30" }));
+            for (var i = 0; i < 30 && history.List.Total == week; i++)
+                Settle();
+            Expect(history.List.Total > week, "Last 30 Days shows more");
+            history.List.ApplyView(history.List.Views.Single(v => v.View.Id == "failed"));
+            Settle();
+            Expect(history.List.Rows.Count > 0 && history.List.Rows.Cast<SignInEntry>().All(s => !s.Succeeded), "Failed shows only failed sign-ins");
+            history.List.IsPreviewOpen = true;
+            history.List.SelectedRow = history.List.Rows[0];
+            Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && Labelled(b, "Open Person")));
+            Expect(main.SelectedTab is UserDetailViewModel, "Open Person opened their page");
+            window.Close();
+        });
+
         Check("New Case: the list's button opens the form; Add with no name says why; with one it stages the case and closes", () =>
         {
             var (window, main, _) = OpenList();

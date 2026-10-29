@@ -9,7 +9,7 @@ namespace Tenantry.Cache;
 /// readable text. One connection serves the store's lifetime, behind a lock, so a sync can write
 /// while the UI reads.
 /// </summary>
-public sealed class SqliteEntityStore : IEntityStore
+public sealed class SqliteEntityStore : IEntityStore, ILogArchive
 {
     const int SchemaVersion = 1;
 
@@ -77,6 +77,8 @@ public sealed class SqliteEntityStore : IEntityStore
                 PRAGMA journal_mode = WAL;
                 CREATE TABLE IF NOT EXISTS entity (kind TEXT NOT NULL, id TEXT NOT NULL, json TEXT NOT NULL, PRIMARY KEY (kind, id)) WITHOUT ROWID;
                 CREATE TABLE IF NOT EXISTS mark (key TEXT PRIMARY KEY, cursor TEXT, synced_at TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS logevent (kind TEXT NOT NULL, id TEXT NOT NULL, at INTEGER NOT NULL, json TEXT NOT NULL, PRIMARY KEY (kind, id)) WITHOUT ROWID;
+                CREATE INDEX IF NOT EXISTS logevent_at ON logevent (kind, at);
                 """;
             command.ExecuteNonQuery();
             command.CommandText = $"PRAGMA user_version = {SchemaVersion};";
@@ -200,6 +202,74 @@ public sealed class SqliteEntityStore : IEntityStore
             command.Parameters.AddWithValue("$cursor", (object?)mark.Cursor ?? DBNull.Value);
             command.Parameters.AddWithValue("$at", mark.SyncedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
             command.ExecuteNonQuery();
+        }
+    }
+
+    // ---- Log archive (10): time-indexed, added once, read by date range ------------------------
+
+    public int AddEvents(string kind, IReadOnlyCollection<ArchivedEvent> events)
+    {
+        lock (_lock)
+        {
+            using var transaction = _connection.BeginTransaction();
+            using var insert = Command(transaction, "INSERT OR IGNORE INTO logevent (kind, id, at, json) VALUES ($kind, $id, $at, $json);", kind);
+            var at = insert.Parameters.Add("$at", SqliteType.Integer);
+            var json = insert.Parameters.Add("$json", SqliteType.Text);
+            var added = 0;
+            foreach (var e in events)
+            {
+                insert.Parameters["$id"].Value = e.Id;
+                at.Value = e.At.ToUnixTimeMilliseconds();
+                json.Value = e.Json;
+                added += insert.ExecuteNonQuery();
+            }
+            transaction.Commit();
+            return added;
+        }
+    }
+
+    public IReadOnlyList<ArchivedEvent> ReadEvents(string kind, DateTimeOffset from, DateTimeOffset to, int limit)
+    {
+        lock (_lock)
+        {
+            using var command = _connection.CreateCommand();
+            command.CommandText = "SELECT id, at, json FROM logevent WHERE kind = $kind AND at >= $from AND at <= $to ORDER BY at DESC LIMIT $limit;";
+            command.Parameters.AddWithValue("$kind", kind);
+            command.Parameters.AddWithValue("$from", from.ToUnixTimeMilliseconds());
+            command.Parameters.AddWithValue("$to", to.ToUnixTimeMilliseconds());
+            command.Parameters.AddWithValue("$limit", limit);
+            var events = new List<ArchivedEvent>();
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+                events.Add(new ArchivedEvent(reader.GetString(0), DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(1)), reader.GetString(2)));
+            return events;
+        }
+    }
+
+    public ArchiveSpan Span(string kind)
+    {
+        lock (_lock)
+        {
+            using var command = _connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(*), MIN(at), MAX(at) FROM logevent WHERE kind = $kind;";
+            command.Parameters.AddWithValue("$kind", kind);
+            using var reader = command.ExecuteReader();
+            reader.Read();
+            var count = reader.GetInt32(0);
+            return count == 0 ? new ArchiveSpan(0, null, null)
+                : new ArchiveSpan(count, DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(1)), DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(2)));
+        }
+    }
+
+    public int PruneEvents(string kind, DateTimeOffset before)
+    {
+        lock (_lock)
+        {
+            using var command = _connection.CreateCommand();
+            command.CommandText = "DELETE FROM logevent WHERE kind = $kind AND at < $before;";
+            command.Parameters.AddWithValue("$kind", kind);
+            command.Parameters.AddWithValue("$before", before.ToUnixTimeMilliseconds());
+            return command.ExecuteNonQuery();
         }
     }
 

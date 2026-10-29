@@ -142,3 +142,25 @@ Opening a record checks that one object against Microsoft 365 behind the page.
   - a user without one: about 4 s (Exchange takes a while to say "no mailbox");
   - a group: 0.3 s;
   - a shared mailbox with its access: about 8 s.
+
+## Sign-in and audit history (10)
+
+Microsoft keeps sign-ins and directory audits for 30 days (Entra ID P1). Tenantry keeps them, and
+Exchange admin actions from the unified audit log, in the same encrypted database, in their own
+time-indexed table (`logevent`: kind, id, time, compact JSON; added once, read by date range,
+pruned by age) behind `ILogArchive`.
+
+- **What:** interactive sign-ins (beta `auditLogs/signIns`), directory audits, and Exchange admin
+  actions (`Search-UnifiedAuditLog -RecordType ExchangeAdmin`, a day at a time, 5,000 a page).
+  Non-interactive sign-ins (apps and devices renewing on their own) are many times the rest, so
+  they're off unless turned on in Settings, and then kept 30 days.
+- **When:** `LogArchiver` runs in the background after a sync, hourly by default. Each run reads
+  from the newest event held, less 30 minutes (Microsoft's logs arrive late; events already held
+  are skipped), so a first run reaches back as far as Microsoft keeps and later runs read only
+  what's new. Then events older than the setting (a year by default; 90 days to forever) go.
+- **Where it's seen:** Reports has Sign-In History, Directory Audits and Exchange Admin pages: a
+  date range (24 hours to everything kept), what the computer holds, Read New Events Now, and the
+  events as a standard list (newest 100,000 in the range).
+- **Live:** a first run read 30 days (about 20,000 events) in about 7.5 minutes in the background;
+  the next run took seconds and added only what was new.
+

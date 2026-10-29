@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:listviews="using:Tenantry.App.Lists"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.LogHistoryView"
+             x:DataType="vm:LogHistoryViewModel">
+  <!-- One archived log: a range, what this computer holds, Read New Events Now, then the list. -->
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+      <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <ListBox ItemsSource="{x:Static vm:LogHistoryViewModel.Ranges}" SelectedItem="{Binding Range}" Classes="chips">
+          <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemSpacing="6" LineSpacing="6" />
+            </ItemsPanelTemplate>
+          </ListBox.ItemsPanel>
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="ed:EditorChoice">
+              <TextBlock Text="{Binding Label}" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <Button Grid.Column="1" Command="{Binding ReadNewCommand}" IsEnabled="{Binding CanReadNew}" IsVisible="{Binding HasReadNew}" VerticalAlignment="Center"
+                ToolTip.Tip="Read sign-ins and audit events from Microsoft 365 that aren't on this computer yet">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ic:FluentIcon Icon="ArrowDownload" FontSize="16" />
+            <TextBlock Text="Read New Events Now" />
+          </StackPanel>
+        </Button>
+      </Grid>
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsBusy}">
+        <Panel Width="18" Height="18" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" VerticalAlignment="Center" Text="{Binding BusyText}" />
+      </StackPanel>
+      <Border Classes="banner neutral">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="History" FontSize="16" VerticalAlignment="Center" />
+          <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Summary}" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+    <ContentControl Content="{Binding List}">
+      <ContentControl.DataTemplates>
+        <listviews:ListViewCache />
+      </ContentControl.DataTemplates>
+    </ContentControl>
+  </DockPanel>
+</UserControl>

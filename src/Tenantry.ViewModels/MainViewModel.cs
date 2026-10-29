@@ -185,8 +185,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                 OpenUser(person);
             else if (target.Kind == "group" && _index.Group(target.Id) is { } group)
                 OpenGroup(group);
-        }, tenant.ListState, _now);
+        }, tenant.ListState, _now,
+            tenant.Resources as Tenantry.Core.Cache.ILogArchive ?? tenant.Records as Tenantry.Core.Cache.ILogArchive,
+            tenant.Sync is { } logSync ? () => logSync.ArchiveLogsNowAsync(null, CancellationToken.None) : null,
+            id => { if (_index.User(id) is { } person) OpenUser(person); });
+        if (tenant.Sync is { } archiving)
+        {
+            // The archive runs on a worker thread; its pages re-read back on this (the UI) thread.
+            var uiContext = SynchronizationContext.Current;
+            archiving.LogsArchived += (_, _) =>
+            {
+                if (uiContext is null)
+                    Reports.Archived();
+                else
+                    uiContext.Post(_ => Reports.Archived(), null);
+            };
+        }
         Reports.ChangeLog.FollowSharedPreferences(shared);
+        Reports.SignIns.List.FollowSharedPreferences(shared);
+        Reports.Audits.List.FollowSharedPreferences(shared);
+        Reports.ExchangeAdmin.List.FollowSharedPreferences(shared);
         Sections =
         [
             new NavSection("users", "Users", readUsers.Reason),

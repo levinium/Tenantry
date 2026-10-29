@@ -5,11 +5,12 @@ namespace Tenantry.Core.Cache;
 /// secret store to protect a database key: the app still syncs and works, it just starts from
 /// scratch each launch rather than writing tenant data to disk unencrypted.
 /// </summary>
-public sealed class MemoryEntityStore : IEntityStore
+public sealed class MemoryEntityStore : IEntityStore, ILogArchive
 {
     readonly Lock _lock = new();
     readonly Dictionary<string, Dictionary<string, string>> _kinds = new(StringComparer.Ordinal);
     readonly Dictionary<string, SyncMark> _marks = new(StringComparer.Ordinal);
+    readonly Dictionary<string, Dictionary<string, ArchivedEvent>> _events = new(StringComparer.Ordinal);
 
     public bool IsPersistent => false;
 
@@ -76,6 +77,45 @@ public sealed class MemoryEntityStore : IEntityStore
     {
         lock (_lock)
             _marks[key] = mark;
+    }
+
+    public int AddEvents(string kind, IReadOnlyCollection<ArchivedEvent> events)
+    {
+        lock (_lock)
+        {
+            if (!_events.TryGetValue(kind, out var held))
+                _events[kind] = held = new Dictionary<string, ArchivedEvent>(StringComparer.Ordinal);
+            return events.Count(e => held.TryAdd(e.Id, e));
+        }
+    }
+
+    public IReadOnlyList<ArchivedEvent> ReadEvents(string kind, DateTimeOffset from, DateTimeOffset to, int limit)
+    {
+        lock (_lock)
+            return _events.TryGetValue(kind, out var held)
+                ? [.. held.Values.Where(e => e.At >= from && e.At <= to).OrderByDescending(e => e.At).Take(limit)]
+                : [];
+    }
+
+    public ArchiveSpan Span(string kind)
+    {
+        lock (_lock)
+            return _events.TryGetValue(kind, out var held) && held.Count > 0
+                ? new ArchiveSpan(held.Count, held.Values.Min(e => e.At), held.Values.Max(e => e.At))
+                : new ArchiveSpan(0, null, null);
+    }
+
+    public int PruneEvents(string kind, DateTimeOffset before)
+    {
+        lock (_lock)
+        {
+            if (!_events.TryGetValue(kind, out var held))
+                return 0;
+            var old = held.Values.Where(e => e.At < before).Select(e => e.Id).ToArray();
+            foreach (var id in old)
+                held.Remove(id);
+            return old.Length;
+        }
     }
 
     public void Dispose()

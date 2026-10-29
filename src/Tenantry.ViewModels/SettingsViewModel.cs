@@ -46,6 +46,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public static IReadOnlyList<IntervalOption> MailboxSizesOptions { get; } =
         [new(60, "Every Hour"), new(240, "Every 4 Hours"), new(720, "Every 12 Hours"), new(1440, "Once a Day"), new(0, "Off")];
 
+    public static IReadOnlyList<IntervalOption> LogsOptions { get; } =
+        [new(60, "Every Hour"), new(240, "Every 4 Hours"), new(1440, "Once a Day"), new(0, "Off")];
+
+    /// <summary>How long the history is kept, in days (0 = forever); stored in the Minutes slot.</summary>
+    public static IReadOnlyList<IntervalOption> KeepLogsOptions { get; } =
+        [new(90, "90 Days"), new(180, "6 Months"), new(365, "1 Year"), new(730, "2 Years"), new(0, "Forever")];
+
     /// <param name="syncNow">Runs a sync (Everything or StartOver) and updates the lists.</param>
     /// <param name="changed">Called after a setting is saved (the app restarts its timer).</param>
     /// <param name="status">The sync as it happens (the sidebar's), so Settings shows a sync already running.</param>
@@ -71,6 +78,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Details = Pick(DetailsOptions, s.DetailsMinutes);
         MailboxDetails = Pick(MailboxDetailsOptions, s.MailboxDetailsMinutes);
         MailboxSizes = Pick(MailboxSizesOptions, s.MailboxSizesMinutes);
+        Logs = Pick(LogsOptions, s.LogsMinutes);
+        KeepLogs = KeepLogsOptions.FirstOrDefault(o => o.Minutes == s.KeepLogsDays) ?? new IntervalOption(s.KeepLogsDays, $"{s.KeepLogsDays} Days");
+        BackgroundSignIns = s.BackgroundSignIns;
         _loading = false;
         RefreshAreas();
     }
@@ -115,12 +125,27 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnDetailsChanged(IntervalOption value) => Save();
     partial void OnMailboxDetailsChanged(IntervalOption value) => Save();
     partial void OnMailboxSizesChanged(IntervalOption value) => Save();
+    partial void OnLogsChanged(IntervalOption value) => Save();
+    partial void OnKeepLogsChanged(IntervalOption value) => Save();
+    partial void OnBackgroundSignInsChanged(bool value) => Save();
+
+    /// <summary>How often new sign-ins and audit events are added to the history on this computer.</summary>
+    [ObservableProperty]
+    public partial IntervalOption Logs { get; set; }
+
+    /// <summary>How long the history keeps them (days; 0 = forever).</summary>
+    [ObservableProperty]
+    public partial IntervalOption KeepLogs { get; set; }
+
+    /// <summary>Also keep non-interactive sign-ins, for 30 days.</summary>
+    [ObservableProperty]
+    public partial bool BackgroundSignIns { get; set; }
 
     void Save()
     {
         if (_loading)
             return;
-        _store.Save(new SyncSettings(Changes.Minutes, Details.Minutes, MailboxDetails.Minutes, MailboxSizes.Minutes));
+        _store.Save(new SyncSettings(Changes.Minutes, Details.Minutes, MailboxDetails.Minutes, MailboxSizes.Minutes, Logs.Minutes, KeepLogs.Minutes, BackgroundSignIns));
         _changed();
         RefreshAreas();
     }

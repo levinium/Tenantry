@@ -30,13 +30,26 @@ public sealed partial class ReportsAreaViewModel : TabViewModel
     public static IReadOnlyList<MailSecurityPage> Pages { get; } =
     [
         new("reports", "Reports", "DataBarVertical"),
+        new("signins", "Sign-In History", "PersonKey"),
+        new("audits", "Directory Audits", "DocumentBulletList"),
+        new("exchangeadmin", "Exchange Admin", "Mail"),
         new("changelog", "Change Log", "History"),
     ];
 
     /// <param name="open">Shows a list with one of its views applied.</param>
+    /// <param name="archive">Sign-in and audit history kept on this computer (10), or null.</param>
+    /// <param name="readNew">Adds new events to it now, or null.</param>
     public ReportsAreaViewModel(IReadOnlyList<ReportCheck> checks, ChangePipeline? pipeline, Action<DataListViewModel, SavedViewItem> open, Action<ChangeTarget>? openTarget,
-        IListStateStore? listState, Func<DateTimeOffset> now)
+        IListStateStore? listState, Func<DateTimeOffset> now, Tenantry.Core.Cache.ILogArchive? archive = null, Func<Task>? readNew = null, Action<string>? openUserById = null)
     {
+        SignIns = LogHistoryViewModel.Create(archive, Tenantry.Core.Directory.LogKinds.SignIns,
+            "Every interactive sign-in, kept on this computer for a year (Microsoft keeps 30 days). Non-interactive sign-ins can be added in Settings.",
+            LogLists.SignIns(e => LogLists.SignInPreview(e, openUserById)), listState, now, readNew);
+        Audits = LogHistoryViewModel.Create(archive, Tenantry.Core.Directory.LogKinds.Audits,
+            "Changes made in Entra (users, groups, roles, apps), kept on this computer for a year.", LogLists.Audits(LogLists.AuditPreview), listState, now, readNew);
+        ExchangeAdmin = LogHistoryViewModel.Create(archive, Tenantry.Core.Directory.LogKinds.ExchangeAdmin,
+            "Exchange commands run by admins (and by Tenantry), from the unified audit log, kept on this computer for a year.",
+            LogLists.ExchangeAdmin(LogLists.ExchangePreview), listState, now, readNew);
         _checks = checks;
         _open = open;
         Reports = new AppSection("reports", "Reports", "DataBarVertical", BuildAsync, "Counting from the local copy…");
@@ -61,12 +74,27 @@ public sealed partial class ReportsAreaViewModel : TabViewModel
 
     public DataListViewModel ChangeLog { get; }
 
+    public LogHistoryViewModel SignIns { get; }
+    public LogHistoryViewModel Audits { get; }
+    public LogHistoryViewModel ExchangeAdmin { get; }
+
+    /// <summary>The sync added events to the history.</summary>
+    public void Archived()
+    {
+        SignIns.Archived();
+        Audits.Archived();
+        ExchangeAdmin.Archived();
+    }
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowReports), nameof(ShowChangeLog))]
+    [NotifyPropertyChangedFor(nameof(ShowReports), nameof(ShowChangeLog), nameof(ShowSignIns), nameof(ShowAudits), nameof(ShowExchangeAdmin))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     public bool ShowReports => SelectedPage.Key == "reports";
     public bool ShowChangeLog => SelectedPage.Key == "changelog";
+    public bool ShowSignIns => SelectedPage.Key == "signins";
+    public bool ShowAudits => SelectedPage.Key == "audits";
+    public bool ShowExchangeAdmin => SelectedPage.Key == "exchangeadmin";
 
     partial void OnSelectedPageChanged(MailSecurityPage value) => Shown();
 
@@ -75,6 +103,12 @@ public sealed partial class ReportsAreaViewModel : TabViewModel
     {
         if (ShowReports)
             _ = Reports.LoadAsync();
+        if (ShowSignIns)
+            SignIns.Shown();
+        if (ShowAudits)
+            Audits.Shown();
+        if (ShowExchangeAdmin)
+            ExchangeAdmin.Shown();
         if (ShowChangeLog && !_changeLogRead)
         {
             _changeLogRead = true;

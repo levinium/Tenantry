@@ -107,6 +107,36 @@
 
       <Border Classes="divider" />
 
+      <!-- Sign-in and audit history kept on this computer -->
+      <StackPanel Spacing="12">
+        <StackPanel Spacing="2">
+          <TextBlock Classes="h3" Text="Sign-In and Audit History" />
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="Microsoft keeps sign-ins and audit events for 30 days. Tenantry keeps them on this computer, encrypted with the rest of the local copy, for as long as you choose. See them under Reports." />
+        </StackPanel>
+        <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="12">
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Add New Events" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Only what's new each time, in the background." />
+          </StackPanel>
+          <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:SettingsViewModel.LogsOptions}" SelectedItem="{Binding Logs}" MinWidth="320" VerticalAlignment="Center" />
+
+          <StackPanel Grid.Row="1" Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Keep Them For" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Older events are deleted from this computer." />
+          </StackPanel>
+          <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{x:Static vm:SettingsViewModel.KeepLogsOptions}" SelectedItem="{Binding KeepLogs}" MinWidth="320" VerticalAlignment="Center" />
+
+          <StackPanel Grid.Row="2" Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Non-Interactive Sign-Ins" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Apps and devices renewing their sign-in on their own: many times the rest, so kept 30 days." />
+          </StackPanel>
+          <ToggleSwitch Grid.Row="2" Grid.Column="1" IsChecked="{Binding BackgroundSignIns}" OnContent="Keep for 30 Days" OffContent="Off" VerticalAlignment="Center" />
+        </Grid>
+      </StackPanel>
+
+      <Border Classes="divider" />
+
       <!-- What's in the copy, and when -->
       <StackPanel Spacing="10" IsVisible="{Binding HasAreas}">
         <TextBlock Classes="h3" Text="What's Kept, and When It Was Last Read" />

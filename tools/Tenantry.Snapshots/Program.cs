@@ -931,6 +931,14 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         for (var i = 0; i < 20; i++)
             Settle();
         Render(premium, "reports-light", height: 1500);
+        premium.Reports.SelectedPage = ReportsAreaViewModel.Pages.Single(p => p.Key == "signins");
+        for (var i = 0; i < 20 && premium.Reports.SignIns.List.Total == 0; i++)
+            Settle();
+        premium.Reports.SignIns.List.IsPreviewOpen = true;
+        premium.Reports.SignIns.List.SelectedRow = premium.Reports.SignIns.List.Rows.Cast<SignInEntry>().FirstOrDefault(s => !s.Succeeded) ?? premium.Reports.SignIns.List.Rows.FirstOrDefault();
+        Settle();
+        Render(premium, "sign-in-history-light", height: 900);
+        premium.Reports.SelectedPage = ReportsAreaViewModel.Pages[0];
         premium.SelectedSection = premium.Sections.Single(s => s.Key == "security");
         Settle();
 

@@ -13,8 +13,15 @@ namespace Tenantry.Core.Directory;
 /// call per mailbox, in the background); 0 turns it off. (Named before sizes had their own setting.)</param>
 /// <param name="MailboxSizesMinutes">Read every mailbox's size (one call per mailbox, in the
 /// background); 0 turns it off. Sizes change slowly, so less often than replies by default.</param>
-public sealed record SyncSettings(int ChangesMinutes = 10, int DetailsMinutes = 60, int MailboxDetailsMinutes = 60, int MailboxSizesMinutes = 240)
+/// <param name="LogsMinutes">Add new sign-ins and audit events to the archive on this computer; 0 turns it off.</param>
+/// <param name="KeepLogsDays">How long the archive keeps them (a year by default); 0 keeps them forever.</param>
+/// <param name="BackgroundSignIns">Also keep non-interactive sign-ins (many times the rest), for
+/// <see cref="LogKinds.BackgroundKeepDays"/> days.</param>
+public sealed record SyncSettings(int ChangesMinutes = 10, int DetailsMinutes = 60, int MailboxDetailsMinutes = 60, int MailboxSizesMinutes = 240,
+    int LogsMinutes = 60, int KeepLogsDays = 365, bool BackgroundSignIns = false)
 {
+    public bool LogsOn => LogsMinutes > 0;
+
     public static readonly SyncSettings Default = new();
 
     public bool RepliesOn => MailboxDetailsMinutes > 0;

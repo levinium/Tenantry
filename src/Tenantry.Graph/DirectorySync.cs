@@ -26,7 +26,7 @@ namespace Tenantry.Graph;
 /// <param name="settings">How often each part is re-read (Settings); the defaults when null.</param>
 /// <param name="sharePoint">The SharePoint admin site, for sites and OneDrives; skipped when null.</param>
 public sealed partial class DirectorySync(GraphClient graph, IEntityStore store, ICmdletRunner? exchange = null, Func<DateTimeOffset>? now = null,
-    Func<SyncSettings>? settings = null, SharePointAdmin? sharePoint = null) : ITenantSync
+    Func<SyncSettings>? settings = null, SharePointAdmin? sharePoint = null, bool keepLogs = false) : ITenantSync
 {
     /// <summary>Each mailbox's size and automatic-reply state (one Exchange read per mailbox for each).</summary>
     public const string MailboxDetails = "mailboxdetails";
@@ -163,8 +163,10 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                 StartMailboxDetails(Settings.SizesOn && Due(SizesMark, background, Settings.MailboxSizesMinutes),
                     Settings.RepliesOn && Due(RepliesMark, background, Settings.MailboxDetailsMinutes));
             }
+            // Sign-in and audit history: also in the background, on its own schedule.
+            StartLogArchive(scope == SyncScope.Refresh ? SyncScope.Changes : scope);
 
-            _notes = [.. notes, .. _detailNotes];
+            _notes = [.. notes, .. _detailNotes, .. _logNotes];
             return changed;
         }
         finally
@@ -217,6 +219,11 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                 areas.Add(new("Mailbox Sizes", "Storage used against the quota; one read per mailbox, in the background",
                     store.GetMark(SizesMark)?.SyncedAt, Every(s.MailboxSizesMinutes, "Off")));
             }
+            if (keepLogs && store is ILogArchive)
+                areas.Add(new("Sign-In and Audit History", s.BackgroundSignIns
+                        ? "Sign-ins (non-interactive ones for 30 days), directory audits and Exchange admin actions, kept on this computer"
+                        : "Sign-ins, directory audits and Exchange admin actions, kept on this computer",
+                    store.GetMark(LogsMark)?.SyncedAt, Every(s.LogsMinutes, "Off")));
             return areas;
         }
     }

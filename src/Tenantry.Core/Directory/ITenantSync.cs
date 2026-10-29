@@ -52,6 +52,12 @@ public interface ITenantSync
     /// <summary>Raised, possibly on a worker thread, whenever <see cref="BackgroundStatus"/> changes.</summary>
     event EventHandler? BackgroundStatusChanged { add { } remove { } }
 
+    /// <summary>Adds new sign-ins and audit events to the history kept on this computer now.</summary>
+    Task ArchiveLogsNowAsync(IProgress<string>? progress, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <summary>Raised, possibly on a worker thread, when the history kept on this computer has new events.</summary>
+    event EventHandler? LogsArchived { add { } remove { } }
+
     /// <summary>Brings the local copy up to date; returns how many objects changed.</summary>
     Task<int> SyncAsync(IProgress<string>? progress = null, SyncScope scope = SyncScope.Changes, CancellationToken cancellationToken = default);
 
