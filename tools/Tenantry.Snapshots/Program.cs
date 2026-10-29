@@ -926,6 +926,14 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
         Render(premium, "retention-events-light", height: 900);
 
+        // Reports (9): the health checks with their counts.
+        premium.SelectedSection = premium.Sections.Single(s => s.Key == "reports");
+        for (var i = 0; i < 20; i++)
+            Settle();
+        Render(premium, "reports-light", height: 1500);
+        premium.SelectedSection = premium.Sections.Single(s => s.Key == "security");
+        Settle();
+
         // Apps (8c-1): the registrations list, a registration's secrets, an enterprise app's permissions.
         premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
         for (var i = 0; i < 20 && premium.SecurityArea.Registrations.Total == 0; i++)

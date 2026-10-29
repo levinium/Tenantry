@@ -1433,6 +1433,36 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Reports: the sidebar opens the counts; Open List shows Users with that view; the Change Log lists a change once it's applied", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "reports");
+            for (var i = 0; i < 20 && main.Reports.Reports.Cards.Count == 0; i++)
+                Settle();
+            Expect(main.Reports.Reports.Cards.Count >= 5, "the report groups are shown");
+            var row = main.Reports.Reports.Cards.SelectMany(c => c.RowItems).Single(r => r.Title == "Licensed But Blocked");
+            Expect(row.Badges.Count == 1, "each report shows its count");
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var open = window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.DataContext is AppRow { Title: "Licensed But Blocked" } && b.Content as string == "Open List")
+                       ?? throw new InvalidOperationException($"Open List not on screen; buttons with AppRow: {window.GetVisualDescendants().OfType<Button>().Count(b => b.DataContext is AppRow)}, area tab {main.SelectedTab?.GetType().Name}");
+            open.BringIntoView();
+            Settle();
+            Click(window, open);
+            Expect(main.SelectedTab == main.Users && main.Users.CurrentView?.View.Id == "licensed-blocked", "Users is shown with that view");
+            var person = main.Users.Rows.Cast<UserSummary>().First();
+            _pipeline.Stage(new SetSignInAllowed(new ChangeTarget("user", person.Id, person.DisplayName, person.UserPrincipalName), person.AccountEnabled, !person.AccountEnabled));
+            _pipeline.ApplyAsync().GetAwaiter().GetResult();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "reports");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStripItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "changelog" }));
+            for (var i = 0; i < 20 && main.Reports.ChangeLog.Total == 0; i++)
+                Settle();
+            Expect(main.Reports.ChangeLog.Total == 1, "the change is in the Change Log");
+            Expect(main.Reports.ChangeLog.Rows.Cast<Tenantry.Core.Changes.ChangeLogEntry>().Single().Outcome == ChangeOutcome.Refused, "stopped by Test mode, and logged as such");
+            window.Close();
+        });
+
         Check("New Case: the list's button opens the form; Add with no name says why; with one it stages the case and closes", () =>
         {
             var (window, main, _) = OpenList();
@@ -1475,6 +1505,9 @@ static class InteractionChecks
             throw new InvalidOperationException($"expected: {what}");
     }
 
+    /// <summary>The pipeline of the window <see cref="OpenList"/> opened last.</summary>
+    static ChangePipeline _pipeline = null!;
+
     /// <summary>The demo tenant, editable (Pending changes on, Test mode on), on its Users list.</summary>
     /// <param name="premium">The demo acting as a tenant with Entra ID P2 (PIM).</param>
     static (MainWindow Window, MainViewModel Main, ShellViewModel Shell) OpenList(bool premium = false)
@@ -1488,7 +1521,7 @@ static class InteractionChecks
             ListState = new Tenantry.Core.Lists.MemoryListStateStore(),
             SyncSettings = new MemorySyncSettingsStore(),
             PasswordStyle = demo.PasswordStyle ?? new MemoryPasswordStyleStore(),
-            Changes = new ChangePipeline(new Tenantry.Demo.DemoChangeExecutor((Tenantry.Demo.DemoTenantDirectory)demo.Directory),
+            Changes = _pipeline = new ChangePipeline(new Tenantry.Demo.DemoChangeExecutor((Tenantry.Demo.DemoTenantDirectory)demo.Directory),
                 new ChangeLog(new Tenantry.Core.Cache.MemoryEntityStore()), new MemoryTestModeStore(true), demo.Account),
         }, () => { });
         main.Users.LoadAsync().GetAwaiter().GetResult();

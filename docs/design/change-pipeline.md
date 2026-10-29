@@ -1025,6 +1025,21 @@ and becomes one change. Lines that can't be added stay in the box with the reaso
 - **Live test (2026-10-26):** block, note change and remove for a made-up test sender and link,
   all read back, and nothing left behind.
 
+### Reports and the Change Log (9)
+
+A Reports area in the sidebar with two page tabs.
+
+- **Reports:** health checks grouped by area (people, sign-in security, mail, groups, devices,
+  SharePoint and OneDrive). Each is a built-in view of an existing list, so its count is the
+  list's own view count from the local copy, kept current as it syncs; Open List shows that list
+  with the view applied (the same path as choosing a view from Ctrl+K). Checks that need looking
+  at are flagged in amber when they find anything; information-only ones in blue. Nothing is read
+  from Microsoft 365 beyond what the lists hold.
+- **Change Log:** the tenant's local change log (everything Tenantry tried from this computer,
+  including what Test mode stopped) as a standard list: when, what changed, from and to, outcome,
+  who, detail; views for the last 7 days, failed or stopped, and caution changes; search, filters
+  and CSV export as in every list. The preview opens the person or group changed.
+
 ## Write guard and Test mode
 
 - **What it allows:** while a tenant is in Test mode, only objects whose **address** starts with

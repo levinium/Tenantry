@@ -154,6 +154,39 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             foreach (var list in MailSecurity.Lists)
                 list.FollowSharedPreferences(shared);
         }
+        // Reports (9): health checks over the lists' own views, and the change log.
+        Reports = new ReportsAreaViewModel(
+        [
+            new("People", Users, "inactive", "signed in to nothing for 90 days or more, yet still able to"),
+            new("People", Users, "licensed-blocked", "can't sign in but still hold a license someone pays for"),
+            new("People", Users, "unlicensed", "members who can sign in but have no license", Concern: false),
+            new("People", Users, "guests-never", "invited from outside but never signed in"),
+            new("Sign-In Security", Users, "admins-no-mfa", "admins with no second sign-in step registered"),
+            new("Sign-In Security", Users, "no-mfa", "people with no second sign-in step registered"),
+            new("Sign-In Security", Users, "admins", "everyone with an admin role", Concern: false),
+            new("Mail", Users, "forwarding-external", "mail sent on automatically to outside addresses"),
+            new("Mail", Users, "nearly-full", "mailboxes close to their storage limit"),
+            new("Mail", Users, "pop-imap", "older mail apps that skip modern sign-in protections"),
+            new("Mail", Users, "licensed-shared", "shared mailboxes holding a license they may not need", Concern: false),
+            new("Groups", Groups, "empty", "groups with no members"),
+            new("Groups", Groups, "nobody", "shared mailboxes nobody has access to"),
+            new("Groups", Groups, "public", "groups anyone in the organization can join and read", Concern: false),
+            new("Devices", Devices, "not-compliant", "devices that fail their compliance policies"),
+            new("Devices", Devices, "not-encrypted", "devices whose disks aren't encrypted"),
+            new("Devices", Devices, "stale", "devices not seen for 90 days or more"),
+            new("Devices", Devices, "not-managed", "devices Intune doesn't manage", Concern: false),
+            new("SharePoint & OneDrive", SharePoint.Sites, "external", "sites shared outside the organization", Concern: false),
+            new("SharePoint & OneDrive", SharePoint.Sites, "nearly-full", "sites close to their storage limit"),
+            new("SharePoint & OneDrive", SharePoint.Sites, "inactive", "sites with no activity for 180 days or more", Concern: false),
+            new("SharePoint & OneDrive", SharePoint.OneDrives, "nearly-full", "OneDrives close to their storage limit"),
+        ], tenant.Changes, ShowView, target =>
+        {
+            if (target.Kind == "user" && _index.User(target.Id) is { } person)
+                OpenUser(person);
+            else if (target.Kind == "group" && _index.Group(target.Id) is { } group)
+                OpenGroup(group);
+        }, tenant.ListState, _now);
+        Reports.ChangeLog.FollowSharedPreferences(shared);
         Sections =
         [
             new NavSection("users", "Users", readUsers.Reason),
@@ -162,6 +195,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             new NavSection("sharepoint", "SharePoint & OneDrive", readUsers.Reason),
             new NavSection("devices", "Devices", readUsers.Reason),
             new NavSection("security", "Security & Compliance", readUsers.Reason),
+            new NavSection("reports", "Reports", readUsers.Reason),
         ];
         Tabs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasRecordTabs));
         CheckPreviewsWhenTheySettle();
@@ -190,6 +224,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     /// <summary>The Devices area's tab: the device list and Autopilot, as pages.</summary>
     public DevicesAreaViewModel DevicesArea { get; }
+
+    /// <summary>Reports and the change log.</summary>
+    public ReportsAreaViewModel Reports { get; }
 
     /// <summary>The SharePoint &amp; OneDrive area's tab: Sites and OneDrives, as pages.</summary>
     public SharePointAreaViewModel SharePoint { get; }
@@ -414,7 +451,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// <summary>Each sidebar entry's tab: a list, or an area with pages of its own.</summary>
     IEnumerable<(string Section, TabViewModel Tab)> AreaTabs =>
     [
-        ("users", Users), ("groups", Groups), ("devices", DevicesArea), ("sharepoint", SharePoint), ("security", SecurityArea),
+        ("users", Users), ("groups", Groups), ("devices", DevicesArea), ("sharepoint", SharePoint), ("security", SecurityArea), ("reports", Reports),
         .. MailSecurity is null ? Array.Empty<(string, TabViewModel)>() : [("mail", (TabViewModel)MailSecurity)],
     ];
 
@@ -780,6 +817,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         }
         if (value?.Key == "security")
             SecurityArea.Shown();
+        if (value?.Key == "reports")
+            Reports.Shown();
     }
 
     /// <summary>The tab strip only appears once a record is open beside the list.</summary>
@@ -1010,18 +1049,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             foreach (var view in list.Views)
             {
                 entries.Add(new PaletteEntry("View", view.Name, $"{list.Title} view", "Filter",
-                    $"{view.Name} {list.Title} view".ToLowerInvariant(), () =>
-                    {
-                        SelectedSection = Sections.First(s => s.Key == section);
-                        if (list == Devices)
-                            DevicesArea.SelectedPage = DevicesAreaViewModel.Pages[0];
-                        if (list == SharePoint.Sites || list == SharePoint.OneDrives)
-                            SharePoint.SelectedPage = SharePointAreaViewModel.Pages[list == SharePoint.Sites ? 0 : 1];
-                        list.ApplyView(view);
-                    }));
+                    $"{view.Name} {list.Title} view".ToLowerInvariant(), () => ShowView(list, view)));
             }
         }
         return entries;
+    }
+
+    /// <summary>Shows one of the area lists with a view applied (from Ctrl+K or a report).</summary>
+    public void ShowView(DataListViewModel list, SavedViewItem view)
+    {
+        if (AreaLists.FirstOrDefault(a => a.List == list).Section is not { } section)
+            return;
+        SelectedSection = Sections.First(s => s.Key == section);
+        if (list == Devices)
+            DevicesArea.SelectedPage = DevicesAreaViewModel.Pages[0];
+        if (list == SharePoint.Sites || list == SharePoint.OneDrives)
+            SharePoint.SelectedPage = SharePointAreaViewModel.Pages[list == SharePoint.Sites ? 0 : 1];
+        list.ApplyView(view);
     }
 
     /// <summary>The local copy by id, rebuilt on each load, so group pages can name their members.</summary>

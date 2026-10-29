@@ -17,6 +17,7 @@ public sealed class NavIcon : IValueConverter
         "sharepoint" => Icon.Cloud,
         "devices" => Icon.Laptop,
         "security" => Icon.ShieldLock,
+        "reports" => Icon.DataBarVertical,
         _ => Icon.Apps,
     };
 
