@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.PlacesEditorView"
+             x:DataType="rec:PlacesEditor">
+  <!-- One kind of place: None / All / Chosen, then the chosen ones as chips with a picker. -->
+  <StackPanel Spacing="6">
+    <TextBlock Classes="label" Text="{Binding Title}" />
+    <ListBox ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" Classes="chips">
+      <ListBox.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Orientation="Horizontal" Spacing="6" />
+        </ItemsPanelTemplate>
+      </ListBox.ItemsPanel>
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="ed:EditorChoice">
+          <TextBlock Text="{Binding Label}" ToolTip.Tip="{Binding Detail}" />
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+    <StackPanel Spacing="6" IsVisible="{Binding IsChosen}">
+      <ItemsControl ItemsSource="{Binding Chips}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="6" LineSpacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="rec:PlaceChip">
+            <Border Classes="chip">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" ToolTip.Tip="{Binding Detail}" />
+                <Button Classes="chipx" Command="{Binding RemoveCommand}" ToolTip.Tip="Take it off">
+                  <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+                </Button>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <views:PersonPickerView DataContext="{Binding Picker}" MaxWidth="460" HorizontalAlignment="Left" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

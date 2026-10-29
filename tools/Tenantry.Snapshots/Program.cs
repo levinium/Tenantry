@@ -891,6 +891,41 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
         Render(premium, "ediscovery-search-found-light", height: 900);
 
+        // Retention (8f-3): the policies, a policy's Where, the policy editor, the labels, the events.
+        premium.SelectedTab = premium.SecurityArea;
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "retentionpolicies");
+        for (var i = 0; i < 20 && premium.SecurityArea.RetentionPolicies.Total == 0; i++)
+            Settle();
+        premium.SecurityArea.RetentionPolicies.IsPreviewOpen = true;
+        premium.SecurityArea.RetentionPolicies.SelectedRow = premium.SecurityArea.RetentionPolicies.Rows.Cast<RetentionPolicy>().First(p => p.Name == "Finance labels");
+        Settle();
+        Render(premium, "retention-policies-light", height: 900);
+        premium.OpenPolicy(premium.SecurityArea.Retention!.Policies.First(p => p.Name == "Keep mail seven years"));
+        var policyPage = (RetentionPolicyPageViewModel)premium.SelectedTab!;
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "retention-policy-overview-light", height: 900);
+        policyPage.SelectedSection = policyPage.Sections.Single(s => s.Key == "where");
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "retention-policy-where-light", height: 800);
+        premium.SecurityArea.RetentionPolicies.PrimaryAction!.Run!();
+        Settle();
+        Render(premium, "retention-policy-editor-light", height: 1500);
+        premium.CloseDialogCommand.Execute(null);
+        premium.SelectedTab = premium.SecurityArea;
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "retentionlabels");
+        premium.SecurityArea.RetentionLabels.IsPreviewOpen = true;
+        for (var i = 0; i < 10; i++)
+            Settle();
+        premium.SecurityArea.RetentionLabels.SelectedRow = premium.SecurityArea.RetentionLabels.Rows.Cast<RetentionLabel>().First(l => l.Name == "Contract");
+        Settle();
+        Render(premium, "retention-labels-light", height: 900);
+        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "retentionevents");
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "retention-events-light", height: 900);
+
         // Apps (8c-1): the registrations list, a registration's secrets, an enterprise app's permissions.
         premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
         for (var i = 0; i < 20 && premium.SecurityArea.Registrations.Total == 0; i++)

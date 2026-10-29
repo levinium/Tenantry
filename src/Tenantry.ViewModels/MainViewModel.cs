@@ -105,11 +105,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             async id => { if ((await SecurityArea!.AppsAsync())?.EnterpriseApps.FirstOrDefault(e => e.Id == id) is { } app) OpenEnterpriseApp(app); },
             tenant.Records as IAuditRecords, tenant.Records as IEDiscoveryRecords, OpenCase, OpenSearch,
             EdEditable ? NewCase : null, EdEditable ? () => EdContextFor().NewSearch(null) : null,
-            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageEDiscovery).Reason);
+            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageEDiscovery).Reason,
+            tenant.Records as IRetentionRecords, tenant.Records is IRetentionRecords ? RetentionContextFor() : null, OpenScope,
+            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageRetention).Reason);
         SecurityArea.RolesRead += (_, _) => FollowRoles();
         SecurityArea.PoliciesRead += (_, _) => FollowPolicies();
         SecurityArea.AppsRead += (_, _) => FollowApps();
         SecurityArea.EDiscoveryRead += (_, _) => FollowEDiscovery();
+        SecurityArea.RetentionRead += (_, _) => FollowRetention();
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);
@@ -128,6 +131,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         SecurityArea.AuditLog.Results.FollowSharedPreferences(shared);
         SecurityArea.Cases.FollowSharedPreferences(shared);
         SecurityArea.Searches.FollowSharedPreferences(shared);
+        SecurityArea.RetentionPolicies.FollowSharedPreferences(shared);
+        SecurityArea.RetentionLabels.FollowSharedPreferences(shared);
+        SecurityArea.AdaptiveScopes.FollowSharedPreferences(shared);
         if (tenant.Changes is { } changes)
         {
             Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync);
@@ -330,6 +336,38 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         if (_tenant.Changes is { } changes)
             ShowDialog(new Records.DialogViewModel("New Case", TenantName,
                 new Records.NewCaseViewModel(changes, SecurityArea.EDiscovery?.Cases.Select(c => c.Name) ?? [], CloseDialog)));
+    }
+
+    /// <summary>What retention pages and popups share.</summary>
+    RetentionContext RetentionContextFor() => new(_index, _tenant.Changes, Evaluate(Capabilities.ManageRetention), () => _sites,
+        (title, content) => ShowDialog(new Records.DialogViewModel(title, TenantName, content)), CloseDialog, () => SecurityArea?.Retention, OpenPolicy, OpenLabel);
+
+    /// <summary>Opens a retention policy's page, or switches to it if it is already open.</summary>
+    public void OpenPolicy(RetentionPolicy policy) =>
+        OpenTab(t => t is RetentionPolicyPageViewModel p && p.Policy.Id == policy.Id, () => new RetentionPolicyPageViewModel(policy, RetentionContextFor()));
+
+    /// <summary>Opens a retention label's page, or switches to it if it is already open.</summary>
+    public void OpenLabel(RetentionLabel label) =>
+        OpenTab(t => t is RetentionLabelPageViewModel p && p.Label.Id == label.Id, () => new RetentionLabelPageViewModel(label, RetentionContextFor()));
+
+    /// <summary>Opens an adaptive scope's page, or switches to it if it is already open.</summary>
+    public void OpenScope(AdaptiveScope scope) =>
+        OpenTab(t => t is AdaptiveScopePageViewModel p && p.Scope.Id == scope.Id, () => new AdaptiveScopePageViewModel(scope, RetentionContextFor()));
+
+    /// <summary>Open retention pages show retention as just read; pages of deleted ones close.</summary>
+    void FollowRetention()
+    {
+        if (SecurityArea.Retention is not { } directory)
+            return;
+        foreach (var page in Tabs.OfType<RetentionPolicyPageViewModel>().ToArray())
+            if (!page.Update(directory))
+                CloseTab(page);
+        foreach (var page in Tabs.OfType<RetentionLabelPageViewModel>().ToArray())
+            if (!page.Update(directory))
+                CloseTab(page);
+        foreach (var page in Tabs.OfType<AdaptiveScopePageViewModel>().ToArray())
+            if (!page.Update(directory))
+                CloseTab(page);
     }
 
     /// <summary>Open case and search pages show eDiscovery as just read; pages of deleted ones close.</summary>

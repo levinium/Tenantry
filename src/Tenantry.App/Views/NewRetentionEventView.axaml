@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.NewRetentionEventView"
+             x:DataType="rec:NewRetentionEventViewModel">
+  <!-- Recording that an event happened: its kind, date and which content it's about. -->
+  <StackPanel Spacing="14" Width="620">
+    <Border Classes="banner neutral">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+        <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Top" />
+        <TextBlock Grid.Column="1" TextWrapping="Wrap"
+                   Text="Content labeled for this kind of event (and matching the asset IDs below) starts its retention period on this date, and may be deleted when it ends. An event can't be taken back." />
+      </Grid>
+    </Border>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="NAME" />
+      <TextBox Text="{Binding Name}" PlaceholderText="Like Cleaning contract ended" />
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="KIND OF EVENT" />
+      <ComboBox ItemsSource="{Binding EventTypes}" SelectedItem="{Binding EventType}" MinWidth="320">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="ed:EditorChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="WHEN IT HAPPENED" />
+      <DatePicker SelectedDate="{Binding Date}" />
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="FILES IT'S ABOUT (ASSET IDS, OPTIONAL)" />
+      <TextBox Text="{Binding SharePointQuery}" PlaceholderText="Like ComplianceAssetId:4471" />
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="MAIL IT'S ABOUT (KEYWORDS, OPTIONAL)" />
+      <TextBox Text="{Binding ExchangeQuery}" PlaceholderText="Like &quot;contract 4471&quot;" />
+      <TextBlock Classes="caption" Text="Leave both empty for all content labeled for this kind of event." TextWrapping="Wrap" />
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="DESCRIPTION (OPTIONAL)" />
+      <TextBox Text="{Binding Description}" />
+    </StackPanel>
+    <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="x:String">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+            <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding AddCommand}" ToolTip.Tip="Nothing changes until you apply" />
+      <Button Content="Cancel" Command="{Binding CancelCommand}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

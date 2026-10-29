@@ -1377,6 +1377,62 @@ static class InteractionChecks
             }
         });
 
+        Check("Retention: the page tab lists policies; a policy opens its page and Turn Off stages it; New Policy's editor stages a policy for all mailboxes and closes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "retentionpolicies" }));
+            var area = main.SecurityArea;
+            for (var i = 0; i < 20 && area.RetentionPolicies.Total == 0; i++)
+                Settle();
+            Expect(area.RetentionPolicies.Total > 0, "the policies are listed");
+            area.RetentionPolicies.IsPreviewOpen = true;
+            area.RetentionPolicies.SelectedRow = area.RetentionPolicies.Rows.Cast<RetentionPolicy>().Single(p => p.Name == "Keep mail seven years");
+            Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && Labelled(b, "Open Policy")));
+            var page = main.SelectedTab as RetentionPolicyPageViewModel ?? throw new InvalidOperationException("the policy page didn't open");
+            Click(window, window.GetVisualDescendants().OfType<TabItem>().First(t => t.DataContext is AppSection { Key: "where" }));
+            for (var i = 0; i < 5; i++)
+                Settle();
+            Expect(window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible && t.Text == "All of them"), "Where shows all mailboxes");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is PageButton { Text: "Turn Off" }));
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetRetentionPolicyEnabled { New: false }), "turning it off is in Pending changes");
+            main.SelectedTab = area;
+            Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && Labelled(b, "New Policy")));
+            var editor = main.Dialog?.Content as RetentionPolicyEditorViewModel ?? throw new InvalidOperationException("the policy editor didn't open");
+            editor.Name = "Keep invoices";
+            Settle();
+            var all = window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.IsEffectivelyVisible && i.DataContext is Tenantry.ViewModels.Editing.EditorChoice { Value: "all" });
+            all.BringIntoView();
+            Settle();
+            Click(window, all);
+            Expect(editor.Places[0].Mode.Value == "all", "All mailboxes chosen");
+            var save = FindButton(window, b => b.IsEffectivelyVisible && b.Command == editor.SaveCommand);
+            save.BringIntoView();
+            Settle();
+            Click(window, save);
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateRetentionPolicy { Policy.Name: "Keep invoices" }) && main.Dialog is null, "the new policy is staged and the editor closed");
+            window.Close();
+        });
+
+        Check("Retention Events: New Event opens its form and Add stages the event as a caution change", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "retentionevents" }));
+            for (var i = 0; i < 20 && main.SecurityArea.RetentionEvents?.Section.Cards.Count is null or 0; i++)
+                Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is AppButtonForm && b.Content as string == "New Event"));
+            var form = main.Dialog?.Content as NewRetentionEventViewModel ?? throw new InvalidOperationException("New Event didn't open");
+            form.Name = "Lease ended";
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == form.AddCommand));
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateRetentionEvent { IsCaution: true }) && main.Dialog is null, "the event is staged and the form closed");
+            window.Close();
+        });
+
         Check("New Case: the list's button opens the form; Add with no name says why; with one it stages the case and closes", () =>
         {
             var (window, main, _) = OpenList();

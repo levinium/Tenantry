@@ -1,0 +1,145 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.RetentionPolicyEditorView"
+             x:DataType="rec:RetentionPolicyEditorViewModel">
+  <!-- A retention policy: what kind, its name, where it applies and what it does. -->
+  <StackPanel Spacing="14" Width="700">
+    <StackPanel Spacing="4" IsVisible="{Binding IsNew}">
+      <TextBlock Classes="label" Text="WHAT IT'S FOR" />
+      <ListBox ItemsSource="{x:Static rec:RetentionPolicyEditorViewModel.Kinds}" SelectedItem="{Binding Kind}" Background="Transparent">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="2" />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="ed:EditorChoice">
+            <StackPanel Spacing="1" Margin="2,3">
+              <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+              <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </StackPanel>
+    <StackPanel Spacing="4" IsVisible="{Binding IsNew}">
+      <TextBlock Classes="label" Text="NAME" />
+      <TextBox Text="{Binding Name}" PlaceholderText="A short name, like Keep mail seven years" />
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="DESCRIPTION (OPTIONAL)" />
+      <TextBox Text="{Binding Description}" PlaceholderText="Why it exists" />
+    </StackPanel>
+
+    <!-- What it does -->
+    <ContentControl Content="{Binding Setting}" IsVisible="{Binding IsRetention}" />
+    <StackPanel Spacing="4" IsVisible="{Binding IsPublish}">
+      <TextBlock Classes="label" Text="LABELS PEOPLE CAN CHOOSE" />
+      <ItemsControl ItemsSource="{Binding Labels}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="rec:TickItem">
+            <CheckBox IsChecked="{Binding IsChecked}">
+              <StackPanel Spacing="1">
+                <TextBlock Text="{Binding Label}" />
+                <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" />
+              </StackPanel>
+            </CheckBox>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Classes="muted" Text="No labels yet: make one under Retention Labels first." IsVisible="{Binding !HasLabels}" />
+    </StackPanel>
+    <StackPanel Spacing="8" IsVisible="{Binding IsAutoApply}">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="label" Text="LABEL TO APPLY" />
+        <ComboBox ItemsSource="{Binding AutoLabels}" SelectedItem="{Binding AutoLabel}" MinWidth="300">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="ed:EditorChoice">
+              <StackPanel Spacing="1">
+                <TextBlock Text="{Binding Label}" />
+                <TextBlock Classes="caption" Text="{Binding Detail}" />
+              </StackPanel>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <TextBlock Classes="label" Text="TO CONTENT MATCHING (KEYWORD QUERY)" />
+        <TextBox Text="{Binding Query}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="50" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
+        <TextBlock Classes="caption" Text="Leave empty to label everything in its places. For example: contract AND (signed OR executed)" TextWrapping="Wrap" />
+      </StackPanel>
+    </StackPanel>
+
+    <!-- Where -->
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="WHERE" />
+      <ListBox ItemsSource="{x:Static rec:RetentionPolicyEditorViewModel.WhereModes}" SelectedItem="{Binding WhereMode}" Classes="chips">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="6" />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="ed:EditorChoice">
+            <TextBlock Text="{Binding Label}" ToolTip.Tip="{Binding Detail}" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </StackPanel>
+    <StackPanel Spacing="12" IsVisible="{Binding UsesPlaces}">
+      <ItemsControl ItemsSource="{Binding Places}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+      <CheckBox IsChecked="{Binding PublicFolders}" Content="Also public folders (all of them)" />
+      <TextBlock Classes="caption" TextWrapping="Wrap"
+                 Text="Teams messages need a policy of their own, and labels can't be published to or applied in them." />
+    </StackPanel>
+    <StackPanel Spacing="4" IsVisible="{Binding UsesScopes}">
+      <ItemsControl ItemsSource="{Binding Scopes}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="rec:TickItem">
+            <CheckBox IsChecked="{Binding IsChecked}">
+              <StackPanel Spacing="1">
+                <TextBlock Text="{Binding Label}" />
+                <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" />
+              </StackPanel>
+            </CheckBox>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Classes="muted" Text="No adaptive scopes yet: make one under Adaptive Scopes first." IsVisible="{Binding !HasScopes}" />
+    </StackPanel>
+
+    <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="x:String">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+            <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Content="{Binding SaveText}" Command="{Binding SaveCommand}" ToolTip.Tip="Nothing changes until you apply" />
+      <Button Content="Cancel" Command="{Binding CancelCommand}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

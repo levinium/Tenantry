@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.AdaptiveScopeEditorView"
+             x:DataType="rec:AdaptiveScopeEditorViewModel">
+  <!-- An adaptive scope: users, groups or sites, picked by a query. -->
+  <StackPanel Spacing="14" Width="640">
+    <TextBlock Classes="caption" TextWrapping="Wrap"
+               Text="Adaptive scopes need Microsoft 365 E5 (or E5 Compliance). Policies that use one follow it as people, groups and sites change." />
+    <StackPanel Spacing="4" IsVisible="{Binding IsNew}">
+      <TextBlock Classes="label" Text="NAME" />
+      <TextBox Text="{Binding Name}" PlaceholderText="A short name, like Finance department" />
+    </StackPanel>
+    <StackPanel Spacing="4" IsVisible="{Binding IsNew}">
+      <TextBlock Classes="label" Text="OF" />
+      <ListBox ItemsSource="{x:Static rec:AdaptiveScopeEditorViewModel.Types}" SelectedItem="{Binding Type}" Classes="chips">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="6" />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="ed:EditorChoice">
+            <TextBlock Text="{Binding Label}" ToolTip.Tip="{Binding Detail}" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="WHO OR WHAT IT COVERS (QUERY)" />
+      <TextBox Text="{Binding Query}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="50" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
+      <TextBlock Classes="caption" Text="{Binding QueryHint}" TextWrapping="Wrap" />
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="DESCRIPTION (OPTIONAL)" />
+      <TextBox Text="{Binding Description}" />
+    </StackPanel>
+    <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="x:String">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+            <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Content="{Binding SaveText}" Command="{Binding SaveCommand}" ToolTip.Tip="Nothing changes until you apply" />
+      <Button Content="Cancel" Command="{Binding CancelCommand}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

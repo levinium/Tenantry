@@ -34,6 +34,10 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         new("auditlog", "Audit Log", "DocumentSearch"),
         new("cases", "eDiscovery Cases", "Briefcase"),
         new("searches", "Content Searches", "SearchSquare"),
+        new("retentionpolicies", "Retention Policies", "ShieldCheckmark"),
+        new("retentionlabels", "Retention Labels", "Tag"),
+        new("adaptivescopes", "Adaptive Scopes", "Filter"),
+        new("retentionevents", "Retention Events", "CalendarClock"),
         new("roles", "Admin Roles", "PersonKey"),
         new("myroles", "My Roles", "PersonStar"),
         new("approvals", "Approvals", "ApprovalsApp"),
@@ -48,7 +52,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         IAuthMethodRecords? authMethods = null, bool canEditAuth = false, string? cantEditAuth = null,
         IRiskRecords? risk = null, Availability? canManageRisk = null, Action<string>? openUserById = null, Action<string>? openAppById = null,
         IAuditRecords? audit = null, IEDiscoveryRecords? eDiscovery = null, Action<EdCase>? openCase = null, Action<EdSearch>? openSearch = null,
-        Action? newCase = null, Action? newSearch = null, string? cantEditEDiscovery = null)
+        Action? newCase = null, Action? newSearch = null, string? cantEditEDiscovery = null,
+        IRetentionRecords? retention = null, RetentionContext? retentionContext = null, Action<AdaptiveScope>? openScope = null, string? cantEditRetention = null)
     {
         _roles = roles;
         _ca = ca;
@@ -64,6 +69,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         AuthMethodsPage = new Records.AuthMethodsViewModel(authMethods, pipeline, canEditAuth, cantEditAuth, index);
         AuditLog = new Records.AuditLogViewModel(audit, index, listState, now);
         InitEDiscovery(eDiscovery, pipeline, listState, now, openCase, openSearch, newCase, newSearch, cantEditEDiscovery);
+        InitRetention(retention, pipeline, listState, now, retentionContext, openScope, cantEditRetention);
         _apps = apps;
         _risk = risk;
         var riskEdit = pipeline is not null && canManageRisk?.IsAvailable == true;
@@ -221,7 +227,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals), nameof(ShowPolicies), nameof(ShowWhatIf), nameof(ShowLocations),
         nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps), nameof(ShowDeletedApps), nameof(ShowAuthMethods), nameof(ShowRiskyUsers), nameof(ShowRiskDetections), nameof(ShowRiskyApps), nameof(RiskNote), nameof(HasRiskNote), nameof(ShowAuditLog),
-        nameof(ShowCases), nameof(ShowSearches))]
+        nameof(ShowCases), nameof(ShowSearches), nameof(ShowRetentionPolicies), nameof(ShowRetentionLabels), nameof(ShowAdaptiveScopes), nameof(ShowRetentionEvents))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     // ---- Apps (8c) -------------------------------------------------------------------------------
@@ -415,6 +421,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         if (ShowAuditLog)
             AuditLog.Shown();
         EDiscoveryShown();
+        RetentionShown();
         if (ShowAuthMethods)
             AuthMethodsPage.Shown();
         if (ShowDeletedApps)

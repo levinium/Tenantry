@@ -55,6 +55,27 @@
     <DataTemplate DataType="rec:EdItemEditorViewModel">
       <views:EdItemEditorView />
     </DataTemplate>
+    <DataTemplate DataType="rec:PlacesEditor">
+      <views:PlacesEditorView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:RetentionSettingEditor">
+      <views:RetentionSettingView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:RetentionPolicyEditorViewModel">
+      <views:RetentionPolicyEditorView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:RetentionLabelEditorViewModel">
+      <views:RetentionLabelEditorView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:AdaptiveScopeEditorViewModel">
+      <views:AdaptiveScopeEditorView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:NewEventTypeViewModel">
+      <views:NewEventTypeView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:NewRetentionEventViewModel">
+      <views:NewRetentionEventView />
+    </DataTemplate>
     <DataTemplate DataType="rec:EdPurgeViewModel">
       <views:EdPurgeView />
     </DataTemplate>

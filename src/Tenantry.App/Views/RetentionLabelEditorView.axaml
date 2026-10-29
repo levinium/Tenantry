@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.RetentionLabelEditorView"
+             x:DataType="rec:RetentionLabelEditorViewModel">
+  <!-- A retention label: what it does, whether it makes records, and who reviews deletions. -->
+  <StackPanel Spacing="14" Width="680">
+    <StackPanel Spacing="4" IsVisible="{Binding IsNew}">
+      <TextBlock Classes="label" Text="NAME" />
+      <TextBox Text="{Binding Name}" PlaceholderText="What people will see, like Financial record" />
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="DESCRIPTION FOR PEOPLE (OPTIONAL)" />
+      <TextBox Text="{Binding Description}" PlaceholderText="When to use it" />
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="NOTES FOR ADMINS (OPTIONAL)" />
+      <TextBox Text="{Binding Notes}" PlaceholderText="Why it exists, who asked for it" />
+    </StackPanel>
+    <TextBlock Classes="caption" TextWrapping="Wrap" IsVisible="{Binding !IsNew}"
+               Text="Once a label is made, Purview lets its words, period and reviewers change, but not what it does or whether it marks records." />
+    <ContentControl Content="{Binding Setting}" />
+    <StackPanel Spacing="4" IsVisible="{Binding Setting.IsEventBased}">
+      <TextBlock Classes="label" Text="KIND OF EVENT" />
+      <ComboBox ItemsSource="{Binding EventTypes}" SelectedItem="{Binding EventType}" MinWidth="300" IsEnabled="{Binding IsNew}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="ed:EditorChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+    </StackPanel>
+    <CheckBox IsChecked="{Binding IsRecord}" IsEnabled="{Binding IsNew}"
+              Content="Mark content as a record: it can't be edited or deleted while it has this label" />
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label" Text="REVIEW BEFORE DELETING (OPTIONAL)" />
+      <ItemsControl ItemsSource="{Binding Reviewers}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="6" LineSpacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="rec:PlaceChip">
+            <Border Classes="chip">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" ToolTip.Tip="{Binding Detail}" />
+                <Button Classes="chipx" Command="{Binding RemoveCommand}" ToolTip.Tip="Take them off">
+                  <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+                </Button>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <views:PersonPickerView DataContext="{Binding ReviewerPicker}" MaxWidth="460" HorizontalAlignment="Left" />
+      <TextBlock Classes="caption" TextWrapping="Wrap" Text="Reviewers decide, item by item, whether content is deleted when its period ends." />
+    </StackPanel>
+    <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="x:String">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+            <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Content="{Binding SaveText}" Command="{Binding SaveCommand}" ToolTip.Tip="Nothing changes until you apply" />
+      <Button Content="Cancel" Command="{Binding CancelCommand}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

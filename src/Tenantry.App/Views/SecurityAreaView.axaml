@@ -456,6 +456,108 @@
         </ContentControl.DataTemplates>
       </ContentControl>
     </DockPanel>
+    <!-- Retention (8f-3): policies, labels, scopes and events, read live from Purview together, with Refresh -->
+    <DockPanel IsVisible="{Binding ShowRetentionPolicies}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Policies keep content for a time, delete it after a time, or both; others publish labels for people to choose, or apply one. Purview asks you to sign in once more the first time." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasRetentionNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding RetentionNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding RetentionPolicies}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+    <DockPanel IsVisible="{Binding ShowRetentionLabels}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Labels people (or a policy) put on content to keep or delete it, or to mark it as a record. Publish a label with a policy so people can choose it." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasRetentionNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding RetentionNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding RetentionLabels}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+    <DockPanel IsVisible="{Binding ShowAdaptiveScopes}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Users, groups or sites picked by a query; policies that use a scope follow it as things change." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasRetentionNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding RetentionNote}" />
+          </StackPanel>
+        </Border>
+        <Border Classes="banner neutral" IsVisible="{Binding HasScopesNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding ScopesNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding AdaptiveScopes}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+    <DockPanel IsVisible="{Binding ShowRetentionEvents}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Classes="ghost" Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="Labels can start their period when an event happens, such as a contract ending. Record the event here when it does." />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding HasRetentionNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding RetentionNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ScrollViewer>
+        <ContentControl Content="{Binding RetentionEvents.Section}" HorizontalAlignment="Left" Margin="0,0,0,24" />
+      </ScrollViewer>
+    </DockPanel>
     <!-- Audit log search (8e) -->
     <Panel IsVisible="{Binding ShowAuditLog}">
       <views:AuditLogView DataContext="{Binding AuditLog}" />

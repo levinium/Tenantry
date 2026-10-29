@@ -696,6 +696,38 @@ On a search's page, with an Actions tab listing what's been done with its result
   Billing account is not enabled" on a tenant without pay-as-you-go, which the popup now explains,
   pointing to Export in Purview.
 
+### Retention (8f-3)
+
+Four page tabs in Security & Compliance (Retention Policies, Retention Labels, Adaptive Scopes,
+Retention Events), read live from Purview's cmdlets together (`IRetentionRecords`) through the
+search-only sign-in, which retention writes need too.
+
+- **Reading:** a policy listed has no places; read by name it has them (by display name for
+  mailboxes). Its one rule says what it does: a retention rule (action, duration in days or
+  "Unlimited", from creation or last change), or one that publishes labels (comma-separated) or
+  applies one (with a query). Labels carry their action, period and basis (created, changed,
+  labeled, or an event), record or regulatory record, event type and disposition reviewers.
+  Adaptive scopes answer "not licensed" without Microsoft 365 E5 (or E5 Compliance), which their
+  page says.
+- **Pages:** policy (Overview, Where; Change Policy, Turn Off/On, Delete), label (Overview, Used By;
+  Change Label, Delete), scope (query, Used By; Change, Delete), and Retention Events (event types,
+  with Delete for unused custom ones, and events, with New Event). A policy with Preservation Lock,
+  or one being deleted, offers no changes; a regulatory label neither.
+- **Editors:** a policy's kind (keep or delete, publish labels, apply a label), places of each kind
+  (None, All or Chosen) or adaptive scopes, and what it does; checks that Teams places aren't mixed
+  with others and labels aren't published to Teams. A label's action, period, basis, event type,
+  record flag and reviewers; once made, only its words, period and reviewers can change (Purview's
+  rule), so the rest is shown locked.
+- **Changes** (`RetentionChange`): policies compare a whole `RetentionPolicyDraft` before and
+  after; the executor sends Add/Remove…Location for places that changed, then the rule by its ID.
+  A retention rule is named; a rule that publishes or applies labels can't be (Purview's parameter
+  sets, seen live); Teams rules take no expiration option. If a new policy's rule fails, the policy
+  is removed again. Deleting content, shortening, turning off, recording an event: caution changes;
+  deleting a policy or label: the name is typed.
+- **Purview's pace:** a new or changed policy is "Pending" while Purview puts it in place, and
+  changes are refused until then ("Previous changes ... are being deployed"), which Tenantry says
+  plainly; deleted policies and labels stay listed as being deleted for a while.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

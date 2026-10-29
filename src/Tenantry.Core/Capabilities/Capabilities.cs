@@ -70,7 +70,11 @@ public static class Capabilities
     public static readonly Capability ManageEDiscovery = new("compliance.ediscovery", "Manage eDiscovery Cases, Searches and Holds",
         [ComplianceAdministrator]);
 
+    /// <summary>Retention: policies, labels, adaptive scopes and events (Purview checks its own roles too).</summary>
+    public static readonly Capability ManageRetention = new("compliance.retention", "Manage Retention Policies and Labels",
+        [ComplianceAdministrator]);
+
     public static IReadOnlyList<Capability> All { get; } =
         [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess, ManageDevices,
-            ManageSites, ManageRoles, ManageApps, ManageAuthPolicy, ManageRisk, ManageEDiscovery];
+            ManageSites, ManageRoles, ManageApps, ManageAuthPolicy, ManageRisk, ManageEDiscovery, ManageRetention];
 }
