@@ -27,6 +27,11 @@ public static class ManualSetupScript
             sb.AppendLine($"    '{api.ResourceAppId}' = @({string.Join(", ", api.DelegatedScopes.Select(s => $"'{s}'"))})");
         sb.AppendLine("}");
         sb.AppendLine();
+        // Microsoft's service principals some APIs need may not exist in a tenant yet (Microsoft's
+        // own instructions add them the same way).
+        foreach (var api in TenantryPermissions.All.Where(a => a.CreateIfMissing))
+            sb.AppendLine($"if (-not (Get-MgServicePrincipal -Filter \"appId eq '{api.ResourceAppId}'\")) {{ New-MgServicePrincipal -AppId '{api.ResourceAppId}' | Out-Null }}   # {api.ResourceName}");
+        sb.AppendLine();
         sb.AppendLine("$access = @(); $resources = @{}");
         sb.AppendLine("foreach ($resourceAppId in $wanted.Keys) {");
         sb.AppendLine("    $sp = Get-MgServicePrincipal -Filter \"appId eq '$resourceAppId'\" -Property id,appId,displayName,oauth2PermissionScopes");

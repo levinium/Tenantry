@@ -39,6 +39,54 @@ public sealed record EdMember(string Name, string? Address);
 /// <summary>A case's searches, holds and members, read when its page opens.</summary>
 public sealed record EdCaseDetail(IReadOnlyList<EdSearch> Searches, IReadOnlyList<EdHold> Holds, IReadOnlyList<EdMember> Members);
 
+/// <summary>Something done with a search's results (a purge; earlier, previews and exports), as Purview lists it.</summary>
+/// <param name="Action">"Purge", "Preview" or "Export".</param>
+/// <param name="Status">"Starting", "InProgress", "Completed", "PartiallySucceeded" or "Failed".</param>
+/// <param name="Results">Purview's summary text ("Purge Type: SoftDelete; Item count: 2; …").</param>
+public sealed record EdAction(string Name, string SearchName, string Action, string Status, DateTimeOffset? Created, DateTimeOffset? Ended, string? RunBy,
+    string? Results, string? Errors)
+{
+    /// <summary>"Item count: 2" from the results, when Purview gave one.</summary>
+    public long? ItemCount => Results is { } r && System.Text.RegularExpressions.Regex.Match(r, @"Item count:\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase) is { Success: true } m
+        && long.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : null;
+
+    /// <summary>"SoftDelete" or "HardDelete" for a purge.</summary>
+    public string? PurgeType => Results is { } r && System.Text.RegularExpressions.Regex.Match(r, @"Purge Type:\s*(\w+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase) is { Success: true } m
+        ? m.Groups[1].Value : null;
+}
+
+/// <summary>How to export a search's results.</summary>
+/// <param name="Pst">One PST per mailbox; otherwise each message as its own .msg file.</param>
+/// <param name="PartlyIndexed">Also items Purview couldn't fully read (some attachments, encrypted files).</param>
+public sealed record EdExportOptions(bool Pst, bool PartlyIndexed);
+
+/// <summary>One file an export made, ready to download.</summary>
+public sealed record EdExportFile(string Name, string Url, long Size);
+
+/// <summary>How an export is going.</summary>
+/// <param name="Status">Graph's word: "notStarted", "running", "succeeded", "failed", "partiallySucceeded".</param>
+public sealed record EdExportProgress(string Status, int Percent, IReadOnlyList<EdExportFile> Files, string? Problem)
+{
+    public bool IsDone => Status is "succeeded" or "partiallySucceeded";
+    public bool IsFailed => Status == "failed";
+}
+
+/// <summary>
+/// Exporting a search's results (8f-2) through Graph's eDiscovery API: the export is made in
+/// Purview, then its files are downloaded. On tenants with Standard licenses Microsoft charges for
+/// this through Purview pay-as-you-go billing, so it's offered with that warning and a link to
+/// export in Purview instead.
+/// </summary>
+public interface IEdExports
+{
+    /// <summary>Starts an export; returns what <see cref="GetExportAsync"/> takes.</summary>
+    Task<string> StartExportAsync(string caseName, string searchName, EdExportOptions options, CancellationToken cancellationToken = default);
+
+    Task<EdExportProgress> GetExportAsync(string exportId, CancellationToken cancellationToken = default);
+
+    Task DownloadAsync(EdExportFile file, Stream to, IProgress<long>? progress, CancellationToken cancellationToken = default);
+}
+
 /// <summary>Every case, and every search (in a case or not).</summary>
 public sealed record EdDirectory(IReadOnlyList<EdCase> Cases, IReadOnlyList<EdSearch> Searches);
 
@@ -54,6 +102,9 @@ public interface IEDiscoveryRecords
     Task<EdCaseDetail> GetCaseDetailAsync(EdCase eCase, CancellationToken cancellationToken = default);
 
     Task<EdSearchDetail> GetEdSearchAsync(string name, CancellationToken cancellationToken = default);
+
+    /// <summary>What's been done with a search's results (purges), newest first.</summary>
+    Task<IReadOnlyList<EdAction>> GetSearchActionsAsync(string? caseName, string searchName, CancellationToken cancellationToken = default);
 
     /// <summary>Runs a search again to count what it finds now. Changes nothing, so it isn't a staged change.</summary>
     Task StartEdSearchAsync(string name, CancellationToken cancellationToken = default);

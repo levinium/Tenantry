@@ -17,4 +17,10 @@ public static class Platform
 
     /// <summary>Asks for a CSV file and reads it: its name and text, or null when cancelled.</summary>
     public static Func<Task<(string Name, string Text)?>> OpenCsv { get; set; } = () => Task.FromResult<(string, string)?>(null);
+
+    /// <summary>Asks for a folder on this computer: its path, or null when cancelled.</summary>
+    public static Func<Task<string?>> PickFolder { get; set; } = () => Task.FromResult<string?>(null);
+
+    /// <summary>Shows a folder on this computer in the system's file browser.</summary>
+    public static Action<string> OpenFolder { get; set; } = _ => { };
 }

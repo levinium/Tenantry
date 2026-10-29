@@ -80,8 +80,42 @@ public sealed partial class GraphUserRecords : IEDiscoveryRecords
             EdStr(s, "Errors") is { Length: > 0 } errors ? errors : null);
     }
 
-    public async Task StartEdSearchAsync(string name, CancellationToken cancellationToken = default) =>
-        await Compliance("Start-ComplianceSearch", new() { ["Identity"] = name, ["Confirm"] = false }, cancellationToken);
+    public async Task<IReadOnlyList<EdAction>> GetSearchActionsAsync(string? caseName, string searchName, CancellationToken cancellationToken = default)
+    {
+        var listed = await Compliance("Get-ComplianceSearchAction", caseName is null ? null : new() { ["Case"] = caseName }, cancellationToken);
+        var mine = listed.Where(a => string.Equals(EdStr(a, "SearchName"), searchName, StringComparison.OrdinalIgnoreCase)).ToArray();
+        // Listing leaves out what each action did; reading one with -Details has it.
+        var read = await Task.WhenAll(mine.Select(async a =>
+        {
+            var name = EdStr(a, "Name");
+            if (name is null)
+                return a;
+            try
+            {
+                return (await Compliance("Get-ComplianceSearchAction", new() { ["Identity"] = name, ["Details"] = true }, cancellationToken)).FirstOrDefault() is
+                    { ValueKind: JsonValueKind.Object } one ? one : a;
+            }
+            catch (CmdletException)
+            {
+                return a;
+            }
+        }));
+        return [.. read.Select(a => new EdAction(EdStr(a, "Name") ?? "", searchName, EdStr(a, "Action") ?? "", EdStr(a, "Status") ?? "",
+            Utc(a, "CreatedTime"), Utc(a, "JobEndTime"), EdStr(a, "RunBy"), EdStr(a, "Results") is { Length: > 0 } r ? r : null,
+            EdStr(a, "Errors") is { Length: > 0 } e ? e : null)).OrderByDescending(a => a.Created)];
+    }
+
+    public async Task StartEdSearchAsync(string name, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await Compliance("Start-ComplianceSearch", new() { ["Identity"] = name, ["Confirm"] = false }, cancellationToken);
+        }
+        // Already running (just made, or started elsewhere): that's what was asked for (seen live).
+        catch (CmdletException e) when (e.Detail.Contains("has already been started", StringComparison.OrdinalIgnoreCase))
+        {
+        }
+    }
 
     static EdCase ToCase(JsonElement c) => new(EdStr(c, "Identity") ?? EdStr(c, "Name") ?? "", EdStr(c, "Name") ?? "A case", EdStr(c, "Description") is { Length: > 0 } d ? d : null,
         string.Equals(EdStr(c, "Status"), "Closed", StringComparison.OrdinalIgnoreCase), Utc(c, "CreatedDateTime"), Utc(c, "LastModifiedDateTime"),

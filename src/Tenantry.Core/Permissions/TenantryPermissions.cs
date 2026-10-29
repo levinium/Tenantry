@@ -5,11 +5,14 @@ namespace Tenantry.Core.Permissions;
 /// <param name="ResourceName">Shown in the setup wizard.</param>
 /// <param name="Audience">Token audience; a token request asks for <c>{Audience}/.default</c>.</param>
 /// <param name="DelegatedScopes">Permission names, as the API's service principal publishes them.</param>
+/// <param name="CreateIfMissing">Microsoft's service principal for the API may not exist in a tenant
+/// yet; setup creates it (as Microsoft's own instructions do) rather than skipping the API.</param>
 public sealed record ApiPermissions(
     string ResourceAppId,
     string ResourceName,
     string Audience,
-    IReadOnlyList<string> DelegatedScopes)
+    IReadOnlyList<string> DelegatedScopes,
+    bool CreateIfMissing = false)
 {
     public string DefaultScope => $"{Audience}/.default";
 }
@@ -114,7 +117,18 @@ public static class TenantryPermissions
         "AllSites.FullControl",
     ]);
 
-    public static IReadOnlyList<ApiPermissions> All { get; } = [Graph, Exchange, SharePoint];
+    public const string PurviewEDiscoveryAppId = "b26e684c-5068-4120-a679-64a5d2c909d9";
+
+    /// <summary>
+    /// Microsoft Purview eDiscovery (8f-2): downloading an export's files needs a token for this
+    /// app (its ID is its audience) with eDiscovery.Download.Read, sent with X-AllowWithAADToken.
+    /// </summary>
+    public static readonly ApiPermissions PurviewEDiscovery = new(PurviewEDiscoveryAppId, "Microsoft Purview eDiscovery", PurviewEDiscoveryAppId,
+    [
+        "eDiscovery.Download.Read",
+    ], CreateIfMissing: true);
+
+    public static IReadOnlyList<ApiPermissions> All { get; } = [Graph, Exchange, SharePoint, PurviewEDiscovery];
 
     /// <summary>
     /// What a permission lets Tenantry do, in words, for the "grant missing permissions" banner. Ones
@@ -135,6 +149,7 @@ public static class TenantryPermissions
         "Policy.ReadWrite.SecurityDefaults" => "turning security defaults on or off",
         "IdentityRiskEvent.Read.All" => "showing risk detections",
         "IdentityRiskyServicePrincipal.ReadWrite.All" => "showing and dismissing risky apps",
+        "eDiscovery.Download.Read" => "downloading eDiscovery exports",
         _ => null,
     };
 

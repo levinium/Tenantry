@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.EdPurgeView"
+             x:DataType="rec:EdPurgeViewModel">
+  <!-- Search and Delete: what will go, how, and Purview's limits. -->
+  <StackPanel Spacing="14" Width="620">
+    <StackPanel Spacing="4">
+      <TextBlock Classes="label" Text="WHAT THE SEARCH FOUND" />
+      <TextBlock Text="{Binding Found}" TextWrapping="Wrap" />
+      <SelectableTextBlock Text="{Binding Query}" TextWrapping="Wrap" FontSize="12" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
+    </StackPanel>
+    <Border Classes="banner neutral">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+        <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Top" />
+        <TextBlock Grid.Column="1" Text="{Binding Limits}" TextWrapping="Wrap" />
+      </Grid>
+    </Border>
+    <StackPanel Spacing="4" IsVisible="{Binding CanAdd}">
+      <TextBlock Classes="label" Text="HOW TO DELETE" />
+      <ListBox ItemsSource="{x:Static rec:EdPurgeViewModel.Kinds}" SelectedItem="{Binding Kind}" Background="Transparent">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="4" />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="ed:EditorChoice">
+            <StackPanel Spacing="2" Margin="2,4">
+              <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+              <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </StackPanel>
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" IsVisible="{Binding HasProblem}">
+      <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+      <TextBlock Grid.Column="1" Text="{Binding Problem}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+    </Grid>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="danger-outline" Content="Add to Pending Changes" Command="{Binding AddCommand}" IsEnabled="{Binding CanAdd}"
+              ToolTip.Tip="Nothing is deleted until you apply; you type the search's name to confirm" />
+      <Button Content="Cancel" Command="{Binding CancelCommand}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

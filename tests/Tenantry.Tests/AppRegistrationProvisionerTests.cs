@@ -65,7 +65,7 @@ public class AppRegistrationProvisionerTests
         Assert.All(access.SelectMany(a => a!["resourceAccess"]!.AsArray()), r => Assert.Equal("Scope", (string?)r!["type"]));
 
         var grants = http.Requests.Where(r => r.Method == HttpMethod.Post && r.Url.AbsolutePath.EndsWith("/oauth2PermissionGrants")).Select(r => r.Json!).ToList();
-        Assert.Equal(3, grants.Count);
+        Assert.Equal(TenantryPermissions.All.Count, grants.Count);
         Assert.All(grants, g =>
         {
             Assert.Equal("sp-app-1", (string?)g["clientId"]);
@@ -106,8 +106,8 @@ public class AppRegistrationProvisionerTests
         Assert.DoesNotContain(http.Requests, r => r.Method == HttpMethod.Post && r.Url.AbsolutePath.EndsWith("/servicePrincipals"));
         var patched = http.Requests.Single(r => r.Method == HttpMethod.Patch && r.Url.AbsolutePath.EndsWith("/grant-graph")).Json!;
         Assert.Equal(string.Join(' ', TenantryPermissions.Graph.DelegatedScopes), (string?)patched["scope"]);
-        // Exchange and SharePoint had no grant yet, so they are created.
-        Assert.Equal(2, http.Requests.Count(r => r.Method == HttpMethod.Post && r.Url.AbsolutePath.EndsWith("/oauth2PermissionGrants")));
+        // The other APIs had no grant yet, so they are created.
+        Assert.Equal(TenantryPermissions.All.Count - 1, http.Requests.Count(r => r.Method == HttpMethod.Post && r.Url.AbsolutePath.EndsWith("/oauth2PermissionGrants")));
         // An older registration that let anyone sign in is tightened; an existing assignment is kept.
         Assert.True((bool?)http.Requests.Single(r => r.Method == HttpMethod.Patch && r.Url.AbsolutePath.EndsWith("/servicePrincipals/sp-app-1")).Json!["appRoleAssignmentRequired"]);
         Assert.DoesNotContain(http.Requests, r => r.Method == HttpMethod.Post && r.Url.AbsolutePath.EndsWith("/appRoleAssignedTo"));

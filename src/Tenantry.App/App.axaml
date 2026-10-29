@@ -55,6 +55,12 @@
     <DataTemplate DataType="rec:EdItemEditorViewModel">
       <views:EdItemEditorView />
     </DataTemplate>
+    <DataTemplate DataType="rec:EdPurgeViewModel">
+      <views:EdPurgeView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:EdExportViewModel">
+      <views:EdExportView />
+    </DataTemplate>
     <DataTemplate DataType="rec:AppSection">
       <views:AppSectionView />
     </DataTemplate>

@@ -8,8 +8,10 @@ namespace Tenantry.Demo;
 /// hold, and members. A search's counts are made up from its name and places, so they stay the same
 /// between runs; running one again marks it done at once.
 /// </summary>
-public sealed partial class DemoUserRecords : IEDiscoveryRecords
+public sealed partial class DemoUserRecords : IEDiscoveryRecords, IEdExports
 {
+    readonly List<EdAction> _actions = [];
+    readonly Dictionary<string, int> _exports = [];
     List<EdCase>? _cases;
     List<EdSearch>? _searches;
     readonly Dictionary<string, EdSearchDetail> _searchDetails = new(StringComparer.OrdinalIgnoreCase);
@@ -86,6 +88,36 @@ public sealed partial class DemoUserRecords : IEDiscoveryRecords
         return _searchDetails.TryGetValue(name, out var detail) ? detail : throw new InvalidOperationException($"The search \"{name}\" wasn't found; it may have been deleted.");
     }
 
+    public async Task<IReadOnlyList<EdAction>> GetSearchActionsAsync(string? caseName, string searchName, CancellationToken cancellationToken = default)
+    {
+        await EnsureEDiscoveryAsync(cancellationToken);
+        return [.. _actions.Where(a => string.Equals(a.SearchName, searchName, StringComparison.OrdinalIgnoreCase)).OrderByDescending(a => a.Created)];
+    }
+
+    /// <summary>A pretend export: it moves on a third each time it's checked, then offers one small file.</summary>
+    public Task<string> StartExportAsync(string caseName, string searchName, EdExportOptions options, CancellationToken cancellationToken = default)
+    {
+        var id = $"demo-export-{_exports.Count + 1}|{searchName}|{(options.Pst ? "pst" : "msg")}";
+        _exports[id] = 0;
+        return Task.FromResult(id);
+    }
+
+    public Task<EdExportProgress> GetExportAsync(string exportId, CancellationToken cancellationToken = default)
+    {
+        var step = _exports[exportId] = Math.Min(3, _exports.GetValueOrDefault(exportId) + 1);
+        var parts = exportId.Split('|');
+        return Task.FromResult(step < 3
+            ? new EdExportProgress("running", step * 33, [], null)
+            : new EdExportProgress("succeeded", 100, [new EdExportFile($"{parts[1]} (demo).txt", "demo://" + exportId, 120)], null));
+    }
+
+    public async Task DownloadAsync(EdExportFile file, Stream to, IProgress<long>? progress, CancellationToken cancellationToken = default)
+    {
+        var text = System.Text.Encoding.UTF8.GetBytes("Demo export from Tenantry. A real export holds the mail and files the search found." + Environment.NewLine);
+        await to.WriteAsync(text, cancellationToken);
+        progress?.Report(text.Length);
+    }
+
     public async Task StartEdSearchAsync(string name, CancellationToken cancellationToken = default)
     {
         await EnsureEDiscoveryAsync(cancellationToken);
@@ -155,6 +187,11 @@ public sealed partial class DemoUserRecords : IEDiscoveryRecords
             case UpdateSearch u when _searchDetails.TryGetValue(u.Search.Name, out var old):
                 _searchDetails[u.Search.Name] = old with { Query = u.NewQuery.Trim(), Mailboxes = Names(u.NewMailboxes), Sites = Names(u.NewSites), PublicFolders = u.NewPublicFolders };
                 Ran(u.Search.Name);
+                break;
+            case PurgeSearch p when _searchDetails.TryGetValue(p.Search.Name, out var found):
+                var removed = Math.Min(found.Items, PurgeSearch.PerMailbox * Math.Max(1, found.Mailboxes.Count));
+                _actions.Add(new EdAction(p.Search.Name + "_Purge", p.Search.Name, "Purge", "Completed", now, now, "Avery Admin",
+                    $"Purge Type: {(p.Hard ? "HardDelete" : "SoftDelete")}; Item count: {removed}; Total size {removed * 48_000}; Details: {{}}", null));
                 break;
             case DeleteSearch d:
                 _searches!.RemoveAll(s => s.Name == d.Search.Name);

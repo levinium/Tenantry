@@ -1,3 +1,4 @@
+using Avalonia.Platform.Storage;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
@@ -30,6 +31,8 @@ public partial class App : Application
             Platform.CopyText = text => _ = CopyAsync(window, text);
             Platform.SaveCsv = (name, csv) => SaveCsvAsync(window, name, csv);
             Platform.OpenCsv = () => OpenCsvAsync(window);
+            Platform.PickFolder = () => PickFolderAsync(window);
+            Platform.OpenFolder = path => _ = window.Launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(path));
             desktop.MainWindow = window;
             // Once the window is up (so a browser sign-in has something to return to).
             window.Opened += async (_, _) => await shell.StartAsync();
@@ -53,6 +56,16 @@ public partial class App : Application
         // Excel saves CSV with a byte-order mark (UTF-8) or in the system code page; the reader finds out which.
         using var reader = new StreamReader(stream, detectEncodingFromByteOrderMarks: true);
         return (files[0].Name, await reader.ReadToEndAsync());
+    }
+
+    static async Task<string?> PickFolderAsync(MainWindow window)
+    {
+        var folders = await window.StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
+        {
+            Title = "Choose a Folder",
+            AllowMultiple = false,
+        });
+        return folders.Count == 0 ? null : folders[0].TryGetLocalPath();
     }
 
     static async Task<bool> SaveCsvAsync(MainWindow window, string suggestedName, string csv)

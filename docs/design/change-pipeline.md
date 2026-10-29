@@ -670,6 +670,32 @@ and its refusal is shown as it comes.
   Purview lifts it, from about 90 seconds to about 20 minutes, and the case can't be deleted until
   it's gone; the page shows it as Being Deleted.
 
+### Search and Delete, and export (8f-2)
+
+On a search's page, with an Actions tab listing what's been done with its results.
+
+- **Previews are gone:** Purview retired the cmdlet's -Preview (and -Export, -Report) in the cloud
+  in May 2025, and Graph has no item preview outside eDiscovery Premium review sets, so Tenantry
+  shows counts per place, as Purview Standard does.
+- **Search and Delete** (`PurgeSearch`, New-ComplianceSearchAction -Purge): soft (recoverable
+  until the deleted-items retention period ends) or hard delete, at most 10 items per mailbox per
+  run, mail only. Offered once the search has run and found something; refused for a search with
+  no query (it would take everything). A caution change: the search's name is typed. Test mode
+  judges the search and each mailbox. Needs the search-only sign-in.
+- **Export** (`EdExportViewModel`, `IEdExports`): through Graph (`exportResult` on the search,
+  found by name in its case; then the case's newest exportResult operation), PST or individual
+  messages, optionally with partly indexed items. Each file is downloaded with a token for
+  Microsoft Purview eDiscovery (app b26e684c-…, delegated eDiscovery.Download.Read, header
+  X-AllowWithAADToken) into a chosen folder, with a wheel and progress. Setup now creates that
+  app's service principal if the tenant lacks it, and Tenantry reports the permission missing
+  until granted. Microsoft charges for Graph exports on Standard-licensed tenants (pay-as-you-go),
+  so the popup says so and offers Export in Purview. Searches outside a case go to Purview. An
+  export changes nothing, so it isn't staged; it's written to the change log (`SearchExported`).
+- **Live (test objects):** the guard refused purging "All mailboxes" with no request sent; a test
+  search over a test mailbox ran in about a minute. Graph refused the export with 400 "Purview
+  Billing account is not enabled" on a tenant without pay-as-you-go, which the popup now explains,
+  pointing to Export in Purview.
+
 ### New User and New Group
 
 The Users and Groups lists' buttons open one-popup forms; adding stages one change.

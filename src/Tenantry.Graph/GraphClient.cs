@@ -82,6 +82,34 @@ public sealed class GraphClient
         return page.TryGetProperty("value", out var items) && items.GetArrayLength() > 0 ? items[0] : null;
     }
 
+    /// <summary>
+    /// Downloads a file another Microsoft service hands out (an eDiscovery export) into
+    /// <paramref name="to"/>, with a token for that service, reporting bytes written.
+    /// </summary>
+    public async Task DownloadAsync(string url, string scope, IReadOnlyDictionary<string, string> headers, Stream to, IProgress<long>? progress,
+        CancellationToken cancellationToken)
+    {
+        var token = await _tokens.GetTokenAsync([scope], null, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.UserAgent.ParseAdd(ClientName + "/" + ClientVersion);
+        foreach (var (name, value) in headers)
+            request.Headers.TryAddWithoutValidation(name, value);
+        using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw await ToExceptionAsync(response, cancellationToken);
+        await using var from = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var buffer = new byte[81920];
+        long total = 0;
+        int read;
+        while ((read = await from.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            await to.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            total += read;
+            progress?.Report(total);
+        }
+    }
+
     async Task<JsonElement> SendAsync(HttpMethod method, string path, JsonNode? body, CancellationToken cancellationToken)
     {
         var url = Uri.TryCreate(path, UriKind.Absolute, out var absolute) ? absolute : new Uri(_base, path);

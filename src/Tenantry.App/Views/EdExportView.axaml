@@ -1,0 +1,83 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.EdExportView"
+             x:DataType="rec:EdExportViewModel">
+  <!-- Export: the billing note, options, a folder, then progress with a wheel. -->
+  <StackPanel Spacing="14" Width="640">
+    <Border Classes="banner neutral">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+        <ic:FluentIcon Icon="Money" FontSize="16" VerticalAlignment="Top" />
+        <TextBlock Grid.Column="1" Text="{Binding BillingNote}" TextWrapping="Wrap" />
+      </Grid>
+    </Border>
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" IsVisible="{Binding !IsAvailable}">
+      <ic:FluentIcon Icon="Info" FontSize="14" VerticalAlignment="Top" Margin="0,2,0,0" />
+      <TextBlock Grid.Column="1" Text="{Binding Unavailable}" TextWrapping="Wrap" />
+    </Grid>
+    <StackPanel Spacing="14" IsVisible="{Binding IsAvailable}">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="label" Text="MAIL AS" />
+        <ListBox ItemsSource="{x:Static rec:EdExportViewModel.Formats}" SelectedItem="{Binding Format}" Background="Transparent" IsEnabled="{Binding CanStart}">
+          <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="4" />
+            </ItemsPanelTemplate>
+          </ListBox.ItemsPanel>
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="ed:EditorChoice">
+              <StackPanel Spacing="2" Margin="2,4">
+                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock Classes="caption" Text="Files from sites and OneDrives are saved as they are." TextWrapping="Wrap" />
+      </StackPanel>
+      <CheckBox IsChecked="{Binding PartlyIndexed}" IsEnabled="{Binding CanStart}"
+                Content="Also items Purview couldn't fully read (some attachments and encrypted files)" />
+      <StackPanel Spacing="4">
+        <TextBlock Classes="label" Text="SAVE IN" />
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+          <TextBlock Text="{Binding FolderText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+          <Button Grid.Column="1" Command="{Binding ChooseFolderCommand}" IsEnabled="{Binding CanStart}" ToolTip.Tip="Choose a folder on this computer">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ic:FluentIcon Icon="FolderOpen" FontSize="16" />
+              <TextBlock Text="Choose Folder" />
+            </StackPanel>
+          </Button>
+        </Grid>
+      </StackPanel>
+    </StackPanel>
+    <!-- Progress, with a wheel -->
+    <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsBusy}">
+      <Panel Width="18" Height="18" VerticalAlignment="Center">
+        <Ellipse Classes="spintrack" />
+        <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+          <Arc.RenderTransform>
+            <RotateTransform />
+          </Arc.RenderTransform>
+        </Arc>
+      </Panel>
+      <TextBlock Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding BusyText}" MaxWidth="600" />
+    </StackPanel>
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" IsVisible="{Binding HasResult}">
+      <ic:FluentIcon Icon="CheckmarkCircle" FontSize="16" VerticalAlignment="Top" />
+      <TextBlock Grid.Column="1" Text="{Binding Result}" TextWrapping="Wrap" />
+    </Grid>
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" IsVisible="{Binding HasProblem}">
+      <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+      <TextBlock Grid.Column="1" Text="{Binding Problem}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+    </Grid>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Content="Export to This Computer" Command="{Binding StartCommand}" IsVisible="{Binding CanStart}"
+              ToolTip.Tip="Purview makes the export, then Tenantry downloads it into the folder" />
+      <Button Classes="accent" Content="Show Folder" Command="{Binding ShowFolderCommand}" IsVisible="{Binding IsDone}" />
+      <Button Content="Export in Purview" Command="{Binding OpenInPurviewCommand}" ToolTip.Tip="Open eDiscovery in the Microsoft Purview portal" />
+      <Button Content="Close" Command="{Binding CloseCommand}" ToolTip.Tip="Stops an export that's still being prepared or downloaded" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

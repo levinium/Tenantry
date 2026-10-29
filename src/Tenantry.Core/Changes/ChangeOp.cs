@@ -122,6 +122,8 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(UpdateHold), "updateHold")]
 [JsonDerivedType(typeof(SetHoldEnabled), "setHoldEnabled")]
 [JsonDerivedType(typeof(DeleteHold), "deleteHold")]
+[JsonDerivedType(typeof(PurgeSearch), "purgeSearch")]
+[JsonDerivedType(typeof(SearchExported), "searchExported")]
 public abstract record ChangeOp
 {
     [JsonIgnore]

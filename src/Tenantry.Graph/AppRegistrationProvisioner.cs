@@ -63,6 +63,20 @@ public sealed class AppRegistrationProvisioner
         {
             var sp = await _graph.GetFirstAsync(
                 $"servicePrincipals?$filter=appId eq '{api.ResourceAppId}'&$select=id,appId,oauth2PermissionScopes", cancellationToken);
+            if (sp is null && api.CreateIfMissing)
+            {
+                progress?.Report($"Adding {api.ResourceName} to this tenant");
+                try
+                {
+                    await _graph.PostAsync("servicePrincipals", new JsonObject { ["appId"] = api.ResourceAppId }, cancellationToken);
+                    sp = await _graph.GetFirstAsync(
+                        $"servicePrincipals?$filter=appId eq '{api.ResourceAppId}'&$select=id,appId,oauth2PermissionScopes", cancellationToken);
+                }
+                catch (GraphException)
+                {
+                    // Reported below as not available.
+                }
+            }
             if (sp is null)
             {
                 unresolved.Add($"{api.ResourceName} is not available in this tenant");

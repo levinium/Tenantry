@@ -31,6 +31,10 @@ public sealed partial class GraphChangeExecutor
         DeleteSearch d => Purview("Remove-ComplianceSearch", new() { ["Identity"] = d.Search.Name, ["Confirm"] = false },
             ct => ReadPurview("Get-ComplianceSearch", new() { ["Identity"] = d.Search.Name }, ct), rows => rows.Count == 0, cancellationToken),
         CreateHold h => CreateHoldAsync(h, cancellationToken),
+        // Purview names the action after the search; it runs on its own after this.
+        PurgeSearch p => Purview("New-ComplianceSearchAction",
+            new() { ["SearchName"] = p.Search.Name, ["Purge"] = true, ["PurgeType"] = p.Hard ? "HardDelete" : "SoftDelete", ["Confirm"] = false },
+            ct => ReadPurview("Get-ComplianceSearchAction", new() { ["Identity"] = p.Search.Name + "_Purge" }, ct), rows => rows.Count > 0, cancellationToken),
         UpdateHold u => UpdateHoldAsync(u, cancellationToken),
         SetHoldEnabled e => Purview("Set-CaseHoldPolicy", new() { ["Identity"] = e.Hold.Name, ["Enabled"] = e.New },
             ct => ReadPurview("Get-CaseHoldPolicy", new() { ["Identity"] = e.Hold.Name }, ct),

@@ -333,6 +333,7 @@ public sealed partial class EdSearchPageViewModel : CardPageViewModel
         [
             new AppSection("overview", "Overview", "Home", OverviewAsync, "Reading the search…"),
             new AppSection("found", "What It Found", "DocumentSearch", FoundAsync, "Reading what it found…"),
+            new AppSection("actions", "Actions", "History", ActionsAsync, "Reading what's been done with its results…"),
         ];
         SelectedSection = Sections[0];
         if (EDiscovery.IsRunning(search.Status))
@@ -375,6 +376,8 @@ public sealed partial class EdSearchPageViewModel : CardPageViewModel
             var buttons = new List<PageButton>();
             if (!IsBusy)
                 buttons.Add(new PageButton("Run Search", "Play", "Count what it finds now (changes nothing)", () => _ = RunAsync(), isAccent: true));
+            buttons.Add(new PageButton("Export", "ArrowDownload", "Save what it found to this computer, or export it in Purview",
+                () => _ctx.ShowDialog($"Export {Search.Name}", new EdExportViewModel(_ctx.Records as IEdExports, Pipeline, Search, _ctx.CloseDialog))));
             buttons.Add(new PageButton("Open in Purview", "Globe", "Open eDiscovery in the Microsoft Purview portal", () => Platform.OpenUrl(EdContext.PurviewCases)));
             if (!_ctx.Editable)
                 return buttons;
@@ -383,6 +386,9 @@ public sealed partial class EdSearchPageViewModel : CardPageViewModel
                 buttons.Add(new PageButton("Undo", "ArrowUndo", "Take the change back out of Pending changes", () => Pipeline!.Unstage(waiting)));
                 return buttons;
             }
+            if (Detail is { HasRun: true, Mailboxes.Count: > 0 } found)
+                buttons.Add(new PageButton("Search and Delete", "MailDismiss", "Delete what it found from the mailboxes (up to 10 per mailbox; you type the search's name to confirm)",
+                    () => _ctx.ShowDialog($"Search and Delete: {Search.Name}", new EdPurgeViewModel(Pipeline!, found, _ctx.Index, _ctx.CloseDialog)), isDanger: true));
             if (Detail is { } detail)
                 buttons.Add(new PageButton("Change Search", "Edit", "Change what it looks for and where (added to Pending changes; it runs again once applied)",
                     () => _ctx.ShowDialog($"Change Search {Search.Name}",
@@ -532,6 +538,35 @@ public sealed partial class EdSearchPageViewModel : CardPageViewModel
                     Badges = h.Items == 0 ? [new HealthChip("Nothing Found", BadgeKind.Neutral, "No matches here")] : [],
                 })],
                 EmptyText: "Purview gave no count per place."),
+        ];
+    }
+
+    async Task<IReadOnlyList<AppCard>> ActionsAsync(CancellationToken cancellationToken)
+    {
+        var actions = await _ctx.Records.GetSearchActionsAsync(Search.CaseName, Search.Name, cancellationToken);
+        return
+        [
+            new AppCard("Actions", "Deletions (and, before Purview retired them, previews and exports) run on what this search found.",
+                Rows: [.. actions.Select(a => new AppRow
+                {
+                    Title = a.Action switch { "Purge" => a.PurgeType == "HardDelete" ? "Hard Delete" : "Soft Delete", var other => other },
+                    Detail = string.Join(" · ", new[]
+                    {
+                        $"Started {EdContext.Day(a.Created)}{(a.RunBy is { } by ? $" by {by}" : "")}",
+                        a.ItemCount is { } n ? $"{n:N0} items" : null,
+                        a.Ended is { } end && !EDiscovery.IsRunning(a.Status) ? $"finished {EdContext.Day(end)}" : null,
+                    }.OfType<string>()),
+                    Code = a.Errors,
+                    Badges = [a.Status switch
+                    {
+                        "Completed" => new HealthChip("Done", BadgeKind.Success, "Finished"),
+                        "Starting" or "InProgress" => new HealthChip("Running", BadgeKind.Info, "Purview is working on it"),
+                        "PartiallySucceeded" => new HealthChip("Partly Done", BadgeKind.Warning, "Some mailboxes failed; see below"),
+                        "Failed" => new HealthChip("Failed", BadgeKind.Danger, "See below"),
+                        var other => new HealthChip(other, BadgeKind.Neutral, "Purview's status"),
+                    }],
+                })],
+                EmptyText: "Nothing has been done with its results."),
         ];
     }
 

@@ -60,6 +60,10 @@ public sealed class TenantConnector : ITenantConnector
             missing = MissingPermissions(tokens);
         }
 
+        // APIs besides Graph show up in a token only when it's asked for, so check that the app
+        // registration asks for them at all (added in a later release, say).
+        missing = [.. missing, .. await MissingApisAsync(graph, profile.ClientId, cancellationToken)];
+
         var entities = OpenLocalCopy(profile.Id, folder);
         var account = tokens.Account ?? "";
         // Purview needs a second sign-in (see TenantryPermissions.ExchangePowerShellClientId); it's
@@ -109,6 +113,23 @@ public sealed class TenantConnector : ITenantConnector
         [TimeSpan.Zero, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(25), TimeSpan.FromSeconds(35)];
 
     /// <summary>Graph permissions Tenantry asks for that this sign-in's token doesn't carry.</summary>
+    /// <summary>The non-Graph permissions the app registration doesn't ask for (one read); none if it can't be read.</summary>
+    static async Task<IReadOnlyList<string>> MissingApisAsync(GraphClient graph, string clientId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (await graph.GetFirstAsync($"applications?$filter=appId eq '{clientId}'&$select=requiredResourceAccess", cancellationToken) is not { } app)
+                return [];
+            var asked = app.GetProperty("requiredResourceAccess").EnumerateArray()
+                .Select(r => r.GetProperty("resourceAppId").GetString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return [.. TenantryPermissions.All.Where(a => a != TenantryPermissions.Graph && !asked.Contains(a.ResourceAppId)).SelectMany(a => a.DelegatedScopes)];
+        }
+        catch (GraphException)
+        {
+            return [];
+        }
+    }
+
     static IReadOnlyList<string> MissingPermissions(MsalTokenSource tokens)
     {
         var granted = tokens.GrantedScopes(TenantryPermissions.Graph.Audience);

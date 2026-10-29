@@ -1337,6 +1337,46 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Search page: Search and Delete opens its popup and Add stages a purge; Export picks a folder, saves the file and says where", () =>
+        {
+            EdExportViewModel.CheckEvery = TimeSpan.Zero;
+            var folder = Directory.CreateTempSubdirectory("tenantry-check-export").FullName;
+            Platform.PickFolder = () => Task.FromResult<string?>(folder);
+            try
+            {
+                var (window, main, _) = OpenList();
+                main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+                Settle();
+                Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "searches" }));
+                for (var i = 0; i < 20 && main.SecurityArea.Searches.Total == 0; i++)
+                    Settle();
+                main.OpenSearch(main.SecurityArea.Searches.Rows.Cast<Tenantry.Core.Directory.EdSearch>().Single(s => s.Name == "Contract emails"));
+                for (var i = 0; i < 10; i++)
+                    Settle();
+                Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is PageButton { Text: "Search and Delete" }));
+                var purge = main.Dialog?.Content as EdPurgeViewModel ?? throw new InvalidOperationException("Search and Delete didn't open");
+                Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.IsEffectivelyVisible && ReferenceEquals(i.DataContext, EdPurgeViewModel.Kinds[1])));
+                Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == purge.AddCommand));
+                Expect(main.Pending!.Rows.Any(r => r.Change is PurgeSearch { Hard: true }) && main.Dialog is null, "a hard delete is in Pending changes and the popup closed");
+                Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is PageButton { Text: "Export" }));
+                var export = main.Dialog?.Content as EdExportViewModel ?? throw new InvalidOperationException("Export didn't open");
+                Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == export.ChooseFolderCommand));
+                Expect(export.Folder == folder, "Choose Folder filled in the folder");
+                Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == export.StartCommand));
+                for (var i = 0; i < 30 && !export.IsDone && !export.HasProblem; i++)
+                    Settle();
+                Expect(export.IsDone && Directory.GetFiles(folder).Length == 1, $"the export finished and saved its file ({export.Problem})");
+                Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.Command == export.ShowFolderCommand), "Show Folder is offered");
+                Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == export.CloseCommand));
+                Expect(main.Dialog is null, "Close closes it");
+                window.Close();
+            }
+            finally
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+        });
+
         Check("New Case: the list's button opens the form; Add with no name says why; with one it stages the case and closes", () =>
         {
             var (window, main, _) = OpenList();

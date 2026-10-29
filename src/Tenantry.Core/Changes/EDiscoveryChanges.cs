@@ -136,6 +136,44 @@ public sealed record DeleteSearch(ChangeTarget Search, string Detail) : EdChange
 }
 
 /// <summary>
+/// Search and Delete: removes what a search found from the mailboxes it looked in, up to 10 items
+/// per mailbox per run (Purview's limit; it's an incident tool). Soft delete leaves the items
+/// recoverable until the deleted-items retention period ends; hard delete removes them for good
+/// once the mailbox is next processed. Sites, OneDrives and unindexed items are never touched.
+/// The admin types the search's name.
+/// </summary>
+public sealed record PurgeSearch(ChangeTarget Search, IReadOnlyList<ChangeTarget> Mailboxes, bool Hard, long Found) : EdChange(Search)
+{
+    public const int PerMailbox = 10;
+
+    public override string Key => "purge";
+    public override string Label => $"What Search \"{Search.Name}\" Found";
+    public override string Before => $"{Found:N0} items in {Places(Mailboxes, [], false).ToLowerInvariant()}";
+    public override string After => Hard
+        ? $"Deleted for good (up to {PerMailbox} per mailbox)"
+        : $"Deleted, recoverable for a while (up to {PerMailbox} per mailbox)";
+    public override bool IsCaution => true;
+    public override string? ConfirmPhrase => Search.Name;
+    public override bool IsNoChange => false;
+    public override IReadOnlyList<ChangeTarget> Guarded => [Search, .. Mailboxes];
+}
+
+/// <summary>
+/// A record in the change log that a search's results were exported to this computer (nothing in
+/// Microsoft 365 changes). Written as it happens, never staged.
+/// </summary>
+public sealed record SearchExported(ChangeTarget Search, string What) : ChangeOp
+{
+    public override ChangeTarget Target => Search;
+    public override string Key => "exported";
+    public override string Label => $"What Search \"{Search.Name}\" Found";
+    public override string Before => "In Microsoft 365";
+    public override string After => What;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
 /// A new hold in a case: content in the chosen places (all of it, or what matches the query) can't
 /// be deleted for good while the hold is on. Made as a hold policy plus its rule.
 /// </summary>

@@ -376,4 +376,130 @@ public sealed class EDiscoveryTests
         Assert.Contains(page.Buttons, b => b.Text == "Change Search");
         page.Dispose();
     }
+
+    // ---- Search and Delete, and export (8f-2) -------------------------------------------------------
+
+    [Fact]
+    public void A_purge_needs_the_search_name_and_test_mailboxes()
+    {
+        var purge = new PurgeSearch(TestSearch, [Bo], Hard: false, Found: 3);
+        Assert.True(purge.IsCaution);
+        Assert.Equal("zz-tenantry-test-search", purge.ConfirmPhrase);
+        Assert.Null(WriteGuard.Refusal(purge, testMode: true));
+        Assert.NotNull(WriteGuard.Refusal(new PurgeSearch(TestSearch, [Bo, Real], false, 3), testMode: true));
+        Assert.NotNull(WriteGuard.Refusal(new PurgeSearch(TestSearch, [EdChange.Everywhere("mailbox")], false, 3), testMode: true));
+        Assert.Contains("for good", new PurgeSearch(TestSearch, [Bo], true, 3).After, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_purge_asks_Purview_for_the_kind_of_delete()
+    {
+        var exchange = new FakeCmdlets((cmdlet, _) => cmdlet == "Get-ComplianceSearchAction" ? """[{"Name":"zz-tenantry-test-search_Purge"}]""" : "[]");
+
+        var result = await Executor(exchange).ApplyAsync(new PurgeSearch(TestSearch, [Bo], true, 3), Ct);
+
+        Assert.Equal(ChangeOutcome.Applied, result.Outcome);
+        var sent = exchange.Calls[0];
+        Assert.Equal("New-ComplianceSearchAction", sent.Cmdlet);
+        Assert.Contains("\"PurgeType\":\"HardDelete\"", sent.Parameters, StringComparison.Ordinal);
+        Assert.Contains("\"SearchName\":\"zz-tenantry-test-search\"", sent.Parameters, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_purge_s_counts_come_from_Purview_s_summary()
+    {
+        var a = new EdAction("s_Purge", "s", "Purge", "Completed", null, null, null, "Purge Type: HardDelete; Item count: 7; Total size 1234; Details: {}", null);
+        Assert.Equal(7, a.ItemCount);
+        Assert.Equal("HardDelete", a.PurgeType);
+        Assert.Null(new EdAction("x", "s", "Purge", "Starting", null, null, null, null, null).ItemCount);
+    }
+
+    [Theory]
+    [InlineData(false, 3, "subject:x", "Run the search first, so its counts are current.")]
+    [InlineData(true, 0, "subject:x", "The search found nothing to delete.")]
+    [InlineData(true, 3, "", "The search has no query, so it would delete everything in its mailboxes. Give it a query first.")]
+    [InlineData(true, 3, "subject:x", null)]
+    public void Search_and_Delete_says_when_it_can_t_be_used(bool ran, long items, string query, string? problem)
+    {
+        var search = new EdSearch("s", "c", null, ran ? "Completed" : "NotStarted", null, null, null, null);
+        var detail = new EdSearchDetail(search, query, ["a@contoso.example"], [], false, items, items * 10, 0, 0, [], null);
+        var pipeline = new ChangePipeline(new DemoChangeExecutor(new DemoTenantDirectory(userCount: 5)), new ChangeLog(new MemoryEntityStore()), new MemoryTestModeStore(true), "admin");
+        var closed = false;
+        var popup = new EdPurgeViewModel(pipeline, detail, EmptyIndex.Instance, () => closed = true);
+
+        Assert.Equal(problem, popup.Problem);
+        popup.Kind = EdPurgeViewModel.Kinds[1];
+        popup.AddCommand.Execute(null);
+        Assert.Equal(problem is null, closed);
+        Assert.Equal(problem is null ? 1 : 0, pipeline.Pending.Count);
+        if (problem is null)
+            Assert.True(Assert.IsType<PurgeSearch>(pipeline.Pending.Single()).Hard);
+    }
+
+    [Fact]
+    public async Task An_export_is_found_by_name_made_through_Graph_and_downloaded_with_a_Purview_token()
+    {
+        var now = DateTimeOffset.UtcNow.ToString("o");
+        var http = new FakeHttp()
+            .On(HttpMethod.Get, "/searches?", """{"value":[{"id":"s9","displayName":"Other"},{"id":"s1","displayName":"zz-tenantry-test-search"}]}""")
+            .On(HttpMethod.Get, "/operations?", $$"""{"value":[{"id":"op1","action":"exportResult","createdDateTime":"{{now}}"}]}""")
+            .On(HttpMethod.Get, "/operations/op1", """{"id":"op1","status":"succeeded","percentProgress":100,"exportFileMetadata":[{"fileName":"Export.zip","downloadUrl":"https://proxy.example/file1","size":5}]}""")
+            .On(HttpMethod.Get, "ediscoveryCases?", """{"value":[{"id":"c1","displayName":"zz-tenantry-test-case"}]}""")
+            .On(HttpMethod.Post, "exportResult", "")
+            .On(HttpMethod.Get, "proxy.example/file1", _ => new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent([1, 2, 3, 4, 5]) });
+        var records = new GraphUserRecords(new GraphClient(http.Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore());
+
+        var id = await records.StartExportAsync("zz-tenantry-test-case", "zz-tenantry-test-search", new EdExportOptions(Pst: true, PartlyIndexed: false), Ct);
+        var progress = await records.GetExportAsync(id, Ct);
+        using var saved = new MemoryStream();
+        await records.DownloadAsync(progress.Files[0], saved, null, Ct);
+
+        Assert.True(progress.IsDone);
+        var post = http.Requests.Single(r => r.Method == HttpMethod.Post);
+        Assert.Contains("/ediscoveryCases/c1/searches/s1/exportResult", post.PathAndQuery, StringComparison.Ordinal);
+        Assert.Equal("pst", post.Json!["exportFormat"]!.GetValue<string>());
+        Assert.Equal("searchHits", post.Json!["exportCriteria"]!.GetValue<string>());
+        Assert.Equal(5, saved.Length);
+        Assert.Equal("true", http.Requests.Last().Headers["X-AllowWithAADToken"]);
+    }
+
+    [Fact]
+    public async Task The_export_popup_saves_the_files_to_the_chosen_folder_and_notes_it_in_the_change_log()
+    {
+        EdExportViewModel.CheckEvery = TimeSpan.Zero;
+        var folder = Directory.CreateTempSubdirectory("tenantry-export-test").FullName;
+        try
+        {
+            var directory = new DemoTenantDirectory(userCount: 20);
+            var records = new DemoUserRecords(directory);
+            var store = new MemoryEntityStore();
+            var log = new ChangeLog(store);
+            var pipeline = new ChangePipeline(new DemoChangeExecutor(directory, records), log, new MemoryTestModeStore(false), "admin");
+            var search = (await records.GetEDiscoveryAsync(Ct)).Searches.Single(s => s.Name == "Contract emails");
+            var popup = new EdExportViewModel(records, pipeline, search, () => { });
+
+            Assert.True(popup.IsAvailable);
+            await popup.StartCommand.ExecuteAsync(null);
+            Assert.Equal("Choose a folder to save the export in.", popup.Problem);
+            popup.Folder = folder;
+            await popup.StartCommand.ExecuteAsync(null);
+
+            Assert.True(popup.IsDone, popup.Problem);
+            Assert.Single(Directory.GetFiles(folder));
+            Assert.Contains(log.All(), e => e.Change is SearchExported);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Searches_outside_a_case_or_not_run_point_to_Purview_for_export()
+    {
+        var loose = new EdSearch("s", null, null, "Completed", null, null, null, null);
+        Assert.Contains("Purview", new EdExportViewModel(new DemoUserRecords(new DemoTenantDirectory(userCount: 5)), null, loose, () => { }).Unavailable, StringComparison.Ordinal);
+        var notRun = loose with { CaseName = "c", Status = "NotStarted" };
+        Assert.Equal("Run the search first.", new EdExportViewModel(new DemoUserRecords(new DemoTenantDirectory(userCount: 5)), null, notRun, () => { }).Unavailable);
+    }
 }
