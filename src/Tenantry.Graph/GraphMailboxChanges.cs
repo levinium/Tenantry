@@ -67,18 +67,7 @@ public sealed partial class GraphChangeExecutor
     /// <summary>Add-, Set- or Remove-MailboxFolderPermission, depending on whether the person had an entry and keeps one.</summary>
     Task<ApplyResult> SetFolderPermissionAsync(SetFolderPermission change, CancellationToken cancellationToken)
     {
-        var parameters = new Dictionary<string, object?> { ["Identity"] = change.FolderIdentity, ["User"] = change.Person };
-        string cmdlet;
-        if (change.New is null)
-        {
-            cmdlet = "Remove-MailboxFolderPermission";
-            parameters["Confirm"] = false;
-        }
-        else
-        {
-            cmdlet = change.Old is null ? "Add-MailboxFolderPermission" : "Set-MailboxFolderPermission";
-            parameters["AccessRights"] = new[] { change.New };
-        }
+        var (cmdlet, parameters) = FolderPermissionCall(change);
         return RunCheckedAsync(cmdlet, parameters,
             ct => Read("Get-MailboxFolderPermission", new() { ["Identity"] = change.FolderIdentity, ["User"] = change.Person }, ct, "AccessRights"),
             rows => change.New is null
@@ -95,26 +84,21 @@ public sealed partial class GraphChangeExecutor
     Task<ApplyResult> SetMobileDeviceAsync(SetMobileDevice change, CancellationToken cancellationToken)
     {
         var identity = change.User.Address ?? change.User.Id;
+        var (cmdlet, parameters) = MobileDeviceCall(change);
         switch (change.Action)
         {
             case DeviceAction.Wipe:
             case DeviceAction.WipeAccountOnly:
-            {
-                var parameters = new Dictionary<string, object?> { ["Identity"] = change.DeviceIdentity, ["Confirm"] = false };
-                if (change.Action == DeviceAction.WipeAccountOnly)
-                    parameters["AccountOnly"] = true;
                 // The device confirms only when it next connects, so there's nothing to read back yet.
-                return RunCheckedAsync("Clear-MobileDevice", parameters, null, _ => true, cancellationToken);
-            }
+                return RunCheckedAsync(cmdlet, parameters, null, _ => true, cancellationToken);
             case DeviceAction.Remove:
-                return RunCheckedAsync("Remove-MobileDevice", new() { ["Identity"] = change.DeviceIdentity, ["Confirm"] = false },
+                return RunCheckedAsync(cmdlet, parameters,
                     ct => Read("Get-MobileDevice", new() { ["Identity"] = change.DeviceIdentity }, ct, "Identity"),
                     rows => rows.Count == 0, cancellationToken);
             default:
             {
                 var block = change.Action == DeviceAction.Block;
-                return RunCheckedAsync("Set-CASMailbox",
-                    new() { ["Identity"] = identity, ["ActiveSyncBlockedDeviceIDs"] = AddOrRemove(block, change.DeviceId) },
+                return RunCheckedAsync(cmdlet, parameters,
                     ct => Read("Get-CASMailbox", new() { ["Identity"] = identity }, ct, "ActiveSyncBlockedDeviceIDs"),
                     rows => rows.Count == 1 && (rows[0].TryGetProperty("ActiveSyncBlockedDeviceIDs", out var list) && list.ValueKind == JsonValueKind.Array
                         && list.EnumerateArray().Any(d => string.Equals(d.GetString(), change.DeviceId, StringComparison.OrdinalIgnoreCase))) == block,
@@ -141,7 +125,7 @@ public sealed partial class GraphChangeExecutor
 
     /// <summary>Set-Mailbox -Type; read back by the mailbox's kind, into the local copy so the lists follow.</summary>
     Task<ApplyResult> ConvertMailboxAsync(ConvertMailbox change, CancellationToken cancellationToken) =>
-        SetMailboxAsync(change.User, new() { ["Type"] = change.NewShared ? "Shared" : "Regular" },
+        SetMailboxAsync(change.User, ConvertParameters(change),
             row => string.Equals(Text(row, "RecipientTypeDetails"), change.NewShared ? "SharedMailbox" : "UserMailbox", StringComparison.OrdinalIgnoreCase),
             cancellationToken, waits: ConvertWaits);
 }

@@ -42,6 +42,7 @@
     <ProjectReference Include="..\Tenantry.Graph\Tenantry.Graph.csproj" />
     <ProjectReference Include="..\Tenantry.Cache\Tenantry.Cache.csproj" />
     <ProjectReference Include="..\Tenantry.Exchange\Tenantry.Exchange.csproj" />
+    <ProjectReference Include="..\Tenantry.PowerShell\Tenantry.PowerShell.csproj" />
   </ItemGroup>
 
 </Project>

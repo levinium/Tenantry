@@ -16,22 +16,7 @@ public sealed partial class GraphChangeExecutor
     async Task<ApplyResult> CreateUserAsync(CreateUser create, CancellationToken cancellationToken)
     {
         var password = create.Chosen ?? (passwordStyle?.Invoke() ?? PasswordStyle.Default).Create();
-        var body = new JsonObject
-        {
-            ["accountEnabled"] = create.SignInAllowed,
-            ["displayName"] = create.User.Name,
-            ["mailNickname"] = create.MailNickname,
-            ["userPrincipalName"] = create.User.Address,
-            ["usageLocation"] = create.UsageLocation,
-            ["passwordProfile"] = new JsonObject { ["password"] = password, ["forceChangePasswordNextSignIn"] = create.MustChangePassword },
-        };
-        if (create.GivenName.Length > 0)
-            body["givenName"] = create.GivenName;
-        if (create.Surname.Length > 0)
-            body["surname"] = create.Surname;
-        foreach (var (property, value) in create.Details)
-            if (!string.IsNullOrWhiteSpace(value))
-                body[property] = property == "businessPhones" ? new JsonArray(value.Trim()) : value.Trim();
+        var body = NewUserBody(create, password);
 
         string id;
         try
@@ -48,11 +33,7 @@ public sealed partial class GraphChangeExecutor
         {
             try
             {
-                await graph.PostAsync($"users/{id}/assignLicense", new JsonObject
-                {
-                    ["addLicenses"] = new JsonArray(create.Licenses.Select(l => (JsonNode)new JsonObject { ["skuId"] = l.SkuId, ["disabledPlans"] = new JsonArray() }).ToArray()),
-                    ["removeLicenses"] = new JsonArray(),
-                }, cancellationToken);
+                await graph.PostAsync($"users/{id}/assignLicense", NewUserLicensesBody(create), cancellationToken);
                 await RefreshSkusAsync(cancellationToken);
             }
             catch (GraphException e)
@@ -80,9 +61,7 @@ public sealed partial class GraphChangeExecutor
                     // Exchange only knows the person once their account reaches it (and a mailbox, if licensed): usually within minutes.
                     if (exchange is null)
                         throw new CmdletException("Exchange Online isn't connected", 0, "");
-                    await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Add-DistributionGroupMember",
-                        new Dictionary<string, object?> { ["Identity"] = group.Group.Id, ["Member"] = create.User.Address, ["BypassSecurityGroupManagerCheck"] = true },
-                        cancellationToken);
+                    await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Add-DistributionGroupMember", NewUserListParameters(create, group), cancellationToken);
                 }
                 else
                     await graph.PostAsync($"groups/{group.Group.Id}/members/$ref", new JsonObject { ["@odata.id"] = DirectoryObjects + id }, cancellationToken);
@@ -106,6 +85,38 @@ public sealed partial class GraphChangeExecutor
             return new ApplyResult(ChangeOutcome.Applied, detail ?? "Created with the password you chose.");
         return new ApplyResult(ChangeOutcome.Applied, detail, Reveal: password);
     }
+
+    /// <summary>The request that makes the account (its PowerShell shows a placeholder in place of the password).</summary>
+    static JsonObject NewUserBody(CreateUser create, string password)
+    {
+        var body = new JsonObject
+        {
+            ["accountEnabled"] = create.SignInAllowed,
+            ["displayName"] = create.User.Name,
+            ["mailNickname"] = create.MailNickname,
+            ["userPrincipalName"] = create.User.Address,
+            ["usageLocation"] = create.UsageLocation,
+            ["passwordProfile"] = new JsonObject { ["password"] = password, ["forceChangePasswordNextSignIn"] = create.MustChangePassword },
+        };
+        if (create.GivenName.Length > 0)
+            body["givenName"] = create.GivenName;
+        if (create.Surname.Length > 0)
+            body["surname"] = create.Surname;
+        foreach (var (property, value) in create.Details)
+            if (!string.IsNullOrWhiteSpace(value))
+                body[property] = property == "businessPhones" ? new JsonArray(value.Trim()) : value.Trim();
+        return body;
+    }
+
+    static JsonObject NewUserLicensesBody(CreateUser create) => new()
+    {
+        ["addLicenses"] = new JsonArray(create.Licenses.Select(l => (JsonNode)new JsonObject { ["skuId"] = l.SkuId, ["disabledPlans"] = new JsonArray() }).ToArray()),
+        ["removeLicenses"] = new JsonArray(),
+    };
+
+    /// <summary>Adds a new user to a distribution list or mail-enabled security group (Exchange names them by address).</summary>
+    static Dictionary<string, object?> NewUserListParameters(CreateUser create, NewUserGroup group) =>
+        new() { ["Identity"] = group.Group.Id, ["Member"] = create.User.Address, ["BypassSecurityGroupManagerCheck"] = true };
 
     /// <summary>Reads something just made into the local copy the way a sync stores it, so the lists show it now; the next sync catches anything missed.</summary>
     async Task IntoLocalCopyAsync(Func<DirectorySync, Task> refresh)
@@ -140,6 +151,35 @@ public sealed partial class GraphChangeExecutor
 
     async Task<ApplyResult> CreateGraphGroupAsync(CreateGroup create, CancellationToken cancellationToken)
     {
+        string id;
+        try
+        {
+            id = (await graph.PostAsync("groups", NewGraphGroupBody(create), cancellationToken)).GetProperty("id").GetString()!;
+        }
+        catch (GraphException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, Describe(e));
+        }
+        var unfinished = new List<string>();
+        foreach (var (relation, people) in GroupPeopleAfterCreate(create))
+            foreach (var person in people)
+            {
+                try
+                {
+                    await graph.PostAsync($"groups/{id}/{relation}/$ref", new JsonObject { ["@odata.id"] = DirectoryObjects + person.Id }, cancellationToken);
+                }
+                catch (GraphException e)
+                {
+                    unfinished.Add($"{person.Name} ({Describe(e)})");
+                }
+            }
+        await IntoLocalCopyAsync(sync => sync.RefreshGroupAsync(id, cancellationToken));
+        return new ApplyResult(ChangeOutcome.Applied, unfinished.Count == 0 ? null : "The group was made, but these people weren't added: " + string.Join("; ", unfinished) + ".");
+    }
+
+    /// <summary>The request that makes a Microsoft 365 or security group, with up to <see cref="BindLimit"/> owners and members bound in.</summary>
+    static JsonObject NewGraphGroupBody(CreateGroup create)
+    {
         var unified = create.Kind == Core.Directory.GroupKind.Microsoft365;
         var dynamic = create.MembershipRule is not null;
         var body = new JsonObject
@@ -163,39 +203,17 @@ public sealed partial class GraphChangeExecutor
             body["owners@odata.bind"] = new JsonArray(create.Owners.Take(BindLimit).Select(o => (JsonNode)(GraphUsers + o.Id)).ToArray());
         if (!dynamic && create.Members.Count > 0)
             body["members@odata.bind"] = new JsonArray(create.Members.Take(BindLimit).Select(m => (JsonNode)(GraphUsers + m.Id)).ToArray());
-
-        string id;
-        try
-        {
-            id = (await graph.PostAsync("groups", body, cancellationToken)).GetProperty("id").GetString()!;
-        }
-        catch (GraphException e)
-        {
-            return new ApplyResult(ChangeOutcome.Failed, Describe(e));
-        }
-        var unfinished = new List<string>();
-        foreach (var (relation, people) in new[] { ("owners", create.Owners.Skip(BindLimit)), ("members", dynamic ? [] : create.Members.Skip(BindLimit)) })
-            foreach (var person in people)
-            {
-                try
-                {
-                    await graph.PostAsync($"groups/{id}/{relation}/$ref", new JsonObject { ["@odata.id"] = DirectoryObjects + person.Id }, cancellationToken);
-                }
-                catch (GraphException e)
-                {
-                    unfinished.Add($"{person.Name} ({Describe(e)})");
-                }
-            }
-        await IntoLocalCopyAsync(sync => sync.RefreshGroupAsync(id, cancellationToken));
-        return new ApplyResult(ChangeOutcome.Applied, unfinished.Count == 0 ? null : "The group was made, but these people weren't added: " + string.Join("; ", unfinished) + ".");
+        return body;
     }
+
+    /// <summary>Owners and members past the bind limit, added one by one once the group exists (a dynamic group's members come from its rule).</summary>
+    static (string Relation, IEnumerable<ChangeTarget> People)[] GroupPeopleAfterCreate(CreateGroup create) =>
+        [("owners", create.Owners.Skip(BindLimit)), ("members", create.MembershipRule is not null ? [] : create.Members.Skip(BindLimit))];
 
     static object[] Addresses(IEnumerable<ChangeTarget> people) => people.Select(p => (object)(p.Address ?? p.Name)).ToArray();
 
-    async Task<ApplyResult> CreateDistributionListAsync(CreateGroup create, CancellationToken cancellationToken)
+    static Dictionary<string, object?> NewDistributionListParameters(CreateGroup create)
     {
-        if (exchange is null)
-            return NoExchange;
         var parameters = new Dictionary<string, object?>
         {
             ["Name"] = create.Group.Name,
@@ -211,6 +229,14 @@ public sealed partial class GraphChangeExecutor
             parameters["ManagedBy"] = Addresses(create.Owners);
         if (create.Description is { Length: > 0 } description)
             parameters["Notes"] = description;
+        return parameters;
+    }
+
+    async Task<ApplyResult> CreateDistributionListAsync(CreateGroup create, CancellationToken cancellationToken)
+    {
+        if (exchange is null)
+            return NoExchange;
+        var parameters = NewDistributionListParameters(create);
         IReadOnlyList<System.Text.Json.JsonElement> made;
         try
         {
@@ -250,14 +276,7 @@ public sealed partial class GraphChangeExecutor
         IReadOnlyList<System.Text.Json.JsonElement> made;
         try
         {
-            made = await exchange.InvokeAsync(CmdletEndpoint.Exchange, "New-Mailbox", new Dictionary<string, object?>
-            {
-                ["Shared"] = true,
-                ["Name"] = create.Group.Name,
-                ["DisplayName"] = create.Group.Name,
-                ["Alias"] = create.MailNickname,
-                ["PrimarySmtpAddress"] = create.Group.Address,
-            }, cancellationToken);
+            made = await exchange.InvokeAsync(CmdletEndpoint.Exchange, "New-Mailbox", NewSharedMailboxParameters(create), cancellationToken);
         }
         catch (CmdletException e)
         {
@@ -277,14 +296,8 @@ public sealed partial class GraphChangeExecutor
                     await _delay(wait, cancellationToken);
                 try
                 {
-                    await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Add-MailboxPermission", new Dictionary<string, object?>
-                    {
-                        ["Identity"] = create.Group.Address, ["User"] = who, ["AccessRights"] = new[] { "FullAccess" }, ["InheritanceType"] = "All", ["AutoMapping"] = true,
-                    }, cancellationToken);
-                    await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Add-RecipientPermission", new Dictionary<string, object?>
-                    {
-                        ["Identity"] = create.Group.Address, ["Trustee"] = who, ["AccessRights"] = new[] { "SendAs" }, ["Confirm"] = false,
-                    }, cancellationToken);
+                    foreach (var (cmdlet, parameters) in SharedMailboxGrants(create, who))
+                        await exchange.InvokeAsync(CmdletEndpoint.Exchange, cmdlet, parameters, cancellationToken);
                     granted = true;
                     break;
                 }
@@ -308,4 +321,26 @@ public sealed partial class GraphChangeExecutor
         return new ApplyResult(ChangeOutcome.Applied,
             unfinished.Count == 0 ? null : "The shared mailbox was made, but these people weren't given access: " + string.Join("; ", unfinished) + ". Add them from the mailbox.");
     }
+
+    static Dictionary<string, object?> NewSharedMailboxParameters(CreateGroup create) => new()
+    {
+        ["Shared"] = true,
+        ["Name"] = create.Group.Name,
+        ["DisplayName"] = create.Group.Name,
+        ["Alias"] = create.MailNickname,
+        ["PrimarySmtpAddress"] = create.Group.Address,
+    };
+
+    /// <summary>What each member of a new shared mailbox gets: Full access (it opens in their Outlook by itself) and Send as.</summary>
+    static (string Cmdlet, Dictionary<string, object?> Parameters)[] SharedMailboxGrants(CreateGroup create, string who) =>
+    [
+        ("Add-MailboxPermission", new()
+        {
+            ["Identity"] = create.Group.Address, ["User"] = who, ["AccessRights"] = new[] { "FullAccess" }, ["InheritanceType"] = "All", ["AutoMapping"] = true,
+        }),
+        ("Add-RecipientPermission", new()
+        {
+            ["Identity"] = create.Group.Address, ["Trustee"] = who, ["AccessRights"] = new[] { "SendAs" }, ["Confirm"] = false,
+        }),
+    ];
 }

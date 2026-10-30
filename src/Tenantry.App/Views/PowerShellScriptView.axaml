@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.PowerShellScriptView"
+             x:DataType="vm:PowerShellScriptViewModel"
+             MinWidth="560">
+  <!-- Show PowerShell: the script, what it needs, Copy and Open in Console. -->
+  <StackPanel Spacing="12">
+    <StackPanel Spacing="2">
+      <TextBlock Text="{Binding Runs}" TextWrapping="Wrap" />
+      <TextBlock Classes="caption" Text="{Binding Elsewhere}" IsVisible="{Binding HasElsewhere}" TextWrapping="Wrap" />
+    </StackPanel>
+    <Border Background="{DynamicResource SubtleBg}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="6" Padding="12,10">
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" MaxHeight="420">
+        <SelectableTextBlock Classes="code" Text="{Binding Text}" TextWrapping="NoWrap" />
+      </ScrollViewer>
+    </Border>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Command="{Binding OpenInConsoleCommand}" IsVisible="{Binding CanOpenInConsole}"
+              ToolTip.Tip="Put this in the PowerShell console's box, to read, change and run">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <ic:FluentIcon Icon="WindowConsole" FontSize="16" />
+          <TextBlock Text="Open in Console" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding CopyCommand}" ToolTip.Tip="Copy the script">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <ic:FluentIcon Icon="Copy" FontSize="16" />
+          <TextBlock Text="Copy" />
+        </StackPanel>
+      </Button>
+      <TextBlock Classes="caption" Text="Copied" VerticalAlignment="Center" IsVisible="{Binding Copied}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

@@ -1507,6 +1507,72 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("PowerShell: the sidebar button opens the console; Tab completes what's typed; Enter runs it, shows its output and logs it", () =>
+        {
+            var (window, main, _) = OpenList();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == main.OpenPowerShellCommand));
+            var console = main.SelectedTab as PowerShellConsoleViewModel ?? throw new InvalidOperationException("the console didn't open");
+            for (var i = 0; i < 10 && console.Status != Tenantry.Core.PowerShell.PsSessionStatus.Ready; i++)
+                Settle();
+            Expect(console.Connections.Any(c => c.State == "Connected") && console.Connections.Any(c => c.HasAction), "it shows each connection, with a button where one needs something");
+            var box = window.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "CommandBox");
+            box.Focus();
+            Settle();
+            window.KeyTextInput("Get-Mai");
+            Settle();
+            window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+            Settle();
+            Expect(console.Input == "Get-Mailbox" && box.IsFocused, "Tab completed the command and kept the cursor in the box");
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Settle();
+            var block = console.Blocks.SingleOrDefault() ?? throw new InvalidOperationException("nothing ran");
+            Expect(block.Command == "Get-Mailbox" && !block.IsRunning && block.Chunks.Count > 0 && console.Input == "", "Enter ran it, showed its output and cleared the box");
+            Expect(_pipeline.Log.All().Any(e => e.Change is PowerShellCommand { Script: "Get-Mailbox" }), "the command is in the Change Log");
+            window.Close();
+        });
+
+        Check("Pending changes: PowerShell on a change shows its script; Open in Console puts it in the console's box and closes the popup", () =>
+        {
+            var (window, main, _) = OpenList();
+            var person = main.Users.Rows.Cast<UserSummary>().First();
+            var target = new ChangeTarget("user", person.Id, person.DisplayName, person.UserPrincipalName);
+            _pipeline.Stage(new SetHiddenFromAddressList(target, false, true));
+            _pipeline.Stage(new SetUserText(target, "department", "Department", person.Department, "Finance"));
+            Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is Tenantry.ViewModels.Editing.PendingRow { Change: SetHiddenFromAddressList } && Labelled(b, "PowerShell")));
+            var script = main.Dialog?.Content as PowerShellScriptViewModel ?? throw new InvalidOperationException("the script didn't open");
+            Expect(script.Text.Contains("Set-Mailbox", StringComparison.Ordinal) && script.Text.Contains("-HiddenFromAddressListsEnabled:$true", StringComparison.Ordinal), "it shows the Exchange command");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == script.OpenInConsoleCommand));
+            var console = main.SelectedTab as PowerShellConsoleViewModel ?? throw new InvalidOperationException("the console didn't open");
+            Expect(main.Dialog is null && console.Input.Contains("Set-Mailbox", StringComparison.Ordinal), "the popup closed and the script is in the box");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && Labelled(b, "Show PowerShell")));
+            var all = main.Dialog?.Content as PowerShellScriptViewModel ?? throw new InvalidOperationException("Show PowerShell didn't open");
+            Expect(all.Text.Contains("# 1.", StringComparison.Ordinal) && all.Text.Contains("# 2.", StringComparison.Ordinal) && all.Runs == "Runs with Microsoft Graph and Exchange Online.",
+                "Show PowerShell lists both changes and what they need");
+            main.CloseDialog();
+            window.Close();
+        });
+
+        Check("Change Log: an applied change's preview offers Show PowerShell, which opens its script", () =>
+        {
+            var (window, main, _) = OpenList();
+            var person = main.Users.Rows.Cast<UserSummary>().First();
+            _pipeline.Record(new RevokeSessions(new ChangeTarget("user", person.Id, person.DisplayName, person.UserPrincipalName)));
+            main.SelectedSection = main.Sections.Single(s => s.Key == "reports");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStripItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "changelog" }));
+            for (var i = 0; i < 20 && main.Reports.ChangeLog.Total == 0; i++)
+                Settle();
+            main.Reports.ChangeLog.IsPreviewOpen = true;
+            main.Reports.ChangeLog.SelectedRow = main.Reports.ChangeLog.Rows[0];
+            Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && Labelled(b, "Show PowerShell")));
+            var script = main.Dialog?.Content as PowerShellScriptViewModel ?? throw new InvalidOperationException("the script didn't open");
+            Expect(script.Text.Contains("revokeSignInSessions", StringComparison.Ordinal), "it shows the Graph request");
+            main.CloseDialog();
+            window.Close();
+        });
+
         Console.WriteLine(_failed == 0 ? "ALL INTERACTION CHECKS PASSED" : $"{_failed} INTERACTION CHECK(S) FAILED");
         return _failed == 0 ? 0 : 1;
     }

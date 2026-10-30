@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The PowerShell console: the computer's own PowerShell 7, started in the background and
+       signed in with Tenantry's sign-in. Nothing from PowerShell is loaded into Tenantry itself. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tenantry.Core\Tenantry.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Host.ps1" LogicalName="Tenantry.PowerShell.Host.ps1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Tenantry.Tests" />
+  </ItemGroup>
+
+</Project>

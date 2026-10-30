@@ -137,8 +137,17 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
     /// Logs something done outside Apply, such as revealing a secret, so the change log shows who
     /// saw what and when. Nothing is staged or sent.
     /// </summary>
-    public void Record(ChangeOp happened, string? detail = null) =>
-        log.Add(new ChangeLogEntry(Guid.NewGuid().ToString("N"), _now(), account, happened, ChangeOutcome.Applied, detail));
+    public void Record(ChangeOp happened, string? detail = null, ChangeOutcome outcome = ChangeOutcome.Applied)
+    {
+        log.Add(new ChangeLogEntry(Guid.NewGuid().ToString("N"), _now(), account, happened, outcome, detail));
+        Recorded?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Something was logged outside Apply (<see cref="Record"/>), so the change log can show it.</summary>
+    public event EventHandler? Recorded;
+
+    /// <summary>The tenant itself as a change target (for Test mode, console commands).</summary>
+    public static ChangeTarget TenantTarget(string tenantName) => new("tenant", "tenant", tenantName, null);
 
     public void Clear()
     {

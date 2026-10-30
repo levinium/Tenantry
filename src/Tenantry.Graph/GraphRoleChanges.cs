@@ -28,28 +28,46 @@ public sealed partial class GraphChangeExecutor
     {
         if (!change.ViaPim)
             return await GraphCheckedAsync(
-                ct => graph.PostAsync($"{Roles}roleAssignments", new JsonObject
-                {
-                    ["principalId"] = change.Principal.Id,
-                    ["roleDefinitionId"] = change.RoleId,
-                    ["directoryScopeId"] = change.ScopeId,
-                }, ct),
+                ct => graph.PostAsync($"{Roles}roleAssignments", DirectAssignmentBody(change), ct),
                 ct => graph.GetAsync($"{Roles}roleAssignments?$filter=principalId eq '{change.Principal.Id}' and roleDefinitionId eq '{change.RoleId}'", ct),
                 Any,
                 cancellationToken);
 
+        var (path, request) = PimAssignRequest(change, DateTimeOffset.UtcNow);
+        var result = await GraphCheckedAsync(ct => graph.PostAsync(path, request, ct), null, _ => true, cancellationToken);
+        return result.Succeeded ? new ApplyResult(ChangeOutcome.Applied, "PIM accepted it; it shows within a minute.") : result;
+    }
+
+    static JsonObject DirectAssignmentBody(AddRoleAssignment change) => new()
+    {
+        ["principalId"] = change.Principal.Id,
+        ["roleDefinitionId"] = change.RoleId,
+        ["directoryScopeId"] = change.ScopeId,
+    };
+
+    /// <summary>PIM's schedule requests: eligible roles have their own collection.</summary>
+    static string ScheduleRequests(RoleGrantKind kind) =>
+        Roles + (kind == RoleGrantKind.Eligible ? "roleEligibilityScheduleRequests" : "roleAssignmentScheduleRequests");
+
+    static string UtcText(DateTimeOffset at) => at.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture);
+
+    /// <summary>An eligible or time-limited assignment through PIM (adminAssign), starting at <paramref name="now"/>.</summary>
+    static (string Path, JsonObject Body) PimAssignRequest(AddRoleAssignment change, DateTimeOffset now)
+    {
         var request = PimRequest("adminAssign", change.Principal.Id, change.RoleId, change.ScopeId, change.Justification);
         request["scheduleInfo"] = new JsonObject
         {
-            ["startDateTime"] = DateTimeOffset.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+            ["startDateTime"] = UtcText(now),
             ["expiration"] = change.End is { } end
-                ? new JsonObject { ["type"] = "afterDateTime", ["endDateTime"] = end.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture) }
+                ? new JsonObject { ["type"] = "afterDateTime", ["endDateTime"] = UtcText(end) }
                 : new JsonObject { ["type"] = "noExpiration" },
         };
-        var collection = change.Kind == RoleGrantKind.Eligible ? "roleEligibilityScheduleRequests" : "roleAssignmentScheduleRequests";
-        var result = await GraphCheckedAsync(ct => graph.PostAsync($"{Roles}{collection}", request, ct), null, _ => true, cancellationToken);
-        return result.Succeeded ? new ApplyResult(ChangeOutcome.Applied, "PIM accepted it; it shows within a minute.") : result;
+        return (ScheduleRequests(change.Kind), request);
     }
+
+    /// <summary>Removing a PIM-made assignment (adminRemove); only for changes that carry a role ID.</summary>
+    static (string Path, JsonObject Body) PimRemoveRequest(RemoveRoleAssignment change) =>
+        (ScheduleRequests(change.Kind), PimRequest("adminRemove", change.User.Id, change.RoleId!, change.ScopeId ?? "/", null));
 
     async Task<ApplyResult> RemoveRoleAssignmentAsync(RemoveRoleAssignment change, CancellationToken cancellationToken)
     {
@@ -59,10 +77,8 @@ public sealed partial class GraphChangeExecutor
                 ct => graph.GetAsync($"{Roles}roleAssignments/{change.AssignmentId}", ct),
                 answer => answer is null,
                 cancellationToken);
-        var collection = change.Kind == RoleGrantKind.Eligible ? "roleEligibilityScheduleRequests" : "roleAssignmentScheduleRequests";
-        var result = await GraphCheckedAsync(
-            ct => graph.PostAsync($"{Roles}{collection}", PimRequest("adminRemove", change.User.Id, change.RoleId, change.ScopeId ?? "/", null), ct),
-            null, _ => true, cancellationToken);
+        var (path, request) = PimRemoveRequest(change);
+        var result = await GraphCheckedAsync(ct => graph.PostAsync(path, request, ct), null, _ => true, cancellationToken);
         return result.Succeeded ? new ApplyResult(ChangeOutcome.Applied, "PIM accepted it; it's gone within a minute.") : result;
     }
 
@@ -77,10 +93,16 @@ public sealed partial class GraphChangeExecutor
         ["rolePermissions"] = new JsonArray(new JsonObject { ["allowedResourceActions"] = new JsonArray([.. actions.Select(a => (JsonNode)a)]) }),
     };
 
-    Task<ApplyResult> CreateCustomRoleAsync(CreateCustomRole change, CancellationToken cancellationToken)
+    static JsonObject NewRoleBody(CreateCustomRole change)
     {
         var body = RoleBody(change.Role.Name, change.Description, change.Actions);
         body["isEnabled"] = true;
+        return body;
+    }
+
+    Task<ApplyResult> CreateCustomRoleAsync(CreateCustomRole change, CancellationToken cancellationToken)
+    {
+        var body = NewRoleBody(change);
         return GraphCheckedAsync(
             ct => graph.PostAsync($"{Roles}roleDefinitions", body, ct),
             ct => graph.GetAsync($"{Roles}roleDefinitions?$filter=displayName eq '{change.Role.Name.Replace("'", "''", StringComparison.Ordinal)}'", ct),
@@ -116,16 +138,22 @@ public sealed partial class GraphChangeExecutor
             null, _ => true, cancellationToken);
     }
 
-    async Task<ApplyResult> ExtendRoleAssignmentAsync(ExtendRoleAssignment change, CancellationToken cancellationToken)
+    /// <summary>A new end for a time-limited assignment (adminUpdate), starting at <paramref name="now"/>.</summary>
+    static (string Path, JsonObject Body) ExtendRequest(ExtendRoleAssignment change, DateTimeOffset now)
     {
         var request = PimRequest("adminUpdate", change.Principal.Id, change.RoleId, change.ScopeId, "Extended in Tenantry");
         request["scheduleInfo"] = new JsonObject
         {
-            ["startDateTime"] = DateTimeOffset.UtcNow.ToString("o", CultureInfo.InvariantCulture),
-            ["expiration"] = new JsonObject { ["type"] = "afterDateTime", ["endDateTime"] = change.NewEnd.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture) },
+            ["startDateTime"] = UtcText(now),
+            ["expiration"] = new JsonObject { ["type"] = "afterDateTime", ["endDateTime"] = UtcText(change.NewEnd) },
         };
-        var collection = change.Kind == RoleGrantKind.Eligible ? "roleEligibilityScheduleRequests" : "roleAssignmentScheduleRequests";
-        var result = await GraphCheckedAsync(ct => graph.PostAsync($"{Roles}{collection}", request, ct), null, _ => true, cancellationToken);
+        return (ScheduleRequests(change.Kind), request);
+    }
+
+    async Task<ApplyResult> ExtendRoleAssignmentAsync(ExtendRoleAssignment change, CancellationToken cancellationToken)
+    {
+        var (path, request) = ExtendRequest(change, DateTimeOffset.UtcNow);
+        var result = await GraphCheckedAsync(ct => graph.PostAsync(path, request, ct), null, _ => true, cancellationToken);
         return result.Succeeded ? new ApplyResult(ChangeOutcome.Applied, "PIM accepted it; the new end shows within a minute.") : result;
     }
 
@@ -135,17 +163,7 @@ public sealed partial class GraphChangeExecutor
         var me = change.Me.Id;
         if (me.Contains('@', StringComparison.Ordinal))
             me = (await graph.GetAsync("me?$select=id", cancellationToken)).GetProperty("id").GetString() ?? me;
-        var request = PimRequest(change.On ? "selfActivate" : "selfDeactivate", me, change.RoleId, change.ScopeId, change.Justification);
-        if (change.On)
-        {
-            request["scheduleInfo"] = new JsonObject
-            {
-                ["startDateTime"] = DateTimeOffset.UtcNow.ToString("o", CultureInfo.InvariantCulture),
-                ["expiration"] = new JsonObject { ["type"] = "afterDuration", ["duration"] = RolePolicyRules.Iso(TimeSpan.FromHours(change.Hours)) },
-            };
-            if (change.Ticket is { Length: > 0 } ticket)
-                request["ticketInfo"] = new JsonObject { ["ticketNumber"] = ticket, ["ticketSystem"] = "Tenantry" };
-        }
+        var request = ActivateRequest(change, me, DateTimeOffset.UtcNow);
         try
         {
             var answer = await graph.PostAsync($"{Roles}roleAssignmentScheduleRequests", request, cancellationToken);
@@ -159,20 +177,40 @@ public sealed partial class GraphChangeExecutor
         }
     }
 
+    /// <summary>Switching an eligible role on for a while (selfActivate) or off early (selfDeactivate), for the admin <paramref name="me"/>.</summary>
+    static JsonObject ActivateRequest(ActivateRole change, string me, DateTimeOffset now)
+    {
+        var request = PimRequest(change.On ? "selfActivate" : "selfDeactivate", me, change.RoleId, change.ScopeId, change.Justification);
+        if (change.On)
+        {
+            request["scheduleInfo"] = new JsonObject
+            {
+                ["startDateTime"] = UtcText(now),
+                ["expiration"] = new JsonObject { ["type"] = "afterDuration", ["duration"] = RolePolicyRules.Iso(TimeSpan.FromHours(change.Hours)) },
+            };
+            if (change.Ticket is { Length: > 0 } ticket)
+                request["ticketInfo"] = new JsonObject { ["ticketNumber"] = ticket, ["ticketSystem"] = "Tenantry" };
+        }
+        return request;
+    }
+
+    const string RoleApprovals = "https://graph.microsoft.com/beta/roleManagement/directory/roleAssignmentApprovals/";
+
+    static JsonObject ReviewBody(ReviewRoleRequest change) =>
+        new() { ["reviewResult"] = change.Approve ? "Approve" : "Deny", ["justification"] = change.Justification };
+
     /// <summary>Answers the approval's open step assigned to the signed-in admin (beta roleAssignmentApprovals).</summary>
     async Task<ApplyResult> ReviewRoleRequestAsync(ReviewRoleRequest change, CancellationToken cancellationToken)
     {
-        const string approvals = "https://graph.microsoft.com/beta/roleManagement/directory/roleAssignmentApprovals/";
         try
         {
-            var approval = await graph.GetAsync($"{approvals}{change.ApprovalId}?$expand=steps", cancellationToken);
+            var approval = await graph.GetAsync($"{RoleApprovals}{change.ApprovalId}?$expand=steps", cancellationToken);
             var step = approval.GetProperty("steps").EnumerateArray()
                 .FirstOrDefault(s => s.TryGetProperty("status", out var st) && st.GetString() == "InProgress"
                                      && s.TryGetProperty("assignedToMe", out var me) && me.ValueKind == JsonValueKind.True);
             if (step.ValueKind != JsonValueKind.Object)
                 return new ApplyResult(ChangeOutcome.Failed, "This request has no step waiting for you (someone else may have answered it).");
-            await graph.PatchAsync($"{approvals}{change.ApprovalId}/steps/{step.GetProperty("id").GetString()}",
-                new JsonObject { ["reviewResult"] = change.Approve ? "Approve" : "Deny", ["justification"] = change.Justification }, cancellationToken);
+            await graph.PatchAsync($"{RoleApprovals}{change.ApprovalId}/steps/{step.GetProperty("id").GetString()}", ReviewBody(change), cancellationToken);
             return new ApplyResult(ChangeOutcome.Applied);
         }
         catch (GraphException e)

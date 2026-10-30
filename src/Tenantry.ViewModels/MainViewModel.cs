@@ -136,7 +136,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         SecurityArea.AdaptiveScopes.FollowSharedPreferences(shared);
         if (tenant.Changes is { } changes)
         {
-            Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync);
+            Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync,
+                tenant.Scripts is null ? null : ShowPowerShell);
         }
         // Several rows checked: the preview pane becomes a selection panel with bulk changes.
         var canEditMany = Evaluate(Capabilities.EditUsers);
@@ -188,7 +189,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         }, tenant.ListState, _now,
             tenant.Resources as Tenantry.Core.Cache.ILogArchive ?? tenant.Records as Tenantry.Core.Cache.ILogArchive,
             tenant.Sync is { } logSync ? () => logSync.ArchiveLogsNowAsync(null, CancellationToken.None) : null,
-            id => { if (_index.User(id) is { } person) OpenUser(person); });
+            id => { if (_index.User(id) is { } person) OpenUser(person); },
+            tenant.Scripts, tenant.Scripts is null ? null : change => ShowPowerShell([change]),
+            tenant.PowerShell is null ? null : OpenConsole);
         if (tenant.Sync is { } archiving)
         {
             // The archive runs on a worker thread; its pages re-read back on this (the UI) thread.
@@ -812,6 +815,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// <summary>Stops the periodic check and closes the tenant's local database.</summary>
     public void Dispose()
     {
+        foreach (var console in Tabs.OfType<PowerShellConsoleViewModel>().ToArray())
+            console.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();
         _tenant.Resources?.Dispose();
@@ -952,6 +957,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     [RelayCommand]
     public void CloseDialog() => Dialog = null;
+
+    // ---- PowerShell -----------------------------------------------------------------------
+
+    /// <summary>This tenant has a PowerShell console (the demo has a pretend one).</summary>
+    public bool HasPowerShell => _tenant.PowerShell is not null;
+
+    /// <summary>Opens the console (one per tenant), or switches to it.</summary>
+    [RelayCommand]
+    void OpenPowerShell() => OpenConsole(null);
+
+    /// <summary>Opens the console with <paramref name="script"/> in its box, ready to read and run.</summary>
+    public void OpenConsole(string? script)
+    {
+        if (_tenant.PowerShell is not { } start)
+            return;
+        OpenTab(t => t is PowerShellConsoleViewModel, () => new PowerShellConsoleViewModel(start(), _tenant.Changes, TenantName, IsDemo));
+        if (script is not null && SelectedTab is PowerShellConsoleViewModel console)
+            console.Insert(script);
+    }
+
+    /// <summary>The PowerShell for one change or several, in a popup with Copy and Open in Console.</summary>
+    public void ShowPowerShell(IReadOnlyList<Tenantry.Core.Changes.ChangeOp> changes)
+    {
+        if (_tenant.Scripts is not { } scripts || changes.Count == 0)
+            return;
+        var script = changes.Count == 1 && scripts.For(changes[0]) is { } one
+            ? one
+            : Tenantry.Core.PowerShell.ChangeScripts.Batch(scripts, changes);
+        var title = changes.Count == 1 ? $"PowerShell: {changes[0].Label}" : $"PowerShell for {changes.Count} Changes";
+        var subtitle = changes.Count == 1 ? changes[0].Target.Name : TenantName;
+        ShowDialog(new Records.DialogViewModel(title, subtitle,
+            new PowerShellScriptViewModel(script, HasPowerShell ? text => { CloseDialog(); OpenConsole(text); } : null),
+            "What Tenantry sends for this, as PowerShell. Tenantry also reads each change back to confirm it; that isn't shown."));
+    }
     // ---- Changes --------------------------------------------------------------------------
 
     /// <summary>The Pending changes tray and Test mode banner; null where the tenant can't be edited.</summary>

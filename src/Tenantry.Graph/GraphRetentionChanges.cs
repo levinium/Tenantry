@@ -28,10 +28,9 @@ public sealed partial class GraphChangeExecutor
             ct => ReadPurview("Get-ComplianceTag", new() { ["Identity"] = u.Tag.Name }, ct), rows => rows.Count == 1, cancellationToken),
         DeleteRetentionLabel d => Purview("Remove-ComplianceTag", new() { ["Identity"] = d.Tag.Name, ["Confirm"] = false },
             ct => ReadPurview("Get-ComplianceTag", new() { ["Identity"] = d.Tag.Name }, ct), Gone, cancellationToken),
-        CreateAdaptiveScope c => Purview("New-AdaptiveScope",
-            With(new() { ["Name"] = c.Scope.Name, ["LocationType"] = c.LocationType, ["RawQuery"] = c.Query }, "Comment", c.Comment),
+        CreateAdaptiveScope c => Purview("New-AdaptiveScope", CreateScopeParameters(c),
             ct => ReadPurview("Get-AdaptiveScope", new() { ["Identity"] = c.Scope.Name }, ct), rows => rows.Count == 1, cancellationToken),
-        UpdateAdaptiveScope u => Purview("Set-AdaptiveScope", new() { ["Identity"] = u.Scope.Name, ["RawQuery"] = u.NewQuery, ["Comment"] = u.NewComment ?? "" },
+        UpdateAdaptiveScope u => Purview("Set-AdaptiveScope", UpdateScopeParameters(u),
             ct => ReadPurview("Get-AdaptiveScope", new() { ["Identity"] = u.Scope.Name }, ct), rows => rows.Count == 1, cancellationToken),
         DeleteAdaptiveScope d => Purview("Remove-AdaptiveScope", new() { ["Identity"] = d.Scope.Name, ["Confirm"] = false },
             ct => ReadPurview("Get-AdaptiveScope", new() { ["Identity"] = d.Scope.Name }, ct), Gone, cancellationToken),
@@ -39,12 +38,7 @@ public sealed partial class GraphChangeExecutor
             ct => ReadPurview("Get-ComplianceRetentionEventType", new() { ["Identity"] = c.EventType.Name }, ct), rows => rows.Count == 1, cancellationToken),
         DeleteRetentionEventType d => Purview("Remove-ComplianceRetentionEventType", new() { ["Identity"] = d.EventType.Name, ["Confirm"] = false },
             ct => ReadPurview("Get-ComplianceRetentionEventType", new() { ["Identity"] = d.EventType.Name }, ct), Gone, cancellationToken),
-        CreateRetentionEvent c => Purview("New-ComplianceRetentionEvent",
-            With(With(With(new()
-            {
-                ["Name"] = c.Event.Name, ["EventType"] = c.EventType,
-                ["EventDateTime"] = c.When.UtcDateTime.ToString("o", CultureInfo.InvariantCulture),
-            }, "ExchangeAssetIdQuery", c.ExchangeQuery), "SharePointAssetIdQuery", c.SharePointQuery), "Comment", c.Comment),
+        CreateRetentionEvent c => Purview("New-ComplianceRetentionEvent", RetentionEventParameters(c),
             ct => ReadPurview("Get-ComplianceRetentionEvent", new() { ["Identity"] = c.Event.Name }, ct), rows => rows.Count == 1, cancellationToken),
         _ => Task.FromResult(new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet.")),
     });
@@ -97,13 +91,7 @@ public sealed partial class GraphChangeExecutor
     async Task<ApplyResult> CreateRetentionPolicyAsync(CreateRetentionPolicy change, CancellationToken cancellationToken)
     {
         var draft = change.Draft;
-        var parameters = With(new() { ["Name"] = change.Policy.Name }, "Comment", draft.Comment);
-        foreach (var (kind, places) in draft.Places)
-            if (places.Count > 0)
-                parameters[ParameterFor(kind)] = Places(places);
-        if (draft.Scopes.Count > 0)
-            parameters["AdaptiveScopeLocation"] = draft.Scopes.ToArray();
-        var made = await Purview("New-RetentionCompliancePolicy", parameters,
+        var made = await Purview("New-RetentionCompliancePolicy", CreatePolicyParameters(change),
             ct => ReadPurview("Get-RetentionCompliancePolicy", new() { ["Identity"] = change.Policy.Name }, ct), rows => rows.Count == 1, cancellationToken);
         if (made.Outcome != ChangeOutcome.Applied)
             return made;
@@ -160,6 +148,53 @@ public sealed partial class GraphChangeExecutor
 
     async Task<ApplyResult> UpdateRetentionPolicyAsync(UpdateRetentionPolicy change, CancellationToken cancellationToken)
     {
+        var parameters = UpdatePolicyParameters(change);
+        if (parameters.Count > 1)
+        {
+            var placed = await Purview("Set-RetentionCompliancePolicy", parameters, null, _ => true, cancellationToken);
+            if (placed.Outcome != ChangeOutcome.Applied)
+                return placed;
+        }
+        if (!RuleChanged(change))
+            return new ApplyResult(ChangeOutcome.Applied);
+        var rules = await ReadPurview("Get-RetentionComplianceRule", new() { ["Policy"] = change.Policy.Name }, cancellationToken);
+        if (rules.FirstOrDefault() is not { ValueKind: JsonValueKind.Object } rule
+            || (rule.TryGetProperty("Guid", out var g) ? g.GetString() : rule.TryGetProperty("Name", out var n) ? n.GetString() : null) is not { } ruleId)
+            return new ApplyResult(ChangeOutcome.Failed, "The policy's rule wasn't found, so what it does couldn't be changed.");
+        return await Purview("Set-RetentionComplianceRule", RuleParameters(new() { ["Identity"] = ruleId }, change.Policy.Name, change.New, creating: false),
+            null, _ => true, cancellationToken);
+    }
+
+    // ---- Parameters (shared with the PowerShell shown for each change) ---------------------------
+
+    static Dictionary<string, object?> CreateScopeParameters(CreateAdaptiveScope change) =>
+        With(new() { ["Name"] = change.Scope.Name, ["LocationType"] = change.LocationType, ["RawQuery"] = change.Query }, "Comment", change.Comment);
+
+    static Dictionary<string, object?> UpdateScopeParameters(UpdateAdaptiveScope change) =>
+        new() { ["Identity"] = change.Scope.Name, ["RawQuery"] = change.NewQuery, ["Comment"] = change.NewComment ?? "" };
+
+    static Dictionary<string, object?> RetentionEventParameters(CreateRetentionEvent change) =>
+        With(With(With(new()
+        {
+            ["Name"] = change.Event.Name, ["EventType"] = change.EventType,
+            ["EventDateTime"] = change.When.UtcDateTime.ToString("o", CultureInfo.InvariantCulture),
+        }, "ExchangeAssetIdQuery", change.ExchangeQuery), "SharePointAssetIdQuery", change.SharePointQuery), "Comment", change.Comment);
+
+    static Dictionary<string, object?> CreatePolicyParameters(CreateRetentionPolicy change)
+    {
+        var draft = change.Draft;
+        var parameters = With(new() { ["Name"] = change.Policy.Name }, "Comment", draft.Comment);
+        foreach (var (kind, places) in draft.Places)
+            if (places.Count > 0)
+                parameters[ParameterFor(kind)] = Places(places);
+        if (draft.Scopes.Count > 0)
+            parameters["AdaptiveScopeLocation"] = draft.Scopes.ToArray();
+        return parameters;
+    }
+
+    /// <summary>Set-RetentionCompliancePolicy's comment, places and scopes that changed; only Identity when none did.</summary>
+    static Dictionary<string, object?> UpdatePolicyParameters(UpdateRetentionPolicy change)
+    {
         var parameters = new Dictionary<string, object?> { ["Identity"] = change.Policy.Name };
         if ((change.Old.Comment ?? "") != (change.New.Comment ?? ""))
             parameters["Comment"] = change.New.Comment ?? "";
@@ -171,21 +206,11 @@ public sealed partial class GraphChangeExecutor
             parameters["AddAdaptiveScopeLocation"] = addScopes;
         if (removeScopes.Length > 0)
             parameters["RemoveAdaptiveScopeLocation"] = removeScopes;
-        if (parameters.Count > 1)
-        {
-            var placed = await Purview("Set-RetentionCompliancePolicy", parameters, null, _ => true, cancellationToken);
-            if (placed.Outcome != ChangeOutcome.Applied)
-                return placed;
-        }
-        var ruleChanged = change.Old.Setting != change.New.Setting || change.Old.Query != change.New.Query
-                          || !change.Old.Labels.SequenceEqual(change.New.Labels, StringComparer.OrdinalIgnoreCase);
-        if (!ruleChanged)
-            return new ApplyResult(ChangeOutcome.Applied);
-        var rules = await ReadPurview("Get-RetentionComplianceRule", new() { ["Policy"] = change.Policy.Name }, cancellationToken);
-        if (rules.FirstOrDefault() is not { ValueKind: JsonValueKind.Object } rule
-            || (rule.TryGetProperty("Guid", out var g) ? g.GetString() : rule.TryGetProperty("Name", out var n) ? n.GetString() : null) is not { } ruleId)
-            return new ApplyResult(ChangeOutcome.Failed, "The policy's rule wasn't found, so what it does couldn't be changed.");
-        return await Purview("Set-RetentionComplianceRule", RuleParameters(new() { ["Identity"] = ruleId }, change.Policy.Name, change.New, creating: false),
-            null, _ => true, cancellationToken);
+        return parameters;
     }
+
+    /// <summary>Whether what the policy does (its rule) changed, not only where it applies.</summary>
+    static bool RuleChanged(UpdateRetentionPolicy change) =>
+        change.Old.Setting != change.New.Setting || change.Old.Query != change.New.Query
+        || !change.Old.Labels.SequenceEqual(change.New.Labels, StringComparer.OrdinalIgnoreCase);
 }

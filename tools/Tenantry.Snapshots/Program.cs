@@ -939,6 +939,25 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Settle();
         Render(premium, "sign-in-history-light", height: 900);
         premium.Reports.SelectedPage = ReportsAreaViewModel.Pages[0];
+
+        // PowerShell console: two commands run, one typed; then Show PowerShell for a pending change.
+        premium.OpenConsole(null);
+        var console = (PowerShellConsoleViewModel)premium.SelectedTab!;
+        Settle();
+        foreach (var command in new[] { "Get-Mailbox -ResultSize 5 | Select-Object Name, PrimarySmtpAddress", "Set-Mailbox -Identity shared-desk -HiddenFromAddressListsEnabled $true" })
+        {
+            console.Input = command;
+            console.RunCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        }
+        console.Input = "Get-MgUser -Top 5";
+        Settle();
+        Render(premium, "powershell-console-light", height: 900);
+        var somebody = premium.Users.Rows.Cast<UserSummary>().First();
+        premium.ShowPowerShell([new Tenantry.Core.Changes.SetForwarding(new Tenantry.Core.Changes.ChangeTarget("user", somebody.Id, somebody.DisplayName, somebody.UserPrincipalName), null, false, "partner@example.org", true, true)]);
+        Settle();
+        Render(premium, "powershell-script-light", height: 900);
+        premium.CloseDialog();
+        premium.CloseTab(console);
         premium.SelectedSection = premium.Sections.Single(s => s.Key == "security");
         Settle();
 

@@ -133,6 +133,21 @@ public sealed class MsalTokenSource : ITokenSource
         }
     }
 
+    /// <summary>A token only if one can be had without a browser; null when it would need a sign-in.</summary>
+    public async Task<string?> TryGetTokenSilentlyAsync(IReadOnlyList<string> scopes, CancellationToken cancellationToken = default)
+    {
+        if ((_account ?? await FindAccountAsync()) is not { } account)
+            return null;
+        try
+        {
+            return Remember(await _app.AcquireTokenSilent(scopes, account).ExecuteAsync(cancellationToken));
+        }
+        catch (MsalUiRequiredException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>
     /// Gets a fresh token rather than the cached one, so newly granted permissions show up
     /// without waiting for the cached token to expire.

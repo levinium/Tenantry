@@ -105,7 +105,39 @@ public sealed class TenantConnector : ITenantConnector
                 new ChangeLog(entities), new JsonTestModeStore(folder, TestModeByDefault), account),
             Records: new GraphUserRecords(graph, entities, exchange, sharePoint),
             SyncSettings: syncSettings,
-            PasswordStyle: passwordStyle);
+            PasswordStyle: passwordStyle,
+            Scripts: new GraphChangeScripts(),
+            PowerShell: () => new Tenantry.PowerShell.PwshSession((interactive, ct) => PowerShellSignInAsync(graph, tokens, purview, interactive, ct)));
+    }
+
+    /// <summary>
+    /// The console's sign-in: Tenantry's own tokens for each service, handed to PowerShell.
+    /// Purview's comes from its second sign-in, without the browser unless asked.
+    /// </summary>
+    static async Task<Tenantry.PowerShell.PsSignIn> PowerShellSignInAsync(GraphClient graph, MsalTokenSource tokens, MsalTokenSource purview, bool interactive,
+        CancellationToken cancellationToken)
+    {
+        var org = await graph.GetFirstAsync("organization?$select=verifiedDomains", cancellationToken);
+        var organization = org?.GetProperty("verifiedDomains").EnumerateArray()
+            .Where(d => d.GetProperty("isInitial").GetBoolean()).Select(d => d.GetProperty("name").GetString()).FirstOrDefault() ?? tokens.TenantId ?? "";
+        string? adminUrl = null;
+        string? sharePointToken = null;
+        try
+        {
+            var root = await graph.GetAsync("sites/root?$select=siteCollection", cancellationToken);
+            adminUrl = $"https://{SharePointAdmin.AdminHost(root.GetProperty("siteCollection").GetProperty("hostname").GetString()!)}";
+            sharePointToken = await tokens.GetTokenAsync([$"{adminUrl}/.default"], cancellationToken: cancellationToken);
+        }
+        catch (GraphException)
+        {
+            // No SharePoint in this tenant (or no access to it): the rest still connects.
+        }
+        string[] purviewScopes = [$"{TenantryPermissions.SearchOnlyAudience}/.default"];
+        return new Tenantry.PowerShell.PsSignIn(organization, tokens.Account ?? "",
+            await tokens.GetTokenAsync([TenantryPermissions.Graph.DefaultScope], cancellationToken: cancellationToken),
+            await tokens.GetTokenAsync(["https://outlook.office365.com/.default"], cancellationToken: cancellationToken),
+            interactive ? await purview.GetTokenAsync(purviewScopes, cancellationToken: cancellationToken) : await purview.TryGetTokenSilentlyAsync(purviewScopes, cancellationToken),
+            adminUrl, sharePointToken);
     }
 
     /// <summary>How long to wait before each re-check of newly granted permissions (about 90 s in all).</summary>
@@ -187,7 +219,9 @@ public sealed class TenantConnector : ITenantConnector
             Changes: new ChangePipeline(new DemoChangeExecutor(directory, records, passwordStyle.Load), new ChangeLog(new MemoryEntityStore()),
                 new MemoryTestModeStore(false), account),
             Records: records,
-            PasswordStyle: passwordStyle);
+            PasswordStyle: passwordStyle,
+            Scripts: new GraphChangeScripts(),
+            PowerShell: () => new DemoPowerShellSession());
     }
 
     public async Task<SetupOutcome> SetUpAutomaticallyAsync(IProgress<string> progress, CancellationToken cancellationToken = default)

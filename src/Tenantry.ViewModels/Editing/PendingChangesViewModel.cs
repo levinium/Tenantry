@@ -6,8 +6,13 @@ using Tenantry.Core.Changes;
 namespace Tenantry.ViewModels.Editing;
 
 /// <summary>One staged change in the tray, and (after a failed apply) why it didn't go through.</summary>
-public sealed partial class PendingRow(ChangeOp change, Action<ChangeOp> remove) : ObservableObject
+public sealed partial class PendingRow(ChangeOp change, Action<ChangeOp> remove, Action<ChangeOp>? showPowerShell = null) : ObservableObject
 {
+    public bool CanShowPowerShell => showPowerShell is not null;
+
+    [RelayCommand]
+    void ShowPowerShell() => showPowerShell?.Invoke(Change);
+
     public ChangeOp Change { get; } = change;
 
     public string TargetName => Change.Target.Name;
@@ -92,13 +97,17 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     readonly string _tenantName;
     readonly Func<Task> _afterApply;
     readonly Dictionary<ChangeOp, string> _problems = [];
+    readonly Action<IReadOnlyList<ChangeOp>>? _showPowerShell;
 
     /// <param name="afterApply">Runs after changes apply (reload the lists, refresh open records).</param>
-    public PendingChangesViewModel(ChangePipeline pipeline, string tenantName, bool showTestMode, Func<Task> afterApply)
+    /// <param name="showPowerShell">Shows the PowerShell for one change or all of them; null hides the buttons.</param>
+    public PendingChangesViewModel(ChangePipeline pipeline, string tenantName, bool showTestMode, Func<Task> afterApply,
+        Action<IReadOnlyList<ChangeOp>>? showPowerShell = null)
     {
         _pipeline = pipeline;
         _tenantName = tenantName;
         _afterApply = afterApply;
+        _showPowerShell = showPowerShell;
         ShowTestModeBanner = showTestMode;
         TurnOffText = "";
         _pipeline.Changed += (_, _) => Rebuild();
@@ -274,6 +283,12 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         _pipeline.Clear();
     }
 
+    public bool CanShowPowerShell => _showPowerShell is not null;
+
+    /// <summary>Every pending change as one script, in the order they'd be applied.</summary>
+    [RelayCommand]
+    void ShowAllPowerShell() => _showPowerShell?.Invoke(_pipeline.Pending.ToArray());
+
     [RelayCommand]
     void CancelConfirm() => IsConfirming = false;
 
@@ -284,7 +299,10 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     {
         Rows.Clear();
         foreach (var change in _pipeline.Pending)
-            Rows.Add(new PendingRow(change, c => _pipeline.Unstage(c)) { Problem = _problems.GetValueOrDefault(change) });
+            Rows.Add(new PendingRow(change, c => _pipeline.Unstage(c), _showPowerShell is null ? null : c => _showPowerShell([c]))
+            {
+                Problem = _problems.GetValueOrDefault(change),
+            });
         if (Rows.Count == 0)
             IsOpen = false;
         else if (!IsApplying && Result is null)

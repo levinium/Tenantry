@@ -120,8 +120,19 @@ public sealed class AppSection(string key, string title, string icon, Func<Cance
 }
 
 /// <summary>An app in the preview pane: what it is, its flags, a few facts, and a button to open its page.</summary>
-public sealed partial class AppPreviewViewModel(string name, string? subtitle, IReadOnlyList<HealthChip> badges, IReadOnlyList<SummaryLine> facts, string openText, Action? open)
+public sealed partial class AppPreviewViewModel(string name, string? subtitle, IReadOnlyList<HealthChip> badges, IReadOnlyList<SummaryLine> facts, string openText, Action? open,
+    IReadOnlyList<PageButton>? buttons = null)
 {
+    /// <summary>More buttons beside Open (Show PowerShell on a change log entry).</summary>
+    public IReadOnlyList<PageButton> Buttons => buttons ?? [];
+
+    public bool HasButtons => Buttons.Count > 0 || CanOpen;
+
+    /// <summary>Long text shown whole under the facts (a console command), or null.</summary>
+    public string? Code { get; init; }
+
+    public bool HasCode => Code is not null;
+
     public string Name => name;
     public string? Subtitle => subtitle;
     public bool HasSubtitle => !string.IsNullOrEmpty(subtitle);

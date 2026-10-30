@@ -24,6 +24,9 @@ public sealed partial class ReportsAreaViewModel : TabViewModel
     readonly IReadOnlyList<ReportCheck> _checks;
     readonly Action<DataListViewModel, SavedViewItem> _open;
     readonly HashSet<SavedViewItem> _watched = [];
+    readonly Tenantry.Core.PowerShell.IChangeScripts? _scripts;
+    readonly Action<ChangeOp>? _showPowerShell;
+    readonly Action<string>? _openInConsole;
     bool _listsLoaded;
     bool _changeLogRead;
 
@@ -39,9 +42,16 @@ public sealed partial class ReportsAreaViewModel : TabViewModel
     /// <param name="open">Shows a list with one of its views applied.</param>
     /// <param name="archive">Sign-in and audit history kept on this computer (10), or null.</param>
     /// <param name="readNew">Adds new events to it now, or null.</param>
+    /// <param name="scripts">The PowerShell for a logged change (Show PowerShell), or null.</param>
+    /// <param name="showPowerShell">Shows that PowerShell in a popup.</param>
+    /// <param name="openInConsole">Puts a logged console command back in the console, or null without one.</param>
     public ReportsAreaViewModel(IReadOnlyList<ReportCheck> checks, ChangePipeline? pipeline, Action<DataListViewModel, SavedViewItem> open, Action<ChangeTarget>? openTarget,
-        IListStateStore? listState, Func<DateTimeOffset> now, Tenantry.Core.Cache.ILogArchive? archive = null, Func<Task>? readNew = null, Action<string>? openUserById = null)
+        IListStateStore? listState, Func<DateTimeOffset> now, Tenantry.Core.Cache.ILogArchive? archive = null, Func<Task>? readNew = null, Action<string>? openUserById = null,
+        Tenantry.Core.PowerShell.IChangeScripts? scripts = null, Action<ChangeOp>? showPowerShell = null, Action<string>? openInConsole = null)
     {
+        _scripts = scripts;
+        _showPowerShell = showPowerShell;
+        _openInConsole = openInConsole;
         SignIns = LogHistoryViewModel.Create(archive, Tenantry.Core.Directory.LogKinds.SignIns,
             "Every interactive sign-in, kept on this computer for a year (Microsoft keeps 30 days). Non-interactive sign-ins can be added in Settings.",
             LogLists.SignIns(e => LogLists.SignInPreview(e, openUserById)), listState, now, readNew);
@@ -58,12 +68,17 @@ public sealed partial class ReportsAreaViewModel : TabViewModel
         ChangeLog.HasRecordPages = false;
         ChangeLog.EmptyText = pipeline is null ? "This tenant can't be changed here, so nothing has been logged." : "No changes match.";
         if (pipeline is not null)
-            pipeline.Applied += (_, _) =>
-            {
-                if (_changeLogRead)
-                    _ = ChangeLog.ReloadAsync(busyText: "Reading the change log…");
-            };
+        {
+            pipeline.Applied += (_, _) => FollowLog();
+            pipeline.Recorded += (_, _) => FollowLog();
+        }
         SelectedPage = Pages[0];
+    }
+
+    void FollowLog()
+    {
+        if (_changeLogRead)
+            _ = ChangeLog.ReloadAsync(busyText: "Reading the change log…");
     }
 
     public override string Title => "Reports";
@@ -168,11 +183,22 @@ public sealed partial class ReportsAreaViewModel : TabViewModel
             Reports.Rebuild();
     }
 
-    static AppPreviewViewModel Preview(ChangeLogEntry e, Action<ChangeTarget>? openTarget)
+    AppPreviewViewModel Preview(ChangeLogEntry e, Action<ChangeTarget>? openTarget)
     {
         var (text, kind) = ChangeLogList.OutcomeBadge(e.Outcome);
         var target = e.Change.Target;
         var canOpen = openTarget is not null && target.Kind is "user" or "group";
+        var buttons = new List<PageButton>();
+        if (e.Change is PowerShellCommand command && _openInConsole is { } reopen)
+            buttons.Add(new PageButton("Open in Console", "WindowConsole", "Put this command in the PowerShell console, to change and run again", () => reopen(command.Script)));
+        else if (_showPowerShell is { } show && _scripts?.For(e.Change) is not null)
+            buttons.Add(new PageButton("Show PowerShell", "WindowConsole", "The PowerShell that does the same change, to copy or run in the console", () => show(e.Change)));
+        if (e.Change is PowerShellCommand ran)
+            return new AppPreviewViewModel(e.Change.Label, $"{e.At.ToLocalTime().ToString("d MMM yyyy h:mm tt", CultureInfo.CurrentCulture)} by {e.Account}",
+                [new HealthChip(e.Outcome == ChangeOutcome.Applied ? "Ran Without Errors" : "Had Errors", e.Outcome == ChangeOutcome.Applied ? BadgeKind.Success : BadgeKind.Danger,
+                    "Whether PowerShell reported errors (its output isn't kept)")],
+                e.Detail is { Length: > 0 } said ? [new SummaryLine("Detail", said)] : [],
+                "", null, buttons) { Code = ran.Script };
         return new AppPreviewViewModel(e.Change.Label, $"{e.At.ToLocalTime().ToString("d MMM yyyy h:mm tt", CultureInfo.CurrentCulture)} by {e.Account}",
             [
                 new HealthChip(text, kind, "What happened when it was applied"),
@@ -185,6 +211,6 @@ public sealed partial class ReportsAreaViewModel : TabViewModel
                 new("After", e.Change.After),
                 .. e.Detail is { Length: > 0 } d ? [new SummaryLine("Detail", d)] : Array.Empty<SummaryLine>(),
             ],
-            target.Kind == "group" ? "Open Group" : "Open Person", canOpen ? () => openTarget!(target) : null);
+            target.Kind == "group" ? "Open Group" : "Open Person", canOpen ? () => openTarget!(target) : null, buttons);
     }
 }

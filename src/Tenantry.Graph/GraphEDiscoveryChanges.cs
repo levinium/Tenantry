@@ -12,9 +12,9 @@ public sealed partial class GraphChangeExecutor
 {
     Task<ApplyResult> ApplyEDiscoveryAsync(EdChange change, CancellationToken cancellationToken) => change switch
     {
-        CreateCase c => Purview("New-ComplianceCase", With(new() { ["Name"] = c.Case.Name }, "Description", c.Description),
+        CreateCase c => Purview("New-ComplianceCase", CreateCaseParameters(c),
             ct => ReadPurview("Get-ComplianceCase", new() { ["Identity"] = c.Case.Name }, ct), rows => rows.Count == 1, cancellationToken),
-        SetCaseClosed s => Purview("Set-ComplianceCase", new() { ["Identity"] = s.Case.Name, [s.Close ? "Close" : "Reopen"] = true },
+        SetCaseClosed s => Purview("Set-ComplianceCase", CaseClosedParameters(s),
             ct => ReadPurview("Get-ComplianceCase", new() { ["Identity"] = s.Case.Name }, ct),
             rows => rows.Count == 1 && string.Equals(rows[0].TryGetProperty("Status", out var st) ? st.GetString() : null, s.Close ? "Closed" : "Active",
                 StringComparison.OrdinalIgnoreCase), cancellationToken),
@@ -22,8 +22,7 @@ public sealed partial class GraphChangeExecutor
             ct => ReadPurview("Get-ComplianceCase", new() { ["Identity"] = d.Case.Name }, ct),
             rows => rows.Count == 1 && (rows[0].TryGetProperty("Description", out var v) ? v.GetString() ?? "" : "") == (d.New ?? ""), cancellationToken),
         DeleteCase d => DeleteCaseAsync(d, cancellationToken),
-        SetCaseMember m => Purview(m.Add ? "Add-ComplianceCaseMember" : "Remove-ComplianceCaseMember",
-            new() { ["Case"] = m.Case.Name, ["Member"] = EdChange.Place(m.Member), ["Confirm"] = false },
+        SetCaseMember m => Purview(CaseMemberCmdlet(m), CaseMemberParameters(m),
             ct => ReadPurview("Get-ComplianceCaseMember", new() { ["Case"] = m.Case.Name }, ct),
             rows => rows.Any(r => IsPerson(r, m.Member)) == m.Add, cancellationToken),
         CreateSearch s => CreateSearchAsync(s, cancellationToken),
@@ -32,8 +31,7 @@ public sealed partial class GraphChangeExecutor
             ct => ReadPurview("Get-ComplianceSearch", new() { ["Identity"] = d.Search.Name }, ct), rows => rows.Count == 0, cancellationToken),
         CreateHold h => CreateHoldAsync(h, cancellationToken),
         // Purview names the action after the search; it runs on its own after this.
-        PurgeSearch p => Purview("New-ComplianceSearchAction",
-            new() { ["SearchName"] = p.Search.Name, ["Purge"] = true, ["PurgeType"] = p.Hard ? "HardDelete" : "SoftDelete", ["Confirm"] = false },
+        PurgeSearch p => Purview("New-ComplianceSearchAction", PurgeParameters(p),
             ct => ReadPurview("Get-ComplianceSearchAction", new() { ["Identity"] = p.Search.Name + "_Purge" }, ct), rows => rows.Count > 0, cancellationToken),
         UpdateHold u => UpdateHoldAsync(u, cancellationToken),
         SetHoldEnabled e => Purview("Set-CaseHoldPolicy", new() { ["Identity"] = e.Hold.Name, ["Enabled"] = e.New },
@@ -106,25 +104,15 @@ public sealed partial class GraphChangeExecutor
     /// <summary>Makes the search, then runs it so its counts are there when it's opened.</summary>
     async Task<ApplyResult> CreateSearchAsync(CreateSearch change, CancellationToken cancellationToken)
     {
-        var parameters = With(With(new() { ["Name"] = change.Search.Name, ["ContentMatchQuery"] = change.Query.Trim() }, "Case", change.CaseName),
-            "Description", change.Description);
-        AddPlaces(parameters, change.Mailboxes, change.Sites, change.PublicFolders);
-        var made = await Purview("New-ComplianceSearch", parameters, ct => ReadPurview("Get-ComplianceSearch", new() { ["Identity"] = change.Search.Name }, ct),
+        var made = await Purview("New-ComplianceSearch", CreateSearchParameters(change), ct => ReadPurview("Get-ComplianceSearch", new() { ["Identity"] = change.Search.Name }, ct),
             rows => rows.Count == 1, cancellationToken);
         return made.Outcome == ChangeOutcome.Applied ? await StartAfterAsync(change.Search.Name, made, cancellationToken) : made;
     }
 
     async Task<ApplyResult> UpdateSearchAsync(UpdateSearch change, CancellationToken cancellationToken)
     {
-        var parameters = new Dictionary<string, object?> { ["Identity"] = change.Search.Name, ["Confirm"] = false };
-        if (change.OldQuery.Trim() != change.NewQuery.Trim())
-            parameters["ContentMatchQuery"] = change.NewQuery.Trim();
-        ChangePlaces(parameters, "Exchange", change.OldMailboxes, change.NewMailboxes);
-        ChangePlaces(parameters, "SharePoint", change.OldSites, change.NewSites);
-        if (change.OldPublicFolders != change.NewPublicFolders)
-            parameters[change.NewPublicFolders ? "AddPublicFolderLocation" : "RemovePublicFolderLocation"] = new[] { "All" };
         var query = change.NewQuery.Trim();
-        var set = await Purview("Set-ComplianceSearch", parameters, ct => ReadPurview("Get-ComplianceSearch", new() { ["Identity"] = change.Search.Name }, ct),
+        var set = await Purview("Set-ComplianceSearch", UpdateSearchParameters(change), ct => ReadPurview("Get-ComplianceSearch", new() { ["Identity"] = change.Search.Name }, ct),
             rows => rows.Count == 1 && (rows[0].TryGetProperty("ContentMatchQuery", out var q) ? q.GetString() ?? "" : "") == query, cancellationToken);
         return set.Outcome == ChangeOutcome.Applied ? await StartAfterAsync(change.Search.Name, set, cancellationToken) : set;
     }
@@ -134,7 +122,7 @@ public sealed partial class GraphChangeExecutor
     {
         try
         {
-            await exchange!.InvokeAsync(CmdletEndpoint.Compliance, "Start-ComplianceSearch", new Dictionary<string, object?> { ["Identity"] = name, ["Confirm"] = false }, cancellationToken);
+            await exchange!.InvokeAsync(CmdletEndpoint.Compliance, "Start-ComplianceSearch", StartSearchParameters(name), cancellationToken);
             return result with { Detail = "Saved; it's counting what it finds now (open it to see)." };
         }
         catch (CmdletException e)
@@ -146,16 +134,13 @@ public sealed partial class GraphChangeExecutor
     /// <summary>A hold is a policy (where) plus a rule (what). If the rule can't be made, the policy is taken away again.</summary>
     async Task<ApplyResult> CreateHoldAsync(CreateHold change, CancellationToken cancellationToken)
     {
-        var parameters = new Dictionary<string, object?> { ["Name"] = change.Hold.Name, ["Case"] = change.CaseName };
-        AddPlaces(parameters, change.Mailboxes, change.Sites, change.PublicFolders);
-        var made = await Purview("New-CaseHoldPolicy", parameters, ct => ReadPurview("Get-CaseHoldPolicy", new() { ["Identity"] = change.Hold.Name }, ct),
+        var made = await Purview("New-CaseHoldPolicy", CreateHoldParameters(change), ct => ReadPurview("Get-CaseHoldPolicy", new() { ["Identity"] = change.Hold.Name }, ct),
             rows => rows.Count == 1, cancellationToken);
         if (made.Outcome != ChangeOutcome.Applied)
             return made;
         try
         {
-            await exchange!.InvokeAsync(CmdletEndpoint.Compliance, "New-CaseHoldRule",
-                With(new() { ["Name"] = change.Hold.Name, ["Policy"] = change.Hold.Name }, "ContentMatchQuery", change.Query.Trim()), cancellationToken);
+            await exchange!.InvokeAsync(CmdletEndpoint.Compliance, "New-CaseHoldRule", HoldRuleParameters(change.Hold.Name, change.Query), cancellationToken);
         }
         catch (CmdletException e)
         {
@@ -173,11 +158,7 @@ public sealed partial class GraphChangeExecutor
 
     async Task<ApplyResult> UpdateHoldAsync(UpdateHold change, CancellationToken cancellationToken)
     {
-        var parameters = new Dictionary<string, object?> { ["Identity"] = change.Hold.Name };
-        ChangePlaces(parameters, "Exchange", change.OldMailboxes, change.NewMailboxes);
-        ChangePlaces(parameters, "SharePoint", change.OldSites, change.NewSites);
-        if (change.OldPublicFolders != change.NewPublicFolders)
-            parameters[change.NewPublicFolders ? "AddPublicFolderLocation" : "RemovePublicFolderLocation"] = new[] { "All" };
+        var parameters = UpdateHoldParameters(change);
         if (parameters.Count > 1)
         {
             var placed = await Purview("Set-CaseHoldPolicy", parameters, null, _ => true, cancellationToken);
@@ -190,9 +171,69 @@ public sealed partial class GraphChangeExecutor
         var rule = rules.Select(r => r.TryGetProperty("Name", out var n) ? n.GetString() : null).FirstOrDefault(n => !string.IsNullOrEmpty(n));
         var query = change.NewQuery.Trim();
         return rule is null
-            ? await Purview("New-CaseHoldRule", With(new() { ["Name"] = change.Hold.Name, ["Policy"] = change.Hold.Name }, "ContentMatchQuery", query), null, _ => true, cancellationToken)
+            ? await Purview("New-CaseHoldRule", HoldRuleParameters(change.Hold.Name, query), null, _ => true, cancellationToken)
             : await Purview("Set-CaseHoldRule", new() { ["Identity"] = rule, ["ContentMatchQuery"] = query },
                 ct => ReadPurview("Get-CaseHoldRule", new() { ["Identity"] = rule }, ct),
                 rows => rows.Count == 1 && (rows[0].TryGetProperty("ContentMatchQuery", out var q) ? q.GetString() ?? "" : "") == query, cancellationToken);
+    }
+
+    // ---- Parameters (shared with the PowerShell shown for each change) ---------------------------
+
+    static Dictionary<string, object?> CreateCaseParameters(CreateCase change) =>
+        With(new() { ["Name"] = change.Case.Name }, "Description", change.Description);
+
+    static Dictionary<string, object?> CaseClosedParameters(SetCaseClosed change) =>
+        new() { ["Identity"] = change.Case.Name, [change.Close ? "Close" : "Reopen"] = true };
+
+    static string CaseMemberCmdlet(SetCaseMember change) => change.Add ? "Add-ComplianceCaseMember" : "Remove-ComplianceCaseMember";
+
+    static Dictionary<string, object?> CaseMemberParameters(SetCaseMember change) =>
+        new() { ["Case"] = change.Case.Name, ["Member"] = EdChange.Place(change.Member), ["Confirm"] = false };
+
+    static Dictionary<string, object?> PurgeParameters(PurgeSearch change) =>
+        new() { ["SearchName"] = change.Search.Name, ["Purge"] = true, ["PurgeType"] = change.Hard ? "HardDelete" : "SoftDelete", ["Confirm"] = false };
+
+    static Dictionary<string, object?> CreateSearchParameters(CreateSearch change)
+    {
+        var parameters = With(With(new() { ["Name"] = change.Search.Name, ["ContentMatchQuery"] = change.Query.Trim() }, "Case", change.CaseName),
+            "Description", change.Description);
+        AddPlaces(parameters, change.Mailboxes, change.Sites, change.PublicFolders);
+        return parameters;
+    }
+
+    static Dictionary<string, object?> UpdateSearchParameters(UpdateSearch change)
+    {
+        var parameters = new Dictionary<string, object?> { ["Identity"] = change.Search.Name, ["Confirm"] = false };
+        if (change.OldQuery.Trim() != change.NewQuery.Trim())
+            parameters["ContentMatchQuery"] = change.NewQuery.Trim();
+        ChangePlaces(parameters, "Exchange", change.OldMailboxes, change.NewMailboxes);
+        ChangePlaces(parameters, "SharePoint", change.OldSites, change.NewSites);
+        if (change.OldPublicFolders != change.NewPublicFolders)
+            parameters[change.NewPublicFolders ? "AddPublicFolderLocation" : "RemovePublicFolderLocation"] = new[] { "All" };
+        return parameters;
+    }
+
+    static Dictionary<string, object?> StartSearchParameters(string name) => new() { ["Identity"] = name, ["Confirm"] = false };
+
+    static Dictionary<string, object?> CreateHoldParameters(CreateHold change)
+    {
+        var parameters = new Dictionary<string, object?> { ["Name"] = change.Hold.Name, ["Case"] = change.CaseName };
+        AddPlaces(parameters, change.Mailboxes, change.Sites, change.PublicFolders);
+        return parameters;
+    }
+
+    /// <summary>A hold's rule, named after the hold; with no query it keeps everything.</summary>
+    static Dictionary<string, object?> HoldRuleParameters(string hold, string query) =>
+        With(new() { ["Name"] = hold, ["Policy"] = hold }, "ContentMatchQuery", query.Trim());
+
+    /// <summary>Set-CaseHoldPolicy's places that changed; only Identity when none did.</summary>
+    static Dictionary<string, object?> UpdateHoldParameters(UpdateHold change)
+    {
+        var parameters = new Dictionary<string, object?> { ["Identity"] = change.Hold.Name };
+        ChangePlaces(parameters, "Exchange", change.OldMailboxes, change.NewMailboxes);
+        ChangePlaces(parameters, "SharePoint", change.OldSites, change.NewSites);
+        if (change.OldPublicFolders != change.NewPublicFolders)
+            parameters[change.NewPublicFolders ? "AddPublicFolderLocation" : "RemovePublicFolderLocation"] = new[] { "All" };
+        return parameters;
     }
 }

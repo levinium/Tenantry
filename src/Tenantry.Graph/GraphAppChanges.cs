@@ -21,8 +21,8 @@ public sealed partial class GraphChangeExecutor
             ? graph.PostAsync($"{AppPath(o)}/owners/$ref", new JsonObject { ["@odata.id"] = DirectoryObject + o.Owner.Id }, ct)
             : DeleteIfThereAsync($"{AppPath(o)}/owners/{o.Owner.Id}/$ref", ct), cancellationToken, tolerateExists: o.Add),
         SetEnterpriseAppSetting s => SetEnterpriseAppSettingAsync(s, cancellationToken),
-        AddAppUserAssignment a => AppStepAsync(ct => graph.PostAsync($"servicePrincipals/{a.App.Id}/appRoleAssignedTo",
-            new JsonObject { ["principalId"] = a.Principal.Id, ["resourceId"] = a.App.Id, ["appRoleId"] = a.RoleId }, ct), cancellationToken, tolerateExists: true),
+        AddAppUserAssignment a => AppStepAsync(ct => graph.PostAsync($"servicePrincipals/{a.App.Id}/appRoleAssignedTo", AppUserAssignmentBody(a), ct),
+            cancellationToken, tolerateExists: true),
         RemoveAppUserAssignment r => AppStepAsync(ct => DeleteIfThereAsync($"servicePrincipals/{r.App.Id}/appRoleAssignedTo/{r.AssignmentId}", ct), cancellationToken),
         RevokeAppGrant g => AppStepAsync(ct => g.IsApplicationPermission
             ? DeleteIfThereAsync($"servicePrincipals/{g.App.Id}/appRoleAssignments/{g.GrantId}", ct)
@@ -32,10 +32,19 @@ public sealed partial class GraphChangeExecutor
         RestoreApp r => AppStepAsync(ct => graph.PostAsync($"directory/deletedItems/{r.App.Id}/restore", new JsonObject(), ct), cancellationToken),
         PurgeApp p => AppStepAsync(ct => DeleteIfThereAsync($"directory/deletedItems/{p.App.Id}", ct), cancellationToken),
         CreateAppRegistration c => CreateAppRegistrationAsync(c, cancellationToken),
-        SetAppRisk r => AppStepAsync(ct => graph.PostAsync($"identityProtection/riskyServicePrincipals/{(r.Compromised ? "confirmCompromised" : "dismiss")}",
-            new JsonObject { ["servicePrincipalIds"] = new JsonArray(r.App.Id) }, ct), cancellationToken),
+        SetAppRisk r => AppStepAsync(ct => graph.PostAsync(AppRiskPath(r), AppRiskBody(r), ct), cancellationToken),
         _ => Task.FromResult(new ApplyResult(ChangeOutcome.Failed, "Tenantry can't apply this kind of change yet.")),
     };
+
+    static JsonObject AppUserAssignmentBody(AddAppUserAssignment a) =>
+        new() { ["principalId"] = a.Principal.Id, ["resourceId"] = a.App.Id, ["appRoleId"] = a.RoleId };
+
+    static string AppRiskPath(SetAppRisk r) => $"identityProtection/riskyServicePrincipals/{(r.Compromised ? "confirmCompromised" : "dismiss")}";
+
+    static JsonObject AppRiskBody(SetAppRisk r) => new() { ["servicePrincipalIds"] = new JsonArray(r.App.Id) };
+
+    /// <summary>The service principal property an enterprise app switch sets ("visible" is the HideApp tag instead).</summary>
+    static string EnterpriseAppProperty(string setting) => setting == "enabled" ? "accountEnabled" : "appRoleAssignmentRequired";
 
     static string AppPath(AppChange change) => change.IsRegistration ? $"applications/{change.App.Id}" : $"servicePrincipals/{change.App.Id}";
 
@@ -133,7 +142,7 @@ public sealed partial class GraphChangeExecutor
                 body = new JsonObject { ["tags"] = new JsonArray([.. tags.Select(x => (JsonNode)x)]) };
             }
             else
-                body = new JsonObject { [change.Setting == "enabled" ? "accountEnabled" : "appRoleAssignmentRequired"] = change.New };
+                body = new JsonObject { [EnterpriseAppProperty(change.Setting)] = change.New };
             await graph.PatchAsync($"servicePrincipals/{change.App.Id}", body, cancellationToken);
             return new ApplyResult(ChangeOutcome.Applied);
         }
@@ -189,15 +198,20 @@ public sealed partial class GraphChangeExecutor
     }
 
     /// <summary>The application, then its enterprise app so people here can use it.</summary>
-    async Task<ApplyResult> CreateAppRegistrationAsync(CreateAppRegistration change, CancellationToken cancellationToken)
+    static JsonObject AppRegistrationBody(CreateAppRegistration change)
     {
         var body = new JsonObject { ["displayName"] = change.App.Name, ["signInAudience"] = change.Audience };
         if (change.RedirectUri is { } uri)
             body[change.Platform switch { "Single-Page App" => "spa", "Mobile and Desktop" => "publicClient", _ => "web" }] =
                 new JsonObject { ["redirectUris"] = new JsonArray(uri) };
+        return body;
+    }
+
+    async Task<ApplyResult> CreateAppRegistrationAsync(CreateAppRegistration change, CancellationToken cancellationToken)
+    {
         try
         {
-            var app = await graph.PostAsync("applications", body, cancellationToken);
+            var app = await graph.PostAsync("applications", AppRegistrationBody(change), cancellationToken);
             var appId = app.GetProperty("appId").GetString()!;
             try
             {

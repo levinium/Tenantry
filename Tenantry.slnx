@@ -6,6 +6,7 @@
     <Project Path="src/Tenantry.Graph/Tenantry.Graph.csproj" />
     <Project Path="src/Tenantry.Cache/Tenantry.Cache.csproj" />
     <Project Path="src/Tenantry.Exchange/Tenantry.Exchange.csproj" />
+    <Project Path="src/Tenantry.PowerShell/Tenantry.PowerShell.csproj" />
     <Project Path="src/Tenantry.ViewModels/Tenantry.ViewModels.csproj" />
     <Project Path="src/Tenantry.App/Tenantry.App.csproj" />
   </Folder>

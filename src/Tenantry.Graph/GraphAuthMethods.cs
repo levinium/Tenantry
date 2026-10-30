@@ -56,9 +56,13 @@ public sealed partial class GraphChangeExecutor
 {
     const string AuthMethodsPolicyPath = "https://graph.microsoft.com/beta/policies/authenticationMethodsPolicy";
 
+    /// <summary>The policy itself (its settings across methods) or one method's configuration.</summary>
+    static string AuthMethodConfigPath(SetAuthMethodConfig change) =>
+        change.Method.Kind == "authpolicy" ? AuthMethodsPolicyPath : $"{AuthMethodsPolicyPath}/authenticationMethodConfigurations/{change.Method.Id}";
+
     async Task<ApplyResult> SetAuthMethodConfigAsync(SetAuthMethodConfig change, CancellationToken cancellationToken)
     {
-        var path = change.Method.Kind == "authpolicy" ? AuthMethodsPolicyPath : $"{AuthMethodsPolicyPath}/authenticationMethodConfigurations/{change.Method.Id}";
+        var path = AuthMethodConfigPath(change);
         try
         {
             await graph.PatchAsync(path, JsonNode.Parse(change.Json)!.AsObject(), cancellationToken);

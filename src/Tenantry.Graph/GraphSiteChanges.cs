@@ -153,12 +153,16 @@ public sealed partial class GraphChangeExecutor
     /// Graph for the group's site is refused for an admin who isn't a member, seen live, so the admin
     /// site is asked instead); a communication site through SharePoint's site manager.
     /// </summary>
+    /// <summary>The Microsoft 365 group a new team site is made as (its owners are also its first members).</summary>
+    static CreateGroup TeamSiteGroup(CreateSite change) =>
+        new(new ChangeTarget("group", change.Site.Address!, change.Site.Name, null), GroupKind.Microsoft365,
+            change.Site.Address!, change.Description, null, change.IsPrivate, false, change.Owners, change.Owners);
+
     Task<ApplyResult> CreateSiteAsync(CreateSite change, CancellationToken cancellationToken) => SiteAsync(async admin =>
     {
         if (change.Kind == SiteKind.TeamSite)
         {
-            var made = await CreateGraphGroupAsync(new CreateGroup(new ChangeTarget("group", change.Site.Address!, change.Site.Name, null), GroupKind.Microsoft365,
-                change.Site.Address!, change.Description, null, change.IsPrivate, false, change.Owners, change.Owners), cancellationToken);
+            var made = await CreateGraphGroupAsync(TeamSiteGroup(change), cancellationToken);
             if (!made.Succeeded)
                 return made;
             foreach (var wait in new[] { TimeSpan.Zero, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(15) })

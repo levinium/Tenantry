@@ -52,20 +52,14 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         SetGroupMembership m => await SetMembershipAsync(m, cancellationToken),
         SetMailboxAccess a => await SetMailboxAccessAsync(a, cancellationToken),
         SetManager m => await SetManagerAsync(m, cancellationToken),
-        SetMailAlias a => await SetMailboxAsync(a.User, new() { ["EmailAddresses"] = AddOrRemove(a.New, "smtp:" + a.Address) },
+        SetMailAlias a => await SetMailboxAsync(a.User, AliasParameters(a),
             row => Addresses(row).Contains(a.Address, StringComparer.OrdinalIgnoreCase) == a.New, cancellationToken),
-        SetPrimaryAddress p => await SetMailboxAsync(p.User, new() { ["WindowsEmailAddress"] = p.New },
+        SetPrimaryAddress p => await SetMailboxAsync(p.User, PrimaryAddressParameters(p),
             row => string.Equals(Text(row, "PrimarySmtpAddress"), p.New, StringComparison.OrdinalIgnoreCase), cancellationToken),
-        // Forwarding is one address at a time: an SMTP address replaces any directory recipient.
-        SetForwarding f => await SetMailboxAsync(f.User, new()
-            {
-                ["ForwardingSmtpAddress"] = f.NewTo is null ? null : "smtp:" + f.NewTo,
-                ["ForwardingAddress"] = null,
-                ["DeliverToMailboxAndForward"] = f.NewTo is not null && f.NewKeepCopy,
-            },
+        SetForwarding f => await SetMailboxAsync(f.User, ForwardingParameters(f),
             row => string.Equals(StripSmtp(Text(row, "ForwardingSmtpAddress")) ?? "", f.NewTo ?? "", StringComparison.OrdinalIgnoreCase)
                    && string.IsNullOrEmpty(Text(row, "ForwardingAddress")), cancellationToken),
-        SetHiddenFromAddressList h => await SetMailboxAsync(h.User, new() { ["HiddenFromAddressListsEnabled"] = h.New },
+        SetHiddenFromAddressList h => await SetMailboxAsync(h.User, HiddenParameters(h),
             row => row.TryGetPropertyValue("HiddenFromAddressListsEnabled", out var v) && v?.GetValueKind() == JsonValueKind.True == h.New, cancellationToken),
         SetAutoReply r => await SetAutoReplyAsync(r, cancellationToken),
         SetMailboxValue v => await SetMailboxValueAsync(v, cancellationToken),
@@ -317,24 +311,7 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         if (exchange is null)
             return NoExchange;
         var mailbox = change.Mailbox.Address ?? change.Mailbox.Id;
-        var person = change.Person.Address ?? change.Person.Id;
-        var (cmdlet, parameters) = change.Right switch
-        {
-            MailboxRight.FullAccess => (change.New ? "Add-MailboxPermission" : "Remove-MailboxPermission", new Dictionary<string, object?>
-            {
-                ["Identity"] = mailbox, ["User"] = person, ["AccessRights"] = new[] { "FullAccess" }, ["InheritanceType"] = "All",
-            }),
-            MailboxRight.SendAs => (change.New ? "Add-RecipientPermission" : "Remove-RecipientPermission", new Dictionary<string, object?>
-            {
-                ["Identity"] = mailbox, ["Trustee"] = person, ["AccessRights"] = new[] { "SendAs" }, ["Confirm"] = false,
-            }),
-            _ => ("Set-Mailbox", new Dictionary<string, object?>
-            {
-                ["Identity"] = mailbox, ["GrantSendOnBehalfTo"] = AddOrRemove(change.New, person),
-            }),
-        };
-        if (cmdlet == "Remove-MailboxPermission")
-            parameters["Confirm"] = false;
+        var (cmdlet, parameters) = MailboxAccessCall(change);
         try
         {
             await exchange.InvokeAsync(CmdletEndpoint.Exchange, cmdlet, parameters, cancellationToken);
@@ -367,6 +344,31 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         }
         return new ApplyResult(ChangeOutcome.AppliedNotYetVisible,
             "Exchange accepted the change but still shows the old access; it usually appears within a minute.");
+    }
+
+    /// <summary>The Exchange cmdlet and parameters that give or take away one kind of mailbox access.</summary>
+    static (string Cmdlet, Dictionary<string, object?> Parameters) MailboxAccessCall(SetMailboxAccess change)
+    {
+        var mailbox = change.Mailbox.Address ?? change.Mailbox.Id;
+        var person = change.Person.Address ?? change.Person.Id;
+        var (cmdlet, parameters) = change.Right switch
+        {
+            MailboxRight.FullAccess => (change.New ? "Add-MailboxPermission" : "Remove-MailboxPermission", new Dictionary<string, object?>
+            {
+                ["Identity"] = mailbox, ["User"] = person, ["AccessRights"] = new[] { "FullAccess" }, ["InheritanceType"] = "All",
+            }),
+            MailboxRight.SendAs => (change.New ? "Add-RecipientPermission" : "Remove-RecipientPermission", new Dictionary<string, object?>
+            {
+                ["Identity"] = mailbox, ["Trustee"] = person, ["AccessRights"] = new[] { "SendAs" }, ["Confirm"] = false,
+            }),
+            _ => ("Set-Mailbox", new Dictionary<string, object?>
+            {
+                ["Identity"] = mailbox, ["GrantSendOnBehalfTo"] = AddOrRemove(change.New, person),
+            }),
+        };
+        if (cmdlet == "Remove-MailboxPermission")
+            parameters["Confirm"] = false;
+        return (cmdlet, parameters);
     }
 
     async Task<bool> ReadAccessAsync(SetMailboxAccess change, string mailbox, CancellationToken cancellationToken)
@@ -469,13 +471,13 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
     }
 
     Task<ApplyResult> SetMailboxValueAsync(SetMailboxValue change, CancellationToken cancellationToken) =>
-        SetMailboxAsync(change.User, new() { [change.Parameter] = change.Value?.DeepClone() }, row => Shows(row[change.Parameter], change.Value),
+        SetMailboxAsync(change.User, MailboxValueParameters(change), row => Shows(row[change.Parameter], change.Value),
             cancellationToken, [change.Parameter]);
 
     /// <summary>Set-CASMailbox; SMTP sending's parameter says "disabled", so its value is inverted.</summary>
     Task<ApplyResult> SetEmailAppAsync(SetEmailApp change, CancellationToken cancellationToken)
     {
-        var value = change.Parameter == "SmtpClientAuthenticationDisabled" ? !change.New : change.New;
+        var value = EmailAppValue(change);
         return RunAndReadBackAsync(change.User, "Set-CASMailbox", new() { [change.Parameter] = value }, "Get-CASMailbox",
             ["ExternalDirectoryObjectId", change.Parameter], DirectorySync.CasMailboxes,
             row => row[change.Parameter]?.GetValueKind() == (value ? JsonValueKind.True : JsonValueKind.False), cancellationToken);
@@ -483,8 +485,8 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
 
     Task<ApplyResult> SetArchiveAsync(SetArchive change, CancellationToken cancellationToken)
     {
-        Dictionary<string, object?> parameters = change.New ? new() { ["Archive"] = true } : new() { ["Archive"] = true, ["Confirm"] = false };
-        return RunAndReadBackAsync(change.User, change.New ? "Enable-Mailbox" : "Disable-Mailbox", parameters, "Get-Mailbox",
+        var (cmdlet, parameters) = ArchiveCall(change);
+        return RunAndReadBackAsync(change.User, cmdlet, parameters, "Get-Mailbox",
             [.. DirectorySync.MailboxSelect], DirectorySync.Mailboxes,
             row => string.Equals(Text(row, "ArchiveStatus"), "Active", StringComparison.OrdinalIgnoreCase) == change.New, cancellationToken);
     }
@@ -493,26 +495,15 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         RunAndReadBackAsync(change.User, "Enable-Mailbox", new() { ["AutoExpandingArchive"] = true }, "Get-Mailbox",
             ["AutoExpandingArchiveEnabled"], null, row => row["AutoExpandingArchiveEnabled"]?.GetValueKind() == JsonValueKind.True, cancellationToken);
 
-    Task<ApplyResult> SetLitigationHoldAsync(SetLitigationHold change, CancellationToken cancellationToken)
-    {
-        var parameters = new Dictionary<string, object?> { ["LitigationHoldEnabled"] = change.NewOn };
-        if (change.NewOn)
-        {
-            parameters["LitigationHoldDuration"] = change.NewDays is { } days ? days.ToString(System.Globalization.CultureInfo.InvariantCulture) : "Unlimited";
-            parameters["RetentionComment"] = change.NewNote ?? "";
-        }
-        return SetMailboxAsync(change.User, parameters,
+    Task<ApplyResult> SetLitigationHoldAsync(SetLitigationHold change, CancellationToken cancellationToken) =>
+        SetMailboxAsync(change.User, LitigationHoldParameters(change),
             row => row["LitigationHoldEnabled"]?.GetValueKind() == (change.NewOn ? JsonValueKind.True : JsonValueKind.False), cancellationToken,
             ["LitigationHoldDuration", "RetentionComment"]);
-    }
 
-    Task<ApplyResult> SetAllowedSenderAsync(SetAllowedSender change, CancellationToken cancellationToken)
-    {
-        var sender = change.Sender.Address ?? change.Sender.Name;
-        return SetMailboxAsync(change.User, new() { ["AcceptMessagesOnlyFromSendersOrMembers"] = AddOrRemove(change.New, sender) },
+    Task<ApplyResult> SetAllowedSenderAsync(SetAllowedSender change, CancellationToken cancellationToken) =>
+        SetMailboxAsync(change.User, AllowedSenderParameters(change),
             row => (row["AcceptMessagesOnlyFromSendersOrMembers"] is JsonArray list && list.Any(s => Names(s?.GetValue<string>(), change.Sender))) == change.New,
             cancellationToken, ["AcceptMessagesOnlyFromSendersOrMembers"]);
-    }
 
     /// <summary>
     /// Set-MailboxAutoReplyConfiguration. Messages go as HTML (line breaks kept); scheduled times
@@ -524,19 +515,7 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
             return NoExchange;
         var identity = change.User.Address ?? change.User.Id;
         var reply = change.New;
-        var parameters = new Dictionary<string, object?>
-        {
-            ["Identity"] = identity,
-            ["AutoReplyState"] = reply.State switch { AutoReplyState.On => "Enabled", AutoReplyState.Scheduled => "Scheduled", _ => "Disabled" },
-            ["InternalMessage"] = Html(reply.Internal),
-            ["ExternalMessage"] = Html(reply.External),
-            ["ExternalAudience"] = reply.Audience.ToString(),
-        };
-        if (reply.State == AutoReplyState.Scheduled)
-        {
-            parameters["StartTime"] = reply.Start?.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture);
-            parameters["EndTime"] = reply.End?.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture);
-        }
+        var parameters = AutoReplyParameters(change);
         try
         {
             await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Set-MailboxAutoReplyConfiguration", parameters, cancellationToken);

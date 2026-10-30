@@ -79,17 +79,20 @@ public sealed partial class GraphChangeExecutor
 
     async Task<ApplyResult> SetLostModeAsync(SetLostMode change, CancellationToken cancellationToken)
     {
-        var result = change.On
-            ? await GraphCheckedAsync(ct => graph.PostAsync($"{BetaDevices}{change.Device.Id}/enableLostMode", new JsonObject
-            {
-                ["message"] = change.Message ?? "",
-                ["phoneNumber"] = change.Phone ?? "",
-                ["footer"] = "",
-            }, ct), null, _ => true, cancellationToken)
-            : await GraphCheckedAsync(ct => graph.PostAsync($"deviceManagement/managedDevices/{change.Device.Id}/disableLostMode", new JsonObject(), ct),
-                null, _ => true, cancellationToken);
+        var (path, body) = LostModeCall(change);
+        var result = await GraphCheckedAsync(ct => graph.PostAsync(path, body, ct), null, _ => true, cancellationToken);
         return result.Succeeded ? new ApplyResult(ChangeOutcome.Applied, "Sent; the device carries it out when it next checks in.") : result;
     }
+
+    /// <summary>Turning lost mode on is a beta action carrying a message and phone number; turning it off is in v1.0.</summary>
+    static (string Path, JsonObject Body) LostModeCall(SetLostMode change) => change.On
+        ? ($"{BetaDevices}{change.Device.Id}/enableLostMode", new JsonObject
+        {
+            ["message"] = change.Message ?? "",
+            ["phoneNumber"] = change.Phone ?? "",
+            ["footer"] = "",
+        })
+        : ($"deviceManagement/managedDevices/{change.Device.Id}/disableLostMode", new JsonObject());
 
     Task<ApplyResult> SetAutopilotGroupTagAsync(SetAutopilotGroupTag change, CancellationToken cancellationToken) =>
         GraphCheckedAsync(
@@ -129,7 +132,17 @@ public sealed partial class GraphChangeExecutor
     /// </summary>
     async Task<ApplyResult> RunDeviceActionAsync(RunDeviceAction change, CancellationToken cancellationToken)
     {
-        var (path, body) = change.Command switch
+        var (path, body) = DeviceActionCall(change);
+        var result = await GraphCheckedAsync(ct => graph.PostAsync(path, body, ct), null, _ => true, cancellationToken);
+        return result.Succeeded
+            ? new ApplyResult(ChangeOutcome.Applied, change.Command == DeviceCommand.Sync ? null : "Sent; the device carries it out when it next checks in.")
+            : result;
+    }
+
+    /// <summary>The Intune action's address and body.</summary>
+    static (string Path, JsonObject Body) DeviceActionCall(RunDeviceAction change)
+    {
+        var (action, body) = change.Command switch
         {
             DeviceCommand.Sync => ("syncDevice", new JsonObject()),
             DeviceCommand.Restart => ("rebootNow", new JsonObject()),
@@ -150,11 +163,6 @@ public sealed partial class GraphChangeExecutor
         // Beta-only actions.
         var root = change.Command is DeviceCommand.RotateLocalAdminPassword or DeviceCommand.CollectDiagnostics or DeviceCommand.RotateBitLockerKeys
             ? "https://graph.microsoft.com/beta/" : "";
-        var result = await GraphCheckedAsync(
-            ct => graph.PostAsync($"{root}deviceManagement/managedDevices/{change.Device.Id}/{path}", body, ct),
-            null, _ => true, cancellationToken);
-        return result.Succeeded
-            ? new ApplyResult(ChangeOutcome.Applied, change.Command == DeviceCommand.Sync ? null : "Sent; the device carries it out when it next checks in.")
-            : result;
+        return ($"{root}deviceManagement/managedDevices/{change.Device.Id}/{action}", body);
     }
 }

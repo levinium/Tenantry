@@ -137,6 +137,7 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(CreateRetentionEventType), "createRetentionEventType")]
 [JsonDerivedType(typeof(DeleteRetentionEventType), "deleteRetentionEventType")]
 [JsonDerivedType(typeof(CreateRetentionEvent), "createRetentionEvent")]
+[JsonDerivedType(typeof(PowerShellCommand), "powerShellCommand")]
 public abstract record ChangeOp
 {
     [JsonIgnore]

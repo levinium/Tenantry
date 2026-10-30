@@ -144,6 +144,13 @@
               </Flyout>
             </Button.Flyout>
           </Button>
+          <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Command="{Binding OpenPowerShellCommand}"
+                  IsVisible="{Binding HasPowerShell}" ToolTip.Tip="A PowerShell console already signed in to this tenant (Graph, Exchange, Purview, SharePoint)">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="WindowConsole" FontSize="18" />
+              <TextBlock Text="PowerShell" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
           <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Command="{Binding OpenSettingsCommand}"
                   IsVisible="{Binding HasSettings}" ToolTip.Tip="How often this tenant's local copy is updated, and when it last was">
             <StackPanel Orientation="Horizontal" Spacing="10">
@@ -253,6 +260,13 @@
               </StackPanel>
             </Border>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasChanges}">
+              <Button Command="{Binding ShowAllPowerShellCommand}" IsVisible="{Binding CanShowPowerShell}"
+                      ToolTip.Tip="Every pending change as one PowerShell script, in the order they'd be applied">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <ic:FluentIcon Icon="WindowConsole" FontSize="16" />
+                  <TextBlock Text="Show PowerShell" />
+                </StackPanel>
+              </Button>
               <Button Classes="ghost" Command="{Binding DiscardAllCommand}" Content="Discard All"
                       ToolTip.Tip="Remove every pending change; nothing is sent" />
               <Button Command="{Binding CancelConfirmCommand}" Content="Cancel" IsVisible="{Binding ApplyIsDanger}" />
@@ -332,21 +346,29 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="ed:PendingRow">
                   <Border Classes="valuerow">
-                    <Grid ColumnDefinitions="16,220,*,Auto" ColumnSpacing="12">
+                    <Grid ColumnDefinitions="16,220,*,Auto,Auto" ColumnSpacing="12">
                       <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}"
                                      VerticalAlignment="Center" IsVisible="{Binding IsCaution}"
                                      ToolTip.Tip="This change takes something away; you'll be asked to confirm" />
                       <TextBlock Grid.Column="1" Text="{Binding TargetName}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                       <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                          <TextBlock Classes="muted" Text="{Binding LabelText}" />
-                          <TextBlock Text="{Binding Before}" Classes="before" />
-                          <TextBlock Classes="muted" Text="→" />
-                          <TextBlock Text="{Binding After}" FontWeight="SemiBold" />
-                        </StackPanel>
+                        <!-- A long "after" (a policy's whole audience) is cut short rather than running under the buttons. -->
+                        <DockPanel>
+                          <TextBlock DockPanel.Dock="Left" Classes="muted" Text="{Binding LabelText}" Margin="0,0,6,0" />
+                          <TextBlock DockPanel.Dock="Left" Text="{Binding Before}" Classes="before" Margin="0,0,6,0" />
+                          <TextBlock DockPanel.Dock="Left" Classes="muted" Text="→" Margin="0,0,6,0" />
+                          <TextBlock Text="{Binding After}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding After}" />
+                        </DockPanel>
                         <TextBlock Classes="error" Text="{Binding Problem}" TextWrapping="Wrap" IsVisible="{Binding HasProblem}" />
                       </StackPanel>
-                      <Button Grid.Column="3" Classes="rowaction" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this change; nothing is sent">
+                      <Button Grid.Column="3" Padding="10,3" Command="{Binding ShowPowerShellCommand}" IsVisible="{Binding CanShowPowerShell}" VerticalAlignment="Center"
+                              ToolTip.Tip="The PowerShell that makes this change, to copy or run in the console">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <ic:FluentIcon Icon="WindowConsole" FontSize="14" />
+                          <TextBlock Text="PowerShell" />
+                        </StackPanel>
+                      </Button>
+                      <Button Grid.Column="4" Classes="rowaction" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this change; nothing is sent">
                         <ic:FluentIcon Icon="Dismiss" FontSize="14" />
                       </Button>
                     </Grid>
@@ -415,6 +437,9 @@
           </DataTemplate>
           <DataTemplate DataType="vm:ReportsAreaViewModel">
             <views:ReportsAreaView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:PowerShellConsoleViewModel">
+            <views:PowerShellConsoleView />
           </DataTemplate>
           <DataTemplate DataType="ms:MailSecurityViewModel">
             <views:MailSecurityView />

@@ -40,6 +40,9 @@
     <DataTemplate DataType="rec:AppPreviewViewModel">
       <views:AppPreviewView />
     </DataTemplate>
+    <DataTemplate DataType="vm:PowerShellScriptViewModel">
+      <views:PowerShellScriptView />
+    </DataTemplate>
     <DataTemplate DataType="rec:AuditRecordPreviewViewModel">
       <views:AuditRecordPreviewView />
     </DataTemplate>

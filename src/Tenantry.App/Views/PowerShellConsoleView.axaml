@@ -1,0 +1,183 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.PowerShellConsoleView"
+             x:DataType="vm:PowerShellConsoleViewModel">
+  <UserControl.Styles>
+    <Style Selector="SelectableTextBlock.code.error">
+      <Setter Property="Foreground" Value="{DynamicResource BadgeDangerFg}" />
+    </Style>
+    <Style Selector="SelectableTextBlock.code.warning">
+      <Setter Property="Foreground" Value="{DynamicResource BadgeWarningFg}" />
+    </Style>
+    <Style Selector="SelectableTextBlock.code.quiet">
+      <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+    </Style>
+    <Style Selector="TextBox.command">
+      <Setter Property="FontFamily" Value="Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace" />
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+  </UserControl.Styles>
+
+  <!-- The console: who it's signed in to, a warning that commands skip Pending changes, what ran, and the box. -->
+  <DockPanel Margin="8,12,8,8">
+    <Border DockPanel.Dock="Top" Classes="card">
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="20">
+          <Border Classes="avatar large" VerticalAlignment="Top">
+            <ic:FluentIcon Icon="WindowConsole" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+            <TextBlock Classes="h1" Text="PowerShell" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Panel Width="16" Height="16" VerticalAlignment="Center" IsVisible="{Binding IsStarting}">
+                <Ellipse Classes="spintrack" />
+                <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                  <Arc.RenderTransform>
+                    <RotateTransform />
+                  </Arc.RenderTransform>
+                </Arc>
+              </Panel>
+              <TextBlock Classes="caption" VerticalAlignment="Center" Text="{Binding StatusText}" TextWrapping="Wrap" />
+            </StackPanel>
+            <!-- One chip per service; a button beside the ones that need something done. -->
+            <ItemsControl ItemsSource="{Binding Connections}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="12" LineSpacing="6" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:PsConnectionRow">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                    <c:Badge Text="{Binding State}" Kind="{Binding Kind}" VerticalAlignment="Center"
+                             ToolTip.Tip="{Binding Detail}" ToolTip.ShowDelay="300" />
+                    <Button Padding="10,3" Content="{Binding ActionText}" Command="{Binding Action}" IsVisible="{Binding HasAction}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+          <StackPanel Grid.Column="2" Spacing="8" VerticalAlignment="Top">
+            <Button Command="{Binding RestartCommand}" HorizontalAlignment="Stretch"
+                    ToolTip.Tip="Start a fresh PowerShell and sign it in again (variables you set are lost)">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ic:FluentIcon Icon="ArrowClockwise" FontSize="16" />
+                <TextBlock Text="Restart" />
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding ClearCommand}" HorizontalAlignment="Stretch" IsEnabled="{Binding HasBlocks}"
+                    ToolTip.Tip="Clear what's shown (PowerShell and its variables stay as they are)">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ic:FluentIcon Icon="Eraser" FontSize="16" />
+                <TextBlock Text="Clear" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Grid>
+        <Border Classes="banner warning">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Warning" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Banner}" />
+          </StackPanel>
+        </Border>
+        <Border Classes="banner error" IsVisible="{Binding IsUnavailable}">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+              <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" />
+              <TextBlock Classes="caption" Text="{Binding InstallHelpText}" TextWrapping="Wrap" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+              <Button Command="{Binding OpenInstallHelpCommand}" Content="How to Install PowerShell" />
+              <Button Classes="accent" Command="{Binding RestartCommand}" Content="Try Again" />
+            </StackPanel>
+          </Grid>
+        </Border>
+        <Border Classes="banner neutral" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <TextBlock TextWrapping="Wrap" Text="{Binding Notice}" />
+        </Border>
+      </StackPanel>
+    </Border>
+
+    <!-- The command box: Enter runs, Shift+Enter adds a line, Tab completes, Up and Down go through earlier commands. -->
+    <Border DockPanel.Dock="Bottom" Classes="card" Padding="14,10" Margin="0,8,0,0">
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+        <TextBlock Classes="code" Text="PS&gt;" VerticalAlignment="Top" Margin="0,7,0,0" FontFamily="Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace" />
+        <TextBox x:Name="CommandBox" Grid.Column="1" Classes="command" Text="{Binding Input}" AcceptsReturn="True" TextWrapping="Wrap"
+                 MinHeight="38" MaxHeight="220"
+                 PlaceholderText="Type a command and press Enter. Shift+Enter adds a line, Tab completes, Up and Down bring back earlier commands." />
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+          <Button Classes="accent" Command="{Binding RunCommand}" IsVisible="{Binding !IsRunning}" ToolTip.Tip="Run the command (Enter)">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ic:FluentIcon Icon="Play" FontSize="16" />
+              <TextBlock Text="Run" />
+            </StackPanel>
+          </Button>
+          <Button Classes="danger-outline" Command="{Binding StopCommand}" IsVisible="{Binding IsRunning}"
+                  ToolTip.Tip="Stop the command now. PowerShell starts again, so variables you set are lost.">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ic:FluentIcon Icon="Stop" FontSize="16" />
+              <TextBlock Text="Stop" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- What ran, newest at the bottom. -->
+    <Panel Margin="0,8,0,0">
+      <StackPanel Spacing="6" Margin="12" IsVisible="{Binding !HasBlocks}">
+        <TextBlock Classes="h3" Text="Signed in and ready" />
+        <TextBlock Classes="caption" TextWrapping="Wrap"
+                   Text="Try Get-MgContext, Get-Mailbox -ResultSize 10, Get-ComplianceCase or Get-PnPTenantSite. Variables you set stay until PowerShell restarts. Show PowerShell on any pending change or Change Log entry puts its commands here." />
+      </StackPanel>
+      <ScrollViewer x:Name="OutputScroller" HorizontalScrollBarVisibility="Disabled">
+        <ItemsControl ItemsSource="{Binding Blocks}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:PsBlock">
+              <Border Classes="card" Padding="14,10">
+                <StackPanel Spacing="8">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <TextBlock Classes="muted" Text="PS&gt;" FontFamily="Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace" FontSize="12" Margin="0,1,0,0" />
+                    <SelectableTextBlock Grid.Column="1" Classes="code" Text="{Binding Command}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                      <Panel Width="14" Height="14" VerticalAlignment="Center" IsVisible="{Binding IsRunning}">
+                        <Ellipse Classes="spintrack" />
+                        <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                          <Arc.RenderTransform>
+                            <RotateTransform />
+                          </Arc.RenderTransform>
+                        </Arc>
+                      </Panel>
+                      <TextBlock Classes="caption" Classes.error="{Binding Failed}" Text="{Binding Outcome}" VerticalAlignment="Center" />
+                      <Button Padding="10,3" Command="{Binding EditAgainCommand}" Content="Edit Again" ToolTip.Tip="Put this command back in the box, to change and run again" />
+                      <Button Padding="10,3" Command="{Binding CopyOutputCommand}" Content="Copy Output" ToolTip.Tip="Copy everything this command wrote" />
+                    </StackPanel>
+                  </Grid>
+                  <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Chunks}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PsChunk">
+                          <SelectableTextBlock Classes="code" Classes.error="{Binding IsError}" Classes.warning="{Binding IsWarning}" Classes.quiet="{Binding IsQuiet}"
+                                               Text="{Binding Text}" TextWrapping="NoWrap" />
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Panel>
+  </DockPanel>
+</UserControl>
