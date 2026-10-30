@@ -64,7 +64,7 @@ public sealed partial class SetupWizardViewModel : ObservableObject
         "Creates an app registration named \"Tenantry\" in your tenant (or updates it if one exists).",
         "Grants it tenant-wide consent to delegated permissions. Delegated means Tenantry can never do more than the signed-in admin's own roles allow.",
         "Requires assignment, so only admins you assign can sign in to it, and assigns you.",
-        "Needs the Cloud Application Administrator role or higher. Grants made this way take effect immediately and skip any admin-consent workflow.",
+        "Needs the Cloud Application Administrator role or higher. Permissions granted this way work straight away, without waiting for anyone to approve them.",
     ];
 
     public string ManualScript { get; } = ManualSetupScript.Generate();

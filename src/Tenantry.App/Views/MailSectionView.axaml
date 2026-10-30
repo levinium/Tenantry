@@ -9,7 +9,7 @@
              x:Class="Tenantry.App.Views.MailSectionView"
              x:DataType="rec:MailSection"
              x:Name="Root">
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <TextBlock Classes="muted" Text="This account has no mailbox. A license with Exchange Online gives it one." IsVisible="{Binding !HasMailbox}" TextWrapping="Wrap" />
     <TextBlock Classes="muted" Text="Reading their mailbox from Exchange…" IsVisible="{Binding IsLoading}" />
     <Border Classes="banner error" IsVisible="{Binding HasError}">
@@ -40,7 +40,7 @@
     </TabStrip>
 
     <TextBlock Classes="caption" TextWrapping="Wrap" IsVisible="{Binding CanEdit}"
-               Text="Changes go to Pending changes as you make them (text when you pause typing, press Enter or click away). Nothing changes in Microsoft 365 until you apply them." />
+               Text="Changes go to Pending Changes as you make them (text when you pause typing, press Enter or click away). Nothing changes in Microsoft 365 until you apply them." />
 
     <!-- Addresses & delivery -->
     <StackPanel Spacing="12" IsVisible="{Binding ShowDelivery}">
@@ -77,7 +77,7 @@
                       <c:Badge Grid.Column="1" Text="Primary" Kind="Success" IsVisible="{Binding IsPrimary}" VerticalAlignment="Center" />
                       <c:Badge Grid.Column="2" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
                       <Button Grid.Column="3" Classes="ghost" Content="Make Primary" Command="{Binding MakePrimaryCommand}" IsVisible="{Binding CanMakePrimary}"
-                              ToolTip.Tip="Make this the address people see (added to Pending changes); the current primary stays as an alias" />
+                              ToolTip.Tip="Make this the address people see (added to Pending Changes); the current primary stays as an alias" />
                       <Button Grid.Column="4" Classes="rowaction" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}" IsVisible="{Binding !IsPrimary}"
                               ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
                         <Panel>
@@ -94,7 +94,7 @@
               <TextBox Text="{Binding NewAliasName}" Width="200" PlaceholderText="New address" />
               <TextBlock Text="@" VerticalAlignment="Center" />
               <ComboBox ItemsSource="{Binding Domains}" SelectedItem="{Binding NewAliasDomain}" MinWidth="220" />
-              <Button Classes="accent" Content="Add Address" Command="{Binding AddAliasCommand}" ToolTip.Tip="Add this address (added to Pending changes)" />
+              <Button Classes="accent" Content="Add Address" Command="{Binding AddAliasCommand}" ToolTip.Tip="Add this address (added to Pending Changes)" />
             </StackPanel>
             <TextBlock Classes="error" Text="{Binding AliasError}" IsVisible="{Binding HasAliasError}" TextWrapping="Wrap" />
           </StackPanel>
@@ -136,7 +136,7 @@
               <TextBlock Classes="caption" TextWrapping="Wrap"
                          Text="Whether this mailbox appears when people look someone up in Outlook or Teams. Hiding it doesn't stop mail arriving." />
               <ToggleSwitch IsChecked="{Binding ShowInAddressList}" IsEnabled="{Binding CanEdit}" OnContent="Shown in the Address List" OffContent="Hidden from the Address List"
-                            ToolTip.Tip="Switching adds the change to Pending changes" />
+                            ToolTip.Tip="Switching adds the change to Pending Changes" />
               <TextBlock Classes="pendingtext" Text="{Binding AddressListPendingText}" IsVisible="{Binding HasAddressListPending}" />
             </StackPanel>
           </Border>
@@ -187,7 +187,7 @@
                 </StackPanel>
               </StackPanel>
               <TextBlock Classes="error" Text="{Binding ReplyError}" IsVisible="{Binding HasReplyError}" TextWrapping="Wrap" />
-              <TextBlock Classes="caption" Text="Write the reply; it goes to Pending changes when you pause typing." IsVisible="{Binding NeedsReplyText}" TextWrapping="Wrap" />
+              <TextBlock Classes="caption" Text="Write the reply; it goes to Pending Changes when you pause typing." IsVisible="{Binding NeedsReplyText}" TextWrapping="Wrap" />
             </StackPanel>
           </StackPanel>
         </Border>
@@ -239,9 +239,11 @@
               <ic:FluentIcon Icon="MailInbox" FontSize="18" Foreground="{DynamicResource Accent}" />
               <TextBlock Classes="h3" Text="Who Can Send to Them" VerticalAlignment="Center" />
             </StackPanel>
-            <ToggleSwitch IsChecked="{Binding OnlyInternal}" IsEnabled="{Binding CanEdit}"
-                          OnContent="Only People in the Organization" OffContent="Anyone, Including People Outside the Organization"
-                          ToolTip.Tip="Switching adds the change to Pending changes" />
+            <!-- Said as one choice that's ticked or not, so it can't be read the wrong way round. -->
+            <CheckBox IsChecked="{Binding OnlyInternal}" IsEnabled="{Binding CanEdit}"
+                      ToolTip.Tip="Ticking or unticking adds the change to Pending Changes">
+              <TextBlock TextWrapping="Wrap" Text="Only accept mail from people in the organization (unticked: anyone can send to them, including people outside)" />
+            </CheckBox>
             <TextBlock Classes="pendingtext" Text="{Binding SendersPendingText}" IsVisible="{Binding HasSendersPending}" />
             <TextBlock Classes="caption" Text="{Binding SendersText}" TextWrapping="Wrap" />
             <ItemsControl ItemsSource="{Binding AllowedSenders}">
@@ -280,7 +282,7 @@
               <TextBlock Classes="h3" Text="Email Apps" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Classes="caption" TextWrapping="Wrap"
-                       Text="The ways their mail can be reached. Turning one off stops apps and devices that use it; each switch adds a change to Pending changes." />
+                       Text="The ways their mail can be reached. Turning one off stops apps and devices that use it; each switch adds a change to Pending Changes." />
             <ItemsControl ItemsSource="{Binding AppRows}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="rec:EmailAppRow">
@@ -316,7 +318,7 @@
               </StackPanel>
               <TextBlock Classes="value" Text="{Binding ArchiveText}" TextWrapping="Wrap" />
               <ToggleSwitch IsChecked="{Binding ArchiveOn}" IsEnabled="{Binding CanEdit}" OnContent="Archive On" OffContent="Archive Off"
-                            ToolTip.Tip="Switching adds the change to Pending changes. Turning it off deletes the archive's contents after 30 days." />
+                            ToolTip.Tip="Switching adds the change to Pending Changes. Turning it off deletes the archive's contents after 30 days." />
               <Button Classes="ghost" HorizontalAlignment="Left" Content="Let the Archive Grow Automatically…" Command="{Binding EnableAutoExpandingCommand}"
                       IsVisible="{Binding CanEnableAutoExpanding}"
                       ToolTip.Tip="Auto-expanding archiving adds space as the archive fills, up to 1.5 TB. Microsoft offers no way to turn it off again." />
@@ -332,7 +334,7 @@
                 <TextBlock Classes="h3" Text="Retention Policy" VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock Classes="caption" TextWrapping="Wrap"
-                         Text="Exchange's rules for moving old mail to the archive and deleting it. Choosing one adds the change to Pending changes." />
+                         Text="Exchange's rules for moving old mail to the archive and deleting it. Choosing one adds the change to Pending Changes." />
               <ComboBox ItemsSource="{Binding RetentionPolicies}" SelectedItem="{Binding RetentionPolicy}" IsEnabled="{Binding CanEdit}"
                         HorizontalAlignment="Stretch" PlaceholderText="No policy" />
               <TextBlock Classes="pendingtext" Text="{Binding RetentionPendingText}" IsVisible="{Binding HasRetentionPending}" TextWrapping="Wrap" />
@@ -350,7 +352,7 @@
               <c:Badge Grid.Column="2" Text="On Hold" Kind="Warning" IsVisible="{Binding IsOnHold}" />
             </Grid>
             <TextBlock Classes="value" Text="{Binding HoldText}" TextWrapping="Wrap" />
-            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Needs Exchange Online Plan 2 (in E3 and E5) or the Exchange Online Archiving add-on." />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Works only when their license includes Exchange Online Plan 2 (in E3 and E5) or the Exchange Online Archiving add-on; otherwise Exchange refuses it when applied." />
             <TextBlock Classes="caption" Text="{Binding HoldNoteText}" IsVisible="{Binding HasHoldNote}" TextWrapping="Wrap" />
             <TextBlock Classes="pendingtext" Text="{Binding HoldPendingText}" IsVisible="{Binding HasHoldPending}" TextWrapping="Wrap" />
             <StackPanel Spacing="8" IsEnabled="{Binding CanEdit}">
@@ -402,7 +404,7 @@
                       </StackPanel>
                       <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
                       <ToggleSwitch Grid.Column="2" IsChecked="{Binding IsEnabled}" IsEnabled="{Binding CanEdit}" OnContent="On" OffContent="Off"
-                                    VerticalAlignment="Center" ToolTip.Tip="Switching adds the change to Pending changes" />
+                                    VerticalAlignment="Center" ToolTip.Tip="Switching adds the change to Pending Changes" />
                       <Button Grid.Column="3" Classes="rowaction" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanDelete}"
                               ToolTip.Tip="{Binding DeleteTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
                         <Panel>
@@ -426,7 +428,7 @@
               <TextBlock Classes="h3" Text="Calendar Sharing" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock Classes="caption" TextWrapping="Wrap"
-                       Text="Who can see or change their calendar. Choosing a level adds the change to Pending changes." />
+                       Text="Who can see or change their calendar. Choosing a level adds the change to Pending Changes." />
             <TextBlock Classes="muted" Text="Reading their calendar's sharing…" IsVisible="{Binding SharingLoading}" />
             <TextBlock Classes="error" Text="{Binding SharingError}" IsVisible="{Binding HasSharingError}" TextWrapping="Wrap" />
             <ItemsControl ItemsSource="{Binding CalendarSharing}">
@@ -501,8 +503,8 @@
                       <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
                       <Button Grid.Column="2" Content="{Binding BlockText}" Command="{Binding ToggleBlockCommand}" IsEnabled="{Binding CanEdit}"
                               ToolTip.Tip="{Binding BlockTip}" VerticalAlignment="Center" />
-                      <Button Grid.Column="3" Classes="ghost" Content="Remove" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
-                              ToolTip.Tip="Forget this device; it can set up sync again unless blocked (added to Pending changes). Press again to undo."
+                      <Button Grid.Column="3" Content="Remove" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
+                              ToolTip.Tip="Forget this device; it can set up sync again unless blocked (added to Pending Changes). Press again to undo."
                               VerticalAlignment="Center" />
                       <Button Grid.Column="4" Classes="danger-outline" IsEnabled="{Binding CanEdit}" VerticalAlignment="Center" ToolTip.Tip="Wipe options">
                         <StackPanel Orientation="Horizontal" Spacing="6">
@@ -554,7 +556,7 @@
                           <TextBlock Classes="caption" Text="{Binding Detail}" />
                         </StackPanel>
                         <Button Grid.Column="1" Content="{Binding RestoreText}" Command="{Binding ToggleCommand}"
-                                IsEnabled="{Binding CanEdit}" VerticalAlignment="Center" ToolTip.Tip="Adds the restore to Pending changes" />
+                                IsEnabled="{Binding CanEdit}" VerticalAlignment="Center" ToolTip.Tip="Adds the restore to Pending Changes" />
                       </Grid>
                     </Border>
                   </DataTemplate>
@@ -604,7 +606,7 @@
                             <ItemsControl.ItemTemplate>
                               <DataTemplate x:DataType="dir:TraceEvent">
                                 <Grid ColumnDefinitions="130,160,*" ColumnSpacing="10" Margin="0,2">
-                                  <TextBlock Classes="caption" Text="{Binding Date, StringFormat='{}{0:h:mm:ss tt}'}" />
+                                  <TextBlock Classes="caption" Text="{Binding Date, Converter={x:Static conv:LocalTime.Instance}, ConverterParameter='h:mm:ss tt'}" />
                                   <TextBlock Grid.Column="1" Text="{Binding Event}" FontWeight="SemiBold" FontSize="12" />
                                   <TextBlock Grid.Column="2" Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
                                 </Grid>

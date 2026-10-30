@@ -81,7 +81,7 @@ public sealed partial class OffboardingViewModel : ObservableObject
 
     public string Heading => _people.Count == 1 ? $"Offboard {_people[0].DisplayName}" : $"Offboard {_people.Count:N0} people";
 
-    public string Intro => (_people.Count == 1 ? "Everything below is added to Pending changes for review. " : $"The same steps for each of the {_people.Count:N0} people. ")
+    public string Intro => (_people.Count == 1 ? "Everything below is added to Pending Changes for review. " : $"The same steps for each of the {_people.Count:N0} people, all added to Pending Changes for review. ")
         + "Nothing changes in Microsoft 365 until you apply them, and the account is never deleted.";
 
     public IReadOnlyList<UserSummary> People => _people;
@@ -379,7 +379,7 @@ public sealed partial class OffboardingViewModel : ObservableObject
             Notes = plan.Notes;
             Result = plan.Changes.Count == 0
                 ? "Nothing to change: the ticked steps are already done."
-                : $"{plan.Changes.Count:N0} changes added to Pending changes{(_people.Count > 1 ? $" for {_people.Count:N0} people" : "")}. Review them there, then apply.";
+                : $"{plan.Changes.Count:N0} changes added to Pending Changes{(_people.Count > 1 ? $" for {_people.Count:N0} people" : "")}. Review them there, then apply.";
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

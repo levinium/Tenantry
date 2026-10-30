@@ -49,7 +49,7 @@ public static class RoleList
         Fields = F.All,
         Id = r => r.Role.Id,
         Views = Views,
-        SearchHint = "Search roles and who holds them… or try privileged:privileged active>0",
+        SearchHint = "Search roles and who holds them, like Exchange or a person's name",
         Preview = preview,
         Columns =
         [
@@ -61,7 +61,7 @@ public static class RoleList
             new() { Key = F.Eligible, Header = "Eligible", Cell = CellKind.Number, MinWidth = 80, DefaultWidth = 90, Number = r => r.Eligible },
             new() { Key = F.Holders, Header = "Held By", Cell = CellKind.Text, MinWidth = 220, DefaultWidth = 320, Text = Holders },
             new() { Key = F.Type, Header = "Type", Cell = CellKind.Text, MinWidth = 90, DefaultWidth = 100, Text = r => r.Role.IsBuiltIn ? F.BuiltIn : F.Custom },
-            new() { Key = F.Permanent, Header = "Permanent People", Cell = CellKind.Number, MinWidth = 130, DefaultWidth = 140, DefaultVisible = false,
+            new() { Key = F.Permanent, Header = "Permanent Assignments", Cell = CellKind.Number, MinWidth = 130, DefaultWidth = 140, DefaultVisible = false,
                 Number = r => r.PermanentPeople },
         ],
     };

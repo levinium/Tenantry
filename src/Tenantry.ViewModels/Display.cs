@@ -36,7 +36,7 @@ public static class Display
             return "Never";
         var ago = now - w;
         if (ago < TimeSpan.Zero)
-            return w.ToLocalTime().ToString("MMM d, yyyy", CultureInfo.CurrentCulture);
+            return w.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture);
         return ago switch
         {
             { TotalMinutes: < 1 } => "just now",
@@ -46,7 +46,7 @@ public static class Display
             { TotalDays: < 1 } => $"{(int)ago.TotalHours} hours ago",
             { TotalDays: < 2 } => "yesterday",
             { TotalDays: < 30 } => $"{(int)ago.TotalDays} days ago",
-            _ => w.ToLocalTime().ToString("MMM d, yyyy", CultureInfo.CurrentCulture),
+            _ => w.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture),
         };
     }
 
@@ -56,11 +56,12 @@ public static class Display
         var local = when.ToLocalTime();
         return local.Date == now.ToLocalTime().Date
             ? "at " + local.ToString("t", CultureInfo.CurrentCulture)
-            : local.ToString("MMM d, ", CultureInfo.CurrentCulture) + local.ToString("t", CultureInfo.CurrentCulture);
+            : local.ToString("d MMM ", CultureInfo.CurrentCulture) + local.ToString("t", CultureInfo.CurrentCulture);
     }
 
+    /// <summary>A moment in full, the one short way every page shows dates ("26 Oct 2026 12:24 PM").</summary>
     public static string Exact(DateTimeOffset? when) =>
-        when?.ToLocalTime().ToString("f", CultureInfo.CurrentCulture) ?? "Never signed in";
+        when?.ToLocalTime().ToString("d MMM yyyy h:mm tt", CultureInfo.CurrentCulture) ?? "Never signed in";
 
     /// <summary>Short words that stay lower case in a title unless they start it.</summary>
     static readonly HashSet<string> MinorWords = new(StringComparer.OrdinalIgnoreCase)

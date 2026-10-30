@@ -34,7 +34,7 @@
               </StackPanel>
             </Button>
             <Button Classes="danger-outline" Command="{Binding DeleteCommand}" IsVisible="{Binding CanEdit}"
-                    ToolTip.Tip="Delete this policy (added to Pending changes; you type its name to confirm)">
+                    ToolTip.Tip="Delete this policy (added to Pending Changes; you type its name to confirm)">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <ic:FluentIcon Icon="Delete" FontSize="16" />
                 <TextBlock Text="Delete Policy" />
@@ -53,7 +53,7 @@
               <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
             </StackPanel>
           </Border>
-          <ListBox ItemsSource="{x:Static vm:CaStateChoice.All}" SelectedItem="{Binding State}" IsEnabled="{Binding CanEdit}" Background="Transparent">
+          <ListBox Classes="options" ItemsSource="{x:Static vm:CaStateChoice.All}" SelectedItem="{Binding State}" IsEnabled="{Binding CanEdit}" Background="Transparent">
             <ListBox.ItemsPanel>
               <ItemsPanelTemplate>
                 <UniformGrid Columns="3" />
@@ -68,7 +68,7 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
-          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Choosing one adds it to Pending changes; nothing changes until you apply them." />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Choosing one adds it to Pending Changes; nothing changes until you apply them." />
         </StackPanel>
       </Border>
 
@@ -93,7 +93,7 @@
         </StackPanel>
       </Border>
 
-      <Expander Header="As Entra Keeps It (JSON)" HorizontalAlignment="Stretch">
+      <Expander Header="Technical Details (JSON)" HorizontalAlignment="Stretch">
         <SelectableTextBlock Text="{Binding Json}" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" FontSize="12" TextWrapping="Wrap" />
       </Expander>
     </StackPanel>

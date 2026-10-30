@@ -26,8 +26,11 @@
     </ItemsControl>
     <Border Classes="divider" />
     <TextBlock Classes="label" Text="THE WHOLE RECORD" />
+    <!-- Scrolls sideways rather than breaking a value in the middle. -->
     <Border Classes="valuerow">
-      <SelectableTextBlock Text="{Binding Json}" TextWrapping="Wrap" FontSize="12" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+        <SelectableTextBlock Text="{Binding Json}" TextWrapping="NoWrap" FontSize="12" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
+      </ScrollViewer>
     </Border>
   </StackPanel>
 </UserControl>

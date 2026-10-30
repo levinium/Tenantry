@@ -157,6 +157,9 @@ public partial class DataListView : UserControl
                 _syncingSelection = true;
                 Grid.SelectedItem = _vm!.SelectedRow;
                 _syncingSelection = false;
+                // A row chosen from elsewhere (a link, Ctrl+K, a report) is brought into view.
+                if (_vm.SelectedRow is { } chosen && Grid.SelectedItem == chosen)
+                    Grid.ScrollIntoView(chosen, null);
                 break;
             case nameof(DataListViewModel.SelectedRows) when !_syncingSelection:
                 ShowChecked();

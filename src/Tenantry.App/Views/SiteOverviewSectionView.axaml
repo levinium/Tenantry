@@ -50,7 +50,7 @@
     <Border Classes="card">
       <StackPanel Spacing="10">
         <TextBlock Classes="h3" Text="Details" />
-        <ItemsControl ItemsSource="{Binding Details.Facts}" ItemTemplate="{StaticResource Fact}">
+        <ItemsControl ItemsSource="{Binding Details.FactsBesideStorage}" ItemTemplate="{StaticResource Fact}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
               <StackPanel Spacing="8" />

@@ -736,7 +736,7 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
         _staged = null;
         if (Problems.Count > 0)
         {
-            Status = "Not in Pending changes until the problems above are fixed.";
+            Status = "Not in Pending Changes until the problems above are fixed.";
             return;
         }
         var name = Name.Trim();
@@ -758,7 +758,7 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
                 renamed ? $"Named \"{name}\"; {now}" : now, turnsOn, WasOn: _existing.State == "enabled");
         }
         _pipeline.Stage(_staged);
-        Status = "In Pending changes; it changes when you apply them.";
+        Status = "In Pending Changes; it changes when you apply them.";
     }
 
     /// <summary>Taken out of Pending changes elsewhere (Undo there): forget it, so the next edit stages afresh.</summary>
@@ -767,7 +767,7 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
         if (_staged is not null && !_pipeline.Pending.Contains(_staged))
         {
             _staged = null;
-            Status = "Taken out of Pending changes; edit again to add it back.";
+            Status = "Taken out of Pending Changes; edit again to add it back.";
         }
     }
 

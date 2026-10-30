@@ -124,7 +124,7 @@ public static class RoleFields
         new() { Key = Privileged, Label = "Privileged", Kind = FieldKind.Choice, EmptyLabel = "No", Text = r => r.Role.IsPrivileged ? Yes : null },
         new() { Key = Active, Label = "Active Assignments", Kind = FieldKind.Number, Aliases = ["assigned"], Number = r => r.Active },
         new() { Key = Eligible, Label = "Eligible Assignments", Kind = FieldKind.Number, Number = r => r.Eligible },
-        new() { Key = Permanent, Label = "Permanent People", Kind = FieldKind.Number, Number = r => r.PermanentPeople },
+        new() { Key = Permanent, Label = "Permanent Assignments", Kind = FieldKind.Number, Number = r => r.PermanentPeople },
         new()
         {
             Key = Holders, Label = "Held By", Kind = FieldKind.Text, Searchable = true, Aliases = ["who", "person", "member"],

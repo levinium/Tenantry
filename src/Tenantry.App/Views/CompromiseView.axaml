@@ -7,7 +7,7 @@
   <!-- What was found (each with its fix ticked), then the response itself; all staged into Pending changes. -->
   <StackPanel Spacing="16" Width="1040">
     <TextBlock Classes="caption" TextWrapping="Wrap"
-               Text="Everything ticked is added to Pending changes for review. Nothing changes in Microsoft 365 until you apply them." />
+               Text="Everything ticked is added to Pending Changes for review. Nothing changes in Microsoft 365 until you apply them." />
 
     <Grid ColumnDefinitions="*,*" ColumnSpacing="24">
       <!-- What was found -->
@@ -88,10 +88,10 @@
       </StackPanel>
     </Grid>
 
-    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-      <Button Classes="ghost" Content="Cancel" Command="{Binding CloseCommand}" />
+    <StackPanel Orientation="Horizontal" Spacing="8">
       <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding StageCommand}"
-              ToolTip.Tip="Adds the ticked fixes and steps to Pending changes. Nothing is sent until you apply them." />
+              ToolTip.Tip="Adds the ticked fixes and steps to Pending Changes. Nothing is sent until you apply them." />
+      <Button Content="Cancel" Command="{Binding CloseCommand}" />
     </StackPanel>
   </StackPanel>
 </UserControl>

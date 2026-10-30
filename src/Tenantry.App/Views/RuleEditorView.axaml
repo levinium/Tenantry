@@ -137,7 +137,7 @@
                     <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="22" VerticalAlignment="Top" Foreground="{DynamicResource Accent}" />
                     <StackPanel Grid.Column="1" Spacing="4">
                       <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                      <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Foreground="{DynamicResource TextSecondary}" Text="{Binding Description}" TextWrapping="Wrap" />
                     </StackPanel>
                   </Grid>
                 </Button>

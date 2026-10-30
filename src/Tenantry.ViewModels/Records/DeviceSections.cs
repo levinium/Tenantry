@@ -164,7 +164,7 @@ public sealed partial class DeviceOverviewSection(DeviceDetailViewModel page, Bu
     public IReadOnlyList<SummaryLine> Hardware => _hardware is not { } h ? [] : Lines(
         ("Memory", h.MemoryBytes is { } memory ? DeviceText.Size(memory) : null),
         ("Storage", h.StorageTotal is { } total ? $"{DeviceText.Size(h.StorageFree ?? 0)} free of {DeviceText.Size(total)}" : null),
-        ("Processor", h.Processor),
+        ("Architecture", h.Processor),
         ("Battery Health", h.BatteryHealthPercent is { } battery ? $"{battery}%" + (h.BatteryCycles is { } cycles ? $" after {cycles:N0} charge cycles" : "") : null),
         ("OS Edition", h.OsEdition),
         ("OS Build", h.OsBuild),
@@ -650,7 +650,7 @@ public sealed partial class DeviceGroupsSection : DeviceSection, IDisposable
             var locked = g.IsDynamic ? "Dynamic: membership follows the group's rule" : summary?.IsExchangeManaged == true ? "Managed in Exchange: devices can't be members"
                 : summary?.SyncedFromOnPremises == true ? "Synced from on-premises Active Directory: change its members there" : null;
             Groups.Add(new DeviceGroupRow(g.Name, g.IsDynamic, leaving is not null, false, CanEdit && locked is null,
-                locked ?? (CanEdit ? "Take the device out of this group (added to Pending changes)" : EditReason),
+                locked ?? (CanEdit ? "Take the device out of this group (added to Pending Changes)" : EditReason),
                 // A group outside the local copy is named by what Entra said (devices only join security groups).
                 () => Toggle(leaving, summary is null ? new ChangeTarget("group", g.Id, g.Name, null) : GroupAccess.Target(summary), false),
                 summary is not null && _openGroup is not null ? () => _openGroup(summary) : null));
@@ -658,7 +658,7 @@ public sealed partial class DeviceGroupsSection : DeviceSection, IDisposable
         foreach (var join in pending.Values.Where(p => p.New && _groups.All(g => g.Id != p.Group.Id)))
         {
             var summary = _index.Group(join.Group.Id);
-            Groups.Add(new DeviceGroupRow(join.Group.Name, false, true, true, CanEdit, "Undo adding it (takes it out of Pending changes)",
+            Groups.Add(new DeviceGroupRow(join.Group.Name, false, true, true, CanEdit, "Undo adding it (takes it out of Pending Changes)",
                 () => Page.Pipeline!.Unstage(join), summary is not null && _openGroup is not null ? () => _openGroup(summary) : null));
         }
         Summary = _groups.Count switch { 0 => "In no groups", 1 => "In 1 group", var n => $"In {n} groups" };
@@ -752,7 +752,7 @@ public sealed partial class DeviceDefenderSection(DeviceDetailViewModel page) : 
     public IReadOnlyList<SummaryLine> Facts => _state is not { } s ? [] : new (string, string?)[]
         {
             ("Device State", s.DeviceState is { } d ? DeviceText.Words(d) : null),
-            ("Product Status", s.ProductStatus is { } p ? DeviceText.Words(p) : null),
+            ("Product Status", s.ProductStatus is { Length: > 0 } p && p != "noStatus" ? DeviceText.Words(p) : null),
             ("Definitions", s.SignatureVersion),
             ("Last Quick Scan", s.LastQuickScan is { } q ? Display.Exact(q) : "Never reported"),
             ("Last Full Scan", s.LastFullScan is { } f ? Display.Exact(f) : "Never reported"),
@@ -800,7 +800,7 @@ public sealed partial class DeviceDefenderSection(DeviceDetailViewModel page) : 
 public sealed partial class DeviceKeysSection(DeviceDetailViewModel page, IDeviceRecords? records) : DeviceSection(page)
 {
     public override string Key => "keys";
-    public override string Title => "Recovery Keys";
+    public override string Title => "Keys and Passwords";
     public override string Icon => "Key";
     public override string LoadingText => "Reading which keys are backed up (not the keys themselves)…";
 
@@ -821,7 +821,7 @@ public sealed partial class DeviceKeysSection(DeviceDetailViewModel page, IDevic
         foreach (var key in await keys)
         {
             var captured = key;
-            Secrets.Add(new SecretRow($"BitLocker Recovery Key · {key.Volume}", key.Created is { } at ? $"Saved {Display.Exact(at)}" : null,
+            Secrets.Add(new SecretRow($"BitLocker Recovery Key · {key.Volume}", key.Created is { } at ? $"Backed up {Display.Exact(at)}" : null,
                 () => records.RevealRecoveryKeyAsync(captured.Id), () => Logged($"BitLocker Recovery Key ({captured.Volume.ToLowerInvariant()})")));
         }
         if (await laps is { } local)

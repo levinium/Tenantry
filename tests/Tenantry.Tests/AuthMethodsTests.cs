@@ -24,7 +24,7 @@ public sealed class AuthMethodsTests
     public void A_method_reads_in_words_and_is_sent_without_read_only_parts()
     {
         var tap = Tap();
-        Assert.Equal("On · Everyone · Lasts (Usually): 60 minutes · Shortest: 60 minutes · Longest: 480 minutes · Length: 8 characters · One Use Only: Yes",
+        Assert.Equal("On · Everyone · Default Length: 60 minutes · Shortest: 60 minutes · Longest: 480 minutes · Length: 8 characters · One Use Only: Yes",
             AuthMethods.Describe("TemporaryAccessPass", tap, new Dictionary<string, string>()));
         var body = AuthMethods.MethodBody(tap);
         Assert.Null(body["passkeyProfiles"]);
@@ -90,7 +90,7 @@ public sealed class AuthMethodsTests
         var editor = new AuthItemEditor("TemporaryAccessPass", tap, policy.GroupNames, pipeline, true, Tenantry.ViewModels.EmptyIndex.Instance);
 
         editor.IncludePicker.PickCommand.Execute(Tenantry.ViewModels.Editing.PickOption.Of(group));
-        editor.Settings.Single(s => s.Label == "Lasts (Usually)").Number = 120;
+        editor.Settings.Single(s => s.Label == "Default Length").Number = 120;
 
         Assert.False(editor.Everyone);
         var change = Assert.IsType<SetAuthMethodConfig>(Assert.Single(pipeline.Pending));

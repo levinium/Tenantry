@@ -8,7 +8,7 @@
              x:Class="Tenantry.App.Views.AppSectionView"
              x:DataType="rec:AppSection">
   <!-- A tab of an app's page: its cards, each with facts and rows. -->
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <views:DeviceSectionStatusView />
     <ItemsControl ItemsSource="{Binding Cards}">
       <ItemsControl.ItemsPanel>
@@ -41,7 +41,7 @@
                             </ComboBox.ItemTemplate>
                           </ComboBox>
                           <Button Grid.Column="2" Classes="accent" Content="Add Secret" Command="{Binding AddCommand}"
-                                  ToolTip.Tip="Added to Pending changes; its value is shown to you once after applying" />
+                                  ToolTip.Tip="Added to Pending Changes; its value is shown to you once after applying" />
                         </Grid>
                         <TextBlock Classes="caption" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" Foreground="{DynamicResource BadgeWarningFg}" />
                       </StackPanel>
@@ -77,7 +77,7 @@
                             <StackPanel Spacing="2">
                               <WrapPanel ItemSpacing="8">
                                 <TextBlock Text="{Binding Label}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending changes" />
+                                <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending Changes" />
                               </WrapPanel>
                               <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
                             </StackPanel>
@@ -147,7 +147,7 @@
                                 </DataTemplate>
                               </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending changes" />
+                            <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending Changes" />
                           </WrapPanel>
                           <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap" />
                           <SelectableTextBlock Text="{Binding Code}" IsVisible="{Binding HasCode}" TextWrapping="Wrap" FontSize="12"

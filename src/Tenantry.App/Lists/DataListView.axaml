@@ -20,10 +20,11 @@
 
       <!-- Title, saving the view, and the list's main action -->
       <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,12">
-        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-          <TextBlock Classes="h2" Text="{Binding Title}" />
-          <TextBlock Classes="caption" VerticalAlignment="Center" Margin="0,3,0,0" Text="{Binding CountText}" />
-        </StackPanel>
+        <!-- Narrow windows cut the title short rather than drawing it under the buttons. -->
+        <DockPanel VerticalAlignment="Center" ClipToBounds="True">
+          <TextBlock DockPanel.Dock="Left" Classes="h2" Text="{Binding Title}" TextTrimming="CharacterEllipsis" MaxWidth="320" />
+          <TextBlock Classes="caption" VerticalAlignment="Center" Margin="10,3,0,0" Text="{Binding CountText}" TextTrimming="CharacterEllipsis" />
+        </DockPanel>
         <Button Grid.Column="1" x:Name="SaveViewButton" Classes="outline" Classes.attention="{Binding IsModified}"
                 ToolTip.Tip="Save view: keep the current filters, sort, grouping and columns as a view you can come back to">
           <StackPanel Orientation="Horizontal" Spacing="8">
@@ -246,7 +247,7 @@
                     ToolTip.Tip="Sort: order rows by one or more columns">
               <StackPanel Orientation="Horizontal" Spacing="7">
                 <ic:FluentIcon Icon="ArrowSort" FontSize="16" />
-                <TextBlock Text="{Binding SortSummary}" />
+                <TextBlock Text="{Binding SortSummary}" MaxWidth="120" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SortSummary}" />
                 <ic:FluentIcon Icon="ChevronDown" FontSize="11" VerticalAlignment="Center" Opacity="0.7" IsVisible="{Binding !IsSortPanelOpen}" />
                 <ic:FluentIcon Icon="ChevronUp" FontSize="11" VerticalAlignment="Center" Opacity="0.7" IsVisible="{Binding IsSortPanelOpen}" />
               </StackPanel>
@@ -254,7 +255,7 @@
             <Button x:Name="GroupButton" Classes="tb" Classes.active="{Binding IsGrouped}" ToolTip.Tip="Group: gather rows into collapsible sections">
               <StackPanel Orientation="Horizontal" Spacing="7">
                 <ic:FluentIcon Icon="GroupList" FontSize="16" />
-                <TextBlock Text="{Binding GroupSummary}" />
+                <TextBlock Text="{Binding GroupSummary}" MaxWidth="120" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding GroupSummary}" />
                 <ic:FluentIcon Icon="ChevronDown" FontSize="11" VerticalAlignment="Center" Opacity="0.7" />
               </StackPanel>
               <Button.Flyout>
@@ -827,7 +828,7 @@
         </Grid>
         <Border DockPanel.Dock="Top" Classes="divider" />
         <TextBlock DockPanel.Dock="Top" Classes="muted" Margin="16,24" TextWrapping="Wrap" IsVisible="{Binding !HasPreviewContent}"
-                   Text="Select a row to see its details here." />
+                   Text="{Binding PreviewPrompt}" />
         <ScrollViewer>
           <ContentControl Content="{Binding PreviewModel}" Margin="16,12">
             <ContentControl.DataTemplates>

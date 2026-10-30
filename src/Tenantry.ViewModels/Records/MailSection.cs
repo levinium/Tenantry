@@ -19,7 +19,7 @@ public sealed partial class AddressRow(string address, bool isPrimary, string? p
     public bool CanRemove => canEdit && canRemove;
     public bool CanMakePrimary => canEdit && canMakePrimary;
     public string RemoveTip => isPrimary ? "The primary address can't be removed: make another one primary first"
-        : HasPending ? "Undo this pending change" : "Remove this address (added to Pending changes)";
+        : HasPending ? "Undo this pending change" : "Remove this address (added to Pending Changes)";
 
     [RelayCommand]
     void Remove() => remove();

@@ -318,6 +318,31 @@
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="Foreground" Value="{DynamicResource BadgeDangerFg}" />
   </Style>
+  <!-- Expanders in the app's own colours (the theme's are near-black in dark mode). -->
+  <Style Selector="Expander /template/ ToggleButton#ExpanderHeader">
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+  </Style>
+  <Style Selector="Expander /template/ Border#ExpanderContent">
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+  </Style>
+
+  <!-- A number box's arrow at its limit: faded, not the theme's grey box (a light square in dark mode). -->
+  <Style Selector="ButtonSpinner RepeatButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Opacity" Value="0.35" />
+  </Style>
+
+  <!-- Quiet: a Remove on every row of a long list stays calm until pointed at. -->
+  <Style Selector="Button.danger-outline.quiet">
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+  </Style>
+  <Style Selector="Button.danger-outline.quiet:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource BadgeDangerFg}" />
+    <Setter Property="Foreground" Value="{DynamicResource BadgeDangerFg}" />
+  </Style>
   <Style Selector="Button.danger-outline.undo">
     <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
     <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
@@ -333,17 +358,17 @@
   </Style>
 
   <!-- Type scale: one title per screen, section headings, body, secondary text, labels. -->
-  <Style Selector="TextBlock.h1">
+  <Style Selector="TextBlock.h1, SelectableTextBlock.h1">
     <Setter Property="FontSize" Value="26" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
   </Style>
-  <Style Selector="TextBlock.h2">
+  <Style Selector="TextBlock.h2, SelectableTextBlock.h2">
     <Setter Property="FontSize" Value="18" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
   </Style>
-  <Style Selector="TextBlock.h3">
+  <Style Selector="TextBlock.h3, SelectableTextBlock.h3">
     <Setter Property="FontSize" Value="15" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
@@ -420,6 +445,26 @@
   </Style>
   <Style Selector="ListBox.nav ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource NavHoverBg}" />
+  </Style>
+  <!-- Any other list's chosen item: a soft tint with an accent edge, not the theme's solid accent
+       fill (grey captions on it were hard to read). The nav and chips lists style their own. -->
+  <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedBg}" />
+  </Style>
+  <Style Selector="ListBoxItem:selected">
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedFg}" />
+  </Style>
+  <!-- Option cards (a kind of group, a policy's state): every card bordered, the chosen one in the accent. -->
+  <Style Selector="ListBox.options ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+  <Style Selector="ListBox.options ListBoxItem">
+    <Setter Property="Margin" Value="0,0,6,6" />
+  </Style>
+  <Style Selector="ListBox.options ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
   </Style>
   <Style Selector="ListBox.nav ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource NavSelectedBg}" />
@@ -504,6 +549,8 @@
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
     <Setter Property="IsItemCountVisible" Value="True" />
+    <!-- "(21)" rather than "(21 Items)": the list's own count already says what the rows are. -->
+    <Setter Property="ItemCountFormat" Value="({0:N0})" />
   </Style>
 
   <!-- Scrollbars: thin, rounded, no arrow buttons, a soft track when expanded. Overrides the
@@ -906,6 +953,12 @@
   <Style Selector="Button.rowaction:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource NavHoverBg}" />
     <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+  </Style>
+  <!-- Disabled: a faded icon, not the theme's grey box (which shows as a light square in dark mode). -->
+  <Style Selector="Button.rowaction:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+    <Setter Property="Opacity" Value="0.45" />
   </Style>
   <!-- Header sort button: a padded, rounded hover area that sits flush with the header text
        (the negative margin cancels the padding, so the label stays where it was). -->

@@ -19,7 +19,7 @@ public sealed partial class RolePreviewViewModel(RoleSummary role, Action<RoleSu
     [
         new("Active", $"{role.Active:N0}"),
         .. role.Eligible > 0 ? [new SummaryLine("Eligible", $"{role.Eligible:N0}")] : Array.Empty<SummaryLine>(),
-        .. role.PermanentPeople > 0 ? [new SummaryLine("Permanent People", $"{role.PermanentPeople:N0}")] : Array.Empty<SummaryLine>(),
+        .. role.PermanentPeople > 0 ? [new SummaryLine("Permanent Assignments", $"{role.PermanentPeople:N0}")] : Array.Empty<SummaryLine>(),
         new("Permissions", $"{role.Role.AllowedActions.Count:N0}"),
     ];
 

@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
              xmlns:mf="using:Tenantry.Core.MailFlow"
              xmlns:ic="using:FluentIcons.Avalonia"
@@ -43,7 +44,7 @@
   <StackPanel Spacing="4">
     <TextBlock Classes="label">
       <TextBlock.Text>
-        <Binding Path="Label" />
+        <Binding Path="Label" Converter="{x:Static conv:Capitals.Instance}" />
       </TextBlock.Text>
       <TextBlock.IsVisible>
         <MultiBinding Converter="{x:Static BoolConverters.And}">
@@ -81,6 +82,8 @@
 
     <TextBox IsVisible="{Binding IsText}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" />
     <TextBox IsVisible="{Binding IsLongText}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" />
+    <!-- HTML fields keep their hint in view once filled in: the tags are meant to be there. -->
+    <TextBlock Classes="caption" Text="{Binding Hint}" IsVisible="{Binding IsHtml}" TextWrapping="Wrap" />
     <TextBox IsVisible="{Binding IsNumber}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" Width="160" HorizontalAlignment="Left" />
     <ComboBox IsVisible="{Binding IsChoice}" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" MinWidth="260" PlaceholderText="Choose…">
       <ComboBox.ItemTemplate>

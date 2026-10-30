@@ -52,13 +52,13 @@
     </DataTemplate>
   </UserControl.Resources>
 
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <views:DeviceSectionStatusView />
     <Border Classes="card">
       <StackPanel Spacing="10">
         <StackPanel Spacing="2">
           <TextBlock Classes="h3" Text="Compliance Policies" />
-          <TextBlock Classes="caption" TextWrapping="Wrap" Text="What a device must meet to count as compliant. One it fails comes first, open to show which check." />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="What a device must meet to count as compliant. Failing policies are listed first; open one to see which setting failed." />
         </StackPanel>
         <TextBlock Classes="muted" Text="No compliance policies apply to it." IsVisible="{Binding HasNoPolicies}" />
         <ItemsControl ItemsSource="{Binding Policies}" ItemTemplate="{StaticResource Policy}">

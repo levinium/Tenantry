@@ -9,7 +9,7 @@ namespace Tenantry.ViewModels.Records;
 /// <summary>A change Tenantry made (or tried to make) to them.</summary>
 public sealed class TenantryChangeRow(ChangeLogEntry entry)
 {
-    public string When => entry.At.ToLocalTime().ToString("d MMM yyyy, h:mm tt");
+    public string When => entry.At.ToLocalTime().ToString("d MMM yyyy h:mm tt");
     public string What => entry.Change.Label;
     public string Change => entry.Change is SecretViewed ? entry.Change.After : $"{entry.Change.Before} → {entry.Change.After}";
     public string Who => entry.Account;
@@ -35,7 +35,7 @@ public sealed class TenantryChangeRow(ChangeLogEntry entry)
 /// <summary>An entry of Microsoft's audit log.</summary>
 public sealed class AuditRow(AuditEvent audit, bool byThem)
 {
-    public string When => audit.At.ToLocalTime().ToString("d MMM yyyy, h:mm tt");
+    public string When => audit.At.ToLocalTime().ToString("d MMM yyyy h:mm tt");
     public string Activity => audit.Activity;
 
     /// <summary>"By Pat Lee" for changes made to them; "To Finance team" for changes they made.</summary>

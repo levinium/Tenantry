@@ -105,7 +105,7 @@ public sealed class CompromiseTests
         var titles = workflow.Findings.Select(f => f.Title).ToArray();
 
         Assert.Contains("Forwarding Mail Outside the Organization", titles);
-        Assert.Contains("Mailbox Rule \"..\" Forwards Mail to evil@outside.example", titles);
+        Assert.Contains("Mailbox Rule (no name) Forwards Mail to evil@outside.example", titles);
         Assert.DoesNotContain(titles, t => t.Contains("Newsletters") || t.Contains("Old cleanup")); // moving is fine; a turned-off rule does nothing
         Assert.Contains("New Sign-In Method: Mobile phone", titles);
         Assert.DoesNotContain(titles, t => t.Contains("Microsoft Authenticator"));

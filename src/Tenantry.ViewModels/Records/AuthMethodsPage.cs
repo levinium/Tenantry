@@ -116,8 +116,8 @@ public sealed partial class AuthItemEditor : ObservableObject
         States = [.. AuthMethods.States(id).Select(s => new EditorChoice(s.Value, s.Label, ""))];
         State = States.FirstOrDefault(s => s.Value == _item["state"]?.GetValue<string>()) ?? States[0];
         Settings = [.. Info.Settings.Select(s => new AuthSettingEditor(s, _item, CanEdit, v => { s.Write(_item, v); Changed(); }))];
-        IncludePicker = new PersonPicker("Add a group: type its name", () => Groups(IncludeGroups), o => AddTarget(o, include: true));
-        ExcludePicker = new PersonPicker("Leave out a group: type its name", () => Groups(ExcludeGroups), o => AddTarget(o, include: false));
+        IncludePicker = new PersonPicker("Add a group: type its name", () => Groups([.. IncludeGroups, .. ExcludeGroups]), o => AddTarget(o, include: true));
+        ExcludePicker = new PersonPicker("Leave out a group: type its name", () => Groups([.. ExcludeGroups, .. IncludeGroups]), o => AddTarget(o, include: false));
         ShowTargets();
         _filling = false;
         Problems = AuthMethods.Problems(id, _item);

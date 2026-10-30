@@ -7,7 +7,7 @@
              x:Class="Tenantry.App.Views.DeviceGroupsSectionView"
              x:DataType="rec:DeviceGroupsSection"
              x:Name="Root">
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <Border Classes="card">
     <StackPanel Spacing="10">
     <StackPanel Spacing="2">

@@ -86,7 +86,7 @@ public sealed record HealthChip(string Text, BadgeKind Kind, string Tip);
 /// <param name="Footnote">The line under the popup; editors remind that changes are staged, Settings needs none.</param>
 public sealed record DialogViewModel(string Title, string? Subtitle, object Content, string? Footnote = DialogViewModel.Staged)
 {
-    public const string Staged = "Changes go to Pending changes at the bottom of the window; nothing is sent until you apply them.";
+    public const string Staged = "Changes go to Pending Changes at the bottom of the window; nothing is sent until you apply them.";
 
     public bool HasFootnote => !string.IsNullOrEmpty(Footnote);
 }

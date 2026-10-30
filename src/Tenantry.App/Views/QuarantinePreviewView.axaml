@@ -70,15 +70,16 @@
       </Border>
       <TextBlock Classes="pendingtext" Text="{Binding PendingText}" IsVisible="{Binding HasPending}" />
       <StackPanel Spacing="6" IsVisible="{Binding CanRelease}">
-        <Button Classes="accent" Content="{Binding ReleaseText}" Command="{Binding ReleaseCommand}" HorizontalAlignment="Left"
-                ToolTip.Tip="Delivers it to every recipient (added to Pending changes)" />
+        <!-- Releasing malware or high-confidence phishing is never the suggested step: a plain button, not the blue one. -->
+        <Button Classes.accent="{Binding !IsDangerous}" Content="{Binding ReleaseText}" Command="{Binding ReleaseCommand}" HorizontalAlignment="Left"
+                ToolTip.Tip="Delivers it to every recipient (added to Pending Changes)" />
         <CheckBox IsChecked="{Binding AllowSender}" Content="Also Allow This Sender from Now On" />
       </StackPanel>
       <WrapPanel ItemSpacing="8" LineSpacing="8">
         <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}"
-                ToolTip.Tip="Removes it from quarantine for good (added to Pending changes)" />
+                ToolTip.Tip="Removes it from quarantine for good (added to Pending Changes)" />
         <Button Classes="danger-outline" Content="{Binding BlockText}" Command="{Binding BlockSenderCommand}" IsEnabled="{Binding CanBlock}"
-                ToolTip.Tip="Adds the sender to the block list: their mail goes to quarantine from now on (added to Pending changes)" />
+                ToolTip.Tip="Adds the sender to the block list: their mail goes to quarantine from now on (added to Pending Changes)" />
       </WrapPanel>
       <TextBlock Classes="caption" Text="{Binding BlockNote}" IsVisible="{Binding HasBlockNote}" TextWrapping="Wrap" />
     </StackPanel>

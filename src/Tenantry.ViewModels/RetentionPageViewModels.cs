@@ -223,12 +223,12 @@ namespace Tenantry.ViewModels
                 if (!_ctx.Editable || Frozen is not null)
                     return buttons;
                 if (Pending.FirstOrDefault() is { } waiting)
-                    return [.. buttons, new PageButton("Undo", "ArrowUndo", "Take the change back out of Pending changes", () => Pipeline!.Unstage(waiting))];
-                buttons.Add(new PageButton("Change Policy", "Edit", "Change where it applies and what it does (added to Pending changes)", () => _ctx.EditPolicy(Policy)));
+                    return [.. buttons, new PageButton("Undo", "ArrowUndo", "Take the change back out of Pending Changes", () => Pipeline!.Unstage(waiting))];
+                buttons.Add(new PageButton("Change Policy", "Edit", "Change where it applies and what it does (added to Pending Changes)", () => _ctx.EditPolicy(Policy)));
                 buttons.Add(Policy.Enabled
-                    ? new PageButton("Turn Off", "ToggleLeft", "Stop it keeping or deleting anything (added to Pending changes)",
+                    ? new PageButton("Turn Off", "ToggleLeft", "Stop it keeping or deleting anything (added to Pending Changes)",
                         () => Pipeline!.Stage(new SetRetentionPolicyEnabled(Target, true, false)))
-                    : new PageButton("Turn On", "ToggleRight", "Start it again (added to Pending changes)", () => Pipeline!.Stage(new SetRetentionPolicyEnabled(Target, false, true))));
+                    : new PageButton("Turn On", "ToggleRight", "Start it again (added to Pending Changes)", () => Pipeline!.Stage(new SetRetentionPolicyEnabled(Target, false, true))));
                 buttons.Add(new PageButton("Delete Policy", "Delete", "Delete it (you type its name to confirm)",
                     () => Pipeline!.Stage(new DeleteRetentionPolicy(Target, Policy.WhatText)), isDanger: true));
                 return buttons;
@@ -325,8 +325,8 @@ namespace Tenantry.ViewModels
                 if (!_ctx.Editable || Label.IsPendingDeletion || Label.Regulatory)
                     return buttons;
                 if (Pending.FirstOrDefault() is { } waiting)
-                    return [.. buttons, new PageButton("Undo", "ArrowUndo", "Take the change back out of Pending changes", () => Pipeline!.Unstage(waiting))];
-                buttons.Add(new PageButton("Change Label", "Edit", "Change its description, period and reviewers (added to Pending changes)", () => _ctx.EditLabel(Label)));
+                    return [.. buttons, new PageButton("Undo", "ArrowUndo", "Take the change back out of Pending Changes", () => Pipeline!.Unstage(waiting))];
+                buttons.Add(new PageButton("Change Label", "Edit", "Change its description, period and reviewers (added to Pending Changes)", () => _ctx.EditLabel(Label)));
                 buttons.Add(new PageButton("Delete Label", "Delete", "Delete it; no policy may still use it (you type its name to confirm)",
                     () => Pipeline!.Stage(new DeleteRetentionLabel(RetentionPages.LabelTarget(Label.Name), Label.WhatText)), isDanger: true));
                 return buttons;
@@ -402,9 +402,9 @@ namespace Tenantry.ViewModels
                 if (!_ctx.Editable)
                     return buttons;
                 if (Pending.FirstOrDefault() is { } waiting)
-                    return [.. buttons, new PageButton("Undo", "ArrowUndo", "Take the change back out of Pending changes", () => Pipeline!.Unstage(waiting))];
-                buttons.Add(new PageButton("Change Scope", "Edit", "Change its query (added to Pending changes)", () => _ctx.EditScope(Scope)));
-                buttons.Add(new PageButton("Delete Scope", "Delete", "Delete it; no policy may still use it (added to Pending changes)",
+                    return [.. buttons, new PageButton("Undo", "ArrowUndo", "Take the change back out of Pending Changes", () => Pipeline!.Unstage(waiting))];
+                buttons.Add(new PageButton("Change Scope", "Edit", "Change its query (added to Pending Changes)", () => _ctx.EditScope(Scope)));
+                buttons.Add(new PageButton("Delete Scope", "Delete", "Delete it; no policy may still use it (added to Pending Changes)",
                     () => Pipeline!.Stage(new DeleteAdaptiveScope(RetentionPages.ScopeTarget(Scope.Name), Scope.Query ?? "")), isDanger: true));
                 return buttons;
             }
@@ -474,8 +474,8 @@ namespace Tenantry.ViewModels
                     return row;
                 var waiting = pending.OfType<DeleteRetentionEventType>().FirstOrDefault(d => d.EventType.Name == t.Name);
                 return waiting is not null
-                    ? row.With("Deleting", "Undo", "Take the change back out of Pending changes", () => _ctx.Pipeline!.Unstage(waiting))
-                    : row.With(null, "Delete", "Delete it (added to Pending changes)", () => _ctx.Pipeline!.Stage(new DeleteRetentionEventType(RetentionPages.EventTypeTarget(t.Name))));
+                    ? row.With("Deleting", "Undo", "Take the change back out of Pending Changes", () => _ctx.Pipeline!.Unstage(waiting))
+                    : row.With(null, "Delete", "Delete it (added to Pending Changes)", () => _ctx.Pipeline!.Stage(new DeleteRetentionEventType(RetentionPages.EventTypeTarget(t.Name))));
             }).ToList();
             typeRows.AddRange(pending.OfType<CreateRetentionEventType>().Select(c => new AppRow { Title = c.EventType.Name, Detail = c.Comment }
                 .With("Adding", "Undo", "Don't add it", () => _ctx.Pipeline!.Unstage(c))));
@@ -492,12 +492,12 @@ namespace Tenantry.ViewModels
                 .. directory.EventsUnavailable is { } why ? [new AppCard("Events", why)] : Array.Empty<AppCard>(),
                 new AppCard("Event Types", "Labels can start their period when an event of one of these types is recorded, instead of when content was made or changed.",
                     Rows: typeRows, EmptyText: "None.",
-                    Form: _ctx.Editable ? new AppButtonForm("New Event Type", "Add a kind of event, like a contract ending.", "Added to Pending changes",
+                    Form: _ctx.Editable ? new AppButtonForm("New Event Type", "Add a kind of event, like a contract ending.", "Added to Pending Changes",
                         () => _ctx.ShowDialog("New Event Type", new NewEventTypeViewModel(_ctx.Pipeline!, directory.EventTypes.Select(t => t.Name), _ctx.CloseDialog))) : null),
                 new AppCard("Events", "Recording an event starts the retention period for content labeled for its type (and matching its asset IDs). It can't be undone.",
                     Rows: eventRows, EmptyText: "No events recorded.",
                     Form: _ctx.Editable && directory.EventTypes.Count > 0
-                        ? new AppButtonForm("New Event", "Record that something happened, on a date.", "Added to Pending changes as a caution change",
+                        ? new AppButtonForm("New Event", "Record that something happened, on a date.", "Added to Pending Changes as a caution change",
                             () => _ctx.ShowDialog("New Event", new NewRetentionEventViewModel(_ctx.Pipeline!, directory, _now, _ctx.CloseDialog)))
                         : null),
             ];

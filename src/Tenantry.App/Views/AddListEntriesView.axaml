@@ -63,7 +63,7 @@
     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
       <TextBlock Classes="pendingtext" Text="{Binding Result}" IsVisible="{Binding HasResult}" VerticalAlignment="Center" />
       <Button Grid.Column="1" Classes="accent" Content="Add to Pending Changes" Command="{Binding StageCommand}" IsEnabled="{Binding CanEdit}"
-              ToolTip.Tip="One change per entry goes to Pending changes. Nothing is sent until you apply them." />
+              ToolTip.Tip="One change per entry goes to Pending Changes. Nothing is sent until you apply them." />
     </Grid>
   </StackPanel>
 </UserControl>

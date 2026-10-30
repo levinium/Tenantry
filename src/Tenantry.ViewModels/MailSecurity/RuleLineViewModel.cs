@@ -163,13 +163,18 @@ public sealed partial class RulePartPickerViewModel : ObservableObject
     {
         var used = _used(_kind);
         var words = Search.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return RuleCatalog.Instance.For(_kind)
+        var groups = RuleCatalog.Instance.For(_kind)
             .Where(d => words.All(w => d.Label.Contains(w, StringComparison.OrdinalIgnoreCase) || d.Group.Contains(w, StringComparison.OrdinalIgnoreCase)
                                        || d.Parameter.Contains(w, StringComparison.OrdinalIgnoreCase) || (d.Notes?.Contains(w, StringComparison.OrdinalIgnoreCase) ?? false)))
             .GroupBy(d => d.Group)
             .Select(g => new RulePickerGroup(Heading(g.Key),
                 g.OrderBy(d => !d.IsAvailable).ThenBy(d => d.Advanced).Select(d => new RulePickerItem(d, used.Contains(Key(d)))).ToArray()))
             .ToArray();
+        // Unfiltered, a heading over a single choice is noise: lone ones gather under "Other" at the end.
+        var lone = groups.Where(g => g.Items.Count == 1).ToArray();
+        if (words.Length > 0 || lone.Length < 2)
+            return groups;
+        return [.. groups.Where(g => g.Items.Count > 1), new RulePickerGroup("Other", [.. lone.SelectMany(g => g.Items)])];
     }
 
     /// <summary>A part's identity in a rule: its parameter, plus where a disclaimer goes.</summary>
@@ -241,7 +246,7 @@ public static class RuleStarters
             Draft("Copy mail", [Line(When, "SentTo", null)], [Line(Then, "BlindCopyTo", null)])),
         new("Approve Mail to a Group", "Hold mail sent to a group until someone approves it.", "PersonAvailable", () =>
             Draft("Approve mail to group", [Line(When, "SentToMemberOf", null)], [Line(Then, "ModerateMessageByUser", null)])),
-        new("Stop Automatic Forwarding Outside", "Reject mail that's automatically forwarded outside the organization.", "ArrowForward", () =>
+        new("Block Forwarding Outside", "Reject mail that's automatically forwarded outside the organization.", "ArrowForward", () =>
             Draft("Block outside auto-forwarding", [Line(When, "MessageTypeMatches", "AutoForward"), Line(When, "SentToScope", "NotInOrganization")],
                 [Line(Then, "RejectMessageReasonText", "Automatic forwarding outside the organization isn't allowed.")])),
     ];

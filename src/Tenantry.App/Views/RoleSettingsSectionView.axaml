@@ -7,12 +7,12 @@
              x:Class="Tenantry.App.Views.RoleSettingsSectionView"
              x:DataType="rec:RoleSettingsSection"
              x:Name="Root">
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <views:DeviceSectionStatusView />
     <Border Classes="banner neutral" IsVisible="{Binding IsLoaded}">
       <StackPanel Orientation="Horizontal" Spacing="10">
         <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
-        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="Each change goes to Pending changes as you make it; nothing changes until you apply them." />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="Each change goes to Pending Changes as you make it; nothing changes until you apply them." />
       </StackPanel>
     </Border>
 
@@ -29,7 +29,7 @@
         <CheckBox IsChecked="{Binding ActivationMfa}" Content="Needs MFA" />
         <CheckBox IsChecked="{Binding ActivationJustification}" Content="Needs a Reason" />
         <CheckBox IsChecked="{Binding ActivationTicket}" Content="Needs a Ticket Number" />
-        <CheckBox IsChecked="{Binding ApprovalRequired}" Content="Needs an Approver's Yes" />
+        <CheckBox IsChecked="{Binding ApprovalRequired}" Content="Needs Approval" />
         <StackPanel Spacing="6" Margin="28,0,0,0" IsVisible="{Binding ApprovalRequired}">
           <TextBlock Classes="caption" TextWrapping="Wrap" Text="Approvers. With none, the Privileged Role Administrators approve." />
           <ItemsControl ItemsSource="{Binding Approvers}">
@@ -71,7 +71,7 @@
           <TextBlock Classes="caption" Text="Active Assignments" VerticalAlignment="Center" Width="150" />
           <ComboBox ItemsSource="{x:Static rec:RoleSettingsSection.AssignmentChoices}" SelectedItem="{Binding ActiveMax}" MinWidth="200" />
         </StackPanel>
-        <CheckBox IsChecked="{Binding ActiveMfa}" Content="Giving It Active Needs MFA" />
+        <CheckBox IsChecked="{Binding ActiveMfa}" Content="Needs MFA When Given as Active" />
         <CheckBox IsChecked="{Binding ActiveJustification}" Content="Giving It Active Needs a Reason" />
       </StackPanel>
     </Border>

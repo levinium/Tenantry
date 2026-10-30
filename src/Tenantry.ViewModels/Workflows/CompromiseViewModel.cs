@@ -167,7 +167,7 @@ public sealed partial class CompromiseViewModel : ObservableObject
                     if (!rule.Enabled || Suspicion(rule) is not { } suspicion)
                         continue;
                     lock (findings)
-                        findings.Add(new Finding(name, $"Mailbox Rule \"{rule.Name}\" {suspicion.What}", rule.Description,
+                        findings.Add(new Finding(name, $"Mailbox Rule {RuleName(rule.Name)} {suspicion.What}", rule.Description,
                             new SetInboxRuleEnabled(target, rule.Identity, rule.Name, true, false), "Turn This Rule Off", isOn: suspicion.Likely));
                 }
             }));
@@ -178,7 +178,7 @@ public sealed partial class CompromiseViewModel : ObservableObject
                 methods = (await security.GetAuthMethodsAsync(person.Id, ct)).Where(m => m.Removable).ToArray();
                 foreach (var m in methods.Where(m => m.Added >= since))
                     lock (findings)
-                        findings.Add(new Finding(name, $"New Sign-In Method: {m.Kind}", $"Added {m.Added!.Value.ToLocalTime():d MMM, h:mm tt}{(m.Detail is { } d ? $" ({d})" : "")}.",
+                        findings.Add(new Finding(name, $"New Sign-In Method: {m.Kind}", $"Added {m.Added!.Value.ToLocalTime():d MMM h:mm tt}{(m.Detail is { } d ? $" ({d})" : "")}.",
                             new RemoveAuthMethod(target, m.Id, m.Segment, m.Kind), "Remove This Method"));
             }));
             tasks.Add(Try("their sign-ins", async () =>
@@ -197,7 +197,7 @@ public sealed partial class CompromiseViewModel : ObservableObject
                 foreach (var g in (read.Value ?? []).Where(s => s.When >= since && Country(s) is { } c && !earlier.Contains(c)).GroupBy(s => Country(s)!))
                     lock (findings)
                         findings.Add(new Finding(name, $"Signed In from a New Country: {g.Key}",
-                            $"{g.Count()} sign-in{(g.Count() == 1 ? "" : "s")} in the last {RecentDays} days, the first {g.Min(s => s.When).ToLocalTime():d MMM, h:mm tt}" +
+                            $"{g.Count()} sign-in{(g.Count() == 1 ? "" : "s")} in the last {RecentDays} days, the first {g.Min(s => s.When).ToLocalTime():d MMM h:mm tt}" +
                             $"{(g.First().IpAddress is { } ip ? $" from {ip}" : "")}. Not seen in the {SignInDays - RecentDays} days before.", null));
             }));
             if (_records is IActivityRecords activity)
@@ -222,6 +222,9 @@ public sealed partial class CompromiseViewModel : ObservableObject
 
     /// <summary>Folders people file mail into themselves, but that also hide it: shown, with the fix not ticked.</summary>
     static readonly HashSet<string> QuietFolders = new(StringComparer.OrdinalIgnoreCase) { "Archive", "Junk Email", "Deleted Items" };
+
+    /// <summary>A rule's name in quotes, or "(no name)" for one with no letters or digits ("." hides a rule in plain sight).</summary>
+    static string RuleName(string name) => name.Any(char.IsLetterOrDigit) ? $"\"{name}\"" : "(no name)";
 
     /// <summary>
     /// Why a mailbox rule looks like an attacker's, and whether that's likely enough to tick its fix:

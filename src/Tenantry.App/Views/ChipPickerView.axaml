@@ -31,6 +31,6 @@
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>
-    <views:PersonPickerView DataContext="{Binding Picker}" MaxWidth="420" HorizontalAlignment="Left" />
+    <views:PersonPickerView DataContext="{Binding Picker}" MinWidth="380" MaxWidth="420" HorizontalAlignment="Left" />
   </StackPanel>
 </UserControl>

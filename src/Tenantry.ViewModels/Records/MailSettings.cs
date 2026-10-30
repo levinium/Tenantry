@@ -37,7 +37,7 @@ public sealed partial class SenderRow(string name, string? detail, string? pendi
     public string? PendingText => pendingText;
     public bool HasPending => pendingText is not null;
     public bool CanEdit => canEdit;
-    public string RemoveTip => HasPending ? "Undo this pending change" : "Take them off the list (added to Pending changes)";
+    public string RemoveTip => HasPending ? "Undo this pending change" : "Take them off the list (added to Pending Changes)";
 
     [RelayCommand]
     void Remove() => remove();

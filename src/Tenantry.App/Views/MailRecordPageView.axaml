@@ -5,7 +5,7 @@
              x:DataType="ms:MailRecordPageViewModel">
   <!-- A quarantined message or a block/allow entry as its own page: its details and actions, with room to read. -->
   <ScrollViewer>
-    <Border Classes="card" Margin="8,16,8,24" MaxWidth="860" Padding="28,24" VerticalAlignment="Top">
+    <Border Classes="card" Margin="8,12,8,24" MaxWidth="860" Padding="28,24" VerticalAlignment="Top">
       <ContentControl Content="{Binding Content}" />
     </Border>
   </ScrollViewer>

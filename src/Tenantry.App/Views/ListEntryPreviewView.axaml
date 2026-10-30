@@ -6,7 +6,8 @@
              x:DataType="ms:ListEntryPreviewViewModel">
   <StackPanel Spacing="14">
     <StackPanel Spacing="6">
-      <TextBlock Classes="h3" Text="{Binding Value}" TextWrapping="Wrap" />
+      <!-- Selectable, and broken anywhere: a file hash is one long word. -->
+      <SelectableTextBlock Classes="h3" Text="{Binding Value}" TextWrapping="Wrap" />
       <WrapPanel ItemSpacing="6" LineSpacing="4">
         <c:Badge Text="{Binding ActionText}" Kind="{Binding ActionKind}" />
         <c:Badge Text="{Binding KindText}" Kind="Neutral" />
@@ -33,11 +34,11 @@
       <TextBlock Classes="label" Text="NOTE" Margin="0,4,0,0" />
       <TextBox Text="{Binding NotesDraft}" PlaceholderText="Why it's on the list" />
       <Button Content="Save Expiry and Note" Command="{Binding SaveDetailsCommand}" HorizontalAlignment="Left"
-              ToolTip.Tip="Added to Pending changes" />
+              ToolTip.Tip="Added to Pending Changes" />
       <TextBlock Classes="caption" Text="{Binding Message}" IsVisible="{Binding HasMessage}" />
     </StackPanel>
 
     <Button Classes="danger-outline" Content="{Binding RemoveText}" Command="{Binding RemoveCommand}" IsVisible="{Binding CanEdit}" HorizontalAlignment="Left"
-            ToolTip.Tip="Takes it off the list (added to Pending changes)" />
+            ToolTip.Tip="Takes it off the list (added to Pending Changes)" />
   </StackPanel>
 </UserControl>

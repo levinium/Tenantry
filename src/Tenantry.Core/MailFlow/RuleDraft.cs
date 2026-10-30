@@ -361,7 +361,10 @@ public static partial class RuleCodec
         var text = line.Def.ValueType == "none" ? line.Def.Label : $"{line.Def.Label} {Describe(line.Value, line.Def.ValueType, line.Def.Choices)}";
         foreach (var extra in line.Def.Extras)
             if (line.Extras.TryGetValue(extra.Parameter, out var v) && v is not null)
-                text += $" ({Describe(v, extra.ValueType, extra.Choices)})";
+                // A disclaimer's fallback reads as what happens ("if it can't be added, wrap the message…").
+                text += extra.Parameter == "ApplyHtmlDisclaimerFallbackAction"
+                    ? $"; if it can't be added, {Lower(Describe(v, extra.ValueType, extra.Choices).Trim('\''))}"
+                    : $" ({Describe(v, extra.ValueType, extra.Choices)})";
         return text;
     }
 

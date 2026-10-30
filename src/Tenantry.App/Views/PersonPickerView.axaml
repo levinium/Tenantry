@@ -17,7 +17,7 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="ed:PickOption">
             <Button Classes="pickrow" Command="{Binding #Root.((ed:PersonPicker)DataContext).PickCommand}" CommandParameter="{Binding}"
-                    ToolTip.Tip="Add (added to Pending changes)">
+                    ToolTip.Tip="Add (added to Pending Changes)">
               <StackPanel Spacing="1">
                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                 <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />

@@ -131,7 +131,7 @@ public sealed partial class AuditLogViewModel : ObservableObject, IDisposable
         [
             new() { Key = F.Operation, Header = "Activity", Cell = CellKind.Primary, MinWidth = 220, DefaultWidth = 260, Text = r => r.Operation, Subtitle = r => r.User ?? "",
                 Initials = r => Display.Initials(r.User ?? r.Operation) },
-            new() { Key = F.When, Header = "When", Cell = CellKind.Date, MinWidth = 130, DefaultWidth = 150, Date = r => r.When },
+            new() { Key = F.When, Header = "When", Cell = CellKind.Date, MinWidth = 150, DefaultWidth = 170, Date = r => r.When },
             new() { Key = F.Service, Header = "Service", Cell = CellKind.Text, MinWidth = 120, DefaultWidth = 150, Text = r => r.Service ?? "" },
             new() { Key = F.Object, Header = "Object", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 260, Text = r => r.ObjectId ?? "" },
             new() { Key = F.Ip, Header = "IP Address", Cell = CellKind.Text, MinWidth = 120, DefaultWidth = 150, Text = r => r.ClientIp ?? "" },

@@ -6,7 +6,7 @@
              x:Class="Tenantry.App.Views.LicensesSectionView"
              x:DataType="rec:LicensesSection"
              x:Name="Root">
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Left">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <TextBlock Classes="muted" Text="Reading their licenses…" IsVisible="{Binding IsLoading}" />
     <Border Classes="banner error" IsVisible="{Binding HasError}">
       <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
@@ -38,7 +38,7 @@
               </ComboBox.ItemTemplate>
             </ComboBox>
             <Button Classes="accent" Command="{Binding AddLicenseCommand}" Content="Add License"
-                    ToolTip.Tip="Add this license (it goes to Pending changes)" />
+                    ToolTip.Tip="Add this license (it goes to Pending Changes)" />
           </StackPanel>
         </Grid>
 
@@ -86,7 +86,7 @@
                       <DataTemplate x:DataType="rec:AppSwitch">
                         <ToggleSwitch Width="280" IsChecked="{Binding IsOn}" IsEnabled="{Binding CanEdit}"
                                       OnContent="{Binding Name}" OffContent="{Binding Name}"
-                                      ToolTip.Tip="Turning an app off goes to Pending changes" />
+                                      ToolTip.Tip="Turning an app off goes to Pending Changes" />
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>

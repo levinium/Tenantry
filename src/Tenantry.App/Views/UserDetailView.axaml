@@ -65,26 +65,26 @@
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedRight">
                 <MenuItem Header="{Binding SignOutText}" Command="{Binding SignOutEverywhereCommand}"
-                          ToolTip.Tip="End every session and app sign-in; they sign in again (added to Pending changes)">
+                          ToolTip.Tip="End every session and app sign-in; they sign in again (added to Pending Changes)">
                   <MenuItem.Icon>
                     <ic:FluentIcon Icon="SignOut" FontSize="16" />
                   </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="{Binding ConvertMailboxText}" Command="{Binding OpenConvertMailboxCommand}" IsVisible="{Binding HasMailbox}"
-                          ToolTip.Tip="Change between a person's own mailbox and a shared one (added to Pending changes)">
+                          ToolTip.Tip="Change between a person's own mailbox and a shared one (added to Pending Changes)">
                   <MenuItem.Icon>
                     <ic:FluentIcon Icon="MailMultiple" FontSize="16" />
                   </MenuItem.Icon>
                 </MenuItem>
                 <Separator IsVisible="{Binding CanOffboard}" />
                 <MenuItem Header="Offboard…" Command="{Binding OffboardCommand}" IsVisible="{Binding CanOffboard}"
-                          ToolTip.Tip="A checklist of what happens when someone leaves; everything goes to Pending changes for review">
+                          ToolTip.Tip="A checklist of what happens when someone leaves; everything goes to Pending Changes for review">
                   <MenuItem.Icon>
                     <ic:FluentIcon Icon="PersonArrowRight" FontSize="16" />
                   </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Respond to a Compromised Account…" Command="{Binding RespondToCompromiseCommand}" IsVisible="{Binding CanOffboard}"
-                          ToolTip.Tip="Checks for warning signs, then secures the account; everything goes to Pending changes for review">
+                          ToolTip.Tip="Checks for warning signs, then secures the account; everything goes to Pending Changes for review">
                   <MenuItem.Icon>
                     <ic:FluentIcon Icon="ShieldError" FontSize="16" />
                   </MenuItem.Icon>

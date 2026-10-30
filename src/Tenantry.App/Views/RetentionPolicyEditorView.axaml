@@ -9,7 +9,7 @@
   <StackPanel Spacing="14" Width="700">
     <StackPanel Spacing="4" IsVisible="{Binding IsNew}">
       <TextBlock Classes="label" Text="WHAT IT'S FOR" />
-      <ListBox ItemsSource="{x:Static rec:RetentionPolicyEditorViewModel.Kinds}" SelectedItem="{Binding Kind}" Background="Transparent">
+      <ListBox Classes="options" ItemsSource="{x:Static rec:RetentionPolicyEditorViewModel.Kinds}" SelectedItem="{Binding Kind}" Background="Transparent">
         <ListBox.ItemsPanel>
           <ItemsPanelTemplate>
             <StackPanel Spacing="2" />

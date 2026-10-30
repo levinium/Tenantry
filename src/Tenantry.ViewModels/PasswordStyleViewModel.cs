@@ -238,8 +238,9 @@ public sealed partial class PasswordStyleViewModel : ObservableObject
 
     /// <summary>The pattern's parts in words: "5 letters (at least 1 capital), then 3 digits…".</summary>
     public string PatternHelp =>
-        "L letters, U capitals, l small letters, D digits, S symbols easy to type on a phone, P any symbols, A letters or digits, 'text' exact text. " +
-        "Add a count (D3) or a range (D6-8); letters can need capitals or small letters (L5+1U+1l). Parts go in the order written.";
+        "Each part is a letter code and how many, in the order they appear in the password. " +
+        "L is letters, U capitals, l small letters, D digits, S symbols that are easy to type on a phone, P any symbol, A a letter or digit, and 'text' is that exact text. " +
+        "D3 means three digits; D6-8 means six to eight. L5+1U means five letters with at least one capital.";
 
     public int MinLength => PasswordStyle.MinLength;
     public int MaxLength => PasswordStyle.MaxLength;

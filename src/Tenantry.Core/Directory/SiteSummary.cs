@@ -93,6 +93,21 @@ public sealed record SiteSummary(
         _ => "System Site",
     };
 
+    /// <summary>A template in words ("GROUP#0" → "Team site with a Microsoft 365 group"), with the code after anything unfamiliar.</summary>
+    public static string TemplateName(string? template) => (template ?? "").ToUpperInvariant() switch
+    {
+        "" => "",
+        "GROUP#0" => "Team site with a Microsoft 365 group",
+        "STS#3" => "Team site without a group",
+        "STS#0" => "Classic team site",
+        "SITEPAGEPUBLISHING#0" => "Communication site",
+        var t when t.StartsWith("TEAMCHANNEL", StringComparison.Ordinal) => "Teams channel site",
+        var t when t.StartsWith("SPSPERS", StringComparison.Ordinal) => "OneDrive",
+        "APPCATALOG#0" => "App catalog",
+        "SRCHCEN#0" => "Search center",
+        var t => $"{KindName(KindOf(t))} ({template})",
+    };
+
     /// <summary>The kind a template makes ("GROUP#0" → team site, "SPSPERS#10" → OneDrive).</summary>
     public static SiteKind KindOf(string template) => template.ToUpperInvariant() switch
     {

@@ -28,7 +28,7 @@ public sealed partial class EditableField : ObservableObject
     /// <param name="choices">When given, the value is picked from a list instead of typed.</param>
     /// <param name="validate">Returns a problem with the typed value, or null when it's fine.</param>
     public EditableField(string label, string property, string? current, ChangeTarget target, ChangePipeline? pipeline, Availability canEdit,
-        bool required = false, string emptyText = "Not Set", IReadOnlyList<FieldChoice>? choices = null, Func<string, string?>? validate = null,
+        bool required = false, string emptyText = "Not set", IReadOnlyList<FieldChoice>? choices = null, Func<string, string?>? validate = null,
         string? hint = null)
     {
         Label = label;

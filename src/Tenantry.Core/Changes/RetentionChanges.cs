@@ -40,7 +40,7 @@ public sealed record RetentionPolicyDraft(RetentionPolicyKind Kind, string? Comm
     public string PlacesText => Scopes.Count > 0
         ? $"adaptive scopes {string.Join(", ", Scopes)}"
         : string.Join(", ", RetentionPlaces.All.Where(k => Places.GetValueOrDefault(k) is { Count: > 0 }).Select(k =>
-            EdChange.IsEverywhere(Places[k]) ? $"all {RetentionPlaces.Noun(k)}" : $"{Places[k].Count} of {RetentionPlaces.Noun(k)}")) is { Length: > 0 } text
+            EdChange.IsEverywhere(Places[k]) ? $"all {RetentionPlaces.Noun(k)}" : RetentionPlaces.Count(Places[k].Count, k))) is { Length: > 0 } text
             ? text : "nowhere";
 
     public string Summary => Kind switch

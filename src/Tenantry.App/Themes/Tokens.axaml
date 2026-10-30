@@ -21,6 +21,13 @@
       <SolidColorBrush x:Key="WindowBg" Color="#F3F4F6" />
       <SolidColorBrush x:Key="SidebarBg" Color="#E9EBEF" />
       <SolidColorBrush x:Key="CardBg" Color="#FFFFFF" />
+      <!-- Plain (secondary) buttons: the card's fill with a border, so they read as buttons, not as switched off. -->
+      <SolidColorBrush x:Key="ButtonBackground" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#F1F3F6" />
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#E6E9EE" />
+      <SolidColorBrush x:Key="ButtonBorderBrush" Color="#C9CED6" />
+      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#AEB5BF" />
+      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#AEB5BF" />
       <SolidColorBrush x:Key="CardBorder" Color="#D9DDE3" />
       <SolidColorBrush x:Key="Divider" Color="#E6E8EC" />
       <SolidColorBrush x:Key="SubtleBg" Color="#F6F7F9" />
@@ -87,6 +94,13 @@
       <SolidColorBrush x:Key="WindowBg" Color="#18191C" />
       <SolidColorBrush x:Key="SidebarBg" Color="#1F2024" />
       <SolidColorBrush x:Key="CardBg" Color="#24262B" />
+      <!-- Plain (secondary) buttons: the card's fill with a border, so they read as buttons, not as switched off. -->
+      <SolidColorBrush x:Key="ButtonBackground" Color="#2B2E34" />
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#33363D" />
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3A3E46" />
+      <SolidColorBrush x:Key="ButtonBorderBrush" Color="#454952" />
+      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#5A5F6A" />
+      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#5A5F6A" />
       <SolidColorBrush x:Key="CardBorder" Color="#363940" />
       <SolidColorBrush x:Key="Divider" Color="#2E3137" />
       <SolidColorBrush x:Key="SubtleBg" Color="#1D1F23" />
@@ -104,8 +118,8 @@
       <SolidColorBrush x:Key="FreshBg" Color="#30406E" />
       <SolidColorBrush x:Key="NavSelectedFg" Color="#D0DBFF" />
 
-      <SolidColorBrush x:Key="AvatarBg" Color="#2D3755" />
-      <SolidColorBrush x:Key="AvatarFg" Color="#D0DBFF" />
+      <SolidColorBrush x:Key="AvatarBg" Color="#34416A" />
+      <SolidColorBrush x:Key="AvatarFg" Color="#E4EAFF" />
 
       <SolidColorBrush x:Key="BadgeNeutralBg" Color="#33363D" />
       <SolidColorBrush x:Key="BadgeNeutralFg" Color="#CDD2D9" />

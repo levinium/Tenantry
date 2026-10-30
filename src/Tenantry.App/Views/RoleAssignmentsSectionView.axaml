@@ -8,13 +8,13 @@
              xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.RoleAssignmentsSectionView"
              x:DataType="rec:RoleAssignmentsSection">
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <!-- Give the role to someone -->
     <Border Classes="card">
       <StackPanel Spacing="10">
         <StackPanel Spacing="2">
           <TextBlock Classes="h3" Text="Give the Role" />
-          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Added to Pending changes; nobody gets it until you apply them." />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Added to Pending Changes; nobody gets it until you apply them." />
         </StackPanel>
         <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
           <StackPanel Orientation="Horizontal" Spacing="10">
@@ -47,7 +47,10 @@
               <TextBlock Classes="caption" Text="Ends On (Empty: Never)" VerticalAlignment="Center" />
               <CalendarDatePicker SelectedDate="{Binding Until}" PlaceholderText="Never" Width="180" />
             </StackPanel>
-            <TextBox Text="{Binding Justification}" PlaceholderText="Why (shown in PIM's history)" Width="480" HorizontalAlignment="Left" />
+            <StackPanel Spacing="4">
+              <TextBlock Classes="caption" Text="Reason" />
+              <TextBox Text="{Binding Justification}" PlaceholderText="Why (shown in PIM's history)" Width="480" HorizontalAlignment="Left" />
+            </StackPanel>
           </StackPanel>
           <TextBlock Classes="caption" Text="{Binding PimNote}" IsVisible="{Binding HasPimNote}" TextWrapping="Wrap" />
           <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding AddCommand}" HorizontalAlignment="Left" />
@@ -82,13 +85,13 @@
                     </TextBlock>
                   </StackPanel>
                   <WrapPanel Grid.Column="1" ItemSpacing="6" VerticalAlignment="Center">
-                    <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending changes" />
+                    <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending Changes" />
                     <c:Badge Text="{Binding KindText}" Kind="{Binding KindKind}" />
                     <c:Badge Text="{Binding TypeText}" Kind="Neutral" />
                   </WrapPanel>
                   <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Button Classes="outline" Content="Extend a Year" Command="{Binding ExtendCommand}" IsVisible="{Binding CanExtend}"
-                            ToolTip.Tip="Move its end a year on (added to Pending changes)" />
+                            ToolTip.Tip="Move its end a year on (added to Pending Changes)" />
                     <Button Classes="danger-outline" Classes.undo="{Binding HasState}" Content="{Binding ActionText}" Command="{Binding DoCommand}"
                             IsVisible="{Binding HasAction}" ToolTip.Tip="{Binding ActionTip}" />
                     <TextBlock Classes="caption" Text="{Binding Locked}" IsVisible="{Binding IsLocked}" VerticalAlignment="Center" />

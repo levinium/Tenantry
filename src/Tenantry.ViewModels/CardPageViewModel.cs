@@ -44,6 +44,9 @@ public abstract partial class CardPageViewModel : TabViewModel, IDisposable
     /// <summary>The header's buttons, built again with the page.</summary>
     public abstract IReadOnlyList<PageButton> Buttons { get; }
 
+    /// <summary>The header's buttons in one order on every page: the main one first, anything that removes last.</summary>
+    public IReadOnlyList<PageButton> OrderedButtons => [.. Buttons.OrderBy(b => b.IsAccent ? 0 : b.IsDanger ? 2 : 1)];
+
     public IReadOnlyList<RecordSection> Sections { get; protected init; } = [];
 
     [ObservableProperty]
@@ -84,7 +87,7 @@ public abstract partial class CardPageViewModel : TabViewModel, IDisposable
     /// <summary>Shows the header and every shown tab again.</summary>
     protected void Refresh()
     {
-        foreach (var name in new[] { nameof(Title), nameof(Subtitle), nameof(Badges), nameof(Buttons), nameof(PendingText), nameof(HasPending) })
+        foreach (var name in new[] { nameof(Title), nameof(Subtitle), nameof(Badges), nameof(Buttons), nameof(OrderedButtons), nameof(PendingText), nameof(HasPending) })
             OnPropertyChanged(name);
         foreach (var section in Sections.OfType<AppSection>())
             section.Rebuild();
@@ -93,12 +96,12 @@ public abstract partial class CardPageViewModel : TabViewModel, IDisposable
     /// <summary>A row that takes something away: a verb, or Undo while that waits in Pending changes.</summary>
     protected AppRow Removable(AppRow row, bool canEdit, ChangeOp? waiting, Func<ChangeOp> make, string verb = "Remove", string? tip = null, string state = "Removing") =>
         !canEdit || Pipeline is null ? row
-        : waiting is not null ? row.With(state, "Undo", "Take the change back out of Pending changes", () => Pipeline.Unstage(waiting))
-        : row.With(null, verb, tip ?? $"{verb} (added to Pending changes)", () => Pipeline.Stage(make()));
+        : waiting is not null ? row.With(state, "Undo", "Take the change back out of Pending Changes", () => Pipeline.Unstage(waiting))
+        : row.With(null, verb, tip ?? $"{verb} (added to Pending Changes)", () => Pipeline.Stage(make()));
 
     /// <summary>A row for something waiting to be added, with Undo.</summary>
     protected AppRow Adding(string title, string? detail, ChangeOp waiting) =>
-        new AppRow { Title = title, Detail = detail }.With("Adding", "Undo", "Don't add it (takes the change out of Pending changes)", () => Pipeline!.Unstage(waiting));
+        new AppRow { Title = title, Detail = detail }.With("Adding", "Undo", "Don't add it (takes the change out of Pending Changes)", () => Pipeline!.Unstage(waiting));
 
     public virtual void Dispose()
     {

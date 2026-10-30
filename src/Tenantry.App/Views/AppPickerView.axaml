@@ -31,7 +31,7 @@
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>
-    <TextBox Text="{Binding Query}" PlaceholderText="Find an app: type the start of its name" MaxWidth="420" HorizontalAlignment="Left" />
+    <TextBox Text="{Binding Query}" PlaceholderText="Find an app: type the start of its name" MinWidth="380" MaxWidth="420" HorizontalAlignment="Left" />
     <TextBlock Classes="muted" Text="Searching…" IsVisible="{Binding IsSearching}" />
     <ItemsControl ItemsSource="{Binding Results}" MaxWidth="420" HorizontalAlignment="Left">
       <ItemsControl.ItemTemplate>

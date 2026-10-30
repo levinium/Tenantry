@@ -6,7 +6,7 @@
              xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.OneDriveSectionView"
              x:DataType="rec:OneDriveSection">
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
       <StackPanel Orientation="Horizontal" Spacing="10">
         <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />

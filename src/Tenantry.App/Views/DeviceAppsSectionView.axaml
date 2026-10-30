@@ -6,7 +6,7 @@
              xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.DeviceAppsSectionView"
              x:DataType="rec:DeviceAppsSection">
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <views:DeviceSectionStatusView />
     <Border Classes="card">
       <StackPanel Spacing="10">

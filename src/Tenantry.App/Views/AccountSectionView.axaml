@@ -32,7 +32,7 @@
       </ItemsControl.ItemsPanel>
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="rec:FieldGroup">
-          <Border Classes="card" Width="340">
+          <Border Classes="card" Width="380">
             <StackPanel Spacing="14">
               <StackPanel Orientation="Horizontal" Spacing="10">
                 <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="18" Foreground="{DynamicResource Accent}" />
@@ -56,7 +56,7 @@
       </ItemsControl.ItemTemplate>
     </ItemsControl>
 
-    <Border Classes="card" Width="340" HorizontalAlignment="Left" IsVisible="{Binding IsReady}">
+    <Border Classes="card" Width="380" HorizontalAlignment="Left" IsVisible="{Binding IsReady}">
       <StackPanel Spacing="10">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ic:FluentIcon Icon="People" FontSize="18" Foreground="{DynamicResource Accent}" />

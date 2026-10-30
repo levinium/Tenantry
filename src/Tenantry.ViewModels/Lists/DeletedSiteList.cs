@@ -44,7 +44,7 @@ public static class DeletedSiteList
         [
             new() { Key = F.Name, Header = "Name", Cell = CellKind.Primary, MinWidth = 220, DefaultWidth = 280,
                 Text = s => s.Name, Subtitle = s => s.Url, Initials = s => Display.Initials(s.Name) },
-            new() { Key = F.Kind, Header = "Type", Cell = CellKind.Text, MinWidth = 140, DefaultWidth = 170, Text = F.KindOf },
+            new() { Key = F.Kind, Header = "Type", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 220, Text = F.KindOf },
             new() { Key = F.Deleted, Header = "Deleted", Cell = CellKind.Date, MinWidth = 140, DefaultWidth = 160, Date = s => s.DeletedAt },
             new() { Key = F.DaysLeft, Header = "Can Be Restored For", Cell = CellKind.Badge, MinWidth = 150, DefaultWidth = 170, Badge = DaysBadge },
         ],

@@ -34,7 +34,7 @@ public sealed class WhatIfRow(WhatIfResult result)
     public bool Applies => result.Applies;
     public string StateText => CaPolicy.StateName(result.State);
     public string Verdict => !result.Applies ? "Doesn't Apply" : result.State == "enabled" ? "Applies" : "Would Apply (Report-Only)";
-    public BadgeKind VerdictKind => !result.Applies ? BadgeKind.Neutral : result.State == "enabled" ? BadgeKind.Warning : BadgeKind.Info;
+    public BadgeKind VerdictKind => !result.Applies ? BadgeKind.Neutral : result.State == "enabled" ? BadgeKind.Info : BadgeKind.Neutral;
     public string Detail => result.Applies ? result.Requires : result.Reasons.Count == 0 ? "" : "Because " + string.Join("; ", result.Reasons) + ".";
 }
 

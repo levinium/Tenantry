@@ -118,13 +118,13 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
                 return buttons;
             var waiting = Mine.FirstOrDefault(c => c is SetCaseClosed or DeleteCase);
             if (waiting is not null)
-                buttons.Add(new PageButton("Undo", "ArrowUndo", "Take the change back out of Pending changes", () => Pipeline!.Unstage(waiting)));
+                buttons.Add(new PageButton("Undo", "ArrowUndo", "Take the change back out of Pending Changes", () => Pipeline!.Unstage(waiting)));
             else
             {
                 var holds = _last?.Holds.Count(h => h.Enabled) ?? 0;
                 buttons.Add(Case.IsClosed
-                    ? new PageButton("Reopen Case", "FolderOpen", "Make it active again (added to Pending changes)", () => Pipeline!.Stage(new SetCaseClosed(Target, false, 0)))
-                    : new PageButton("Close Case", "LockClosed", holds > 0 ? $"Close it: its {holds} holds stop keeping content (added to Pending changes)" : "Close it (added to Pending changes)",
+                    ? new PageButton("Reopen Case", "FolderOpen", "Make it active again (added to Pending Changes)", () => Pipeline!.Stage(new SetCaseClosed(Target, false, 0)))
+                    : new PageButton("Close Case", "LockClosed", holds > 0 ? $"Close it: its {holds} holds stop keeping content (added to Pending Changes)" : "Close it (added to Pending Changes)",
                         () => Pipeline!.Stage(new SetCaseClosed(Target, true, holds))));
                 buttons.Add(new PageButton("Delete Case", "Delete", "Delete it with its searches (holds must be deleted first; you type its name to confirm)",
                     () => Pipeline!.Stage(new DeleteCase(Target, Describe())), isDanger: true));
@@ -188,7 +188,7 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
         return
         [
             new AppCard("Details", Facts: facts),
-            new AppCard("Description", described is null ? null : "The new description is in Pending changes.",
+            new AppCard("Description", described is null ? null : "The new description is in Pending Changes.",
                 Form: new AppTextForm("DESCRIPTION", described?.New ?? Case.Description, "What the case is about", CanChange, text =>
                 {
                     if (described is not null)
@@ -215,14 +215,14 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
                 OpenTip = "Open the search: what it found, and where",
             };
             return Removable(row, _ctx.Editable, pending.OfType<DeleteSearch>().FirstOrDefault(d => d.Search.Name == s.Name),
-                () => new DeleteSearch(EdPlaces.SearchTarget(s.Name), row.Detail ?? ""), "Delete", "Delete the search (what it found is untouched; added to Pending changes)", "Deleting");
+                () => new DeleteSearch(EdPlaces.SearchTarget(s.Name), row.Detail ?? ""), "Delete", "Delete the search (what it found is untouched; added to Pending Changes)", "Deleting");
         }).ToList();
         rows.AddRange(pending.OfType<CreateSearch>().Select(c => Adding(c.Search.Name, c.After, c)));
         return
         [
             new AppCard("Searches", "Each search counts what matches a query in the places you choose. Open one to see what it found.", Rows: rows,
                 EmptyText: "No searches yet.",
-                Form: CanChange ? new AppButtonForm("New Search", "Look for content in mailboxes, sites and OneDrives.", "Make a search in this case (added to Pending changes)",
+                Form: CanChange ? new AppButtonForm("New Search", "Look for content in mailboxes, sites and OneDrives.", "Make a search in this case (added to Pending Changes)",
                     () => _ctx.NewSearch(Case.Name)) : null),
         ];
     }
@@ -260,7 +260,7 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
                 return row;
             if (waiting is not null)
                 return row.With(waiting switch { DeleteHold => "Deleting", SetHoldEnabled e => e.New ? "Turning On" : "Turning Off", _ => "Changing" },
-                    "Undo", "Take the change back out of Pending changes", () => Pipeline!.Unstage(waiting));
+                    "Undo", "Take the change back out of Pending Changes", () => Pipeline!.Unstage(waiting));
             return new AppRow
             {
                 Title = row.Title,
@@ -268,14 +268,14 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
                 Code = row.Code,
                 Badges = row.Badges,
                 EditText = CanChange ? "Change" : null,
-                EditTip = "Change where it applies and what it keeps (added to Pending changes)",
+                EditTip = "Change where it applies and what it keeps (added to Pending Changes)",
                 EditAct = () => _ctx.ShowDialog($"Change Hold {h.Name}",
                     new EdItemEditorViewModel(Pipeline!, true, Case.Name, [], _ctx.Index, _ctx.Sites, _ctx.CloseDialog, hold: h)),
                 ActionText = "Delete",
                 ActionTip = "Delete the hold: what it kept can be deleted again (you type its name to confirm)",
                 Act = () => Pipeline!.Stage(new DeleteHold(EdPlaces.HoldTarget(h.Name), row.Detail)),
                 AltText = Case.IsClosed ? null : h.Enabled ? "Turn Off" : "Turn On",
-                AltTip = h.Enabled ? "Stop keeping content (added to Pending changes)" : "Keep content again (added to Pending changes)",
+                AltTip = h.Enabled ? "Stop keeping content (added to Pending Changes)" : "Keep content again (added to Pending Changes)",
                 AltAct = () => Pipeline!.Stage(new SetHoldEnabled(EdPlaces.HoldTarget(h.Name), h.Enabled, !h.Enabled)),
             };
         }).ToList();
@@ -284,7 +284,7 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
         [
             new AppCard("Holds", "A hold keeps content from being deleted for good, whatever people or retention settings do, until the hold is turned off or deleted.",
                 Rows: rows, EmptyText: "No holds.",
-                Form: CanChange ? new AppButtonForm("New Hold", "Keep mail, sites or OneDrives from being deleted while the case is open.", "Make a hold in this case (added to Pending changes)",
+                Form: CanChange ? new AppButtonForm("New Hold", "Keep mail, sites or OneDrives from being deleted while the case is open.", "Make a hold in this case (added to Pending Changes)",
                     () => _ctx.ShowDialog($"New Hold in {Case.Name}",
                         new EdItemEditorViewModel(Pipeline!, true, Case.Name, detail.Holds.Select(h => h.Name), _ctx.Index, _ctx.Sites, _ctx.CloseDialog))) : null),
         ];
@@ -299,7 +299,7 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
             var person = new ChangeTarget("user", m.Address ?? m.Name, m.Name, m.Address);
             return Removable(new AppRow { Title = m.Name, Detail = m.Address }, _ctx.Editable,
                 pending.FirstOrDefault(p => !p.Add && string.Equals(p.Member.Address, m.Address, StringComparison.OrdinalIgnoreCase)),
-                () => new SetCaseMember(Target, person, false), tip: "Stop them working on this case (added to Pending changes)");
+                () => new SetCaseMember(Target, person, false), tip: "Stop them working on this case (added to Pending Changes)");
         }).ToList();
         rows.AddRange(pending.Where(p => p.Add).Select(p => Adding(p.Member.Name, p.Member.Address, p)));
         return
@@ -383,17 +383,17 @@ public sealed partial class EdSearchPageViewModel : CardPageViewModel
                 return buttons;
             if (Pending.FirstOrDefault() is { } waiting)
             {
-                buttons.Add(new PageButton("Undo", "ArrowUndo", "Take the change back out of Pending changes", () => Pipeline!.Unstage(waiting)));
+                buttons.Add(new PageButton("Undo", "ArrowUndo", "Take the change back out of Pending Changes", () => Pipeline!.Unstage(waiting)));
                 return buttons;
             }
             if (Detail is { HasRun: true, Mailboxes.Count: > 0 } found)
                 buttons.Add(new PageButton("Search and Delete", "MailDismiss", "Delete what it found from the mailboxes (up to 10 per mailbox; you type the search's name to confirm)",
                     () => _ctx.ShowDialog($"Search and Delete: {Search.Name}", new EdPurgeViewModel(Pipeline!, found, _ctx.Index, _ctx.CloseDialog)), isDanger: true));
             if (Detail is { } detail)
-                buttons.Add(new PageButton("Change Search", "Edit", "Change what it looks for and where (added to Pending changes; it runs again once applied)",
+                buttons.Add(new PageButton("Change Search", "Edit", "Change what it looks for and where (added to Pending Changes; it runs again once applied)",
                     () => _ctx.ShowDialog($"Change Search {Search.Name}",
                         new EdItemEditorViewModel(Pipeline!, false, Search.CaseName, [], _ctx.Index, _ctx.Sites, _ctx.CloseDialog, search: detail))));
-            buttons.Add(new PageButton("Delete Search", "Delete", "Delete the search; what it found is untouched (added to Pending changes)",
+            buttons.Add(new PageButton("Delete Search", "Delete", "Delete the search; what it found is untouched (added to Pending Changes)",
                 () => Pipeline!.Stage(new DeleteSearch(Target, Detail is { } d ? $"Found {d.Items:N0} items" : EDiscovery.SearchStatus(Search.Status))), isDanger: true));
             return buttons;
         }

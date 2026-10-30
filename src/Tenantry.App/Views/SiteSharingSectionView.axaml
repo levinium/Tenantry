@@ -5,7 +5,7 @@
              xmlns:c="using:Tenantry.App.Controls"
              x:Class="Tenantry.App.Views.SiteSharingSectionView"
              x:DataType="rec:SiteSharingSection">
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <Border Classes="card">
       <StackPanel Spacing="8">
         <TextBlock Classes="h3" Text="External Sharing" />
@@ -26,7 +26,11 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <TextBlock Classes="caption" TextWrapping="Wrap" Text="Change these from the Overview tab's actions." />
+        <StackPanel Spacing="8" Margin="0,8,0,0" IsVisible="{Binding HasActions}">
+          <Border Classes="divider" />
+          <TextBlock Classes="label" Text="CHANGE SHARING" />
+          <views:BulkEditorView DataContext="{Binding Actions}" />
+        </StackPanel>
       </StackPanel>
     </Border>
     <views:DeviceSectionStatusView />

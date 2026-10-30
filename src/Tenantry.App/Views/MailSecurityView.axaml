@@ -9,7 +9,7 @@
              x:DataType="ms:MailSecurityViewModel">
   <DockPanel>
     <!-- The area's pages -->
-    <TabStrip DockPanel.Dock="Top" Classes="pagetabs" Margin="0,8,0,10" ItemsSource="{x:Static ms:MailSecurityViewModel.Pages}" SelectedItem="{Binding SelectedPage}">
+    <TabStrip DockPanel.Dock="Top" Classes="pagetabs" Margin="8,8,8,10" ItemsSource="{x:Static ms:MailSecurityViewModel.Pages}" SelectedItem="{Binding SelectedPage}">
       <TabStrip.ItemsPanel>
         <ItemsPanelTemplate>
           <WrapPanel />
@@ -28,7 +28,7 @@
     <!-- Quarantine: how far back, then the list -->
     <DockPanel IsVisible="{Binding ShowQuarantine}">
       <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
-        <TextBlock Classes="caption" Text="Quarantined in the" VerticalAlignment="Center" />
+        <TextBlock Classes="caption" Text="Period" VerticalAlignment="Center" />
         <ComboBox ItemsSource="{x:Static ms:MailSecurityViewModel.QuarantineRanges}" SelectedItem="{Binding QuarantineRange}" MinWidth="160" />
         <Button Classes="ghost" Command="{Binding RefreshQuarantineCommand}" ToolTip.Tip="Read the quarantine again">
           <StackPanel Orientation="Horizontal" Spacing="6">

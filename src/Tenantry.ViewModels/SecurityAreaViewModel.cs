@@ -43,6 +43,34 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         new("approvals", "Approvals", "ApprovalsApp"),
     ];
 
+    /// <summary>
+    /// The pages in four sections, one row of section tabs with the chosen section's pages under it
+    /// (one row of every page was too much to take in). Page keys don't change: views and checks
+    /// still go to a page by its key, and the section follows.
+    /// </summary>
+    public static IReadOnlyList<SecurityPageGroup> Sections { get; } =
+    [
+        new("access", "Access", "ShieldLock", Of("ca", "whatif", "locations", "strengths", "authmethods")),
+        new("rolesapps", "Roles & Apps", "PersonKey", Of("roles", "myroles", "approvals", "appregs", "enterprise", "deletedapps")),
+        new("threats", "Threats", "Warning", Of("riskyusers", "riskdetections", "riskyapps", "auditlog")),
+        new("compliance", "Compliance", "Briefcase", Of("cases", "searches", "retentionpolicies", "retentionlabels", "adaptivescopes", "retentionevents")),
+    ];
+
+    static IReadOnlyList<MailSecurityPage> Of(params string[] keys) => [.. keys.Select(k => Pages.Single(p => p.Key == k))];
+
+    /// <summary>The section holding a page.</summary>
+    public static SecurityPageGroup SectionOf(MailSecurityPage page) => Sections.First(s => s.Pages.Contains(page));
+
+    /// <summary>The section whose pages show as the second row; choosing one shows its first page.</summary>
+    [ObservableProperty]
+    public partial SecurityPageGroup SelectedSection { get; set; } = Sections[0];
+
+    partial void OnSelectedSectionChanged(SecurityPageGroup value)
+    {
+        if (!value.Pages.Contains(SelectedPage))
+            SelectedPage = value.Pages[0];
+    }
+
     /// <param name="openRole">Opens a role's page.</param>
     /// <param name="newRole">Opens the custom-role editor for a new role; null when the admin can't edit.</param>
     public SecurityAreaViewModel(IRoleRecords? roles, ChangePipeline? pipeline, IListStateStore? listState, Func<DateTimeOffset> now,
@@ -432,7 +460,38 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
             Approvals.Shown();
     }
 
-    partial void OnSelectedPageChanged(MailSecurityPage value) => Shown();
+    bool _movingSection;
+
+    partial void OnSelectedPageChanged(MailSecurityPage oldValue, MailSecurityPage newValue)
+    {
+        // The page row clears or resets its choice while it swaps to another section's pages
+        // (it picks its first page on its own); keep the page that was asked for.
+        if (newValue is null)
+        {
+            SelectedPage = oldValue is { } kept ? kept : SelectedSection.Pages[0];
+            return;
+        }
+        if (_movingSection)
+            return;
+        if (SectionOf(newValue) is var section && section != SelectedSection)
+        {
+            _movingSection = true;
+            try
+            {
+                SelectedSection = section;
+            }
+            finally
+            {
+                _movingSection = false;
+            }
+            if (SelectedPage != newValue)
+            {
+                SelectedPage = newValue;
+                return;
+            }
+        }
+        Shown();
+    }
 
     /// <summary>Why roles can't be listed, or what PIM can't show here, above the list.</summary>
     [ObservableProperty]
@@ -465,3 +524,6 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     [RelayCommand]
     Task RefreshRoles() => Roles.ReloadAsync(busyText: "Reading admin roles from Entra…");
 }
+
+/// <summary>A group of the Security &amp; Compliance pages, shown as one tab with its pages under it.</summary>
+public sealed record SecurityPageGroup(string Key, string Title, string Icon, IReadOnlyList<MailSecurityPage> Pages);

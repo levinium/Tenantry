@@ -5,12 +5,12 @@
              xmlns:c="using:Tenantry.App.Controls"
              x:Class="Tenantry.App.Views.DeviceUsersSectionView"
              x:DataType="rec:DeviceUsersSection">
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <views:DeviceSectionStatusView />
     <Border Classes="card">
       <StackPanel Spacing="10">
         <StackPanel Spacing="2">
-          <TextBlock Classes="h3" Text="People" />
+          <TextBlock Classes="h3" Text="Users" />
           <TextBlock Classes="caption" TextWrapping="Wrap"
                      Text="Intune's primary user, who has signed in to it (Windows reports this), and who registered it in Entra." />
         </StackPanel>

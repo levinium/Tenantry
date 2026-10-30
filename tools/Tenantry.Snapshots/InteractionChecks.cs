@@ -44,7 +44,7 @@ static class InteractionChecks
             var menu = (MenuFlyout)actions.Flyout!;
             Click(MenuItem(menu, m => m.Command == page.SignOutEverywhereCommand));
             Expect(!menu.IsOpen, "the Actions menu closed");
-            Expect(main.Pending!.Count == 1, "Sign out everywhere is in Pending changes");
+            Expect(main.Pending!.Count == 1, "Sign out everywhere is in Pending Changes");
             window.Close();
         });
 
@@ -63,7 +63,7 @@ static class InteractionChecks
             Expect(menu.IsOpen, "the wipe menu opened");
             Click(MenuItem(menu, m => (m.Header as string ?? "").StartsWith("Erase the Whole Device", StringComparison.Ordinal)));
             Expect(!menu.IsOpen, "the wipe menu closed");
-            Expect(main.Pending!.Count == 1, "the wipe is in Pending changes");
+            Expect(main.Pending!.Count == 1, "the wipe is in Pending Changes");
             window.Close();
         });
 
@@ -140,7 +140,7 @@ static class InteractionChecks
             var pick = FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == tab.AccessPicker);
             var name = ((Tenantry.ViewModels.Editing.PickOption)pick.DataContext!).Name;
             Click(window, pick);
-            Expect(main.Pending!.Count == 1, "the access change is in Pending changes");
+            Expect(main.Pending!.Count == 1, "the access change is in Pending Changes");
             Expect(tab.Access.Any(r => r.Name == name && r.PendingText == "Adding"), "the person shows as Adding");
             Click(window, FindButton(window, b => b.DataContext is OneDriveAccessRow r && r.Name == name && b.Command == r.RemoveCommand));
             Expect(main.Pending.Count == 0, "undo took it back out");
@@ -161,7 +161,7 @@ static class InteractionChecks
             window.Close();
         });
 
-        Check("Record Actions menu: Offboard closes the menu, and Add to Pending changes stages the checklist", () =>
+        Check("Record Actions menu: Offboard closes the menu, and Add to Pending Changes stages the checklist", () =>
         {
             var (window, main, page) = OpenRecord();
             var actions = FindButton(window, b => ToolTip.GetTip(b) as string == "More actions" && b.FindAncestorOfType<UserControl>()?.DataContext == page);
@@ -178,13 +178,13 @@ static class InteractionChecks
             Click(window, stage);
             for (var i = 0; i < 50 && workflow!.IsPlanning; i++)
                 Settle();
-            Expect(main.Pending!.Count > 3, $"the checklist's changes are in Pending changes (planning {workflow!.IsPlanning}, pending {main.Pending.Count}, " +
+            Expect(main.Pending!.Count > 3, $"the checklist's changes are in Pending Changes (planning {workflow!.IsPlanning}, pending {main.Pending.Count}, " +
                 $"result '{workflow.Result}', notes '{string.Join(" | ", workflow.Notes)}', dialog {main.Dialog?.Content?.GetType().Name})");
             Expect(main.Pending.Rows.Any(r => r.Change is RevokeSessions), "sign out everywhere is among them");
             window.Close();
         });
 
-        Check("Record Actions menu: Respond to a compromised account checks, then Add to Pending changes stages and closes", () =>
+        Check("Record Actions menu: Respond to a compromised account checks, then Add to Pending Changes stages and closes", () =>
         {
             var (window, main, page) = OpenRecord();
             var actions = FindButton(window, b => ToolTip.GetTip(b) as string == "More actions" && b.FindAncestorOfType<UserControl>()?.DataContext == page);
@@ -202,7 +202,7 @@ static class InteractionChecks
             Settle();
             Click(window, stage);
             Expect(main.Dialog is null, "the popup closed");
-            Expect(main.Pending!.Rows.Any(r => r.Change is ResetPassword) && main.Pending.Rows.Any(r => r.Change is RevokeSessions), "the response is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is ResetPassword) && main.Pending.Rows.Any(r => r.Change is RevokeSessions), "the response is in Pending Changes");
             window.Close();
         });
 
@@ -245,7 +245,7 @@ static class InteractionChecks
             add.BringIntoView();
             Settle();
             Click(window, add);
-            Expect(main.Pending!.Rows.Any(r => r.Change is AddListEntry), "the entry is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is AddListEntry), "the entry is in Pending Changes");
             window.Close();
         });
 
@@ -266,11 +266,11 @@ static class InteractionChecks
             off.BringIntoView();
             Settle();
             Click(window, off);
-            Expect(main.Pending!.Rows.Any(r => r.Change is SetRuleEnabled { New: false }), "turning it off is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetRuleEnabled { New: false }), "turning it off is in Pending Changes");
             window.Close();
         });
 
-        Check("Rule editor: New Rule opens a tab; a starter, the action list and typing put the rule in Pending changes; Done closes it", () =>
+        Check("Rule editor: New Rule opens a tab; a starter, the action list and typing put the rule in Pending Changes; Done closes it", () =>
         {
             var (window, main, _) = OpenList();
             var area = main.MailSecurity!;
@@ -314,13 +314,13 @@ static class InteractionChecks
             var box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.DataContext == editor.Actions[0].Main && t.IsEffectivelyVisible);
             box.Text = "[TEST] ";
             Settle();
-            Expect(main.Pending!.Rows.Any(r => r.Change is CreateRule), "the new rule is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateRule), "the new rule is in Pending Changes");
             var done = FindButton(window, b => b.Command == editor.DoneCommand);
             done.BringIntoView();
             Settle();
             Click(window, done);
             Expect(!main.Tabs.Contains(editor), "Done closed the editor");
-            Expect(main.Pending!.Rows.Any(r => r.Change is CreateRule), "the rule stayed in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateRule), "the rule stayed in Pending Changes");
             window.Close();
         });
 
@@ -345,7 +345,7 @@ static class InteractionChecks
             window.Close();
         });
 
-        Check("New User: the list's button opens the form; Add puts the new person in Pending changes and closes it", () =>
+        Check("New User: the list's button opens the form; Add puts the new person in Pending Changes and closes it", () =>
         {
             var (window, main, _) = OpenList();
             Click(window, FindButton(window, b => b.Command == main.Users.RunPrimaryActionCommand));
@@ -360,7 +360,7 @@ static class InteractionChecks
             Settle();
             Click(window, add);
             Expect(main.Dialog is null, "the form closed");
-            Expect(main.Pending!.Rows.Any(r => r.Change is CreateUser), "the new person is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateUser), "the new person is in Pending Changes");
             window.Close();
         });
 
@@ -386,7 +386,7 @@ static class InteractionChecks
                 add.BringIntoView();
                 Settle();
                 Click(window, add);
-                Expect(main.Dialog is null && main.Pending!.Count == 2, $"two changes in Pending changes (got {main.Pending!.Count})");
+                Expect(main.Dialog is null && main.Pending!.Count == 2, $"two changes in Pending Changes (got {main.Pending!.Count})");
             }
             finally
             {
@@ -395,7 +395,7 @@ static class InteractionChecks
             window.Close();
         });
 
-        Check("New Group: the list's button opens the form; a shared mailbox with a person goes to Pending changes", () =>
+        Check("New Group: the list's button opens the form; a shared mailbox with a person goes to Pending Changes", () =>
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
@@ -416,7 +416,7 @@ static class InteractionChecks
             add.BringIntoView();
             Settle();
             Click(window, add);
-            Expect(main.Dialog is null && main.Pending!.Rows.Any(r => r.Change is CreateGroup { Kind: GroupKind.SharedMailbox }), "it's in Pending changes and the form closed");
+            Expect(main.Dialog is null && main.Pending!.Rows.Any(r => r.Change is CreateGroup { Kind: GroupKind.SharedMailbox }), "it's in Pending Changes and the form closed");
             window.Close();
         });
 
@@ -501,7 +501,7 @@ static class InteractionChecks
             window.Close();
         });
 
-        Check("Devices: clicking a device's name opens its page, and the page's Restart goes to Pending changes", () =>
+        Check("Devices: clicking a device's name opens its page, and the page's Restart goes to Pending Changes", () =>
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "devices");
@@ -524,7 +524,7 @@ static class InteractionChecks
             Settle();
             Click(window, stage);
             Expect(main.Pending!.Rows.Any(r => r.Change is RunDeviceAction { Command: DeviceCommand.Restart } a && a.Device.Id == laptop.ManagedId),
-                "the restart is in Pending changes");
+                "the restart is in Pending Changes");
             window.Close();
         });
 
@@ -547,18 +547,18 @@ static class InteractionChecks
             Settle();
             Click(window, FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == groups.Picker));
             Expect(groups.Groups.Count == before + 1 && groups.Groups.Any(g => g.PendingText == "Joining"), "a Joining row appeared");
-            Expect(main.Pending!.Rows.Any(r => r.Change is SetGroupMembership { PersonType: "device", New: true }), "joining is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetGroupMembership { PersonType: "device", New: true }), "joining is in Pending Changes");
             var existing = groups.Groups.First(g => !g.HasPending);
             var remove = FindButton(window, b => b.Command == existing.ToggleCommand);
             Click(window, remove);
-            Expect(main.Pending.Rows.Any(r => r.Change is SetGroupMembership { PersonType: "device", New: false }), "leaving is in Pending changes");
+            Expect(main.Pending.Rows.Any(r => r.Change is SetGroupMembership { PersonType: "device", New: false }), "leaving is in Pending Changes");
             var leaving = groups.Groups.First(g => g.PendingText == "Leaving");
             Click(window, FindButton(window, b => b.Command == leaving.ToggleCommand));
             Expect(!main.Pending.Rows.Any(r => r.Change is SetGroupMembership { New: false }), "Undo took leaving back out");
             window.Close();
         });
 
-        Check("Devices › Autopilot: the page tab reads the list, a serial opens its preview, and Set Group Tag goes to Pending changes", () =>
+        Check("Devices › Autopilot: the page tab reads the list, a serial opens its preview, and Set Group Tag goes to Pending Changes", () =>
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "devices");
@@ -582,7 +582,7 @@ static class InteractionChecks
             stage.BringIntoView();
             Settle();
             Click(window, stage);
-            Expect(main.Pending!.Rows.Any(r => r.Change is SetAutopilotGroupTag { New: "Loaners" }), "the group tag is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetAutopilotGroupTag { New: "Loaners" }), "the group tag is in Pending Changes");
             window.Close();
         });
 
@@ -635,8 +635,8 @@ static class InteractionChecks
                 Settle();
             Expect(permissions.NoteActionText == "Add Yourself as Site Admin", "the note offers to add you");
             Click(window, FindButton(window, b => b.Command == permissions.NoteActionCommand && b.IsEffectivelyVisible));
-            Expect(main.Pending!.Rows.Any(r => r.Change is SetSiteAdmin { New: true }), "adding you is in Pending changes");
-            Expect(!permissions.HasNoteAction && permissions.Note?.Contains("Pending changes", StringComparison.Ordinal) == true, "the button went and the note says to apply");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetSiteAdmin { New: true }), "adding you is in Pending Changes");
+            Expect(!permissions.HasNoteAction && permissions.Note?.Contains("Pending Changes", StringComparison.Ordinal) == true, "the button went and the note says to apply");
             Expect(page.HasPending, "the page's header says what's pending");
             window.Close();
         });
@@ -657,7 +657,7 @@ static class InteractionChecks
             remove.BringIntoView();
             Settle();
             Click(window, remove);
-            Expect(main.Pending!.Rows.Any(r => r.Change is SetGroupMembership { Role: GroupRole.Member, New: false }), "removing them is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetGroupMembership { Role: GroupRole.Member, New: false }), "removing them is in Pending Changes");
             var removing = permissions.Groups.Single(g => g.Name == "Members").Members.First(m => m.StateText == "Removing");
             Settle();
             var undo = FindButton(window, b => b.Command == removing.DoCommand);
@@ -673,12 +673,12 @@ static class InteractionChecks
             option.BringIntoView();
             Settle();
             Click(window, option);
-            Expect(main.Pending.Rows.Any(r => r.Change is SetSiteGroupMember { New: true }), "adding them to Visitors is in Pending changes");
+            Expect(main.Pending.Rows.Any(r => r.Change is SetSiteGroupMember { New: true }), "adding them to Visitors is in Pending Changes");
             Expect(permissions.Groups.Single(g => g.Name == "Visitors").Members.Any(m => m.StateText == "Adding"), "an Adding row appeared");
             window.Close();
         });
 
-        Check("Site page: Lock from the Overview tab's actions goes to Pending changes as a caution change", () =>
+        Check("Site page: Lock from the Overview tab's actions goes to Pending Changes as a caution change", () =>
         {
             var (window, main, _) = OpenList();
             main.SharePoint.Sites.LoadAsync().GetAwaiter().GetResult();
@@ -697,11 +697,11 @@ static class InteractionChecks
             stage.BringIntoView();
             Settle();
             Click(window, stage);
-            Expect(main.Pending!.Rows.Any(r => r.Change is SetSiteSetting { Setting: "lock", IsCaution: true }), "locking is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetSiteSetting { Setting: "lock", IsCaution: true }), "locking is in Pending Changes");
             window.Close();
         });
 
-        Check("New Site: the Sites list's button opens the form; a communication site goes to Pending changes and the form closes", () =>
+        Check("New Site: the Sites list's button opens the form; a communication site goes to Pending Changes and the form closes", () =>
         {
             var (window, main, _) = OpenList();
             main.SharePoint.Sites.LoadAsync().GetAwaiter().GetResult();
@@ -718,11 +718,11 @@ static class InteractionChecks
             add.BringIntoView();
             Settle();
             Click(window, add);
-            Expect(main.Dialog is null && main.Pending!.Rows.Any(r => r.Change is CreateSite { Kind: SiteKind.CommunicationSite }), "it's in Pending changes and the form closed");
+            Expect(main.Dialog is null && main.Pending!.Rows.Any(r => r.Change is CreateSite { Kind: SiteKind.CommunicationSite }), "it's in Pending Changes and the form closed");
             window.Close();
         });
 
-        Check("SharePoint › Deleted Sites: the page tab reads the list; Restore in the preview goes to Pending changes", () =>
+        Check("SharePoint › Deleted Sites: the page tab reads the list; Restore in the preview goes to Pending Changes", () =>
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "sharepoint");
@@ -745,7 +745,7 @@ static class InteractionChecks
             stage.BringIntoView();
             Settle();
             Click(window, stage);
-            Expect(main.Pending!.Rows.Any(r => r.Change is RestoreSite), "restoring is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is RestoreSite), "restoring is in Pending Changes");
             window.Close();
         });
 
@@ -755,6 +755,9 @@ static class InteractionChecks
             main.Users.LoadAsync().GetAwaiter().GetResult();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection { Key: "security" }));
             var area = main.SecurityArea;
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "roles"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "roles" }));
             for (var i = 0; i < 50 && area.Roles.Total == 0; i++)
@@ -771,7 +774,7 @@ static class InteractionChecks
             remove.BringIntoView();
             Settle();
             Click(window, remove);
-            Expect(main.Pending!.Rows.Any(r => r.Change is RemoveRoleAssignment), "taking it away is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is RemoveRoleAssignment), "taking it away is in Pending Changes");
             page.Assignments.Picker.Query = main.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member).DisplayName;
             Settle();
             var option = FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == page.Assignments.Picker);
@@ -783,7 +786,7 @@ static class InteractionChecks
             add.BringIntoView();
             Settle();
             Click(window, add);
-            Expect(main.Pending.Rows.Any(r => r.Change is AddRoleAssignment { Kind: RoleGrantKind.Active }), "giving the role is in Pending changes");
+            Expect(main.Pending.Rows.Any(r => r.Change is AddRoleAssignment { Kind: RoleGrantKind.Active }), "giving the role is in Pending Changes");
             Expect(page.Assignments.Rows.Any(r => r.StateText == "Adding") && page.HasPending, "an Adding row appeared and the header says what's pending");
             window.Close();
         });
@@ -816,7 +819,7 @@ static class InteractionChecks
             save!.BringIntoView();
             Settle();
             Click(window, save!);
-            Expect(main.Dialog is null && main.Pending!.Rows.Any(r => r.Change is CreateCustomRole c && c.Actions.Count >= 3), "the role is in Pending changes and the editor closed");
+            Expect(main.Dialog is null && main.Pending!.Rows.Any(r => r.Change is CreateCustomRole c && c.Actions.Count >= 3), "the role is in Pending Changes and the editor closed");
             window.Close();
         });
 
@@ -826,6 +829,9 @@ static class InteractionChecks
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
             Settle();
             var area = main.SecurityArea;
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "myroles"));
+            Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "myroles" }));
             for (var i = 0; i < 50 && area.MyRoles.Eligible.Count == 0; i++)
                 Settle();
@@ -841,13 +847,16 @@ static class InteractionChecks
             row.Justification = "Checking an alert";
             Settle();
             Click(window, add);
-            Expect(main.Pending!.Rows.Any(r => r.Change is ActivateRole { On: true }) && !row.IsOpen, "switching it on is in Pending changes and the form closed");
+            Expect(main.Pending!.Rows.Any(r => r.Change is ActivateRole { On: true }) && !row.IsOpen, "switching it on is in Pending Changes and the form closed");
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "approvals"));
+            Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "approvals" }));
             for (var i = 0; i < 50 && area.Approvals.Requests.Count == 0; i++)
                 Settle();
             var request = area.Approvals.Requests.First();
             Click(window, FindButton(window, b => b.Command == request.ApproveCommand && b.IsEffectivelyVisible));
-            Expect(main.Pending.Rows.Any(r => r.Change is ReviewRoleRequest { Approve: true }) && request.StateText == "Approving", "approving is in Pending changes");
+            Expect(main.Pending.Rows.Any(r => r.Change is ReviewRoleRequest { Approve: true }) && request.StateText == "Approving", "approving is in Pending Changes");
             window.Close();
         });
 
@@ -866,14 +875,14 @@ static class InteractionChecks
             button.BringIntoView();
             Settle();
             Click(window, button);
-            Expect(main.Pending!.Rows.Any(r => r.Change is ExtendRoleAssignment), "extending is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is ExtendRoleAssignment), "extending is in Pending Changes");
             Click(window, window.GetVisualDescendants().OfType<TabItem>().First(t => t.DataContext is RoleSettingsSection));
             for (var i = 0; i < 20 && !page.Settings.IsLoaded; i++)
                 Settle();
             Expect(page.Settings.CanEdit, "the settings read and can be changed");
             page.Settings.MaxActivation = RoleSettingsSection.ActivationChoices.First(c => c.Value == TimeSpan.FromHours(4));
             Settle();
-            Expect(main.Pending.Rows.Any(r => r.Change is SetRolePolicyRule { RuleId: RolePolicyRules.ActivationExpiry }), "the shorter activation is in Pending changes");
+            Expect(main.Pending.Rows.Any(r => r.Change is SetRolePolicyRule { RuleId: RolePolicyRules.ActivationExpiry }), "the shorter activation is in Pending Changes");
             window.Close();
         });
 
@@ -891,9 +900,9 @@ static class InteractionChecks
             Expect(page?.Policy.Id == policy.Policy.Id && page.Lines.Count > 0, "its page opened with the policy in words");
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is CaStateChoice { State: "disabled" }));
-            Expect(main.Pending!.Rows.Any(r => r.Change is SetCaPolicyState { New: "disabled" }) && page!.HasPending, "switching it off is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetCaPolicyState { New: "disabled" }) && page!.HasPending, "switching it off is in Pending Changes");
             Click(window, FindButton(window, b => b.Command == page!.DeleteCommand && b.IsEffectivelyVisible));
-            Expect(main.Pending.Rows.Any(r => r.Change is DeleteCaPolicy), "deleting it is in Pending changes");
+            Expect(main.Pending.Rows.Any(r => r.Change is DeleteCaPolicy), "deleting it is in Pending Changes");
             window.Close();
         });
 
@@ -902,6 +911,9 @@ static class InteractionChecks
             var (window, main, _) = OpenList();
             main.Users.LoadAsync().GetAwaiter().GetResult();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "whatif"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "whatif" }));
             var whatIf = main.SecurityArea.WhatIf;
@@ -917,7 +929,7 @@ static class InteractionChecks
             window.Close();
         });
 
-        Check("New Policy: the button opens the editor; a template fills it (report-only, leaving you out); Done closes it with the policy in Pending changes", () =>
+        Check("New Policy: the button opens the editor; a template fills it (report-only, leaving you out); Done closes it with the policy in Pending Changes", () =>
         {
             var (window, main, _) = OpenList(premium: true);
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
@@ -938,7 +950,7 @@ static class InteractionChecks
             Click(window, start!);
             Settle();
             Expect(editor.Name == template.Name && editor.State?.State == "enabledForReportingButNotEnforced", "the template filled it, in report-only");
-            Expect(main.Pending!.Rows.Any(r => r.Change is CreateCaPolicy), "the new policy is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateCaPolicy), "the new policy is in Pending Changes");
             var done = FindButton(window, b => b.Command == editor.DoneCommand && b.IsEffectivelyVisible);
             done.BringIntoView();
             Settle();
@@ -969,15 +981,18 @@ static class InteractionChecks
             browser.BringIntoView();
             Settle();
             Click(window, browser);
-            Expect(main.Pending!.Rows.Count(r => r.Change is UpdateCaPolicy) == 1, "one change to the policy is in Pending changes");
+            Expect(main.Pending!.Rows.Count(r => r.Change is UpdateCaPolicy) == 1, "one change to the policy is in Pending Changes");
             Expect(editor!.Lines.Any(l => l.Label == "Client Apps" && l.Value == "Browsers"), "the words beside it follow");
             window.Close();
         });
 
-        Check("Named Locations: Add Location opens the form; Add to Pending changes stages it; a location a policy uses can't be deleted; Edit stages a change", () =>
+        Check("Named Locations: Add Location opens the form; Add to Pending Changes stages it; a location a policy uses can't be deleted; Edit stages a change", () =>
         {
             var (window, main, _) = OpenList(premium: true);
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "locations"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "locations" }));
             var page = main.SecurityArea.NamedLocations;
@@ -992,7 +1007,7 @@ static class InteractionChecks
             window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.AcceptsReturn).Text = "198.51.100.0/24";
             Settle();
             Click(window, FindButton(window, b => b.Command == page.SaveCommand && b.IsEffectivelyVisible));
-            Expect(!page.IsFormOpen && main.Pending!.Rows.Any(r => r.Change is CreateNamedLocation { Location.Name: "Branch Office" }), "the new location is in Pending changes and the form closed");
+            Expect(!page.IsFormOpen && main.Pending!.Rows.Any(r => r.Change is CreateNamedLocation { Location.Name: "Branch Office" }), "the new location is in Pending Changes and the form closed");
             Expect(page.Locations.Any(l => l.Name == "Branch Office" && l.StateText == "Adding"), "it shows as Adding");
             var office = page.Locations.Single(l => l.Name == "Head Office");
             Expect(!FindButton(window, b => b.Command == office.DeleteCommand && b.IsEffectivelyVisible).IsEffectivelyEnabled, "Head Office's Delete is off, since a policy uses it");
@@ -1003,7 +1018,7 @@ static class InteractionChecks
             window.GetVisualDescendants().OfType<CheckBox>().First(c => c.IsEffectivelyVisible && c.IsChecked == false && (c.Content as string)!.StartsWith("Include", StringComparison.Ordinal)).IsChecked = true;
             Click(window, FindButton(window, b => b.Command == page.SaveCommand && b.IsEffectivelyVisible));
             Expect(main.Pending!.Rows.Any(r => r.Change is UpdateNamedLocation) && page.Locations.Single(l => l.Name == "Home Countries").StateText == "Changing",
-                $"the change is in Pending changes ({string.Join("; ", page.Problems)}; open {page.IsFormOpen}; {string.Join(", ", main.Pending.Rows.Select(r => r.Change.GetType().Name))})");
+                $"the change is in Pending Changes ({string.Join("; ", page.Problems)}; open {page.IsFormOpen}; {string.Join(", ", main.Pending.Rows.Select(r => r.Change.GetType().Name))})");
             window.Close();
         });
 
@@ -1011,6 +1026,9 @@ static class InteractionChecks
         {
             var (window, main, _) = OpenList(premium: true);
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "strengths"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "strengths" }));
             var page = main.SecurityArea.AuthStrengths;
@@ -1025,6 +1043,9 @@ static class InteractionChecks
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "appregs" }));
             var area = main.SecurityArea;
@@ -1050,6 +1071,9 @@ static class InteractionChecks
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "enterprise"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "enterprise" }));
             var area = main.SecurityArea;
@@ -1088,14 +1112,14 @@ static class InteractionChecks
             box.Text = "Rotation";
             Settle();
             Click(window, FindButton(window, b => b.IsEffectivelyVisible && Labelled(b, "Add Secret")));
-            Expect(main.Pending!.Rows.Any(r => r.Change is AddAppSecret { Description: "Rotation" }), "the new secret is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is AddAppSecret { Description: "Rotation" }), "the new secret is in Pending Changes");
             for (var i = 0; i < 5; i++)
                 Settle();
             var remove = FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is AppRow { Title: "Nightly export", ActionText: "Remove" });
             Click(window, remove);
             for (var i = 0; i < 5; i++)
                 Settle();
-            Expect(main.Pending.Rows.Any(r => r.Change is RemoveAppCredential), "removing the expired secret is in Pending changes");
+            Expect(main.Pending.Rows.Any(r => r.Change is RemoveAppCredential), "removing the expired secret is in Pending Changes");
             Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.DataContext is AppRow { Title: "Nightly export", ActionText: "Undo" }),
                 "its row now offers Undo");
             Click(window, FindButton(window, b => b.Command == page.DeleteCommand && b.IsEffectivelyVisible));
@@ -1107,6 +1131,9 @@ static class InteractionChecks
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "appregs" }));
             for (var i = 0; i < 50 && main.SecurityArea.Registrations.Total == 0; i++)
@@ -1120,14 +1147,14 @@ static class InteractionChecks
             form!.Name = "Expense Reports";
             Settle();
             Click(window, FindButton(window, b => b.Command == form.AddCommand && b.IsEffectivelyVisible));
-            Expect(main.Dialog is null && main.Pending!.Rows.Any(r => r.Change is CreateAppRegistration), "Add put it in Pending changes and closed the popup");
+            Expect(main.Dialog is null && main.Pending!.Rows.Any(r => r.Change is CreateAppRegistration), "Add put it in Pending Changes and closed the popup");
 
             main.OpenEnterpriseApp(main.SecurityArea.Apps!.EnterpriseApps.Single(e => e.Name == "Fabrikam Whiteboard"));
             for (var i = 0; i < 5; i++)
                 Settle();
             var signIn = window.GetVisualDescendants().OfType<ToggleSwitch>().First(t => t.IsEffectivelyVisible);
             Click(window, signIn);
-            Expect(main.Pending!.Rows.Any(r => r.Change is SetEnterpriseAppSetting { Setting: "enabled", New: false }), "turning sign-in off is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetEnterpriseAppSetting { Setting: "enabled", New: false }), "turning sign-in off is in Pending Changes");
             window.Close();
         });
 
@@ -1135,6 +1162,9 @@ static class InteractionChecks
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "authmethods"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "authmethods" }));
             var page = main.SecurityArea.AuthMethodsPage;
@@ -1150,7 +1180,7 @@ static class InteractionChecks
             var off = window.GetVisualDescendants().OfType<ListBoxItem>().FirstOrDefault(i => i.DataContext is Tenantry.ViewModels.Editing.EditorChoice { Value: "disabled" } && i.IsEffectivelyVisible);
             Expect(off is not null, "the Off choice is on screen");
             Click(window, off!);
-            Expect(main.Pending!.Rows.Any(r => r.Change is SetAuthMethodConfig { Method.Id: "Fido2", IsCaution: true }), "switching passkeys off is a caution change in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetAuthMethodConfig { Method.Id: "Fido2", IsCaution: true }), "switching passkeys off is a caution change in Pending Changes");
             Expect(page.Methods.Single(m => m.Id == "Fido2").Pending && page.Editor == editor, "its row says Pending and the editor stays open");
             var defaults = window.GetVisualDescendants().OfType<ListBoxItem>().FirstOrDefault(i => i.DataContext is AuthItemRow { Id: "securityDefaults" });
             Expect(defaults is not null, "the Security Defaults row is on screen");
@@ -1159,7 +1189,7 @@ static class InteractionChecks
             Click(window, defaults!);
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ToggleSwitch>().First(t => t.IsEffectivelyVisible && t.DataContext is SecurityDefaultsEditor));
-            Expect(main.Pending.Rows.Any(r => r.Change is SetSecurityDefaults { New: true }), "turning security defaults on is in Pending changes");
+            Expect(main.Pending.Rows.Any(r => r.Change is SetSecurityDefaults { New: true }), "turning security defaults on is in Pending Changes");
             window.Close();
         });
 
@@ -1167,6 +1197,9 @@ static class InteractionChecks
         {
             var (window, main, _) = OpenList(premium: true);
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "riskyusers"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "riskyusers" }));
             var area = main.SecurityArea;
@@ -1179,9 +1212,12 @@ static class InteractionChecks
             var preview = area.RiskyUsers.PreviewModel as RiskPreviewViewModel;
             Expect(preview is { HasDetections: true }, "the preview lists what was detected");
             Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is RiskButton { Text: "Dismiss Risk" }));
-            Expect(main.Pending!.Rows.Any(r => r.Change is SetUserRisk { Compromised: false }), "dismissing is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetUserRisk { Compromised: false }), "dismissing is in Pending Changes");
             Settle();
             Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.DataContext is RiskButton { Text: "Undo" }), "the preview now offers Undo");
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "riskdetections"));
+            Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "riskdetections" }));
             for (var i = 0; i < 10; i++)
                 Settle();
@@ -1193,6 +1229,9 @@ static class InteractionChecks
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "riskyusers"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "riskyusers" }));
             for (var i = 0; i < 20 && !main.SecurityArea.HasRiskNote; i++)
@@ -1207,6 +1246,9 @@ static class InteractionChecks
             AuditLogViewModel.CheckEvery = TimeSpan.Zero;
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "auditlog"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "auditlog" }));
             var page = main.SecurityArea.AuditLog;
@@ -1260,7 +1302,7 @@ static class InteractionChecks
             Settle();
             Click(window, stage);
             var deletes = main.Pending!.Rows.Select(r => r.Change).OfType<DeleteDevice>().ToArray();
-            Expect(deletes.Length == 1 && deletes[0].Device.Name == stale.Name, "only the stale device is in Pending changes");
+            Expect(deletes.Length == 1 && deletes[0].Device.Name == stale.Name, "only the stale device is in Pending Changes");
             window.Close();
         });
 
@@ -1268,6 +1310,9 @@ static class InteractionChecks
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "cases"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "cases" }));
             var area = main.SecurityArea;
@@ -1289,7 +1334,7 @@ static class InteractionChecks
             Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == changing.CancelCommand));
             Expect(main.Dialog is null && main.Pending!.Rows.Count == 0, "Cancel closes it with nothing staged");
             Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is AppRow { Title: "Contract hold" } && b.Content as string == "Turn Off"));
-            Expect(main.Pending!.Rows.Any(r => r.Change is SetHoldEnabled { New: false }), "turning the hold off is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetHoldEnabled { New: false }), "turning the hold off is in Pending Changes");
             Settle();
             Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.DataContext is AppRow { Title: "Contract hold", IsUndo: true }),
                 "the hold's row now offers Undo");
@@ -1306,7 +1351,7 @@ static class InteractionChecks
             Expect(editor.Mailboxes.Chips.Count == 1, "the picked mailbox is a chip");
             Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.DataContext is PlaceChip), "with a × to take it off");
             Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == editor.SaveCommand));
-            Expect(main.Pending!.Rows.Any(r => r.Change is CreateHold { Hold.Name: "Keep it" }), "the new hold is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateHold { Hold.Name: "Keep it" }), "the new hold is in Pending Changes");
             Expect(main.Dialog is null, "the editor closed");
             window.Close();
         });
@@ -1316,6 +1361,9 @@ static class InteractionChecks
             EdSearchPageViewModel.CheckEvery = TimeSpan.Zero;
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "searches"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "searches" }));
             var area = main.SecurityArea;
@@ -1347,6 +1395,9 @@ static class InteractionChecks
                 var (window, main, _) = OpenList();
                 main.SelectedSection = main.Sections.Single(s => s.Key == "security");
                 Settle();
+                // Security & Compliance pages sit in sections: show the one holding it first.
+                main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "searches"));
+                Settle();
                 Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "searches" }));
                 for (var i = 0; i < 20 && main.SecurityArea.Searches.Total == 0; i++)
                     Settle();
@@ -1357,7 +1408,7 @@ static class InteractionChecks
                 var purge = main.Dialog?.Content as EdPurgeViewModel ?? throw new InvalidOperationException("Search and Delete didn't open");
                 Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.IsEffectivelyVisible && ReferenceEquals(i.DataContext, EdPurgeViewModel.Kinds[1])));
                 Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == purge.AddCommand));
-                Expect(main.Pending!.Rows.Any(r => r.Change is PurgeSearch { Hard: true }) && main.Dialog is null, "a hard delete is in Pending changes and the popup closed");
+                Expect(main.Pending!.Rows.Any(r => r.Change is PurgeSearch { Hard: true }) && main.Dialog is null, "a hard delete is in Pending Changes and the popup closed");
                 Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is PageButton { Text: "Export" }));
                 var export = main.Dialog?.Content as EdExportViewModel ?? throw new InvalidOperationException("Export didn't open");
                 Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == export.ChooseFolderCommand));
@@ -1382,6 +1433,9 @@ static class InteractionChecks
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
             Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "retentionpolicies"));
+            Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "retentionpolicies" }));
             var area = main.SecurityArea;
             for (var i = 0; i < 20 && area.RetentionPolicies.Total == 0; i++)
@@ -1397,7 +1451,7 @@ static class InteractionChecks
                 Settle();
             Expect(window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible && t.Text == "All of them"), "Where shows all mailboxes");
             Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is PageButton { Text: "Turn Off" }));
-            Expect(main.Pending!.Rows.Any(r => r.Change is SetRetentionPolicyEnabled { New: false }), "turning it off is in Pending changes");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetRetentionPolicyEnabled { New: false }), "turning it off is in Pending Changes");
             main.SelectedTab = area;
             Settle();
             Click(window, FindButton(window, b => b.IsEffectivelyVisible && Labelled(b, "New Policy")));
@@ -1421,6 +1475,9 @@ static class InteractionChecks
         {
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "retentionevents"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "retentionevents" }));
             for (var i = 0; i < 20 && main.SecurityArea.RetentionEvents?.Section.Cards.Count is null or 0; i++)
@@ -1494,6 +1551,9 @@ static class InteractionChecks
             var (window, main, _) = OpenList();
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
             Settle();
+            // Security & Compliance pages sit in sections: show the one holding it first.
+            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "cases"));
+            Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "cases" }));
             for (var i = 0; i < 20 && main.SecurityArea.Cases.Total == 0; i++)
                 Settle();
@@ -1503,7 +1563,7 @@ static class InteractionChecks
             Expect(form.HasProblems && main.Dialog is not null, "no name: it says why and stays open");
             form.Name = "Insurance Claim";
             Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == form.AddCommand));
-            Expect(main.Pending!.Rows.Any(r => r.Change is CreateCase { Case.Name: "Insurance Claim" }) && main.Dialog is null, "the case is in Pending changes and the form closed");
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateCase { Case.Name: "Insurance Claim" }) && main.Dialog is null, "the case is in Pending Changes and the form closed");
             window.Close();
         });
 
@@ -1531,7 +1591,7 @@ static class InteractionChecks
             window.Close();
         });
 
-        Check("Pending changes: PowerShell on a change shows its script; Open in Console puts it in the console's box and closes the popup", () =>
+        Check("Pending Changes: PowerShell on a change shows its script; Open in Console puts it in the console's box and closes the popup", () =>
         {
             var (window, main, _) = OpenList();
             var person = main.Users.Rows.Cast<UserSummary>().First();
@@ -1587,7 +1647,10 @@ static class InteractionChecks
         catch (Exception e)
         {
             _failed++;
-            Console.WriteLine($"FAIL  {name}: {e.Message}");
+            // Where it broke too, for anything other than a failed expectation.
+            var at = e is InvalidOperationException && e.Message.StartsWith("expected", StringComparison.Ordinal) ? ""
+                : " at " + (e.StackTrace?.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Contains("Tenantry", StringComparison.Ordinal)) ?? "");
+            Console.WriteLine($"FAIL  {name}: {e.Message}{at}");
         }
     }
 

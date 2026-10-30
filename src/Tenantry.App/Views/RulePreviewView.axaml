@@ -54,7 +54,7 @@
         </StackPanel>
       </Button>
       <Button Content="{Binding EnableText}" Command="{Binding ToggleEnabledCommand}" HorizontalAlignment="Left"
-              ToolTip.Tip="A rule that's off checks nothing (added to Pending changes)" />
+              ToolTip.Tip="A rule that's off checks nothing (added to Pending Changes)" />
       <StackPanel Spacing="4">
         <TextBlock Classes="label" Text="MODE" />
         <ComboBox ItemsSource="{x:Static ms:RulePreviewViewModel.Modes}" SelectedItem="{Binding Mode}" HorizontalAlignment="Stretch"
@@ -85,7 +85,7 @@
         <TextBlock Classes="caption" Text="{Binding OrderNote}" IsVisible="{Binding HasOrderNote}" TextWrapping="Wrap" />
       </StackPanel>
       <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}" HorizontalAlignment="Left"
-              ToolTip.Tip="Deletes the rule for good (added to Pending changes)" />
+              ToolTip.Tip="Deletes the rule for good (added to Pending Changes)" />
     </StackPanel>
   </StackPanel>
 </UserControl>

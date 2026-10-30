@@ -10,7 +10,10 @@
     <StackPanel Spacing="6">
       <TextBlock TextWrapping="Wrap"
                  Text="Each row creates a person, or updates them if the sign-in name already exists. Blank cells leave things as they are, and nothing is removed: licenses and groups in the file are added." />
-      <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding TemplateHelp}" />
+      <!-- The full column list on request: it's long, and most people start from the template. -->
+      <Expander Header="About the Template's Columns" HorizontalAlignment="Stretch">
+        <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding TemplateHelp}" />
+      </Expander>
     </StackPanel>
     <StackPanel Orientation="Horizontal" Spacing="8">
       <Button Classes="accent" Command="{Binding ChooseFileCommand}">

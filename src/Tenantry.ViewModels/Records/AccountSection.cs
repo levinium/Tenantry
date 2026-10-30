@@ -83,7 +83,7 @@ public sealed partial class AccountSection : RecordSection, IDisposable
 
     public bool CanClearManager => CanEdit && !HasPendingManager && _manager.Id is not null;
 
-    public string ClearManagerTip => CanEdit ? "Remove their manager (added to Pending changes)" : EditReason;
+    public string ClearManagerTip => CanEdit ? "Remove their manager (added to Pending Changes)" : EditReason;
 
     [CommunityToolkit.Mvvm.Input.RelayCommand]
     void ClearManager()

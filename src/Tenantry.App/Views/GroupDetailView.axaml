@@ -8,7 +8,7 @@
              x:DataType="vm:GroupDetailViewModel"
              x:Name="Root">
   <ScrollViewer>
-    <StackPanel Margin="8,16,8,24" Spacing="16" MaxWidth="1100" HorizontalAlignment="Stretch">
+    <StackPanel Margin="8,12,8,24" Spacing="16" MaxWidth="1100" HorizontalAlignment="Stretch">
 
       <!-- Which group -->
       <Border Classes="card">
@@ -81,6 +81,8 @@
       <!-- Owners and members, or people with access: editable in place; people and groups open their pages -->
       <Border Classes="card">
         <StackPanel Spacing="12">
+          <!-- A heading first, so the count reads as part of this card (a mailbox's editor has its own heading). -->
+          <TextBlock Classes="h3" Text="Owners and Members" IsVisible="{Binding !Group.IsMailbox}" />
           <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="members,owners">
             <TextBlock Classes="muted" Text="{Binding MembersSummary}" TextWrapping="Wrap" />
           </Border>

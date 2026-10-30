@@ -86,8 +86,11 @@ public sealed partial class DataListViewModel : TabViewModel
     // ---- Rows and counts ------------------------------------------------------------------
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CountText), nameof(IsEmpty), nameof(SelectAllTip))]
+    [NotifyPropertyChangedFor(nameof(CountText), nameof(IsEmpty), nameof(SelectAllTip), nameof(PreviewPrompt))]
     public partial IReadOnlyList<object> Rows { get; private set; }
+
+    /// <summary>What the empty preview pane says: pick a row, or that there's nothing to pick yet.</summary>
+    public string PreviewPrompt => Rows.Count == 0 ? "Nothing to show yet: once the list has rows, choose one to see its details here." : "Select a row to see its details here.";
 
     [ObservableProperty]
     public partial object? SelectedRow { get; set; }
@@ -194,7 +197,7 @@ public sealed partial class DataListViewModel : TabViewModel
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsEmpty))]
+    [NotifyPropertyChangedFor(nameof(IsEmpty), nameof(CountText))]
     public partial bool IsLoading { get; private set; }
 
     [ObservableProperty]
@@ -230,7 +233,9 @@ public sealed partial class DataListViewModel : TabViewModel
     /// <summary>What an empty list says. A list filled by a search (message trace) says how to start one.</summary>
     [ObservableProperty]
     public partial string EmptyText { get; set; } = "Nothing matches these filters.";
-    public string CountText => Rows.Count == Total ? $"{Total:N0} {_source.Noun}" : $"{Rows.Count:N0} of {Total:N0} {_source.Noun}";
+    /// <summary>"250 users", "14 of 41 groups"; "Reading…" while an empty list is being read (not "0 messages").</summary>
+    public string CountText => IsLoading && Rows.Count == 0 ? "Reading…"
+        : Rows.Count == Total ? $"{Total:N0} {_source.Noun}" : $"{Rows.Count:N0} of {Total:N0} {_source.Noun}";
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {

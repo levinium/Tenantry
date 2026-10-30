@@ -195,7 +195,7 @@ public sealed partial class RoleAssignmentsSection : RecordSection
                 EndsText = (extending?.NewEnd ?? g.End) is { } until ? $"Until {until.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture)}" : "Permanent",
                 StateText = removing is not null ? "Removing" : extending is not null ? "Extending" : null,
                 ActionText = !CanEdit || (locked is not null && waiting is null) ? null : waiting is null ? "Remove" : "Undo",
-                ActionTip = waiting is null ? "Take the role away (added to Pending changes)" : "Take the change back out of Pending changes",
+                ActionTip = waiting is null ? "Take the role away (added to Pending Changes)" : "Take the change back out of Pending Changes",
                 Act = waiting is not null ? () => _page.Pipeline!.Unstage(waiting)
                     : () => _page.Pipeline!.Stage(new RemoveRoleAssignment(target, g.Id, role.Role.Name, role.Role.Id, g.ScopeId, g.Kind, g.ViaPim)
                     {
@@ -225,7 +225,7 @@ public sealed partial class RoleAssignmentsSection : RecordSection
                 EndsText = add.End is { } until ? $"Until {until.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture)}" : "Permanent",
                 StateText = "Adding",
                 ActionText = "Undo",
-                ActionTip = "Don't give it (takes the change out of Pending changes)",
+                ActionTip = "Don't give it (takes the change out of Pending Changes)",
                 Act = () => _page.Pipeline!.Unstage(add),
             });
         Summary = role.Grants.Count switch { 0 => "Nobody holds it", 1 => "1 assignment", var n => $"{n:N0} assignments" };

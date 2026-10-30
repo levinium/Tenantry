@@ -428,7 +428,7 @@ public sealed record SetMailboxAccess(ChangeTarget Mailbox, ChangeTarget Person,
 {
     public override ChangeTarget Target => Mailbox;
     public override string Key => $"{Right}:{Person.Id}";
-    public override string Label => $"{RightLabel(Right)}: {Person.Name}";
+    public override string Label => $"{RightLabel(Right)} for {Person.Name}";
     public override string Before => Old ? "Allowed" : "Not Allowed";
     public override string After => New ? "Allowed" : "Removed";
     public override bool IsCaution => Old && !New;
@@ -805,7 +805,7 @@ public sealed record AddPhoneMethod(ChangeTarget User, string PhoneType, string 
     public override ChangeTarget Target => User;
     public override string Key => "phone:" + PhoneType;
     public override string Label => PhoneType switch { "alternateMobile" => "Alternate Phone", "office" => "Office Phone", _ => "Mobile Phone" };
-    public override string Before => "Not Set";
+    public override string Before => "Not set";
     public override string After => Number;
     public override bool IsNoChange => Number.Length == 0;
     public override ChangeOp Since(ChangeOp earlier) => this;
@@ -1365,7 +1365,7 @@ public sealed record SetSiteGroupMember(ChangeTarget Site, string SiteUrl, int G
     : SiteChange(Site, SiteUrl)
 {
     public override string Key => $"sitegroup:{GroupId}:{Login.ToLowerInvariant()}";
-    public override string Label => $"{GroupName}: {Person.Name}";
+    public override string Label => $"{Person.Name} in {GroupName}";
     public override string Before => Old ? "In the Group" : "Not in the Group";
     public override string After => New ? "Added" : "Removed";
     public override bool IsCaution => Old && !New;

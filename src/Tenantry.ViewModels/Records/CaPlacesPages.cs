@@ -34,7 +34,7 @@ public sealed partial class LocationRow(NamedLocation location, IReadOnlyList<st
 
     public bool CanDelete => delete is not null;
     public bool CanUndo => undo is not null;
-    public string DeleteTip => IsUsed ? "Take it out of the policies that use it first" : "Delete it (added to Pending changes)";
+    public string DeleteTip => IsUsed ? "Take it out of the policies that use it first" : "Delete it (added to Pending Changes)";
 
     [RelayCommand]
     void Edit() => edit();

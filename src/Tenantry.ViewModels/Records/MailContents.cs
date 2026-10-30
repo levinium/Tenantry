@@ -37,7 +37,7 @@ public sealed partial class RuleRow(InboxRule rule, bool enabled, string? pendin
     public bool ForwardsInside => rule.Forwards && !forwardsOutside;
     public bool Deletes => rule.Deletes;
     public bool InError => rule.InError;
-    public string DeleteTip => deleting ? "Keep this rule (take the delete out of Pending changes)" : "Delete this rule (added to Pending changes)";
+    public string DeleteTip => deleting ? "Keep this rule (take the delete out of Pending Changes)" : "Delete this rule (added to Pending Changes)";
 
     public bool IsEnabled
     {
@@ -72,7 +72,7 @@ public sealed partial class SharingRow(string name, string? detail, string role,
     public bool HasPending => pendingText is not null;
     public bool CanEdit => canEdit;
     public bool CanRemove => canEdit && !isBuiltIn;
-    public string RemoveTip => HasPending ? "Undo this pending change" : "Take away their access (added to Pending changes)";
+    public string RemoveTip => HasPending ? "Undo this pending change" : "Take away their access (added to Pending Changes)";
 
     public RoleOption? SelectedRole
     {
@@ -94,7 +94,7 @@ public sealed partial class DeviceRow(MobileDevice device, bool blocked, string?
 {
     public string Name => device.Name;
     public string Detail => string.Join(" · ", new[] { device.Model, device.Os, device.ClientType }.Where(s => s.Length > 0).Distinct());
-    public string LastSyncText => device.LastSync is { } last ? $"Last synced {last.ToLocalTime():d MMM yyyy, h:mm tt}" : "Hasn't synced";
+    public string LastSyncText => device.LastSync is { } last ? $"Last synced {last.ToLocalTime():d MMM yyyy h:mm tt}" : "Hasn't synced";
     public string? WipeStatus => device.WipeStatus;
     public bool HasWipeStatus => device.WipeStatus is not null;
     public bool IsBlocked => blocked;
@@ -103,7 +103,7 @@ public sealed partial class DeviceRow(MobileDevice device, bool blocked, string?
     public bool HasPending => pendingText is not null;
     public bool CanEdit => canEdit;
     public string BlockText => blocked ? "Unblock" : "Block";
-    public string BlockTip => blocked ? "Let it sync their mail again (added to Pending changes)" : "Stop it syncing their mail (added to Pending changes)";
+    public string BlockTip => blocked ? "Let it sync their mail again (added to Pending Changes)" : "Stop it syncing their mail (added to Pending Changes)";
     public bool IsWiping => pendingAction is DeviceAction.Wipe or DeviceAction.WipeAccountOnly;
     public bool IsRemoving => pendingAction == DeviceAction.Remove;
 
@@ -138,7 +138,7 @@ public sealed partial class DeletedRow(DeletedItem item, bool restoring, bool ca
 public sealed partial class TraceRow(TracedMessage message, TraceDirection direction, Func<TracedMessage, Task<IReadOnlyList<TraceEvent>>> detail)
     : ObservableObject
 {
-    public string When => message.Received.ToLocalTime().ToString("d MMM, h:mm tt");
+    public string When => message.Received.ToLocalTime().ToString("d MMM h:mm tt");
     public string Other => direction == TraceDirection.Received ? message.Sender : message.Recipient;
     public string Subject => message.Subject;
     /// <summary>Exchange's status, as words ("FilteredAsSpam" reads "Filtered as spam").</summary>

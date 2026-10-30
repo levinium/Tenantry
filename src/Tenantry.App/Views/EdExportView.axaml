@@ -20,7 +20,7 @@
     <StackPanel Spacing="14" IsVisible="{Binding IsAvailable}">
       <StackPanel Spacing="4">
         <TextBlock Classes="label" Text="MAIL AS" />
-        <ListBox ItemsSource="{x:Static rec:EdExportViewModel.Formats}" SelectedItem="{Binding Format}" Background="Transparent" IsEnabled="{Binding CanStart}">
+        <ListBox Classes="options" ItemsSource="{x:Static rec:EdExportViewModel.Formats}" SelectedItem="{Binding Format}" Background="Transparent" IsEnabled="{Binding CanStart}">
           <ListBox.ItemsPanel>
             <ItemsPanelTemplate>
               <StackPanel Spacing="4" />

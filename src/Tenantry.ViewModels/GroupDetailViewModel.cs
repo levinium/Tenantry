@@ -101,11 +101,11 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
 
     public string ManageTip => Group.IsMailbox
         ? "Give or remove Full access, Send as and Send on behalf"
-        : "Add or remove owners and members (changes go to Pending changes first)";
+        : "Add or remove owners and members (changes go to Pending Changes first)";
 
     /// <summary>Opens the people editor in a popup (the preview pane's Manage button).</summary>
     [RelayCommand]
-    void ManagePeople() => _openDialog?.Invoke(new DialogViewModel(Group.IsMailbox ? "People with Access" : "Owners and Members", Group.DisplayName, People));
+    void ManagePeople() => _openDialog?.Invoke(new DialogViewModel(Group.IsMailbox ? "Manage Access" : "Manage Owners and Members", Group.DisplayName, People));
 
     /// <summary>"Owned by Ada Lovelace and 1 other" for the preview, or why there's no owner.</summary>
     public string OwnersText
@@ -132,8 +132,8 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
 
     public string Email => Group.Mail ?? "No email address";
     public string Description => string.IsNullOrWhiteSpace(Group.Description) ? "No description" : Group.Description;
-    public string Visibility => Group.Visibility ?? "Not Set";
-    public string CreatedText => Group.CreatedAt?.ToLocalTime().ToString("MMMM d, yyyy") ?? "Unknown";
+    public string Visibility => Group.Visibility ?? "Not set";
+    public string CreatedText => Group.CreatedAt?.ToLocalTime().ToString("d MMM yyyy") ?? "Unknown";
 
     public IReadOnlyList<MemberRow> Members { get; private set; }
 

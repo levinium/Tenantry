@@ -8,7 +8,7 @@
   <StackPanel Spacing="10">
     <StackPanel Spacing="4">
       <TextBlock Classes="label" Text="WHAT HAPPENS" />
-      <ListBox ItemsSource="{Binding Actions}" SelectedItem="{Binding Action}" Background="Transparent" IsEnabled="{Binding CanChangeAction}">
+      <ListBox Classes="options" ItemsSource="{Binding Actions}" SelectedItem="{Binding Action}" Background="Transparent" IsEnabled="{Binding CanChangeAction}">
         <ListBox.ItemsPanel>
           <ItemsPanelTemplate>
             <StackPanel Spacing="2" />

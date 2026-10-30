@@ -14,10 +14,14 @@ public sealed partial class NewLicenseChoice(LicenseSku sku) : ObservableObject
 {
     public LicenseSku Sku { get; } = sku;
     public string Name => Sku.Name;
-    public string LeftText => Sku.Available == 1 ? "1 left" : $"{Sku.Available} left";
+    public string LeftText => Sku.Available switch { <= 0 => "None available", 1 => "1 left", var n => $"{n} left" };
     public bool IsAvailable => Sku.Available > 0;
 
+    /// <summary>A license with none left can't be ticked (one already ticked, from a colleague, can be cleared).</summary>
+    public bool CanChoose => IsAvailable || IsChosen;
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanChoose))]
     public partial bool IsChosen { get; set; }
 }
 
@@ -362,7 +366,7 @@ public sealed partial class NewUserViewModel : ObservableObject
         else if (Taken().Contains(SignInName))
             problems.Add($"{SignInName} is already in use: someone's sign-in name, or the address of a mailbox or group.");
         else if (_pipeline.Pending.OfType<CreateUser>().Any(c => string.Equals(c.User.Address, SignInName, StringComparison.OrdinalIgnoreCase)))
-            problems.Add($"{SignInName} is already waiting in Pending changes as a new person.");
+            problems.Add($"{SignInName} is already waiting in Pending Changes as a new person.");
         if (TypeOwn && TemporaryPassword.Problem(Password) is { } weak)
             problems.Add(Password.Length == 0 ? "Type a password, or let Tenantry make one." : weak);
         foreach (var full in Licenses.Where(l => l.IsChosen && !l.IsAvailable))

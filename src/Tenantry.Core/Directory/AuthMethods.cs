@@ -100,7 +100,7 @@ public static class AuthMethods
         ]),
         new("TemporaryAccessPass", "Temporary Access Pass", "A time-limited code an admin gives someone, to set up or recover sign-in.",
         [
-            new("defaultLifetimeInMinutes", "Lasts (Usually)", "How long a new pass works unless the admin picks otherwise.", AuthSettingKind.Number, Min: 10, Max: 43200, Unit: "minutes"),
+            new("defaultLifetimeInMinutes", "Default Length", "How long a new pass works unless the admin picks otherwise.", AuthSettingKind.Number, Min: 10, Max: 43200, Unit: "minutes"),
             new("minimumLifetimeInMinutes", "Shortest", "", AuthSettingKind.Number, Min: 10, Max: 43200, Unit: "minutes"),
             new("maximumLifetimeInMinutes", "Longest", "", AuthSettingKind.Number, Min: 10, Max: 43200, Unit: "minutes"),
             new("defaultLength", "Length", "Characters in a pass.", AuthSettingKind.Number, Min: 8, Max: 48, Unit: "characters"),

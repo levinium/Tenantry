@@ -39,6 +39,15 @@ public static class RetentionPlaces
         _ => kind,
     };
 
+    /// <summary>How many of a kind, in words: "1 SharePoint site", "3 mailboxes".</summary>
+    public static string Count(int count, string kind)
+    {
+        var noun = Noun(kind);
+        if (count != 1)
+            return $"{count:N0} {noun}";
+        return $"1 {(noun.EndsWith("xes", StringComparison.Ordinal) ? noun[..^2] : noun.EndsWith('s') ? noun[..^1] : noun)}";
+    }
+
     /// <summary>The kind in a sentence ("mailboxes", "SharePoint sites").</summary>
     public static string Noun(string kind) => kind switch
     {
@@ -127,7 +136,7 @@ public sealed record RetentionPolicy(string Id, string Name, string? Comment, bo
                 var noun = RetentionPlaces.Noun(k);
                 return EDiscovery.IsAll(places)
                     ? $"All {noun}" + (Exceptions.TryGetValue(k, out var except) && except.Count > 0 ? $" but {except.Count}" : "")
-                    : $"{places.Count} of {noun}";
+                    : RetentionPlaces.Count(places.Count, k);
             }).ToArray();
             return parts.Length == 0 ? "Nowhere yet" : string.Join(", ", parts);
         }

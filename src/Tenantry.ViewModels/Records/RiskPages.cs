@@ -151,11 +151,11 @@ public static class RiskLists
 
     static IReadOnlyList<RiskButton> Buttons(ChangePipeline? pipeline, bool canEdit, bool atRisk, ChangeOp? waiting, Func<bool, ChangeOp> make, string who) =>
         !canEdit || pipeline is null ? []
-        : waiting is not null ? [new RiskButton("Undo", "Take the change back out of Pending changes", false, () => pipeline.Unstage(waiting))]
+        : waiting is not null ? [new RiskButton("Undo", "Take the change back out of Pending Changes", false, () => pipeline.Unstage(waiting))]
         :
         [
-            new RiskButton("Confirm Compromised", $"Raise {who} risk to high, so risk-based policies act on it (added to Pending changes)", true, () => pipeline.Stage(make(true))),
-            .. atRisk ? [new RiskButton("Dismiss Risk", $"Clear {who} risk: it was safe (added to Pending changes)", false, () => pipeline.Stage(make(false)))] : Array.Empty<RiskButton>(),
+            new RiskButton("Confirm Compromised", $"Raise {who} risk to high, so risk-based policies act on it (added to Pending Changes)", true, () => pipeline.Stage(make(true))),
+            .. atRisk ? [new RiskButton("Dismiss Risk", $"Clear {who} risk: it was safe (added to Pending Changes)", false, () => pipeline.Stage(make(false)))] : Array.Empty<RiskButton>(),
         ];
 
     public static RiskPreviewViewModel UserPreview(RiskyUser u, Func<RiskDirectory?> directory, ChangePipeline? pipeline, bool canEdit, Action<string>? openUser)

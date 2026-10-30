@@ -43,7 +43,7 @@ public sealed record ListEntry(
     public string KindText => AllowBlock.KindName(Kind);
 
     public string ExpiryText => Expires is { } at ? $"Until {at.ToLocalTime():d MMM yyyy}"
-        : RemoveAfterDays is { } d ? $"{d} Days After Last Use"
+        : RemoveAfterDays is { } d ? $"{d} Days After It Last Matches"
         : "Never Expires";
 }
 
@@ -57,7 +57,7 @@ public sealed record ListExpiry(DateTimeOffset? On = null, int? AfterLastUseDays
     /// <summary>Microsoft removes an allowed entry 45 days after it last matched.</summary>
     public static readonly ListExpiry AllowDefault = new(AfterLastUseDays: 45);
 
-    public string Text => On is { } at ? $"until {at.ToLocalTime():d MMM yyyy}" : AfterLastUseDays is { } d ? $"{d} Days After Last Use" : "never expires";
+    public string Text => On is { } at ? $"until {at.ToLocalTime():d MMM yyyy}" : AfterLastUseDays is { } d ? $"{d} Days After It Last Matches" : "never expires";
 }
 
 public static partial class AllowBlock

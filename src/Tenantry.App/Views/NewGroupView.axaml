@@ -30,7 +30,7 @@
     <!-- What kind -->
     <StackPanel Spacing="8">
       <TextBlock Classes="label" Text="WHAT KIND" />
-      <ListBox ItemsSource="{x:Static rec:NewGroupViewModel.Kinds}" SelectedItem="{Binding Kind}" Background="Transparent">
+      <ListBox Classes="options" ItemsSource="{x:Static rec:NewGroupViewModel.Kinds}" SelectedItem="{Binding Kind}" Background="Transparent">
         <ListBox.ItemsPanel>
           <ItemsPanelTemplate>
             <UniformGrid Columns="2" />
@@ -53,7 +53,10 @@
     <!-- Name and address -->
     <StackPanel Spacing="10">
       <TextBlock Classes="label" Text="NAME AND ADDRESS" />
-      <TextBox Text="{Binding Name}" PlaceholderText="Name, like Finance Team" />
+      <StackPanel Spacing="4">
+        <TextBlock Classes="caption" Text="Name" />
+        <TextBox Text="{Binding Name}" PlaceholderText="Name, like Finance Team" />
+      </StackPanel>
       <StackPanel Spacing="4" IsVisible="{Binding HasEmail}">
         <TextBlock Classes="caption" Text="Email Address" />
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
@@ -67,7 +70,10 @@
         <TextBlock Classes="caption" Text="Alias (Used Inside Microsoft 365)" />
         <TextBox Text="{Binding Alias}" PlaceholderText="finance-team" />
       </StackPanel>
-      <TextBox Text="{Binding Description}" PlaceholderText="What it's for (optional)" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" />
+      <StackPanel Spacing="4">
+        <TextBlock Classes="caption" Text="Description (Optional)" />
+        <TextBox Text="{Binding Description}" PlaceholderText="What it's for (optional)" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" />
+      </StackPanel>
     </StackPanel>
 
     <!-- Settings for this kind -->

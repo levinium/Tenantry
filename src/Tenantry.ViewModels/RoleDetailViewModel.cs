@@ -68,7 +68,7 @@ public sealed partial class RoleDetailViewModel : TabViewModel, IDisposable
     {
         Role.Active == 1 ? "1 active assignment" : $"{Role.Active:N0} active assignments",
         Role.Eligible > 0 ? $"{Role.Eligible:N0} eligible" : null,
-        Role.PermanentPeople > 0 ? $"{Role.PermanentPeople:N0} {(Role.PermanentPeople == 1 ? "person" : "people")} permanently" : null,
+        Role.PermanentPeople > 0 ? $"{Role.PermanentPeople:N0} permanent" : null,
     }.OfType<string>());
 
     public RoleAssignmentsSection Assignments { get; }

@@ -57,5 +57,5 @@ public static class ConditionText
         _ => $"{days} days",
     };
 
-    static string? Date(DateTimeOffset? d) => d?.ToLocalTime().ToString("MMM d, yyyy", CultureInfo.CurrentCulture);
+    static string? Date(DateTimeOffset? d) => d?.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture);
 }

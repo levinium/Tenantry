@@ -23,7 +23,7 @@
         <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Note}" />
         <!-- The fix, when there is one ("Add Yourself as Site Admin"): staged to Pending changes -->
         <Button Grid.Column="2" Classes="accent" Content="{Binding NoteActionText}" Command="{Binding NoteActionCommand}" IsVisible="{Binding HasNoteAction}"
-                VerticalAlignment="Center" ToolTip.Tip="Added to Pending changes; nothing changes until you apply it" />
+                VerticalAlignment="Center" ToolTip.Tip="Added to Pending Changes; nothing changes until you apply it" />
       </Grid>
     </Border>
   </StackPanel>

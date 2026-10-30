@@ -61,17 +61,33 @@ static class Crawler
         {
             if (OutOfTime())
                 break;
-            main.SelectedSection = section;
-            Settle(20);
-            var pages = PageSwitchers(window).ToArray();
-            if (pages.Length == 0)
-                CrawlPlace(window, main, section.Title, () => Restore(main, section, null));
-            for (var p = 0; p < pages.Length; p++)
+            // Security & Compliance's pages come in groups; every other area has one row of pages.
+            IReadOnlyList<SecurityPageGroup?> groups = section.Key == "security" ? [.. SecurityAreaViewModel.Sections] : [null];
+            foreach (var group in groups)
             {
-                var index = p;
-                void Back() => Restore(main, section, index);
-                Back();
-                CrawlPlace(window, main, $"{section.Title} › {Label(PageSwitchers(window).ElementAt(index))}", Back);
+                void Group()
+                {
+                    if (group is not null)
+                        main.SecurityArea.SelectedSection = group;
+                }
+                main.SelectedSection = section;
+                Group();
+                Settle(20);
+                var pages = PageSwitchers(window).ToArray();
+                if (pages.Length == 0)
+                    CrawlPlace(window, main, section.Title, () => Restore(main, section, null));
+                for (var p = 0; p < pages.Length; p++)
+                {
+                    var index = p;
+                    void Back()
+                    {
+                        Restore(main, section, null);
+                        Group();
+                        Restore(main, section, index);
+                    }
+                    Back();
+                    CrawlPlace(window, main, $"{section.Title} › {Label(PageSwitchers(window).ElementAt(index))}", Back);
+                }
             }
         }
         // The console and tray last: the tray has whatever the crawl staged.

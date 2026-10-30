@@ -98,12 +98,12 @@ public sealed class DeviceActionsTests
         waiting.Add(new RunDeviceAction(BulkActions.IntuneTarget(pc), DeviceCommand.Wipe));
         var delete = await Action("Delete Device").PlanAsync(Ct);
         Assert.Empty(delete.Changes);
-        Assert.Equal(["PC: Wipe is waiting in Pending changes; apply it first"], delete.Skipped);
+        Assert.Equal(["PC: Wipe is waiting in Pending Changes; apply it first"], delete.Skipped);
 
         waiting.Clear();
         waiting.Add(new DeleteDevice(BulkActions.EntraTarget(pc), pc.ManagedId, "x"));
         var wipe = await Action("Wipe").PlanAsync(Ct);
-        Assert.Equal(["PC: Delete Device is waiting in Pending changes"], wipe.Skipped);
+        Assert.Equal(["PC: Delete Device is waiting in Pending Changes"], wipe.Skipped);
     }
 
     [Fact]

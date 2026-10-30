@@ -20,7 +20,7 @@
       <StackPanel Orientation="Horizontal" Spacing="8">
         <TextBlock Text="{Binding PendingText}" VerticalAlignment="Center" TextWrapping="Wrap" />
         <TextBlock Classes="caption" Text="pending" VerticalAlignment="Center" />
-        <Button Classes="rowaction" Padding="3" Command="{Binding UnstageCommand}" ToolTip.Tip="Take this change out of Pending changes">
+        <Button Classes="rowaction" Padding="3" Command="{Binding UnstageCommand}" ToolTip.Tip="Take this change out of Pending Changes">
           <ic:FluentIcon Icon="ArrowUndo" FontSize="12" />
         </Button>
       </StackPanel>
@@ -35,7 +35,7 @@
       <TextBlock Classes="caption" Text="{Binding Hint}" TextWrapping="Wrap" IsVisible="{Binding HasHint}" />
       <TextBlock Classes="error" Text="{Binding Problem}" TextWrapping="Wrap"
                  IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock Classes="caption" Text="Goes to Pending changes as you type. Enter or click away to finish; Esc undoes it." IsVisible="{Binding IsTyped}" />
+      <TextBlock Classes="caption" Text="Goes to Pending Changes as you type. Enter or click away to finish; Esc undoes it." IsVisible="{Binding IsTyped}" />
     </StackPanel>
   </StackPanel>
 </UserControl>

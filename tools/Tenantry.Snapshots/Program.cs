@@ -437,7 +437,14 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             for (var i = 0; i < 50 && response.IsChecking; i++)
                 Settle();
             if (response.Findings.Count > 0)
+            {
+                // Their own page behind the popup, as when it's opened from it.
+                var dialog = editing.Dialog;
+                editing.OpenUser(candidate);
+                editing.ShowDialog(dialog!);
+                Settle();
                 break;
+            }
             editing.CloseDialog();
         }
         Settle();
@@ -648,7 +655,8 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(editing, "autopilot-light");
         editing.DevicesArea.SelectedPage = DevicesAreaViewModel.Pages[0];
 
-        // A site's page, every tab: a team site that's shared outside the organization.
+        // A site's page, every tab: a team site that's shared outside the organization (opened from SharePoint, as in the app).
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "sharepoint");
         editing.SharePoint.Sites.LoadAsync().GetAwaiter().GetResult();
         editing.OpenSite(editing.SharePoint.Sites.Rows.Cast<SiteSummary>().Where(s => s.GroupId is not null).OrderByDescending(s => s.Sharing).ThenByDescending(s => s.IsTeam).First());
         var sitePage = (SiteDetailViewModel)editing.SelectedTab!;

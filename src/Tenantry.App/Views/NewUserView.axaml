@@ -23,9 +23,11 @@
     <!-- Name and sign-in -->
     <StackPanel Spacing="10">
       <TextBlock Classes="label" Text="NAME AND SIGN-IN" />
-      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-        <TextBox Text="{Binding FirstName}" PlaceholderText="First name" />
-        <TextBox Grid.Column="1" Text="{Binding LastName}" PlaceholderText="Last name" />
+      <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="4">
+        <TextBlock Classes="caption" Text="First Name" />
+        <TextBlock Grid.Column="1" Classes="caption" Text="Last Name" />
+        <TextBox Grid.Row="1" Text="{Binding FirstName}" PlaceholderText="First name" />
+        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding LastName}" PlaceholderText="Last name" />
       </Grid>
       <StackPanel Spacing="4">
         <TextBlock Classes="caption" Text="Display Name" />
@@ -66,7 +68,7 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="rec:NewLicenseChoice">
             <Grid ColumnDefinitions="*,Auto" Margin="0,2">
-              <CheckBox IsChecked="{Binding IsChosen}" Content="{Binding Name}" />
+              <CheckBox IsChecked="{Binding IsChosen}" Content="{Binding Name}" IsEnabled="{Binding CanChoose}" />
               <TextBlock Grid.Column="1" Classes="caption" Text="{Binding LeftText}" VerticalAlignment="Center" />
             </Grid>
           </DataTemplate>
@@ -134,12 +136,28 @@
           <TextBlock Text="Job and Contact" />
         </StackPanel>
       </Button>
+      <!-- Each box keeps its name once filled in. -->
       <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8" IsVisible="{Binding ShowJob}" Margin="20,0,0,0">
-        <TextBox Text="{Binding JobTitle}" PlaceholderText="Job title" />
-        <TextBox Grid.Column="1" Text="{Binding Department}" PlaceholderText="Department" />
-        <TextBox Grid.Row="1" Text="{Binding Office}" PlaceholderText="Office" />
-        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MobilePhone}" PlaceholderText="Mobile phone" />
-        <TextBox Grid.Row="2" Text="{Binding EmployeeId}" PlaceholderText="Employee ID" />
+        <StackPanel Spacing="4">
+          <TextBlock Classes="caption" Text="Job Title" />
+          <TextBox Text="{Binding JobTitle}" PlaceholderText="Job title" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="4">
+          <TextBlock Classes="caption" Text="Department" />
+          <TextBox Text="{Binding Department}" PlaceholderText="Department" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Spacing="4">
+          <TextBlock Classes="caption" Text="Office" />
+          <TextBox Text="{Binding Office}" PlaceholderText="Office" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+          <TextBlock Classes="caption" Text="Mobile Phone" />
+          <TextBox Text="{Binding MobilePhone}" PlaceholderText="Mobile phone" />
+        </StackPanel>
+        <StackPanel Grid.Row="2" Spacing="4">
+          <TextBlock Classes="caption" Text="Employee ID" />
+          <TextBox Text="{Binding EmployeeId}" PlaceholderText="Employee ID" />
+        </StackPanel>
       </Grid>
     </StackPanel>
 

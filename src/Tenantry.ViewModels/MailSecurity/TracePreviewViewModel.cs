@@ -33,7 +33,7 @@ public sealed partial class TracePreviewViewModel : ObservableObject, IDisposabl
     public string Sender => Message.Sender;
     public string Recipient => Message.Recipient;
     public string StatusText => MailSecurityLists.StatusText(Message.Status);
-    public string ReceivedText => Message.Received.ToLocalTime().ToString("d MMM yyyy, h:mm:ss tt");
+    public string ReceivedText => Message.Received.ToLocalTime().ToString("d MMM yyyy h:mm:ss tt");
 
     public ObservableCollection<TraceStepRow> Steps { get; } = [];
 

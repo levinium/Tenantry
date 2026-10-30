@@ -1516,15 +1516,15 @@
           "enumValues": [
             {
               "value": "Wrap",
-              "eac": "Wrap"
+              "eac": "Wrap", "label": "Wrap the message in a new one that carries it"
             },
             {
               "value": "Ignore",
-              "eac": "Ignore"
+              "eac": "Ignore", "label": "Send the message without it"
             },
             {
               "value": "Reject",
-              "eac": "Reject"
+              "eac": "Reject", "label": "Return the message to the sender"
             }
           ],
           "required": false,
@@ -1553,15 +1553,15 @@
           "enumValues": [
             {
               "value": "Wrap",
-              "eac": "Wrap"
+              "eac": "Wrap", "label": "Wrap the message in a new one that carries it"
             },
             {
               "value": "Ignore",
-              "eac": "Ignore"
+              "eac": "Ignore", "label": "Send the message without it"
             },
             {
               "value": "Reject",
-              "eac": "Reject"
+              "eac": "Reject", "label": "Return the message to the sender"
             }
           ],
           "required": false,

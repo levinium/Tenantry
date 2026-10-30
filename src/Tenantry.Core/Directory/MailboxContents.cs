@@ -37,7 +37,7 @@ public static class FolderRoles
         ("Author", "Can Edit Their Own", "See everything, add events, change or delete only their own"),
         ("Reviewer", "Can View All Details", "See every event with its details"),
         ("LimitedDetails", "Can View Titles and Locations", "See when they're busy, with each event's title and location"),
-        ("AvailabilityOnly", "Can View When I'm Busy", "See only free or busy times"),
+        ("AvailabilityOnly", "Can See When They're Busy", "See only free or busy times"),
         ("None", "No Access", "Can't see the calendar"),
     ];
 

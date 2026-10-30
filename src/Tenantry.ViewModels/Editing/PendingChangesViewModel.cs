@@ -172,6 +172,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         OnPropertyChanged(nameof(HasManyReveals));
         OnPropertyChanged(nameof(RevealsHeader));
         OnPropertyChanged(nameof(IsVisible));
+        OnPropertyChanged(nameof(HeaderText));
     }
 
     public int Count => Rows.Count;
@@ -189,7 +190,8 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         RevealsChanged();
     }
 
-    public string HeaderText => Count == 0 ? "Pending Changes" : $"Pending Changes ({Count})";
+    // With only new passwords to pass on (nothing waiting), the tray is about those.
+    public string HeaderText => Count > 0 ? $"Pending Changes ({Count})" : HasReveals ? "New Passwords and Codes" : "Pending Changes";
 
     // A change with a phrase to type is confirmed like a caution change, even if it isn't one.
     int CautionCount => Rows.Count(r => r.IsCaution || r.Change.ConfirmPhrase is not null);

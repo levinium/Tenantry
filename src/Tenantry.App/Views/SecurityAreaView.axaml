@@ -12,22 +12,41 @@
              x:Class="Tenantry.App.Views.SecurityAreaView"
              x:DataType="vm:SecurityAreaViewModel">
   <DockPanel>
-    <!-- The area's pages -->
-    <TabStrip DockPanel.Dock="Top" Classes="pagetabs" Margin="0,8,0,10" ItemsSource="{x:Static vm:SecurityAreaViewModel.Pages}" SelectedItem="{Binding SelectedPage}">
-      <TabStrip.ItemsPanel>
-        <ItemsPanelTemplate>
-          <WrapPanel />
-        </ItemsPanelTemplate>
-      </TabStrip.ItemsPanel>
-      <TabStrip.ItemTemplate>
-        <DataTemplate x:DataType="ms:MailSecurityPage">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="15" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
-          </StackPanel>
-        </DataTemplate>
-      </TabStrip.ItemTemplate>
-    </TabStrip>
+    <!-- The area's pages, in four sections: the sections on one row, the chosen section's pages under it. -->
+    <StackPanel DockPanel.Dock="Top" Margin="8,8,8,10" Spacing="6">
+      <TabStrip Classes="pagetabs" ItemsSource="{x:Static vm:SecurityAreaViewModel.Sections}" SelectedItem="{Binding SelectedSection}">
+        <TabStrip.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel />
+          </ItemsPanelTemplate>
+        </TabStrip.ItemsPanel>
+        <TabStrip.ItemTemplate>
+          <DataTemplate x:DataType="vm:SecurityPageGroup">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="15" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontWeight="SemiBold" />
+            </StackPanel>
+          </DataTemplate>
+        </TabStrip.ItemTemplate>
+      </TabStrip>
+      <Border Background="{DynamicResource SubtleBg}" CornerRadius="8" Padding="6,2">
+        <TabStrip Classes="pagetabs" ItemsSource="{Binding SelectedSection.Pages}" SelectedItem="{Binding SelectedPage}">
+          <TabStrip.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </TabStrip.ItemsPanel>
+          <TabStrip.ItemTemplate>
+            <DataTemplate x:DataType="ms:MailSecurityPage">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="14" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="13" />
+              </StackPanel>
+            </DataTemplate>
+          </TabStrip.ItemTemplate>
+        </TabStrip>
+      </Border>
+    </StackPanel>
 
     <!-- Conditional Access: read live, with Refresh -->
     <DockPanel IsVisible="{Binding ShowPolicies}">
@@ -112,27 +131,32 @@
             </Border>
           </StackPanel>
         </Border>
-        <TextBlock Classes="h3" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" TextWrapping="Wrap" />
-        <ItemsControl ItemsSource="{Binding Results}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Spacing="6" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="rec:WhatIfRow">
-              <Border Classes="valuerow">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                  <StackPanel Spacing="2">
-                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                    <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
-                  </StackPanel>
-                  <c:Badge Grid.Column="1" Text="{Binding Verdict}" Kind="{Binding VerdictKind}" VerticalAlignment="Center" />
-                </Grid>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <!-- The answer, in its own card under the question. -->
+        <Border Classes="card" IsVisible="{Binding HasSummary}">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h3" Text="{Binding Summary}" TextWrapping="Wrap" />
+            <ItemsControl ItemsSource="{Binding Results}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="6" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="rec:WhatIfRow">
+                  <Border Classes="valuerow">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                      <StackPanel Spacing="2">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                        <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <c:Badge Grid.Column="1" Text="{Binding Verdict}" Kind="{Binding VerdictKind}" VerticalAlignment="Center" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
       </StackPanel>
     </ScrollViewer>
     </Panel>
@@ -162,7 +186,7 @@
           <StackPanel Spacing="10">
             <TextBlock Classes="h3" Text="{Binding FormTitle}" />
             <TextBox Text="{Binding Name}" PlaceholderText="Name, like Head Office" />
-            <ListBox ItemsSource="{x:Static rec:LocationsViewModel.Kinds}" SelectedItem="{Binding Kind}" Background="Transparent">
+            <ListBox Classes="options" ItemsSource="{x:Static rec:LocationsViewModel.Kinds}" SelectedItem="{Binding Kind}" Background="Transparent">
               <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
                   <UniformGrid Columns="2" />
@@ -217,7 +241,7 @@
                       <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
                       <c:Badge Text="{Binding KindText}" Kind="Neutral" />
                       <c:Badge Text="Trusted" Kind="Info" IsVisible="{Binding IsTrusted}" />
-                      <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending changes" />
+                      <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending Changes" />
                     </WrapPanel>
                     <SelectableTextBlock Text="{Binding Places}" TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" FontSize="12" />
                     <TextBlock Classes="caption" Text="{Binding Extra}" IsVisible="{Binding HasExtra}" />
@@ -229,7 +253,7 @@
                     <Button Classes="danger-outline" Content="Delete" Command="{Binding DeleteCommand}" IsVisible="{Binding !HasState}" IsEnabled="{Binding CanDelete}"
                             ToolTip.Tip="{Binding DeleteTip}" ToolTip.ShowOnDisabled="True" />
                     <Button Classes="danger-outline undo" Content="Undo" Command="{Binding UndoCommand}" IsVisible="{Binding CanUndo}"
-                            ToolTip.Tip="Take the change back out of Pending changes" />
+                            ToolTip.Tip="Take the change back out of Pending Changes" />
                   </StackPanel>
                 </Grid>
               </Border>
@@ -648,7 +672,7 @@
                       </StackPanel>
                       <c:Badge Grid.Column="1" Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" VerticalAlignment="Center" />
                       <Button Grid.Column="2" Classes="danger-outline" Content="Switch Off" Command="{Binding DeactivateCommand}" IsVisible="{Binding IsActivated}"
-                              VerticalAlignment="Center" ToolTip.Tip="End it now, before it runs out (added to Pending changes)" />
+                              VerticalAlignment="Center" ToolTip.Tip="End it now, before it runs out (added to Pending Changes)" />
                     </Grid>
                   </Border>
                 </DataTemplate>
@@ -677,7 +701,9 @@
                         </StackPanel>
                         <c:Badge Grid.Column="1" Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" VerticalAlignment="Center" />
                         <Button Grid.Column="2" Classes="outline" Content="Switch On…" Command="{Binding OpenCommand}" VerticalAlignment="Center"
-                                ToolTip.Tip="Choose how long and say why" />
+                                IsVisible="{Binding !IsOpen}" ToolTip.Tip="Choose how long and say why" />
+                        <Button Grid.Column="2" Classes="outline" Content="Cancel" Command="{Binding OpenCommand}" VerticalAlignment="Center"
+                                IsVisible="{Binding IsOpen}" ToolTip.Tip="Close the form; nothing is switched on" />
                       </Grid>
                       <StackPanel Spacing="8" IsVisible="{Binding IsOpen}" Margin="0,4,0,0">
                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -753,8 +779,8 @@
                   </Grid>
                   <TextBox Text="{Binding Reason}" PlaceholderText="Your reason (optional)" Width="480" HorizontalAlignment="Left" />
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Classes="accent" Content="Approve" Command="{Binding ApproveCommand}" ToolTip.Tip="Added to Pending changes" />
-                    <Button Classes="danger-outline" Content="Deny" Command="{Binding DenyCommand}" ToolTip.Tip="Added to Pending changes" />
+                    <Button Classes="accent" Content="Approve" Command="{Binding ApproveCommand}" ToolTip.Tip="Added to Pending Changes" />
+                    <Button Classes="danger-outline" Content="Deny" Command="{Binding DenyCommand}" ToolTip.Tip="Added to Pending Changes" />
                   </StackPanel>
                 </StackPanel>
               </Border>

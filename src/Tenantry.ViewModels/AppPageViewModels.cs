@@ -145,12 +145,12 @@ public abstract partial class AppPageViewModel : TabViewModel, IDisposable
     /// <summary>A row that takes something away: Remove (or another verb), or Undo while that waits.</summary>
     protected AppRow Removable(AppRow row, ChangeOp? waiting, Func<ChangeOp> make, string verb = "Remove", string? tip = null, string state = "Removing") =>
         !CanEdit ? row
-        : waiting is not null ? row.With(state, "Undo", "Take the change back out of Pending changes", () => Pipeline!.Unstage(waiting))
-        : row.With(null, verb, tip ?? $"{verb} (added to Pending changes)", () => AddToPending(make()));
+        : waiting is not null ? row.With(state, "Undo", "Take the change back out of Pending Changes", () => Pipeline!.Unstage(waiting))
+        : row.With(null, verb, tip ?? $"{verb} (added to Pending Changes)", () => AddToPending(make()));
 
     /// <summary>A row for something waiting to be added, with Undo.</summary>
     protected AppRow Adding(string title, string? detail, ChangeOp waiting) =>
-        new AppRow { Title = title, Detail = detail }.With("Adding", "Undo", "Don't add it (takes the change out of Pending changes)", () => Pipeline!.Unstage(waiting));
+        new AppRow { Title = title, Detail = detail }.With("Adding", "Undo", "Don't add it (takes the change out of Pending Changes)", () => Pipeline!.Unstage(waiting));
 
     /// <summary>Owners, with Remove, those waiting to be added, and a picker to add one.</summary>
     protected IReadOnlyList<AppCard> OwnerCards(IReadOnlyList<AppOwner> owners, AppPickForm form, string caption)
@@ -162,7 +162,7 @@ public abstract partial class AppPageViewModel : TabViewModel, IDisposable
             Detail = o.Detail,
             OpenAction = Index.User(o.Id) is { } u && OpenUserAction is { } open ? () => open(u) : null,
         }, pending.FirstOrDefault(p => !p.Add && p.Owner.Id == o.Id), () => new SetAppOwner(Target, new ChangeTarget("user", o.Id, o.Name, o.Detail), false),
-            tip: "Stop them managing this app (added to Pending changes)")).ToList();
+            tip: "Stop them managing this app (added to Pending Changes)")).ToList();
         rows.AddRange(pending.Where(p => p.Add).Select(p => Adding(p.Owner.Name, p.Owner.Address, p)));
         return [new AppCard("Owners", caption, Rows: rows, EmptyText: "Nobody owns this app.", Form: CanEdit ? form : null)];
     }
@@ -317,7 +317,7 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
             };
             return Removable(row, pending.OfType<RemoveAppCredential>().FirstOrDefault(r => r.KeyId == c.Id),
                 () => new RemoveAppCredential(Target, c.Id, c.IsSecret, row.Title, detail),
-                tip: status == AppFields.Expired ? "Remove it (added to Pending changes)" : "Anything still signing in with it stops working (you type the app's name to confirm)");
+                tip: status == AppFields.Expired ? "Remove it (added to Pending Changes)" : "Anything still signing in with it stops working (you type the app's name to confirm)");
         }
         var secrets = App.Credentials.Where(c => c.IsSecret).OrderBy(c => c.End).Select(Row).ToList();
         secrets.AddRange(pending.OfType<AddAppSecret>().Select(a => Adding(a.Description, $"Expires in {a.Months} months; shown to you once after applying", a)));
@@ -353,11 +353,11 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
         var waiting = Pending.OfType<GrantAdminConsent>().FirstOrDefault();
         if (CanEdit && (missing.Length > 0 || waiting is not null))
             cards.Add(new AppCard("Admin Consent", Form: waiting is not null
-                ? new AppButtonForm("Undo", $"Admin consent for {waiting.Items.Count} permissions is in Pending changes.", "Take it back out of Pending changes",
+                ? new AppButtonForm("Undo", $"Admin consent for {waiting.Items.Count} permissions is in Pending Changes.", "Take it back out of Pending Changes",
                     () => Pipeline!.Unstage(waiting))
                 : new AppButtonForm("Grant Admin Consent",
                     $"{missing.Length} {(missing.Length == 1 ? "permission isn't" : "permissions aren't")} consented yet. Granting approves {(missing.Length == 1 ? "it" : "them")} for everyone in the organization.",
-                    "Approve them for everyone (added to Pending changes as a caution change)",
+                    "Approve them for everyone (added to Pending Changes as a caution change)",
                     () => Pipeline!.Stage(new GrantAdminConsent(Target, App.AppId,
                         [.. missing.Select(p => new ConsentItem(p.ResourceId, p.Resource, p.Id, p.Name, p.IsApplication))])))));
         cards.AddRange(detail.Permissions.GroupBy(p => p.Resource).OrderBy(g => g.Key, StringComparer.CurrentCulture).Select(g => new AppCard(g.Key,
@@ -568,7 +568,7 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
         ];
         return
         [
-            new AppCard("Settings", CanEdit ? "Changes go to Pending changes." : EditReason, Form: new AppToggleForm([_enabled, _assignment, _visible])),
+            new AppCard("Settings", CanEdit ? "Changes go to Pending Changes." : EditReason, Form: new AppToggleForm([_enabled, _assignment, _visible])),
             new AppCard("Details", Facts: facts),
         ];
     }
@@ -592,7 +592,7 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
                 _ => null,
             },
         }, pending.OfType<RemoveAppUserAssignment>().FirstOrDefault(r => r.AssignmentId == a.Id),
-            () => new RemoveAppUserAssignment(Target, a.Id, a.PrincipalName, a.RoleName ?? "Access"), tip: "Take their access away (added to Pending changes)")).ToList();
+            () => new RemoveAppUserAssignment(Target, a.Id, a.PrincipalName, a.RoleName ?? "Access"), tip: "Take their access away (added to Pending Changes)")).ToList();
         rows.AddRange(pending.OfType<AddAppUserAssignment>().Select(a => Adding(a.Principal.Name, $"{(a.PrincipalType == "Group" ? "Group" : "Person")} · {a.RoleName}", a)));
         return
         [
@@ -610,7 +610,7 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
         var pending = Pending.OfType<RevokeAppGrant>().ToArray();
         AppRow Revocable(AppRow row, string grantId, bool application, string what, string who) =>
             Removable(row, pending.FirstOrDefault(p => p.GrantId == grantId), () => new RevokeAppGrant(Target, grantId, application, what, who), "Revoke",
-                "Take the permission back (added to Pending changes)", "Revoking");
+                "Take the permission back (added to Pending Changes)", "Revoking");
         var admin = detail.DelegatedGrants.Where(g => g.PrincipalId is null).ToArray();
         var personal = detail.DelegatedGrants.Where(g => g.PrincipalId is not null).OrderBy(g => g.PrincipalName, StringComparer.CurrentCulture).ToArray();
         return

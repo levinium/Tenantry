@@ -27,7 +27,7 @@ public sealed partial class MethodRow(AuthMethod method, bool removing, bool can
     public string AddedText => method.Added is { } at ? $"Added {at.ToLocalTime():d MMM yyyy}" : "";
     public bool CanRemove => canEdit && method.Removable;
     public bool IsRemoving => removing;
-    public string RemoveTip => removing ? "Keep this method (take the removal out of Pending changes)" : "Remove this method (added to Pending changes)";
+    public string RemoveTip => removing ? "Keep this method (take the removal out of Pending Changes)" : "Remove this method (added to Pending Changes)";
 
     [RelayCommand]
     void Remove() => toggle();
@@ -36,7 +36,7 @@ public sealed partial class MethodRow(AuthMethod method, bool removing, bool can
 /// <summary>One sign-in from the log.</summary>
 public sealed class SignInRow(SignInEvent e)
 {
-    public string When => e.When.ToLocalTime().ToString("d MMM, h:mm tt");
+    public string When => e.When.ToLocalTime().ToString("d MMM h:mm tt");
     public string App => e.App;
     public string Where => string.Join(" · ", new[] { e.Location, e.IpAddress, e.Device }.Where(s => !string.IsNullOrEmpty(s)));
     public string? Device => e.Device;
@@ -56,7 +56,7 @@ public sealed partial class RevocableRow(string name, string detail, bool revoki
     public string Detail => detail;
     public bool IsRevoking => revoking;
     public bool CanEdit => canEdit;
-    public string Tip => revoking ? "Keep it (take the change out of Pending changes)" : actionTip;
+    public string Tip => revoking ? "Keep it (take the change out of Pending Changes)" : actionTip;
 
     [RelayCommand]
     void Toggle() => toggle();
@@ -328,8 +328,8 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
     public string ReregisterTip => !Removable.Any() && _methods is not null
         ? "They have no MFA methods to remove: they'll be asked to register MFA when a policy needs it."
-        : IsReregisterPending ? "Keep their methods (take the removals out of Pending changes)"
-        : "Removes their MFA methods (Authenticator, phones, passkeys…) but not the password; they set MFA up again at their next sign-in (added to Pending changes)";
+        : IsReregisterPending ? "Keep their methods (take the removals out of Pending Changes)"
+        : "Removes their MFA methods (Authenticator, phones, passkeys…) but not the password; they set MFA up again at their next sign-in (added to Pending Changes)";
 
     /// <summary>Entra's "Require re-register multifactor authentication": removes every method but the password, or undoes that.</summary>
     [RelayCommand]
@@ -732,7 +732,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
         {
             var captured = role;
             Roles.Add(new RevocableRow(role.RoleName, role.Scope, PendingFor("role:" + role.AssignmentId) is not null, CanEdit,
-                "Take this role away (added to Pending changes)", () => Toggle("role:" + captured.AssignmentId,
+                "Take this role away (added to Pending Changes)", () => Toggle("role:" + captured.AssignmentId,
                     () => new RemoveRoleAssignment(Target, captured.AssignmentId, captured.RoleName))));
         }
         Consents.Clear();
@@ -740,7 +740,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
         {
             var captured = consent;
             Consents.Add(new RevocableRow(consent.AppName, string.Join(", ", consent.Scopes), PendingFor("consent:" + consent.GrantId) is not null, CanEdit,
-                "Take back this app's access to their data (added to Pending changes)", () => Toggle("consent:" + captured.GrantId,
+                "Take back this app's access to their data (added to Pending Changes)", () => Toggle("consent:" + captured.GrantId,
                     () => new RevokeAppConsent(Target, captured.GrantId, captured.AppName))));
         }
         foreach (var name in new[] { nameof(EligibleRoles), nameof(EligibleText), nameof(HasEligibleText), nameof(HasNoRoles), nameof(HasNoConsents) })
@@ -780,7 +780,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
     public string PoliciesSummary => _policies is not { } all ? ""
         : $"{all.Count(p => p.Fit == PolicyFit.Applies)} of {all.Count} policies apply to them ({all.Count(p => p.Fit == PolicyFit.Applies && p.State == "On")} switched on); "
-          + $"{all.Count(p => p.Fit == PolicyFit.Excluded)} exclude them.";
+          + (all.Count(p => p.Fit == PolicyFit.Excluded) is var left && left == 1 ? "1 leaves them out." : $"{left} leave them out.");
 
     async Task LoadPoliciesAsync()
     {

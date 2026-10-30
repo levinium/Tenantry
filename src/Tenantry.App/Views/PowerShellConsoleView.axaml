@@ -18,6 +18,7 @@
     <Style Selector="TextBox.command">
       <Setter Property="FontFamily" Value="Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace" />
       <Setter Property="FontSize" Value="13" />
+      <Setter Property="Padding" Value="10,8" />
     </Style>
   </UserControl.Styles>
 

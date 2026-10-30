@@ -91,7 +91,8 @@
         <TextBlock Classes="label" Text="MAILBOX" />
         <TextBlock Grid.Column="1" Classes="caption" Text="{Binding MailboxText}" />
       </Grid>
-      <ItemsControl ItemsSource="{Binding Licenses}" IsVisible="{Binding HasLicenses}">
+      <TextBlock Classes="label" Text="LICENSES" IsVisible="{Binding HasLicenses}" />
+      <ItemsControl ItemsSource="{Binding Licenses}" IsVisible="{Binding HasLicenses}" Margin="0,-4,0,0">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
             <WrapPanel ItemSpacing="6" LineSpacing="6" />

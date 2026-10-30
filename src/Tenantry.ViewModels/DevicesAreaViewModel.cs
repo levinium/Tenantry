@@ -20,7 +20,7 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
 
     public static IReadOnlyList<MailSecurityPage> Pages { get; } =
     [
-        new("devices", "Devices", "Laptop"),
+        new("devices", "All Devices", "Laptop"),
         new("autopilot", "Autopilot", "Rocket"),
     ];
 

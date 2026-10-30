@@ -67,17 +67,17 @@
                 <ProgressBar Classes="working" IsVisible="{Binding IsSyncing}" />
               </Panel>
               <!-- The background read (mailbox sizes and replies) under it, while it runs -->
-              <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding IsBusy}" MinHeight="15"
-                          ToolTip.Tip="Reading every mailbox's size and automatic replies in the background; the lists update when it's done">
-                <ic:FluentIcon Classes="spin" Icon="ArrowSync" FontSize="11" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"
-                               IsVisible="{Binding HasBackgroundText}">
+              <DockPanel IsVisible="{Binding IsBusy}" MinHeight="15"
+                         ToolTip.Tip="Reading every mailbox's size and automatic replies in the background; the lists update when it's done">
+                <ic:FluentIcon DockPanel.Dock="Left" Classes="spin" Icon="ArrowSync" FontSize="11" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"
+                               Margin="0,0,5,0" IsVisible="{Binding HasBackgroundText}">
                   <ic:FluentIcon.RenderTransform>
                     <RotateTransform />
                   </ic:FluentIcon.RenderTransform>
                 </ic:FluentIcon>
-                <TextBlock Classes="caption" Foreground="{DynamicResource TextMuted}" FontSize="11" TextWrapping="Wrap"
+                <TextBlock Classes="caption" Foreground="{DynamicResource TextMuted}" FontSize="11" TextTrimming="CharacterEllipsis"
                            Text="{Binding BackgroundText}" VerticalAlignment="Center" />
-              </StackPanel>
+              </DockPanel>
             </StackPanel>
             <Button Grid.Column="2" Classes="rowaction" Command="{Binding RefreshCommand}"
                     ToolTip.Tip="Refresh: check Microsoft 365 for changes now">
@@ -89,7 +89,7 @@
           <Button Classes="accent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,0,0,6"
                   DataContext="{x:Static vm:AppUpdate.Current}" x:DataType="vm:AppUpdate"
                   IsVisible="{Binding IsReady}" Command="{Binding RestartCommand}"
-                  ToolTip.Tip="A newer Tenantry is downloaded. Restart to install it; anything not applied in Pending changes is lost.">
+                  ToolTip.Tip="A newer Tenantry is downloaded. Restart to install it; anything not applied in Pending Changes is lost.">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="ArrowDownload" FontSize="18" />
               <TextBlock Text="{Binding ReadyText}" VerticalAlignment="Center" />
@@ -238,7 +238,7 @@
       </Border>
 
       <!-- Pending changes: everything staged, before → after, applied together. -->
-      <Border DockPanel.Dock="Bottom" Classes="tray" Margin="12,0,12,12"
+      <Border DockPanel.Dock="Bottom" Classes="tray" Margin="12,8,12,12"
               DataContext="{Binding Pending}" x:DataType="ed:PendingChangesViewModel"
               IsVisible="{Binding IsVisible, FallbackValue=False}">
         <DockPanel>
@@ -341,7 +341,7 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
           </ScrollViewer>
-          <ScrollViewer IsVisible="{Binding IsOpen}" MaxHeight="260" Margin="0,10,0,0">
+          <ScrollViewer IsVisible="{Binding IsOpen}" MaxHeight="180" Margin="0,10,0,0">
             <ItemsControl ItemsSource="{Binding Rows}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="ed:PendingRow">
@@ -354,8 +354,8 @@
                       <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
                         <!-- A long "after" (a policy's whole audience) is cut short rather than running under the buttons. -->
                         <DockPanel>
-                          <TextBlock DockPanel.Dock="Left" Classes="muted" Text="{Binding LabelText}" Margin="0,0,6,0" />
-                          <TextBlock DockPanel.Dock="Left" Text="{Binding Before}" Classes="before" Margin="0,0,6,0" />
+                          <TextBlock DockPanel.Dock="Left" Classes="muted" Text="{Binding LabelText}" Margin="0,0,6,0" MaxWidth="300" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Label}" />
+                          <TextBlock DockPanel.Dock="Left" Text="{Binding Before}" Classes="before" Margin="0,0,6,0" MaxWidth="280" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Before}" />
                           <TextBlock DockPanel.Dock="Left" Classes="muted" Text="→" Margin="0,0,6,0" />
                           <TextBlock Text="{Binding After}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding After}" />
                         </DockPanel>
@@ -387,7 +387,8 @@
         <TabControl.ItemTemplate>
           <DataTemplate x:DataType="vm:TabViewModel">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+              <!-- Long names are cut short (full name on hover), so more tabs fit on one row. -->
+              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
               <Button Classes="ghost" IsVisible="{Binding CanClose}" Padding="4" VerticalAlignment="Center"
                       ToolTip.Tip="Close"
                       Command="{Binding #Tabs.((vm:MainViewModel)DataContext).CloseTabCommand}"
@@ -455,7 +456,7 @@
     </DockPanel>
 
     <!-- Popups: a record area from the preview pane, Reset password, … Close with ✕, Esc or a click outside. -->
-    <Panel Grid.ColumnSpan="2" IsVisible="{Binding HasDialog}">
+    <Panel Grid.ColumnSpan="2" ZIndex="100" IsVisible="{Binding HasDialog}">
       <Border x:Name="DialogBackdrop" Classes="backdrop" />
       <Border Classes="palette" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24" MaxWidth="1120" MinWidth="420">
         <DockPanel>
@@ -472,7 +473,7 @@
           <TextBlock DockPanel.Dock="Bottom" Classes="caption" Margin="22,8,22,12" TextWrapping="Wrap"
                      Text="{Binding Dialog.Footnote, FallbackValue=''}" IsVisible="{Binding Dialog.HasFootnote, FallbackValue=False}" />
           <Border DockPanel.Dock="Bottom" Classes="divider" IsVisible="{Binding Dialog.HasFootnote, FallbackValue=False}" />
-          <ScrollViewer x:Name="DialogScroller" Padding="22,16">
+          <ScrollViewer x:Name="DialogScroller" Padding="22,16,22,24">
             <ContentControl Content="{Binding Dialog.Content, FallbackValue={x:Null}}" />
           </ScrollViewer>
         </DockPanel>
@@ -480,7 +481,7 @@
     </Panel>
 
     <!-- Ctrl+K: a box over everything. Click outside or press Esc to close. -->
-    <Panel Grid.ColumnSpan="2" IsVisible="{Binding IsPaletteOpen}">
+    <Panel Grid.ColumnSpan="2" ZIndex="100" IsVisible="{Binding IsPaletteOpen}">
       <Border x:Name="PaletteBackdrop" Classes="backdrop" />
       <Border Classes="palette" DataContext="{Binding Palette}" x:DataType="vm:PaletteViewModel"
               HorizontalAlignment="Center" VerticalAlignment="Top" Margin="16,72,16,16" Width="640">

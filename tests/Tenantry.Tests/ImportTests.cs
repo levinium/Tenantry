@@ -109,7 +109,7 @@ public sealed class ImportTests
         Assert.Contains(ada.Ops, o => o is SetUserText { Property: "department", New: "Operations" });
         Assert.Contains(ada.Ops, o => o is SetGroupMembership { Group.Id: "g2", ExchangeManaged: true });
         Assert.Equal(ImportOutcome.NoChange, import.Rows[1].Outcome);
-        Assert.Equal("Add 3 Changes to Pending Changes", import.AddText);
+        Assert.Equal("Add 3 Changes", import.AddText);
     }
 
     [Fact]

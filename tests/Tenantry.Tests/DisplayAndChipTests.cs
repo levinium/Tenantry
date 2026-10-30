@@ -30,7 +30,7 @@ public class DisplayAndChipTests
     public void Old_and_missing_dates()
     {
         Assert.Equal("Never", Display.Relative(null, Now));
-        Assert.Matches(@"^[A-Z][a-z]{2} \d{1,2}, 2025$", Display.Relative(new DateTimeOffset(2025, 3, 4, 12, 0, 0, TimeSpan.Zero), Now));
+        Assert.Matches(@"^\d{1,2} [A-Z][a-z]{2} 2025$", Display.Relative(new DateTimeOffset(2025, 3, 4, 12, 0, 0, TimeSpan.Zero), Now));
     }
 
     [Fact]

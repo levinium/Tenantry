@@ -328,7 +328,7 @@ public sealed class BulkEditTests
 
         editor.Selected = Action(editor.Actions, "Sign Out Everywhere");
         Assert.True(Action(editor.Actions, "Sign Out Everywhere").IsSelected);
-        Assert.Equal("Add to Pending Changes (Takes Something Away)", editor.StageText);
+        Assert.Equal("Add to Pending Changes", editor.StageText);
         await editor.StageCommand.ExecuteAsync(null);
 
         Assert.Equal(3, pipeline.Pending.Count);

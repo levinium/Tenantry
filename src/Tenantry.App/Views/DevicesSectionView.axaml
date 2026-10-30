@@ -7,7 +7,7 @@
              xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.DevicesSectionView"
              x:DataType="rec:DevicesSection">
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
       <StackPanel Orientation="Horizontal" Spacing="10">
         <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
@@ -102,17 +102,17 @@
                   <TextBlock Classes="label" Text="ACTIONS" />
                   <WrapPanel ItemSpacing="8" LineSpacing="8">
                     <Button Content="{Binding SyncText}" Command="{Binding RunCommand}" CommandParameter="{x:Static changes:DeviceCommand.Sync}"
-                            IsVisible="{Binding CanManage}" ToolTip.Tip="Ask it to check in with Intune now (added to Pending changes)" />
+                            IsVisible="{Binding CanManage}" ToolTip.Tip="Ask it to check in with Intune now (added to Pending Changes)" />
                     <Button Content="{Binding RestartText}" Command="{Binding RunCommand}" CommandParameter="{x:Static changes:DeviceCommand.Restart}"
-                            IsVisible="{Binding CanManage}" ToolTip.Tip="Restarts it straight away, unsaved work and all (added to Pending changes)" />
+                            IsVisible="{Binding CanManage}" ToolTip.Tip="Restarts it straight away, unsaved work and all (added to Pending Changes)" />
                     <Button Content="{Binding LockText}" Command="{Binding RunCommand}" CommandParameter="{x:Static changes:DeviceCommand.Lock}"
-                            IsVisible="{Binding CanManage}" ToolTip.Tip="Locks the screen; they unlock it with their PIN or password (added to Pending changes)" />
+                            IsVisible="{Binding CanManage}" ToolTip.Tip="Locks the screen; they unlock it with their PIN or password (added to Pending Changes)" />
                     <Button Content="{Binding RotateText}" Command="{Binding RunCommand}" CommandParameter="{x:Static changes:DeviceCommand.RotateLocalAdminPassword}"
-                            IsVisible="{Binding CanRotate}" ToolTip.Tip="Gives the local admin account a new password, after someone has used it (Windows LAPS; added to Pending changes)" />
+                            IsVisible="{Binding CanRotate}" ToolTip.Tip="Gives the local admin account a new password, after someone has used it (Windows LAPS; added to Pending Changes)" />
                     <Button Classes="danger-outline" Content="{Binding EnableText}" Command="{Binding ToggleEnabledCommand}" IsVisible="{Binding CanSetEnabled}"
-                            ToolTip.Tip="A disabled device can't be used to sign in to work apps (added to Pending changes)" />
+                            ToolTip.Tip="A disabled device can't be used to sign in to work apps (added to Pending Changes)" />
                     <Button Classes="danger-outline" Content="{Binding RetireText}" Command="{Binding RunCommand}" CommandParameter="{x:Static changes:DeviceCommand.Retire}"
-                            IsVisible="{Binding CanManage}" ToolTip.Tip="Removes work data and apps and stops managing it; their own things stay (added to Pending changes)" />
+                            IsVisible="{Binding CanManage}" ToolTip.Tip="Removes work data and apps and stops managing it; their own things stay (added to Pending Changes)" />
                     <Button Classes="danger-outline" Content="{Binding WipeText}" Command="{Binding RunCommand}" CommandParameter="{x:Static changes:DeviceCommand.Wipe}"
                             IsVisible="{Binding CanManage}" ToolTip.Tip="Erases it back to factory settings. You'll type its name to confirm when applying." />
                   </WrapPanel>
@@ -210,7 +210,6 @@
                       <TextBlock Classes="caption" Text="{Binding Detail}" />
                       <TextBlock Classes="caption" Text="{Binding AppsText}" IsVisible="{Binding HasApps}" TextWrapping="Wrap" />
                       <TextBlock Classes="caption" Text="{Binding LastText}" />
-                      <TextBlock Classes="caption" Text="It's in the list above, with its actions." IsVisible="{Binding IsListedAbove}" />
                     </StackPanel>
                   </Grid>
                 </Border>
@@ -224,7 +223,7 @@
           <TextBlock Classes="label" Text="ACTIONS" />
           <WrapPanel ItemSpacing="8" LineSpacing="8">
             <Button Classes="danger-outline" Content="{Binding SignOutText}" Command="{Binding ToggleSignOutCommand}" IsEnabled="{Binding CanEdit}"
-                    ToolTip.Tip="Signs them out of every app and browser on every device; Office asks them to sign in again (added to Pending changes)" />
+                    ToolTip.Tip="Signs them out of every app and browser on every device; Office asks them to sign in again (added to Pending Changes)" />
             <Button Command="{Binding OpenActivationsCommand}"
                     ToolTip.Tip="Opens their page in the Microsoft 365 admin center. Under Account, Microsoft 365 activations lists each computer, with a way to deactivate it.">
               <StackPanel Orientation="Horizontal" Spacing="6">

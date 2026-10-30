@@ -74,9 +74,9 @@ public static class SiteList
         : s.Lock == "ReadOnly" ? ("Read-Only", BadgeKind.Warning)
         : ("Active", BadgeKind.Success);
 
-    /// <summary>"1.2 GB of 25 TB".</summary>
+    /// <summary>"1.2 GB of 1,024 GB".</summary>
     public static string StorageText(SiteSummary s) =>
-        s.StorageQuotaMb > 0 ? $"{Records.DeviceText.Size(s.StorageUsedMb << 20)} of {Records.DeviceText.Size(s.StorageQuotaMb << 20)}"
+        s.StorageQuotaMb > 0 ? Tenantry.Core.Directory.MailDetails.SizeOf(s.StorageUsedMb << 20, s.StorageQuotaMb << 20)
             : Records.DeviceText.Size(s.StorageUsedMb << 20);
 
     static ColumnDef<SiteSummary> Name(string header) => new()

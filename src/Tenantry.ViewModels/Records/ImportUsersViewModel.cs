@@ -434,7 +434,7 @@ public sealed partial class ImportUsersViewModel : ObservableObject
     {
         0 => "Nothing to Add",
         1 => "Add 1 Change to Pending Changes",
-        var n => $"Add {n} Changes to Pending Changes",
+        var n => $"Add {n} Changes",
     };
 
     bool CanAdd => ReadyOps > 0 && !IsReading;

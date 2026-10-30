@@ -18,7 +18,7 @@
           </StackPanel>
         </Button>
         <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
-                   Text="Which ways people can sign in and prove who they are, and who each one is for. Changes go to Pending changes." />
+                   Text="Which ways people can sign in and prove who they are, and who each one is for. Changes go to Pending Changes." />
       </StackPanel>
       <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
         <Panel Width="18" Height="18" VerticalAlignment="Center">
@@ -61,7 +61,7 @@
                   <WrapPanel ItemSpacing="6" LineSpacing="4">
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     <c:Badge Text="{Binding StateText}" Kind="{Binding StateKind}" />
-                    <c:Badge Text="Pending" Kind="Warning" IsVisible="{Binding Pending}" ToolTip.Tip="Waiting in Pending changes" />
+                    <c:Badge Text="Pending" Kind="Warning" IsVisible="{Binding Pending}" ToolTip.Tip="Waiting in Pending Changes" />
                   </WrapPanel>
                   <TextBlock Classes="caption" Text="{Binding Who}" IsVisible="{Binding HasWho}" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
@@ -81,7 +81,7 @@
                   <WrapPanel ItemSpacing="6" LineSpacing="4">
                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     <c:Badge Text="{Binding StateText}" Kind="{Binding StateKind}" />
-                    <c:Badge Text="Pending" Kind="Warning" IsVisible="{Binding Pending}" ToolTip.Tip="Waiting in Pending changes" />
+                    <c:Badge Text="Pending" Kind="Warning" IsVisible="{Binding Pending}" ToolTip.Tip="Waiting in Pending Changes" />
                   </WrapPanel>
                   <TextBlock Classes="caption" Text="{Binding Who}" IsVisible="{Binding HasWho}" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
@@ -110,7 +110,7 @@
 
                   <StackPanel Spacing="6" IsEnabled="{Binding CanEdit}">
                     <TextBlock Classes="label" Text="STATE" />
-                    <ListBox ItemsSource="{Binding States}" SelectedItem="{Binding State}" Background="Transparent" HorizontalAlignment="Left">
+                    <ListBox Classes="options" ItemsSource="{Binding States}" SelectedItem="{Binding State}" Background="Transparent" HorizontalAlignment="Left">
                       <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                           <StackPanel Orientation="Horizontal" Spacing="6" />
@@ -172,7 +172,11 @@
                       </ItemsControl>
                       <views:PersonPickerView DataContext="{Binding ExcludePicker}" MaxWidth="420" HorizontalAlignment="Left" />
                     </StackPanel>
-                    <TextBlock Classes="caption" Text="{Binding WhoText}" TextWrapping="Wrap" />
+                    <!-- Who it reaches in the end, said as a sentence so it doesn't read as part of Leave Out. -->
+                    <TextBlock Classes="caption" TextWrapping="Wrap" Margin="0,4,0,0">
+                      <Run Text="In all, it's for: " />
+                      <Run Text="{Binding WhoText}" FontWeight="SemiBold" />
+                    </TextBlock>
                   </StackPanel>
 
                   <StackPanel Spacing="10" IsVisible="{Binding HasSettings}" IsEnabled="{Binding CanEdit}">

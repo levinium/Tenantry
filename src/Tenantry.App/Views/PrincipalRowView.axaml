@@ -13,9 +13,9 @@
       <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap" />
     </StackPanel>
     <c:Badge Grid.Column="1" Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" VerticalAlignment="Center"
-             ToolTip.Tip="Waiting in Pending changes" />
+             ToolTip.Tip="Waiting in Pending Changes" />
     <c:Badge Grid.Column="2" Text="{Binding KindText}" Kind="{Binding KindKind}" VerticalAlignment="Center" />
-    <Button Grid.Column="3" Classes="danger-outline" Classes.undo="{Binding HasState}" Content="{Binding ActionText}" Command="{Binding DoCommand}"
+    <Button Grid.Column="3" Classes="danger-outline quiet" Classes.undo="{Binding HasState}" Content="{Binding ActionText}" Command="{Binding DoCommand}"
             IsVisible="{Binding HasAction}" VerticalAlignment="Center" ToolTip.Tip="{Binding ActionTip}" />
     <TextBlock Grid.Column="3" Classes="caption" Text="{Binding Locked}" IsVisible="{Binding IsLocked}" VerticalAlignment="Center" />
   </Grid>

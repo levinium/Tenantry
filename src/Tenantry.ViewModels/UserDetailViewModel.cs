@@ -77,7 +77,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
     public string Email => User.Mail ?? "No mailbox address";
     public string LastSignInText => _row.LastSignInText;
     public string LastSignInExact => _row.LastSignInExact;
-    public string CreatedText => User.CreatedAt.ToLocalTime().ToString("MMMM d, yyyy");
+    public string CreatedText => User.CreatedAt.ToLocalTime().ToString("d MMM yyyy");
 
     public IReadOnlyList<string> Licenses => User.Licenses;
     public bool HasLicenses => User.Licenses.Count > 0;
@@ -196,9 +196,9 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
     public string SignInActionText => HasPendingSignIn ? "Undo Sign-In Change" : User.AccountEnabled ? "Block Sign-In" : "Allow Sign-In";
 
     public string SignInActionTip => !CanEdit ? EditReason
-        : HasPendingSignIn ? "Take the sign-in change out of Pending changes"
-        : User.AccountEnabled ? "Stop this account signing in (added to Pending changes)"
-        : "Let this account sign in again (added to Pending changes)";
+        : HasPendingSignIn ? "Take the sign-in change out of Pending Changes"
+        : User.AccountEnabled ? "Stop this account signing in (added to Pending Changes)"
+        : "Let this account sign in again (added to Pending Changes)";
 
     [RelayCommand]
     void ToggleSignIn()

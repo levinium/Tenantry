@@ -76,6 +76,9 @@ public sealed partial class SitePreviewViewModel
     [RelayCommand]
     void OpenSite() => Platform.OpenUrl(Site.Url);
 
+    /// <summary>The facts without storage, for the site page's Details card (its storage card shows it already).</summary>
+    public IReadOnlyList<SummaryLine> FactsBesideStorage => [.. Facts.Where(f => f.Label != "Storage")];
+
     public IReadOnlyList<SummaryLine> Facts =>
     [
         .. new (string, string?)[]
@@ -86,7 +89,7 @@ public sealed partial class SitePreviewViewModel
             ("Lock", Site.IsLocked ? SiteSummary.LockName(Site.Lock) : null),
             ("Hub", Site.IsHubSite ? "This is a hub site" : Site.HubSiteId is not null ? "Part of a hub" : null),
             ("Subsites", Site.Subsites is > 1 ? $"{Site.Subsites - 1:N0}" : null),
-            ("Template", Site.Template),
+            ("Template", SiteSummary.TemplateName(Site.Template)),
         }.Where(f => !string.IsNullOrEmpty(f.Item2)).Select(f => new SummaryLine(f.Item1, f.Item2!)),
     ];
 }

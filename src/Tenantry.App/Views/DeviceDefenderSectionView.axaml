@@ -5,7 +5,7 @@
              xmlns:c="using:Tenantry.App.Controls"
              x:Class="Tenantry.App.Views.DeviceDefenderSectionView"
              x:DataType="rec:DeviceDefenderSection">
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <views:DeviceSectionStatusView />
     <Border Classes="card" IsVisible="{Binding HasState}">
       <StackPanel Spacing="12">
@@ -41,7 +41,7 @@
     </Border>
     <Border Classes="card" IsVisible="{Binding HasState}">
       <StackPanel Spacing="10">
-        <TextBlock Classes="h3" Text="Threats Found" />
+        <TextBlock Classes="h3" Text="Threats" />
         <TextBlock Classes="muted" Text="Defender hasn't reported any threats on this device." IsVisible="{Binding HasNoMalware}" />
         <ItemsControl ItemsSource="{Binding Malware}">
           <ItemsControl.ItemsPanel>

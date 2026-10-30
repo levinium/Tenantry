@@ -104,7 +104,7 @@ public static class DeletedApps
                     if (!canEdit || pipeline is null)
                         return row;
                     if (waiting is not null)
-                        return row.With(waiting is RestoreApp ? "Restoring" : "Deleting", "Undo", "Take the change back out of Pending changes", () => pipeline.Unstage(waiting));
+                        return row.With(waiting is RestoreApp ? "Restoring" : "Deleting", "Undo", "Take the change back out of Pending Changes", () => pipeline.Unstage(waiting));
                     var restorable = row.With(null, "Delete Permanently", "Delete it for good now (you type its name to confirm)",
                         () => pipeline.Stage(new PurgeApp(Target(d), detail)));
                     return new AppRow
@@ -116,7 +116,7 @@ public static class DeletedApps
                         ActionTip = restorable.ActionTip,
                         Act = restorable.Act,
                         AltText = "Restore",
-                        AltTip = "Bring it back as it was (added to Pending changes)",
+                        AltTip = "Bring it back as it was (added to Pending Changes)",
                         AltAct = () => pipeline.Stage(new RestoreApp(Target(d), detail)),
                     };
                 })],

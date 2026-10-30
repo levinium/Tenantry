@@ -406,9 +406,9 @@ public static partial class BulkActions
         // reaching it; and once deleted there's nothing left to wipe. So each skips the other.
         IReadOnlyList<ChangeOp> Waiting() => pending?.Invoke() ?? [];
         string? RemovalWaiting(DeviceSummary d) => Waiting().OfType<RunDeviceAction>()
-            .FirstOrDefault(a => a.Removes && a.Device.Id == d.ManagedId) is { } r ? $"{d.Name}: {r.Label} is waiting in Pending changes; apply it first" : null;
+            .FirstOrDefault(a => a.Removes && a.Device.Id == d.ManagedId) is { } r ? $"{d.Name}: {r.Label} is waiting in Pending Changes; apply it first" : null;
         string? DeleteWaiting(DeviceSummary d) => Waiting().OfType<DeleteDevice>()
-            .Any(x => x.Device.Id == d.ObjectId || x.Device.Id == d.ManagedId) ? $"{d.Name}: Delete Device is waiting in Pending changes" : null;
+            .Any(x => x.Device.Id == d.ObjectId || x.Device.Id == d.ManagedId) ? $"{d.Name}: Delete Device is waiting in Pending Changes" : null;
 
         BulkPlan Intune(DeviceCommand command, bool keepUserData = false) => Plan(selected(), d => d.ManagedId is null
             ? (null, $"{d.Name}: not managed by Intune")
@@ -471,6 +471,9 @@ public static partial class BulkActions
             new("Update Definitions", "Microsoft Defender downloads its latest security intelligence (Windows).", "ArrowDownload",
                 (_, _) => Task.FromResult(Windows(DeviceCommand.UpdateDefinitions)), group: Defender),
         };
+        // Windows-only actions aren't offered when nothing chosen runs Windows (an iPhone has no Defender scan).
+        if (!selected().Any(d => d.Platform == "Windows"))
+            actions.RemoveAll(a => a.Group == Defender || a.Title == "Collect Diagnostics");
 
         if (one)
         {
@@ -546,7 +549,7 @@ public static partial class BulkActions
             (_, _) => Task.FromResult(Removal(DeviceCommand.Wipe)), isCaution: true, group: Remove));
         actions.Add(new("Fresh Start", "Reinstall Windows and remove apps the manufacturer added; keep or remove the user's files. You type its name to confirm.", "ArrowReset",
             (a, _) => Task.FromResult(Removal(DeviceCommand.FreshStart, windowsOnly: true, keepUserData: (bool)a.Choice!.Value)),
-            choiceLabel: "Their Files", choices: [new BulkChoice("Keep Their Files", true), new BulkChoice("Remove Their Files", false)], isCaution: true, group: Remove));
+            choiceLabel: "User Files", choices: [new BulkChoice("Keep User Files", true), new BulkChoice("Remove User Files", false)], isCaution: true, group: Remove));
         actions.Add(new("Autopilot Reset", "Return Windows to a business-ready state: apps, settings and files removed, still joined and enrolled. You type its name to confirm.", "ArrowCounterclockwise",
             (_, _) => Task.FromResult(Removal(DeviceCommand.AutopilotReset, windowsOnly: true)), isCaution: true, group: Remove));
         actions.Add(delete);

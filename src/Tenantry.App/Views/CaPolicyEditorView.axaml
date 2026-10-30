@@ -31,11 +31,12 @@
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="dir:CaTemplate">
-                  <Button Classes="listrow" Command="{Binding #Root.((vm:CaPolicyEditorViewModel)DataContext).StartCommand}" CommandParameter="{Binding}"
-                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,0,6,6">
+                  <!-- Bordered tiles, text from the top, like the mail flow rule starters. -->
+                  <Button Classes="choice" Command="{Binding #Root.((vm:CaPolicyEditorViewModel)DataContext).StartCommand}" CommandParameter="{Binding}"
+                          VerticalAlignment="Stretch" VerticalContentAlignment="Top" Margin="0,0,8,8">
                     <StackPanel Spacing="2">
                       <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                      <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Foreground="{DynamicResource TextSecondary}" Text="{Binding Description}" TextWrapping="Wrap" />
                     </StackPanel>
                   </Button>
                 </DataTemplate>
@@ -50,7 +51,7 @@
               <TextBlock Classes="h3" Text="Name and State" />
             </StackPanel>
             <TextBox Text="{Binding Name}" PlaceholderText="Name, like Require MFA for admins" />
-            <ListBox ItemsSource="{Binding States}" SelectedItem="{Binding State}" Background="Transparent">
+            <ListBox Classes="options" ItemsSource="{Binding States}" SelectedItem="{Binding State}" Background="Transparent">
               <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
                   <UniformGrid Columns="3" />
@@ -73,7 +74,7 @@
               <TextBlock Classes="h3" Text="Who" />
             <TextBlock Classes="caption" TextWrapping="Wrap" Text="The people it covers, and who it leaves out." />
             </StackPanel>
-            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.WhoChoices}" SelectedItem="{Binding Who}" MinWidth="320" />
+            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.WhoChoices}" SelectedItem="{Binding Who}" MinWidth="380" />
             <StackPanel Spacing="8" IsVisible="{Binding WhoIsChosen}" Margin="16,0,0,0">
               <TextBlock Classes="label" Text="PEOPLE" Margin="0,4,0,0" />
               <views:ChipPickerView DataContext="{Binding IncludePeople}" />
@@ -114,7 +115,7 @@
             <TextBlock Classes="caption" TextWrapping="Wrap" Text="Narrow when it acts. Anything not set applies everywhere." />
             </StackPanel>
             <TextBlock Classes="label" Text="DEVICE PLATFORMS" Margin="0,4,0,0" />
-            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.PlatformModes}" SelectedItem="{Binding PlatformMode}" MinWidth="320" />
+            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.PlatformModes}" SelectedItem="{Binding PlatformMode}" MinWidth="380" />
             <StackPanel Spacing="6" IsVisible="{Binding PlatformsAreChosen}" Margin="16,0,0,0">
               <ItemsControl ItemsSource="{Binding Platforms}">
               <ItemsControl.ItemsPanel>
@@ -145,7 +146,7 @@
             </ItemsControl>
             </StackPanel>
             <TextBlock Classes="label" Text="LOCATIONS" Margin="0,4,0,0" />
-            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.LocationModes}" SelectedItem="{Binding LocationMode}" MinWidth="320" />
+            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.LocationModes}" SelectedItem="{Binding LocationMode}" MinWidth="380" />
             <StackPanel Spacing="6" IsVisible="{Binding LocationsAreChosen}" Margin="16,0,0,0">
               <views:ChipPickerView DataContext="{Binding IncludeLocations}" />
             </StackPanel>
@@ -196,7 +197,7 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
             <TextBlock Classes="label" Text="DEVICE FILTER" Margin="0,4,0,0" />
-            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.FilterModes}" SelectedItem="{Binding FilterMode}" MinWidth="320" />
+            <ComboBox ItemsSource="{x:Static vm:CaPolicyEditorViewModel.FilterModes}" SelectedItem="{Binding FilterMode}" MinWidth="380" />
             <TextBox Text="{Binding FilterRule}" IsVisible="{Binding HasDeviceFilter}" PlaceholderText="device.trustType -eq &quot;ServerAD&quot;"
                      FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
             <TextBlock Classes="label" Text="AUTHENTICATION FLOWS" Margin="0,4,0,0" />
@@ -321,8 +322,11 @@
           </ItemsControl.ItemTemplate>
         </ItemsControl>
         <TextBlock Classes="caption" Text="{Binding Status}" IsVisible="{Binding HasStatus}" TextWrapping="Wrap" />
-        <Button Classes="accent" Content="Done" Command="{Binding DoneCommand}" HorizontalAlignment="Left"
-                ToolTip.Tip="Close the editor; the policy stays in Pending changes until you apply or remove it" />
+        <!-- With problems, nothing is in Pending Changes yet: the button says Close, not Done. -->
+        <Button Classes="accent" Content="Done" Command="{Binding DoneCommand}" HorizontalAlignment="Left" IsVisible="{Binding !HasProblems}"
+                ToolTip.Tip="Close the editor; the policy stays in Pending Changes until you apply or remove it" />
+        <Button Content="Close" Command="{Binding DoneCommand}" HorizontalAlignment="Left" IsVisible="{Binding HasProblems}"
+                ToolTip.Tip="Close the editor. It has problems, so nothing from it is in Pending Changes." />
       </StackPanel>
     </ScrollViewer>
   </Grid>

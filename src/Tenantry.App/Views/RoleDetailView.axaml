@@ -39,7 +39,7 @@
             </StackPanel>
           </Button>
           <Button Classes="danger-outline" Command="{Binding DeleteRoleCommand}" IsVisible="{Binding CanEditRole}"
-                  ToolTip.Tip="Delete this custom role (added to Pending changes; you type its name to confirm)">
+                  ToolTip.Tip="Delete this custom role (added to Pending Changes; you type its name to confirm)">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <ic:FluentIcon Icon="Delete" FontSize="16" />
               <TextBlock Text="Delete Role" />

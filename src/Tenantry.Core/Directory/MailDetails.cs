@@ -21,7 +21,7 @@ public sealed record AutoReply(AutoReplyState State, DateTimeOffset? Start, Date
         _ => $"Scheduled: {Format(Start)} – {Format(End)}",
     };
 
-    static string Format(DateTimeOffset? at) => at?.ToLocalTime().ToString("MMM d, h:mm tt", CultureInfo.CurrentCulture) ?? "?";
+    static string Format(DateTimeOffset? at) => at?.ToLocalTime().ToString("d MMM h:mm tt", CultureInfo.CurrentCulture) ?? "?";
 
     public static string AudienceName(AutoReplyAudience audience) => audience switch
     {
@@ -156,4 +156,22 @@ public sealed record MailDetails(
         >= 1L << 10 => $"{bytes / (double)(1L << 10):0} KB",
         _ => $"{bytes} bytes",
     };
+
+    /// <summary>
+    /// "1,003.2 GB of 1,024 GB": up to 10 TB both are in the total's unit (GB at most), so a
+    /// nearly full 1 TB OneDrive never reads "1003.2 GB of 1 TB"; past that, each in its own
+    /// ("30.3 GB of 25 TB").
+    /// </summary>
+    public static string SizeOf(long used, long total)
+    {
+        if (total >= 10L << 40)
+            return $"{Size(used)} of {Size(total)}";
+        var (unit, name) = total switch
+        {
+            >= 1L << 30 => (1L << 30, "GB"),
+            >= 1L << 20 => (1L << 20, "MB"),
+            _ => (1L << 10, "KB"),
+        };
+        return $"{used / (double)unit:#,0.#} {name} of {total / (double)unit:#,0.#} {name}";
+    }
 }

@@ -113,9 +113,12 @@ public sealed partial class RuleValueEditor : ObservableObject
     public bool IsSwitch => Input == RuleInput.Switch;
 
     /// <summary>The grey text in an empty box: what to type, with an example. A list adds each entry on Enter.</summary>
+    /// <summary>The value can be HTML (a disclaimer): its hint stays shown under the box.</summary>
+    public bool IsHtml => _valueType == "html";
+
     public string Hint => _valueType switch
     {
-        "addresses" or "betweenGroups" => Chips.Count == 0 ? "Type an address, like pat@contoso.com, and press Enter" : "Add another address",
+        "addresses" or "betweenGroups" => Chips.Count == 0 ? "Type an address, like pat@contoso.example, and press Enter" : "Add another address",
         "groups" => Chips.Count == 0 ? "Type a group's address and press Enter" : "Add another group",
         "words" or "headerWords" => Chips.Count == 0 ? "Type a word or phrase and press Enter" : "Add another word or phrase",
         "patterns" or "headerPatterns" => Chips.Count == 0 ? @"Type a pattern, like invoice\s*#?\d+, and press Enter" : "Add another pattern",
@@ -128,7 +131,7 @@ public sealed partial class RuleValueEditor : ObservableObject
         "headerName" => "Like X-Contoso-Checked",
         "dsnCode" => "5.7.1, or 5.7.900 to 5.7.999",
         "html" => "Text or HTML. %%From%%, %%To%%, %%Subject%% and other tokens are filled in",
-        "address" => "pat@contoso.com",
+        "address" => "pat@contoso.example",
         _ => "",
     };
 

@@ -159,7 +159,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         // Reports (9): health checks over the lists' own views, and the change log.
         Reports = new ReportsAreaViewModel(
         [
-            new("People", Users, "inactive", "signed in to nothing for 90 days or more, yet still able to"),
+            new("People", Users, "inactive", "signed in to nothing for 90 days or more, yet still able to sign in"),
             new("People", Users, "licensed-blocked", "can't sign in but still hold a license someone pays for"),
             new("People", Users, "unlicensed", "members who can sign in but have no license", Concern: false),
             new("People", Users, "guests-never", "invited from outside but never signed in"),
@@ -889,7 +889,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         if (_tenant.Changes is not { } pipeline || people.Count == 0 || !Evaluate(Capabilities.EditUsers).IsAvailable)
             return;
         var workflow = new Workflows.OffboardingViewModel(people, _index, _tenant.Records, pipeline, TenantName, CloseDialog);
-        ShowDialog(new Records.DialogViewModel(workflow.Heading, workflow.Subtitle, workflow));
+        ShowDialog(new Records.DialogViewModel(workflow.Heading, workflow.Subtitle, workflow, Footnote: null));
     }
 
     /// <summary>Opens the compromised-account response for one person or several.</summary>
@@ -898,7 +898,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         if (_tenant.Changes is not { } pipeline || people.Count == 0 || !Evaluate(Capabilities.EditUsers).IsAvailable)
             return;
         var workflow = new Workflows.CompromiseViewModel(people, _tenant.Records, pipeline, CloseDialog);
-        ShowDialog(new Records.DialogViewModel(workflow.Heading, workflow.Subtitle, workflow));
+        ShowDialog(new Records.DialogViewModel(workflow.Heading, workflow.Subtitle, workflow, Footnote: null));
     }
 
     // ---- Permissions ----------------------------------------------------------------------

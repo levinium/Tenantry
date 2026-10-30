@@ -173,7 +173,7 @@ public sealed partial class AddListEntriesViewModel : ObservableObject
         }
         _pipeline!.StageAll(changes);
         Problems = problems;
-        Result = changes.Count == 1 ? "1 entry added to Pending changes." : $"{changes.Count} entries added to Pending changes.";
+        Result = changes.Count == 1 ? "1 entry added to Pending Changes." : $"{changes.Count} entries added to Pending Changes.";
         Values = string.Join(Environment.NewLine, problems.Select(p => p.Split(": ")[0]).Where(v => v.Length > 0 && !v.StartsWith("Type", StringComparison.Ordinal)));
     }
 }

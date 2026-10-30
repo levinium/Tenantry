@@ -13,7 +13,7 @@
     </StackPanel>
     <StackPanel Spacing="4">
       <TextBlock Classes="label" Text="WHO CAN SIGN IN" />
-      <ListBox ItemsSource="{x:Static rec:NewAppViewModel.Audiences}" SelectedItem="{Binding Audience}" Background="Transparent">
+      <ListBox Classes="options" ItemsSource="{x:Static rec:NewAppViewModel.Audiences}" SelectedItem="{Binding Audience}" Background="Transparent">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="ed:EditorChoice">
             <StackPanel Spacing="2" Margin="2,4">

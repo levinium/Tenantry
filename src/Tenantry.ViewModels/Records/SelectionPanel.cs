@@ -139,7 +139,7 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
 
     public string OffboardText => $"Offboard {Who}…";
 
-    public string RespondText => $"Respond: {(_rows.Count == 1 ? "this account" : $"these {_rows.Count:N0} accounts")} may be compromised…";
+    public string RespondText => $"Respond to Compromise ({Who})…";
 
     [RelayCommand]
     void Offboard() => _workflows?.Offboard(_rows.Cast<UserSummary>().ToArray());
@@ -253,7 +253,7 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
             lines.Add(new("Owners", $"{ownerless:N0} {(ownerless == 1 ? "has" : "have")} no owner"));
         var dynamic = groups.Count(g => g.IsDynamic);
         if (dynamic > 0)
-            lines.Add(new("Dynamic", $"{dynamic:N0} follow a rule: their members can't be changed here"));
+            lines.Add(new("Dynamic", $"{dynamic:N0} {(dynamic == 1 ? "is" : "are")} dynamic, so {(dynamic == 1 ? "its" : "their")} members can't be changed here"));
         return lines;
     }
 
@@ -423,7 +423,7 @@ public sealed partial class MixedField : ObservableObject
 /// <summary>The selection panel's details: one <see cref="MixedField"/> per detail a bulk edit can set.</summary>
 public sealed partial class BulkDetailsViewModel : ObservableObject, IMixedFieldHost, IDisposable
 {
-    public const string NotSet = "Not Set";
+    public const string NotSet = "Not set";
 
     /// <summary>Above this many people, details outside the list aren't read up front (still editable).</summary>
     const int ReadLimit = 100;

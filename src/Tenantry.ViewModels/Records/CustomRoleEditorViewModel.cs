@@ -12,7 +12,28 @@ public sealed partial class PermissionChoice(ResourceAction action, string group
     public ResourceAction Action => action;
     public string Group => group;
     public string Item => item;
-    public string? Description => action.Description;
+    /// <summary>Microsoft's description, or one made from the action's name when that's missing or machine-like.</summary>
+    public string? Description => string.IsNullOrWhiteSpace(action.Description) || action.Description.Contains('/') || action.Description.StartsWith("microsoft.", StringComparison.OrdinalIgnoreCase)
+        ? Words(action.Name)
+        : action.Description;
+
+    /// <summary>"microsoft.directory/users/password/update" → "Update users: password".</summary>
+    static string Words(string name)
+    {
+        var parts = name.Split('/');
+        if (parts.Length < 3)
+            return name;
+        var verb = parts[^1] switch
+        {
+            "allTasks" => "Do everything with",
+            "allProperties" => "Change everything about",
+            "standard" => "Read the basics of",
+            var v => char.ToUpperInvariant(v[0]) + string.Concat(v[1..].Select(c => char.IsUpper(c) ? " " + char.ToLowerInvariant(c) : c.ToString())),
+        };
+        var what = parts[1..^1].Select(s => string.Concat(s.Select(c => char.IsUpper(c) ? " " + char.ToLowerInvariant(c) : c.ToString())));
+        var list = what.ToArray();
+        return list.Length == 1 ? $"{verb} {list[0]}" : $"{verb} {list[0]}: {string.Join(", ", list[1..])}";
+    }
     public bool IsPrivileged => action.IsPrivileged;
 
     [ObservableProperty]
@@ -55,7 +76,7 @@ public sealed partial class CustomRoleEditorViewModel : ObservableObject
     }
 
     public bool IsNew => _editing is null;
-    public string SaveText => IsNew ? "Add to Pending Changes" : "Add Changes to Pending Changes";
+    public string SaveText => IsNew ? "Add to Pending Changes" : "Add Changes";
 
     /// <summary>Roles to copy permissions from (built-in ones first).</summary>
     public IReadOnlyList<AdminRole> StartFrom => [.. _roles.Where(r => r.AllowedActions.Count > 0 && r.Id != _editing?.Id).OrderBy(r => r.IsBuiltIn ? 0 : 1).ThenBy(r => r.Name)];

@@ -14,7 +14,7 @@
         <c:Badge Text="{Binding ProfileText}" Kind="{Binding ProfileKind}" ToolTip.Tip="Whether an Autopilot profile is assigned" />
         <c:Badge Text="{Binding EnrollmentText}" Kind="{Binding EnrollmentKind}" ToolTip.Tip="Whether it has been set up through Autopilot" />
       </WrapPanel>
-      <Button Classes="link" Content="Open Its Device Page" Command="{Binding OpenManagedCommand}" IsVisible="{Binding CanOpenManaged}" HorizontalAlignment="Left"
+      <Button Classes="link" Content="Open Device Page" Command="{Binding OpenManagedCommand}" IsVisible="{Binding CanOpenManaged}" HorizontalAlignment="Left"
               ToolTip.Tip="The Intune device it enrolled as" />
     </StackPanel>
 

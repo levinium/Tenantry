@@ -135,7 +135,7 @@ public sealed partial class OneDriveSection : RecordSection, IDisposable
     public bool HasQuota => Drive is { Used: not null, Total: > 0 };
 
     public string UsedText => Drive is { Used: { } used } d
-        ? d.Total is { } total and > 0 ? $"{MailDetails.Size(used)} of {MailDetails.Size(total)} used" : $"{MailDetails.Size(used)} used"
+        ? d.Total is { } total and > 0 ? $"{MailDetails.SizeOf(used, total)} used" : $"{MailDetails.Size(used)} used"
         : "Size not reported";
 
     public double UsedPercent => Drive is { Used: { } used, Total: { } total and > 0 } ? Math.Min(100, 100.0 * used / total) : 0;

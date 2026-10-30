@@ -185,7 +185,7 @@ public sealed class GroupAccessTests
 
         Assert.Equal("Owner zz-tenantry-test-ada: Owner → Removed", remove.Summary);
         Assert.True(remove.IsCaution);
-        Assert.Equal("Send As: zz-tenantry-test-bo: Not Allowed → Allowed", add.Summary);
+        Assert.Equal("Send As for zz-tenantry-test-bo: Not Allowed → Allowed", add.Summary);
         Assert.False(add.IsCaution);
         Assert.NotEqual(new SetGroupMembership(Group, Ada, "user", GroupRole.Member, false, false, true).Key, remove.Key);
     }

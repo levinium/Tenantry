@@ -14,7 +14,7 @@
     <StackPanel Spacing="4">
       <TextBlock Classes="h2" Text="{Binding Heading}" />
       <TextBlock Classes="caption" TextWrapping="Wrap"
-                 Text="Changes made here apply to every one of them and go to Pending changes for review." />
+                 Text="Changes made here apply to every one of them and go to Pending Changes for review." />
     </StackPanel>
 
     <!-- Who -->
@@ -70,18 +70,18 @@
       <Border Classes="divider" />
       <TextBlock Classes="h3" Text="Workflows" />
       <Button Command="{Binding OffboardCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-              ToolTip.Tip="A checklist of what happens when people leave; everything goes to Pending changes for review">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <ic:FluentIcon Icon="PersonArrowRight" FontSize="16" VerticalAlignment="Center" />
-          <TextBlock Text="{Binding OffboardText}" VerticalAlignment="Center" />
-        </StackPanel>
+              ToolTip.Tip="A checklist of what happens when people leave; everything goes to Pending Changes for review">
+        <DockPanel>
+          <ic:FluentIcon DockPanel.Dock="Left" Icon="PersonArrowRight" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" />
+          <TextBlock Text="{Binding OffboardText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+        </DockPanel>
       </Button>
       <Button Command="{Binding RespondToCompromiseCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-              ToolTip.Tip="Checks for warning signs, then secures the accounts; everything goes to Pending changes for review">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <ic:FluentIcon Icon="ShieldError" FontSize="16" VerticalAlignment="Center" />
+              ToolTip.Tip="Checks for warning signs, then secures the accounts; everything goes to Pending Changes for review">
+        <DockPanel>
+          <ic:FluentIcon DockPanel.Dock="Left" Icon="ShieldError" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" />
           <TextBlock Text="{Binding RespondText}" VerticalAlignment="Center" TextWrapping="Wrap" />
-        </StackPanel>
+        </DockPanel>
       </Button>
     </StackPanel>
 
@@ -106,11 +106,11 @@
                 <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Center" />
                 <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" />
                 <Button Grid.Column="2" Classes="rowaction" Command="{Binding ClearForEveryoneCommand}" IsVisible="{Binding CanClear}"
-                        ToolTip.Tip="Clear this for everyone selected (added to Pending changes)">
+                        ToolTip.Tip="Clear this for everyone selected (added to Pending Changes)">
                   <ic:FluentIcon Icon="Eraser" FontSize="13" />
                 </Button>
                 <Button Grid.Column="3" Classes="rowaction" Command="{Binding EditCommand}" IsVisible="{Binding !IsEditing}"
-                        ToolTip.Tip="Set this for everyone selected (added to Pending changes)">
+                        ToolTip.Tip="Set this for everyone selected (added to Pending Changes)">
                   <ic:FluentIcon Icon="Edit" FontSize="13" />
                 </Button>
               </Grid>
@@ -122,7 +122,7 @@
                          c:EditCommit.Idle="True" c:EditCommit.IdleCommit="{Binding StageDraftCommand}" />
                 <TextBlock Classes="caption" Text="{Binding Hint}" IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 <TextBlock Classes="caption" TextWrapping="Wrap"
-                           Text="One change per person goes to Pending changes as you type. Enter or click away to finish; Esc undoes it." />
+                           Text="One change per person goes to Pending Changes as you type. Enter or click away to finish; Esc undoes it." />
               </StackPanel>
               <TextBlock Classes="caption" Text="{Binding Message}" IsVisible="{Binding HasMessage}" TextWrapping="Wrap" />
             </StackPanel>

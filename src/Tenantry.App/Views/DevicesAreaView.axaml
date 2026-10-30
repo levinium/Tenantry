@@ -9,7 +9,7 @@
              x:DataType="vm:DevicesAreaViewModel">
   <DockPanel>
     <!-- The area's pages -->
-    <TabStrip DockPanel.Dock="Top" Classes="pagetabs" Margin="0,8,0,10" ItemsSource="{x:Static vm:DevicesAreaViewModel.Pages}" SelectedItem="{Binding SelectedPage}">
+    <TabStrip DockPanel.Dock="Top" Classes="pagetabs" Margin="8,8,8,10" ItemsSource="{x:Static vm:DevicesAreaViewModel.Pages}" SelectedItem="{Binding SelectedPage}">
       <TabStrip.ItemsPanel>
         <ItemsPanelTemplate>
           <WrapPanel />

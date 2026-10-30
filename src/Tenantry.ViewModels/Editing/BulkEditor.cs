@@ -184,7 +184,7 @@ public sealed partial class BulkEditorViewModel : ObservableObject
         _ = value?.LoadAsync();
     }
 
-    public string StageText => Selected?.IsCaution == true ? "Add to Pending Changes (Takes Something Away)" : "Add to Pending Changes";
+    public string StageText => Selected?.IsCaution == true ? "Add to Pending Changes" : "Add to Pending Changes";
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StageCommand))]
@@ -232,8 +232,8 @@ public sealed partial class BulkEditorViewModel : ObservableObject
             Result = plan.Changes.Count switch
             {
                 0 => "Nothing to change: every selected row is already that way.",
-                1 => "Added 1 change. Review it in Pending changes at the bottom of the window.",
-                var n => $"Added {n:N0} changes. Review them in Pending changes at the bottom of the window.",
+                1 => "Added 1 change. Review it in Pending Changes at the bottom of the window.",
+                var n => $"Added {n:N0} changes. Review them in Pending Changes at the bottom of the window.",
             };
             if (plan.Skipped.Count > 0)
             {

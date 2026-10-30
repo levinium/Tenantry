@@ -16,7 +16,7 @@
         </Border>
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
           <TextBlock Classes="h1" Text="{Binding Title}" TextWrapping="Wrap" />
-          <SelectableTextBlock Classes="caption" Text="{Binding Subtitle}" />
+          <SelectableTextBlock Classes="caption" Text="{Binding Subtitle}" TextWrapping="Wrap" />
           <TextBlock Classes="caption pendingtext" Text="{Binding PendingText}" IsVisible="{Binding HasPending}" TextWrapping="Wrap" />
           <ItemsControl ItemsSource="{Binding Badges}">
             <ItemsControl.ItemsPanel>
@@ -49,15 +49,16 @@
             </StackPanel>
           </Border>
         </StackPanel>
-        <ItemsControl Grid.Column="2" ItemsSource="{Binding Buttons}" VerticalAlignment="Top">
+        <!-- Two to a row, so a page with many actions doesn't grow a tall column of buttons. -->
+        <ItemsControl Grid.Column="2" ItemsSource="{Binding OrderedButtons}" VerticalAlignment="Top" MaxWidth="420">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <StackPanel Spacing="8" />
+              <WrapPanel ItemSpacing="8" LineSpacing="8" HorizontalAlignment="Right" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:PageButton">
-              <Button Command="{Binding ActCommand}" ToolTip.Tip="{Binding Tip}" HorizontalAlignment="Stretch"
+              <Button Command="{Binding ActCommand}" ToolTip.Tip="{Binding Tip}"
                       Classes.accent="{Binding IsAccent}" Classes.danger-outline="{Binding IsDanger}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="16" />

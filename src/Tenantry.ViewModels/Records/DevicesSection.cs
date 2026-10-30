@@ -122,7 +122,7 @@ public sealed partial class DeviceItem : ObservableObject
     }.Where(s => s.Length > 0));
 
     public string LastText => Device.LastActivity is { } at
-        ? $"{(Device.IsManaged ? "Last checked in" : "Last signed in")} {at.ToLocalTime():d MMM yyyy}"
+        ? $"{(Device.IsManaged ? "Last check-in" : "Last sign-in")}: {at.ToLocalTime():d MMM yyyy}"
         : "No recent activity";
 
     public string JoinType => Device.JoinType;
@@ -137,7 +137,7 @@ public sealed partial class DeviceItem : ObservableObject
     [
         .. new (string, string?)[]
         {
-            ("How It's Theirs", Device.Relation),
+            ("Relationship", Device.Relation),
             ("Owned By", Device.Ownership),
             ("Serial Number", Device.Serial),
             ("Encrypted", Device.Encrypted switch { true => "Yes", false => "No", _ => null }),

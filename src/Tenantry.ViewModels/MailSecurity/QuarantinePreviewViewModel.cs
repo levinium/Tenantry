@@ -66,7 +66,7 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
     public string ReasonText => Message.ReasonText;
     public BadgeKind ReasonKind => Message.IsDangerous ? BadgeKind.Danger : Message.Reason == "Phish" ? BadgeKind.Warning : BadgeKind.Neutral;
     public string StatusText => MailSecurityLists.StatusOf(Message);
-    public string ReceivedText => Message.Received.ToLocalTime().ToString("d MMM yyyy, h:mm tt");
+    public string ReceivedText => Message.Received.ToLocalTime().ToString("d MMM yyyy h:mm tt");
     public string ExpiresText => Message.Expires is { } at ? $"Deleted automatically on {at.ToLocalTime():d MMM yyyy}" : "";
     public string? Policy => Message.Policy;
     public bool HasPolicy => !string.IsNullOrEmpty(Message.Policy);

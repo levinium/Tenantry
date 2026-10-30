@@ -37,6 +37,10 @@ public sealed partial class SiteDetailViewModel : TabViewModel, IDisposable
         Actions = CanEdit
             ? new BulkEditorViewModel(site.Title, BulkActions.ForSites(() => [Site], one: true, Index, me, tenantSharing), pipeline!)
             : null;
+        // The Sharing tab has the sharing ones too, beside what it shows.
+        SharingActions = CanEdit
+            ? new BulkEditorViewModel(site.Title, [.. BulkActions.ForSites(() => [Site], one: true, Index, me, tenantSharing).Where(a => SharingTitles.Contains(a.Title))], pipeline!)
+            : null;
         Sections =
         [
             new SiteOverviewSection(this),
@@ -67,6 +71,11 @@ public sealed partial class SiteDetailViewModel : TabViewModel, IDisposable
     /// <summary>Sharing, storage, lock, archive, delete and site admins; null when the admin can't edit.</summary>
     public BulkEditorViewModel? Actions { get; }
 
+    static readonly HashSet<string> SharingTitles = ["External Sharing", "Default Sharing Link", "Default Link Permission", "Guest Access Expiry"];
+
+    /// <summary>The sharing settings' actions, for the Sharing tab; null when the admin can't edit.</summary>
+    public BulkEditorViewModel? SharingActions { get; }
+
     /// <summary>The header's facts and badges, as the preview shows them.</summary>
     public SitePreviewViewModel Summary { get; private set; }
 
@@ -94,9 +103,16 @@ public sealed partial class SiteDetailViewModel : TabViewModel, IDisposable
         get
         {
             var labels = _pipeline?.Pending.Where(Touches)
-                .Select(p => p is SetGroupMembership m ? $"{(m.New ? "add" : "remove")} {m.Role.ToString().ToLowerInvariant()} {m.Person.Name}" : $"{p.Label} → {p.After}")
+                // One phrasing for every kind: what happens, then to whom.
+                .Select(p => p switch
+                {
+                    SetGroupMembership m => $"{(m.New ? "Add" : "Remove")} {m.Role.ToString().ToLowerInvariant()} {m.Person.Name}",
+                    SetSiteGroupMember g => $"{(g.New ? "Add" : "Remove")} {g.Person.Name} {(g.New ? "to" : "from")} {g.GroupName}",
+                    SetSiteAdmin a => $"{(a.New ? "Add" : "Remove")} site admin {a.Person.Name}",
+                    _ => $"{p.Label}: {p.After}",
+                })
                 .ToArray() ?? [];
-            return labels.Length == 0 ? null : "Pending: " + string.Join(", ", labels);
+            return labels.Length == 0 ? null : "Pending: " + string.Join("; ", labels);
         }
     }
 

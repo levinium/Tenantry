@@ -41,7 +41,7 @@
                     <SelectableTextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
                       <TextBlock Classes="caption" Text="{Binding By}" />
-                      <TextBlock Classes="caption" Text="{Binding Modified, StringFormat='{}{0:d MMM yyyy h:mm tt}'}" />
+                      <TextBlock Classes="caption" Text="{Binding Modified, Converter={x:Static conv:LocalTime.Instance}}" />
                     </StackPanel>
                   </Grid>
                 </DataTemplate>
@@ -52,7 +52,7 @@
       </Border>
     </DataTemplate>
   </UserControl.Resources>
-  <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Stretch">
+  <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <views:DeviceSectionStatusView />
     <Border Classes="card">
       <StackPanel Spacing="10">

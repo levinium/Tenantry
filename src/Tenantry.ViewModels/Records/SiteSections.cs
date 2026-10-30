@@ -28,7 +28,7 @@ public abstract class SiteSection(SiteDetailViewModel page) : LiveSection
         if (NoteActionText is null)
             return;
         NoteActionText = null;
-        Note = "Adding you as a site admin is waiting in Pending changes. Apply it, and this tab reads again.";
+        Note = "Adding you as a site admin is waiting in Pending Changes. Apply it, and this tab reads again.";
     }
 
     /// <summary>The site's row changed in the local copy (after a sync or applied changes).</summary>
@@ -157,7 +157,6 @@ public sealed class SiteOverviewSection(SiteDetailViewModel page) : SiteSection(
             ("Active Files", $"{u.ActiveFiles:N0} in the last 30 days"),
             ("Page Views", u.PageViews is { } views ? $"{views:N0} in the last 30 days" : null),
             ("Pages Visited", u.VisitedPages is { } pages ? $"{pages:N0}" : null),
-            ("Last Activity", u.LastActivity is { } day ? day.ToString("dddd, MMMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture) : null),
         }.Where(f => f.Item2 is not null).Select(f => new SummaryLine(f.Item1, f.Item2!)),
     ];
 
@@ -276,7 +275,7 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
         {
             row.StateText = "Removing";
             row.ActionText = "Undo";
-            row.ActionTip = "Keep them (takes the change out of Pending changes)";
+            row.ActionTip = "Keep them (takes the change out of Pending Changes)";
             row.Act = () => Page.Pipeline!.Unstage(pending);
         }
         else if (locked is not null)
@@ -284,7 +283,7 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
         else if (remove is not null)
         {
             row.ActionText = "Remove";
-            row.ActionTip = "Take them out (added to Pending changes)";
+            row.ActionTip = "Take them out (added to Pending Changes)";
             row.Act = () => Page.Pipeline!.Stage(remove());
         }
         return row;
@@ -296,7 +295,7 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
         var row = Row(p);
         row.StateText = "Adding";
         row.ActionText = "Undo";
-        row.ActionTip = "Don't add them (takes the change out of Pending changes)";
+        row.ActionTip = "Don't add them (takes the change out of Pending Changes)";
         row.Act = () => Page.Pipeline!.Unstage(pending);
         return row;
     }
@@ -439,7 +438,12 @@ public sealed class SiteSharingSection(SiteDetailViewModel page) : SiteSection(p
         _ => "",
     };
 
-    /// <summary>The site's sharing settings (changed from the Overview tab's actions).</summary>
+    /// <summary>The sharing settings' actions; null when the admin can't edit.</summary>
+    public BulkEditorViewModel? Actions => Page.SharingActions;
+
+    public bool HasActions => Page.SharingActions is not null;
+
+    /// <summary>The site's sharing settings.</summary>
     public IReadOnlyList<SummaryLine> Settings =>
     [
         new("Default Link", SiteSettings.LinkTypeName(Site.LinkType)),
