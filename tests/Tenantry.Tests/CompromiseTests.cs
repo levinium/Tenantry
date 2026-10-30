@@ -12,6 +12,19 @@ public sealed class CompromiseTests
 
     static readonly DateTimeOffset Now = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
 
+    static InboxRule Rule(string name, string? movesTo) => new("id", name, true, 1, "", false, [], false, movesTo);
+
+    [Theory]
+    [InlineData("Tidy", "Mailbox:\\RSS Feeds", "Moves Mail to RSS Feeds", true)]
+    [InlineData("Tidy", "Conversation History", "Moves Mail to Conversation History", true)]
+    [InlineData(".", null, "Has No Real Name", true)]
+    [InlineData("Old mail", "Archive", "Moves Mail to Archive", false)]
+    public void Rules_that_hide_mail_are_warning_signs(string name, string? movesTo, string what, bool likely) =>
+        Assert.Equal<(string, bool)?>((what, likely), CompromiseViewModel.Suspicion(Rule(name, movesTo)));
+
+    [Fact]
+    public void A_rule_filing_mail_into_an_ordinary_folder_is_fine() => Assert.Null(CompromiseViewModel.Suspicion(Rule("Newsletters", "Newsletters")));
+
     sealed class Fake : IUserRecords, ISecurityRecords, IMailboxContents, IActivityRecords
     {
         public Task<UserDetails> GetDetailsAsync(string userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();

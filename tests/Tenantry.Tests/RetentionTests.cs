@@ -260,6 +260,10 @@ public sealed class RetentionTests
 
         var locked = new RetentionPolicyPageViewModel(r.Policies[0] with { IsLocked = true }, ctx);
         Assert.Equal(["Open in Purview"], locked.Buttons.Select(b => b.Text));
+
+        // Still being put in place: Purview refuses changes until it's done, so none are offered.
+        var deploying = new RetentionPolicyPageViewModel(r.Policies[0] with { Distribution = "Pending" }, ctx);
+        Assert.Equal(["Open in Purview"], deploying.Buttons.Select(b => b.Text));
     }
 
     [Fact]

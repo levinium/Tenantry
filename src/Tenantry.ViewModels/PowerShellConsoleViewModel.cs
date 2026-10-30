@@ -85,7 +85,7 @@ public sealed partial class PsBlock(string command, Action<string> editAgain) : 
             for (; _heldBlanks > 0; _heldBlanks--)
                 touched.Add(Append(PsStream.Output, ""));
             touched.Add(Append(line.Stream, line.Text.TrimEnd()));
-            if (++_lines >= MaxLines)
+            if (_lines >= MaxLines)
             {
                 IsCut = true;
                 touched.Add(Append(PsStream.Warning, $"Only the first {MaxLines:N0} lines are shown. To see everything, send it to a file: … | Export-Csv results.csv"));
@@ -158,7 +158,7 @@ public sealed partial class PowerShellConsoleViewModel : TabViewModel, IDisposab
 
     public string Banner => IsDemo
         ? "Demo tenant: commands here aren't sent anywhere. In your own tenant they run in this computer's PowerShell 7, signed in as you."
-        : $"Commands here go straight to {_tenantName} as you: they don't wait in Pending Changes, and Test Mode doesn't limit them. Each one is recorded in the Change Log.";
+        : $"Commands here go straight to {_tenantName} as you: they don't wait in Pending Changes, and Test Mode doesn't limit them. Each one is recorded in the Change Log, with passwords and secrets typed in it hidden.";
 
     public ObservableCollection<PsBlock> Blocks { get; } = [];
 
@@ -235,7 +235,8 @@ public sealed partial class PowerShellConsoleViewModel : TabViewModel, IDisposab
         };
     }
 
-    bool CanRun => Status == PsSessionStatus.Ready && !string.IsNullOrWhiteSpace(Input);
+    // Not started: PowerShell ended (an "exit", say); the next command starts it again.
+    bool CanRun => Status is PsSessionStatus.Ready or PsSessionStatus.NotStarted && !string.IsNullOrWhiteSpace(Input);
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     async Task Run()
@@ -267,7 +268,7 @@ public sealed partial class PowerShellConsoleViewModel : TabViewModel, IDisposab
         Flush();
         block.IsRunning = false;
         block.Result = result;
-        _pipeline?.Record(new PowerShellCommand(ChangePipeline.TenantTarget(_tenantName), script),
+        _pipeline?.Record(new PowerShellCommand(ChangePipeline.TenantTarget(_tenantName), PowerShellCommand.Masked(script)),
             result switch
             {
                 { Stopped: true } => "Stopped before it finished.",

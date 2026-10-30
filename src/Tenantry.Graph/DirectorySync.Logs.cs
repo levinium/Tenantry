@@ -25,11 +25,26 @@ public sealed partial class DirectorySync
     {
         if (!Settings.LogsOn || _logs is { IsCompleted: false } || !Due(LogsMark, scope, Settings.LogsMinutes))
             return;
-        _logs = ArchiveLogsNowAsync(null, CancellationToken.None);
+        _logs = ArchiveAsync(null, _stopping.Token);
     }
 
-    /// <summary>Adds new sign-ins and audit events to the archive now (the archive page's Update Now).</summary>
+    /// <summary>
+    /// Adds new sign-ins and audit events to the archive now (the archive page's Read New Events
+    /// Now). A run already going (the scheduled one) is waited for rather than doubled: two at
+    /// once would read the same events twice and press harder on Microsoft's audit log limits.
+    /// </summary>
     public async Task ArchiveLogsNowAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        if (_logs is { IsCompleted: false } running)
+        {
+            await running.WaitAsync(cancellationToken);
+            return;
+        }
+        using var both = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _stopping.Token);
+        await (_logs = ArchiveAsync(progress, both.Token));
+    }
+
+    async Task ArchiveAsync(IProgress<string>? progress, CancellationToken cancellationToken)
     {
         if (Archiver is not { } archiver)
             return;

@@ -36,20 +36,26 @@ public static class GroupAccess
     };
 
     /// <summary>Why someone's place in a group can't be changed here, or null when it can.</summary>
+    /// <summary>Whether people can be added to or taken out of it here (not dynamic, not synced from AD).</summary>
+    public static bool MembersEditable(GroupSummary g) => !g.IsDynamic && !g.SyncedFromOnPremises;
+
     public static string? LockedReason(GroupSummary g, GroupRole role) =>
-        role == GroupRole.Member && g.IsDynamic ? "Membership follows the group's rule: change the rule (or the person's details) to change who is in it." : null;
+        role == GroupRole.Member && g.IsDynamic ? "Membership follows the group's rule: change the rule (or the person's details) to change who is in it."
+        : role == GroupRole.Member && g.SyncedFromOnPremises ? "Synced from on-premises Active Directory: change who is in it there, and Entra Connect copies it up."
+        : null;
 
     /// <summary>
     /// Microsoft 365 and security groups that have owners must keep at least one (Graph refuses
     /// the removal). Returns why an owner can't be removed, counting changes already staged, or null.
     /// </summary>
-    public static string? LastOwnerReason(GroupSummary g, ChangePipeline? pipeline)
+    /// <param name="alsoLeaving">Owners about to be taken off too, not yet in Pending changes (offboarding several at once).</param>
+    public static string? LastOwnerReason(GroupSummary g, ChangePipeline? pipeline, int alsoLeaving = 0)
     {
         if (g.IsExchangeManaged || g.IsMailbox)
             return null;
         var staying = g.OwnerList.Count(o => pipeline?.PendingFor(g.Id, $"{GroupRole.Owner}:{o.Id}") is not SetGroupMembership { New: false });
         var adding = pipeline?.Pending.OfType<SetGroupMembership>().Count(p => p.Group.Id == g.Id && p.Role == GroupRole.Owner && p.New) ?? 0;
-        return staying + adding <= 1 ? "A group must keep at least one owner: add another owner first, then remove this one." : null;
+        return staying + adding - alsoLeaving <= 1 ? "A group must keep at least one owner: add another owner first, then remove this one." : null;
     }
 
     /// <summary>A member as a row: named from the local copy where it can be.</summary>
@@ -94,6 +100,21 @@ public static class GroupAccess
     /// <summary>People who sign in: members and guests, not the accounts behind shared mailboxes.</summary>
     public static IEnumerable<PickOption> People(IDirectoryIndex index) =>
         index.AllUsers.Where(u => UserFields.TypeOf(u) is UserFields.Member or UserFields.Guest).Select(PickOption.Of);
+
+    /// <summary>What a picker says beside someone SharePoint won't take (seen live: it can't find them).</summary>
+    public const string NoSharePointLicense = "No license: SharePoint can't add them";
+
+    /// <summary>
+    /// People for a SharePoint picker (site admins, a site's own groups, a new site's owners). Members
+    /// with no license are still listed, labelled: SharePoint only knows licensed people and guests.
+    /// </summary>
+    public static IEnumerable<PickOption> SitePeople(IDirectoryIndex index) =>
+        index.AllUsers.Where(u => UserFields.TypeOf(u) is UserFields.Member or UserFields.Guest)
+            .Select(u =>
+            {
+                var o = PickOption.Of(u);
+                return u.Kind == UserKind.Member && u.Licenses.Count == 0 ? o with { Detail = $"{o.Detail} · {NoSharePointLicense}" } : o;
+            });
 
     /// <summary>
     /// Who can join a group as a member: Microsoft 365 groups take people only; security groups

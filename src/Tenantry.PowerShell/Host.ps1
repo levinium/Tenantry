@@ -4,7 +4,9 @@
 # so their variables last until the session restarts. Its own variables start $__tny_.
 $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
-$ConfirmPreference = 'None'
+# $ConfirmPreference stays at its default on purpose: a cmdlet that would ask "are you sure"
+# (Remove-Mailbox) then stops with an error saying to add -Confirm:$false, rather than deleting
+# without a word. (Tenantry's own scripts already pass -Confirm:$false where it sends that.)
 $PSStyle.OutputRendering = 'PlainText'
 $ErrorView = 'ConciseView'
 [Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false)
@@ -30,6 +32,9 @@ function __TnyLine([string]$stream, [string]$text) {
 # which means nothing to whoever typed the command.
 function __TnyError($record) {
     $message = if ($record.ErrorDetails.Message) { $record.ErrorDetails.Message } else { $record.Exception.Message }
+    if ($message -like '*NonInteractive mode*') {
+        $message = "It asked a question, and the console can't ask one. If it was asking to confirm, add -Confirm:`$false (or -Force for PnP) and run it again; otherwise give the answer as a parameter."
+    }
     $command = $record.InvocationInfo.MyCommand.Name
     if ($command -and $command -notlike '*.ps1') { "${command}: $message" } else { $message }
 }
@@ -107,7 +112,7 @@ function __TnyInstall {
         if ($found[$name]) {
             continue
         }
-        __TnyLine 'Information' "Installing $name for this Windows/Mac/Linux user from the PowerShell Gallery…"
+        __TnyLine 'Information' "Installing $name for your user account from the PowerShell Gallery…"
         try {
             if (Get-Command Install-PSResource -ErrorAction SilentlyContinue) {
                 Install-PSResource -Name $name -Scope CurrentUser -TrustRepository -ErrorAction Stop *> $null

@@ -203,9 +203,15 @@ namespace Tenantry.ViewModels
         protected override IEnumerable<ChangeOp> Pending =>
             Pipeline?.Pending.OfType<RetentionChange>().Where(c => c.Item.Kind == RetentionChange.PolicyKind && c.Item.Name == Policy.Name) ?? [];
 
-        /// <summary>Why it can't be changed now, or null.</summary>
+        const string StillApplying = "Purview is still applying its last change everywhere.";
+
+        /// <summary>
+        /// Why it can't be changed now, or null. While its last change is still being put in place,
+        /// Purview refuses any other ("being deployed", seen live), so nothing is offered until then.
+        /// </summary>
         string? Frozen => Policy.IsPendingDeletion ? "It's being deleted."
             : Policy.IsLocked ? "It has Preservation Lock, so it can only be made stricter, in Purview."
+            : Policy.Distribution is "Pending" ? StillApplying
             : null;
 
         public override IReadOnlyList<PageButton> Buttons
@@ -240,9 +246,9 @@ namespace Tenantry.ViewModels
 
         IReadOnlyList<AppCard> Overview() =>
         [
-            .. Frozen is { } why ? [new AppCard("Can't Be Changed Here", why)] : Array.Empty<AppCard>(),
+            .. Frozen is { } why && why != StillApplying ? [new AppCard("Can't Be Changed Here", why)] : Array.Empty<AppCard>(),
             .. Policy.Distribution is "Pending" ? [new AppCard("Being Put in Place",
-                "Purview is still applying its last change everywhere. Until it finishes, the policy can't be changed or deleted; this can take a while.")] : Array.Empty<AppCard>(),
+                $"{StillApplying} Until it finishes, the policy can't be changed, turned off or deleted; this can take a while. Open it again later to see.")] : Array.Empty<AppCard>(),
             new AppCard("Details", Facts:
             [
                 new("Kind", F.KindText(Policy.Kind)),

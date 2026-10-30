@@ -160,7 +160,7 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
         new(rows, uncheck, "device", "devices",
             r => (((DeviceSummary)r).Name, DescribeDevice((DeviceSummary)r)),
             SummarizeDevices,
-            current => BulkActions.ForDevices(() => current().Cast<DeviceSummary>().ToArray(), now),
+            current => BulkActions.ForDevices(() => current().Cast<DeviceSummary>().ToArray(), now, pending: () => pipeline?.Pending ?? []),
             pipeline, canEdit);
 
     public static SelectionPanelViewModel ForAutopilot(IReadOnlyList<object> rows, Action<object> uncheck, ChangePipeline? pipeline, Availability canEdit) =>
@@ -538,9 +538,25 @@ public sealed partial class BulkDetailsViewModel : ObservableObject, IMixedField
             _pipeline.Restore(start.Select(s => (s.Id, field.Property, s.Pending)));
     }
 
+    /// <summary>The latest edit per detail: a slower, older one (a pause, then Enter) mustn't land after it.</summary>
+    readonly Dictionary<string, int> _latest = new(StringComparer.Ordinal);
+
     async Task IMixedFieldHost.StageAsync(MixedField field, bool close)
     {
-        var plan = await BulkActions.SetDetailAsync(_selected(), _records, field.Property, field.Draft.Trim(), CancellationToken.None, _known);
+        var mine = _latest[field.Property] = _latest.GetValueOrDefault(field.Property) + 1;
+        BulkPlan plan;
+        try
+        {
+            plan = await BulkActions.SetDetailAsync(_selected(), _records, field.Property, field.Draft.Trim(), CancellationToken.None, _known);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            if (_latest[field.Property] == mine)
+                field.Message = $"Couldn't read everyone's current {field.Label.ToLowerInvariant()}: {Friendly.Message(e)} Try again.";
+            return;
+        }
+        if (_latest[field.Property] != mine)
+            return;
         if (plan.Error is { } error)
         {
             field.Message = error;

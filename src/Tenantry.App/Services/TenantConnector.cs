@@ -107,7 +107,8 @@ public sealed class TenantConnector : ITenantConnector
             SyncSettings: syncSettings,
             PasswordStyle: passwordStyle,
             Scripts: new GraphChangeScripts(),
-            PowerShell: () => new Tenantry.PowerShell.PwshSession((interactive, ct) => PowerShellSignInAsync(graph, tokens, purview, interactive, ct)));
+            PowerShell: () => new Tenantry.PowerShell.PwshSession((interactive, ct) => PowerShellSignInAsync(graph, tokens, purview, interactive, ct)),
+            ClientId: profile.ClientId);
     }
 
     /// <summary>

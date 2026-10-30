@@ -59,7 +59,7 @@ public sealed partial class GraphChangeExecutor
         SetSiteSetting s => PsScript.SharePoint(Ps.Cmdlet("Set-PnPTenantSite",
             new Dictionary<string, object?> { ["Identity"] = s.SiteUrl }.Concat(SiteValues(s.Values).Select(v => new KeyValuePair<string, object?>(v.Name, SiteValue(v)))))),
         SetSiteArchived a => PsScript.SharePoint(Ps.Cmdlet("Set-PnPSiteArchiveState",
-            new Dictionary<string, object?> { ["Identity"] = a.SiteUrl, ["ArchiveState"] = a.Archive ? "Archived" : "Active" })),
+            new Dictionary<string, object?> { ["Identity"] = a.SiteUrl, ["ArchiveState"] = a.Archive ? "Archived" : "Active", ["Force"] = true })),
         DeleteSite { GroupId: { } groupId } => PsScript.Graph(Ps.Graph("DELETE", $"groups/{groupId}"),
             "The site goes with its Microsoft 365 group; SharePoint moves it to the recycle bin within a few minutes."),
         DeleteSite d => PsScript.SharePoint(Ps.Cmdlet("Remove-PnPTenantSite", new Dictionary<string, object?> { ["Url"] = d.SiteUrl, ["Force"] = true }),

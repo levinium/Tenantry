@@ -89,7 +89,10 @@ public static class CaJson
     /// What's wrong with a policy before it can be saved, as Entra would refuse it (or as a lockout
     /// waits to happen), in plain words.
     /// </summary>
-    public static IReadOnlyList<string> Problems(JsonObject policy, string? me)
+    /// <param name="me">The signed-in admin's user ID, when known.</param>
+    /// <param name="myGroups">Groups the admin is in, and <paramref name="myRoles"/> the admin roles
+    /// (template IDs) they hold: a policy can cover them through either.</param>
+    public static IReadOnlyList<string> Problems(JsonObject policy, string? me, IReadOnlySet<string>? myGroups = null, IReadOnlySet<string>? myRoles = null)
     {
         var problems = new List<string>();
         var include = Strings(policy, "conditions/users/includeUsers");
@@ -111,10 +114,49 @@ public static class CaJson
             problems.Add("Block access can't be combined with other requirements.");
         if (controls.Contains("mfa") && strength)
             problems.Add("Require MFA and an authentication strength can't both be chosen: the strength already includes MFA.");
-        if (controls.Contains("block") && include.Contains("All") && me is not null
-            && !Strings(policy, "conditions/users/excludeUsers").Contains(me, StringComparer.OrdinalIgnoreCase)
-            && policy["state"]?.GetValue<string>() == "enabled")
-            problems.Add("It would block everyone, you included. Leave yourself out, or start it in report-only.");
+        if (controls.Contains("block") && policy["state"]?.GetValue<string>() == "enabled" && !Narrowed(policy) && BlocksMe(policy, me, myGroups, myRoles) is { } how)
+            problems.Add($"It would block you ({how}). Leave yourself out, or start it in report-only.");
         return problems;
+    }
+
+    /// <summary>
+    /// A block that only reaches some sign-ins: older mail apps, certain platforms or places,
+    /// risky sign-ins, matching devices, or particular apps. Those don't stop the admin's own
+    /// sign-in (blocking older mail apps for everyone is common and safe), so the guard leaves them be.
+    /// </summary>
+    static bool Narrowed(JsonObject policy)
+    {
+        var clients = Strings(policy, "conditions/clientAppTypes");
+        var places = Strings(policy, "conditions/locations/includeLocations");
+        var platforms = Strings(policy, "conditions/platforms/includePlatforms");
+        var apps = Strings(policy, "conditions/applications/includeApplications");
+        return clients.Count > 0 && !clients.Any(c => c is "all" or "browser" or "mobileAppsAndDesktopClients")
+               || places.Count > 0 && !places.Contains("All")
+               || platforms.Count > 0 && !platforms.Contains("all")
+               || Strings(policy, "conditions/signInRiskLevels").Count > 0 || Strings(policy, "conditions/userRiskLevels").Count > 0
+               || policy["conditions"]?["devices"]?["deviceFilter"] is JsonObject
+               || apps.Count > 0 && !apps.Any(a => a is "All" or "MicrosoftAdminPortals" or "Office365");
+    }
+
+    /// <summary>
+    /// How a blocking policy reaches the admin ("it covers everyone", "through a role you hold"), or
+    /// null when it leaves them out (as a person, through a group or through a role) or doesn't reach them.
+    /// </summary>
+    static string? BlocksMe(JsonObject policy, string? me, IReadOnlySet<string>? myGroups, IReadOnlySet<string>? myRoles)
+    {
+        bool Holds(string path, IReadOnlySet<string>? mine) => mine is not null && Strings(policy, path).Any(mine.Contains);
+        if (me is not null && Strings(policy, "conditions/users/excludeUsers").Contains(me, StringComparer.OrdinalIgnoreCase)
+            || Holds("conditions/users/excludeGroups", myGroups) || Holds("conditions/users/excludeRoles", myRoles))
+            return null;
+        var include = Strings(policy, "conditions/users/includeUsers");
+        if (include.Contains("All"))
+            return me is null ? null : "it covers everyone";
+        if (me is not null && include.Contains(me, StringComparer.OrdinalIgnoreCase))
+            return "it names you";
+        if (Holds("conditions/users/includeGroups", myGroups))
+            return "through a group you're in";
+        if (Holds("conditions/users/includeRoles", myRoles))
+            return "through an admin role you hold";
+        return null;
     }
 }

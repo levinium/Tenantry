@@ -26,8 +26,17 @@ namespace Tenantry.Graph;
 /// <param name="settings">How often each part is re-read (Settings); the defaults when null.</param>
 /// <param name="sharePoint">The SharePoint admin site, for sites and OneDrives; skipped when null.</param>
 public sealed partial class DirectorySync(GraphClient graph, IEntityStore store, ICmdletRunner? exchange = null, Func<DateTimeOffset>? now = null,
-    Func<SyncSettings>? settings = null, SharePointAdmin? sharePoint = null, bool keepLogs = false) : ITenantSync
+    Func<SyncSettings>? settings = null, SharePointAdmin? sharePoint = null, bool keepLogs = false) : ITenantSync, IDisposable
 {
+    /// <summary>
+    /// Cancelled when the tenant closes: the background reads (mailbox details, the log archive)
+    /// run for minutes on their own and must stop rather than keep calling Microsoft 365 and
+    /// writing to a closed local copy.
+    /// </summary>
+    readonly CancellationTokenSource _stopping = new();
+
+    public void Dispose() => _stopping.Cancel();
+
     /// <summary>Each mailbox's size and automatic-reply state (one Exchange read per mailbox for each).</summary>
     public const string MailboxDetails = "mailboxdetails";
 
@@ -52,14 +61,21 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
     /// <summary>A row stored beside the report when it was read with names: someone missing from it has activated nothing.</summary>
     public const string ActivationsReadId = "#read";
 
-    const string UserSelect = "id,displayName,userPrincipalName,mail,department,jobTitle,accountEnabled,userType,createdDateTime,assignedLicenses";
+    const string UserSelect = "id,displayName,userPrincipalName,mail,department,jobTitle,accountEnabled,userType,createdDateTime,assignedLicenses,"
+        + "onPremisesSyncEnabled,usageLocation";
+
+    /// <summary>The user fields last read in full: when a newer Tenantry keeps more, everyone is read again once.</summary>
+    const string UserFieldsMark = "users.fields";
 
     /// <summary>The user properties the local copy keeps (for writing a new user straight into it).</summary>
     public const string UserSelectFields = UserSelect;
     /// <summary>Licenses with counts and their apps, for the license picker and per-app switches.</summary>
     public const string SkuSelect = "skuId,skuPartNumber,prepaidUnits,consumedUnits,servicePlans,appliesTo,capabilityStatus";
 
-    const string GroupSelect = "id,displayName,mail,mailEnabled,securityEnabled,groupTypes,description,visibility,createdDateTime,members,owners";
+    const string GroupSelect = "id,displayName,mail,mailEnabled,securityEnabled,groupTypes,description,visibility,createdDateTime,onPremisesSyncEnabled,members,owners";
+
+    /// <summary>The group fields last read in full (as <see cref="UserFieldsMark"/> is for users).</summary>
+    const string GroupFieldsMark = "groups.fields";
 
     /// <summary>
     /// Where the groups' delta link is kept. Bumped when the selected properties grow (owners,
@@ -116,9 +132,14 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                 progress?.Report("Reading licenses…");
                 changed = await ReadWholeAsync(Skus, $"subscribedSkus?$select={SkuSelect}", "skuId", cancellationToken);
                 progress?.Report("Checking users for changes…");
-                changed += await SyncDeltaAsync(Users, Users, $"users/delta?$select={UserSelect}", "users", scope, _ => item => new EntityChange(Id(item), ToObject(item)), progress, cancellationToken);
+                // Changes only bring the fields asked for to people who changed, so new fields need one full read.
+                var userScope = store.GetMark(UserFieldsMark)?.Cursor == UserSelect ? scope : SyncScope.StartOver;
+                changed += await SyncDeltaAsync(Users, Users, $"users/delta?$select={UserSelect}", "users", userScope, _ => item => new EntityChange(Id(item), ToObject(item)), progress, cancellationToken);
+                store.SetMark(UserFieldsMark, new SyncMark(UserSelect, _now()));
                 progress?.Report("Checking groups for changes…");
-                changed += await SyncDeltaAsync(Groups, GroupsMark, $"groups/delta?$select={GroupSelect}", "groups", scope, GroupMapper, progress, cancellationToken);
+                var groupScope = store.GetMark(GroupFieldsMark)?.Cursor == GroupSelect ? scope : SyncScope.StartOver;
+                changed += await SyncDeltaAsync(Groups, GroupsMark, $"groups/delta?$select={GroupSelect}", "groups", groupScope, GroupMapper, progress, cancellationToken);
+                store.SetMark(GroupFieldsMark, new SyncMark(GroupSelect, _now()));
                 changed += await SyncDevicesAsync(notes, scope, progress, cancellationToken);
                 if (Due(ManagedDevices, scope))
                     changed += await SyncManagedDevicesAsync(notes, progress, cancellationToken);
@@ -636,7 +657,7 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
             try
             {
                 var notes = new List<string>();
-                if (await SyncMailboxDetailsAsync(sizes, replies, notes, CancellationToken.None) > 0)
+                if (await SyncMailboxDetailsAsync(sizes, replies, notes, _stopping.Token) > 0)
                     BackgroundUpdated?.Invoke(this, EventArgs.Empty);
                 _detailNotes = notes;
             }

@@ -86,7 +86,10 @@ public sealed class NewUserTests
         form.FirstName = "Ada";
         form.LastName = "Lovelace";
         form.Alias = "ada";
-        Assert.Contains(form.Problems, p => p.Contains("already someone's sign-in name", StringComparison.Ordinal));
+        Assert.Contains(form.Problems, p => p.Contains("is already in use", StringComparison.Ordinal));
+        // A group's address too: the new mailbox would otherwise get a different one.
+        form.Alias = "finance";
+        Assert.Contains(form.Problems, p => p.StartsWith("finance@contoso.example is already in use", StringComparison.Ordinal));
         form.Alias = ".bad";
         Assert.Contains(form.Problems, p => p.Contains("can't start or end with a dot", StringComparison.Ordinal));
         form.Alias = "ada2";

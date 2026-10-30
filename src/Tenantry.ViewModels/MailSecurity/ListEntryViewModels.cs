@@ -190,7 +190,8 @@ public sealed partial class ListEntryPreviewViewModel : ObservableObject, IDispo
         _pipeline = pipeline;
         _canEdit = canEdit;
         NotesDraft = entry.Notes ?? "";
-        Expiry = ExpiryOptions.First(o => o.Choice == (entry.Expires is not null ? ExpiryChoice.OnDate : entry.RemoveAfterDays is not null ? ExpiryChoice.AfterLastUse : ExpiryChoice.Never));
+        var current = entry.Expires is not null ? ExpiryChoice.OnDate : entry.RemoveAfterDays is not null ? ExpiryChoice.AfterLastUse : ExpiryChoice.Never;
+        Expiry = ExpiryOptions.FirstOrDefault(o => o.Choice == current) ?? ExpiryOptions[0];
         ExpiryDate = entry.Expires?.LocalDateTime.Date;
         if (_pipeline is not null)
             _pipeline.Changed += OnPendingChanged;
@@ -238,9 +239,15 @@ public sealed partial class ListEntryPreviewViewModel : ObservableObject, IDispo
             _pipeline!.Stage(new RemoveListEntry(Target, Entry.Kind, Entry.Identity, Entry.Block));
     }
 
+    /// <summary>
+    /// Blocks can last for ever; allows normally expire, but some (allowed spoofed senders, entries
+    /// made elsewhere) have no expiry at all, and then "Never Expires" is how they stand.
+    /// </summary>
     public IReadOnlyList<ExpiryOption> ExpiryOptions => Entry.Block
         ? [new(ExpiryChoice.Never, "Never Expires"), new(ExpiryChoice.OnDate, "Until a Date")]
-        : [new(ExpiryChoice.AfterLastUse, "45 Days After It Last Matches"), new(ExpiryChoice.OnDate, "Until a Date")];
+        : Entry.Expires is null && Entry.RemoveAfterDays is null
+            ? [new(ExpiryChoice.Never, "Never Expires"), new(ExpiryChoice.AfterLastUse, "45 Days After It Last Matches"), new(ExpiryChoice.OnDate, "Until a Date")]
+            : [new(ExpiryChoice.AfterLastUse, "45 Days After It Last Matches"), new(ExpiryChoice.OnDate, "Until a Date")];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsOnDate))]

@@ -65,6 +65,21 @@ public sealed class DevicePageTests
     }
 
     [Fact]
+    public async Task A_device_deleted_since_the_last_refresh_says_so_rather_than_failing()
+    {
+        var http = new FakeHttp()
+            .On(HttpMethod.Get, "/beta/deviceManagement/managedDevices/m1", """{"error":{"code":"NotFound","message":"gone"}}""", HttpStatusCode.NotFound)
+            .On(HttpMethod.Get, "/devices/e1/registeredOwners", """{"error":{"code":"Request_ResourceNotFound","message":"gone"}}""", HttpStatusCode.NotFound)
+            .On(HttpMethod.Get, "/devices/e1/registeredUsers", """{"error":{"code":"Request_ResourceNotFound","message":"gone"}}""", HttpStatusCode.NotFound);
+
+        var live = await Records(http).GetDeviceAsync(Laptop(), Ct);
+
+        Assert.Null(live.Hardware);
+        Assert.Empty(live.Owners);
+        Assert.StartsWith("Entra no longer lists this device", live.IntuneProblem, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Policies_put_problems_first_and_settings_are_read_on_their_own()
     {
         var http = new FakeHttp()

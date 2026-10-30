@@ -34,7 +34,7 @@ public sealed class ReportsTests
 
         pipeline.Stage(new SetSignInAllowed(ada, true, false));
         await pipeline.ApplyAsync(cancellationToken: Ct);
-        area.SelectedPage = ReportsAreaViewModel.Pages.Single(p => p.Key == "changelog");
+        // One read, awaited (choosing the page would start a second one alongside it).
         await area.ChangeLog.LoadAsync(Ct);
 
         var entry = Assert.IsType<ChangeLogEntry>(Assert.Single(area.ChangeLog.Rows));

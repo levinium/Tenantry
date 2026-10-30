@@ -100,6 +100,42 @@ public sealed class PowerShellConsoleTests
     }
 
     [Fact]
+    public async Task Secrets_typed_in_a_command_are_hidden_in_the_change_log()
+    {
+        var pipeline = Pipeline();
+        var console = new PowerShellConsoleViewModel(new FakeSession(), pipeline, "Contoso", isDemo: false);
+
+        console.Input = """
+            $pw = ConvertTo-SecureString 'Sunny-Day-42' -AsPlainText -Force
+            New-MgUser -DisplayName 'Ada' -PasswordProfile @{ Password = "Rainy-Day-7"; ForceChangePasswordNextSignIn = $true }
+            Connect-Thing -Token 'tok-123' -ClientSecret:'shh-456'
+            $body = '{ "password": "Json-Pass-8" }'
+            """;
+        await console.RunCommand.ExecuteAsync(null);
+
+        var script = Assert.IsType<PowerShellCommand>(Assert.Single(pipeline.Log.All()).Change).Script;
+        foreach (var secret in new[] { "Sunny-Day-42", "Rainy-Day-7", "tok-123", "shh-456", "Json-Pass-8" })
+            Assert.DoesNotContain(secret, script);
+        Assert.Contains("New-MgUser -DisplayName 'Ada'", script);
+        Assert.Contains("ForceChangePasswordNextSignIn = $true", script);
+        Assert.Contains("passwords and secrets typed in it hidden", console.Banner);
+    }
+
+    [Fact]
+    public async Task Long_output_is_cut_at_five_thousand_lines()
+    {
+        var session = new FakeSession(_ => [.. Enumerable.Range(1, 6000).Select(i => new PsLine(PsStream.Output, $"line {i}"))]);
+        var console = new PowerShellConsoleViewModel(session, null, "Contoso", isDemo: false);
+
+        console.Input = "Get-Everything";
+        await console.RunCommand.ExecuteAsync(null);
+
+        var block = Assert.Single(console.Blocks);
+        Assert.True(block.IsCut);
+        Assert.Equal(PsBlock.MaxLines, block.Chunks[0].Text.Split('\n').Length);
+    }
+
+    [Fact]
     public async Task A_command_with_errors_is_logged_as_failed()
     {
         var session = new FakeSession(_ => [new(PsStream.Error, "Set-Mailbox: The operation couldn't be performed.")]);
@@ -216,7 +252,6 @@ public sealed class PowerShellConsoleTests
         var ada = new ChangeTarget("user", "u1", "Ada Example", "ada@contoso.example");
         pipeline.Record(new SetHiddenFromAddressList(ada, false, true));
         pipeline.Record(new PowerShellCommand(ChangePipeline.TenantTarget("Contoso"), "Get-Mailbox\n| Select Name"), "It wrote 1 error.", ChangeOutcome.Failed);
-        area.SelectedPage = ReportsAreaViewModel.Pages.Single(p => p.Key == "changelog");
         await area.ChangeLog.LoadAsync(Ct);
 
         var entries = area.ChangeLog.Rows.Cast<ChangeLogEntry>().ToArray();

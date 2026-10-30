@@ -80,7 +80,7 @@ public sealed partial class RuleValueEditor : ObservableObject
                 };
                 break;
             case RuleInput.Date:
-                Date = DateTime.TryParse(RuleValues.ToText(value), CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ? date.Date : null;
+                Date = ReadDate(RuleValues.ToText(value));
                 break;
             case RuleInput.Switch:
                 IsOn = value is JsonValue on && on.GetValueKind() == JsonValueKind.True;
@@ -250,6 +250,25 @@ public sealed partial class RuleValueEditor : ObservableObject
         _changed(value);
     }
 
+    /// <summary>
+    /// A rule date as the day it falls on here: a moment ("…T05:00:00Z") in local time, a bare day
+    /// ("2026-12-01") as written.
+    /// </summary>
+    public static DateTime? ReadDate(string text)
+    {
+        text = text.Trim();
+        if (text.Length == 10 && DateTime.TryParseExact(text, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day))
+            return day;
+        return DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var at) ? at.ToLocalTime().Date : null;
+    }
+
+    /// <summary>
+    /// The start of the chosen day here, with its offset: a bare date would be read as midnight UTC,
+    /// so a rule meant to stop on the 1st would stop the evening before in the Americas.
+    /// </summary>
+    public static string SendDate(DateTime day) =>
+        new DateTimeOffset(day.Date, TimeZoneInfo.Local.GetUtcOffset(day.Date)).ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
+
     /// <summary>What the input holds, as the draft keeps it; null when empty.</summary>
     public JsonNode? Value => Input switch
     {
@@ -264,7 +283,7 @@ public sealed partial class RuleValueEditor : ObservableObject
         RuleInput.Size => SizeAmount is { } amount && amount > 0
             ? JsonValue.Create((long)Math.Round(amount *(SizeUnit switch { "GB" => 1L << 30, "KB" => 1L << 10, _ => 1L << 20 })))
             : null,
-        RuleInput.Date => Date is { } d ? JsonValue.Create(d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)) : null,
+        RuleInput.Date => Date is { } d ? JsonValue.Create(SendDate(d)) : null,
         RuleInput.Switch => IsOn ? JsonValue.Create(true) : null,
         _ => string.IsNullOrWhiteSpace(Text) ? null : JsonValue.Create(Text),
     };

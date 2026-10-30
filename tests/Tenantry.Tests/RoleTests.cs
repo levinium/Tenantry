@@ -137,6 +137,29 @@ public sealed class RoleTests
     }
 
     [Fact]
+    public async Task Taking_your_own_privileged_role_or_the_last_Global_Administrator_needs_the_name_typed()
+    {
+        var (_, pipeline, directory) = await Demo();
+        var global = directory.Roles.Single(r => r.Role.Id == DirectoryRoles.GlobalAdministrator);
+        var template = global.Grants.First(g => g.PrincipalType == RolePrincipalType.User);
+        var mine = template with { Id = "a-me", PrincipalId = "u-me", PrincipalName = "Me", PrincipalDetail = "me@contoso.example", Kind = RoleGrantKind.Active, Activated = false };
+        var theirs = template with { Id = "a-them", PrincipalId = "u-them", PrincipalName = "Them", PrincipalDetail = "them@contoso.example", Kind = RoleGrantKind.Active, Activated = false };
+        var page = new RoleDetailViewModel(global with { Role = global.Role with { IsPrivileged = true }, Grants = [mine, theirs] }, directory, pipeline, Availability.Yes)
+        {
+            Me = "me@contoso.example",
+        };
+
+        page.Assignments.Rows.Single(r => r.Name == "Me").DoCommand.Execute(null);
+        var own = Assert.IsType<RemoveRoleAssignment>(Assert.Single(pipeline.Pending));
+        Assert.Equal("Me", own.ConfirmPhrase);
+        Assert.Contains("your own privileged role", own.TypedReason, StringComparison.Ordinal);
+
+        page.Assignments.Rows.Single(r => r.Name == "Them").DoCommand.Execute(null);
+        var last = pipeline.Pending.OfType<RemoveRoleAssignment>().Single(r => r.AssignmentId == "a-them");
+        Assert.Contains("Nobody else would hold Global Administrator", last.TypedReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_role_given_in_the_demo_shows_on_the_role_and_on_the_persons_security_tab()
     {
         var (records, pipeline, directory) = await Demo();

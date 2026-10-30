@@ -84,7 +84,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         sites.PrimaryAction = tenant.Changes is { } siteMaking && _manageSites.IsAvailable
             ? new ListPrimaryAction("New Site", "GlobeAdd", true, "Make a team site (with a Microsoft 365 group) or a communication site", () =>
                 ShowDialog(new Records.DialogViewModel("New Site", TenantName,
-                    new Records.NewSiteViewModel(siteMaking, _index, SharePointRoot(), _sites, _tenant.Account, CloseDialog))))
+                    new Records.NewSiteViewModel(siteMaking, _index, SharePointRoot(), _sites, _tenant.Account, CloseDialog,
+                        SharePoint!.Deleted.Rows.OfType<DeletedSite>().Select(d => d.Url).ToArray()))))
             : new ListPrimaryAction("New Site", "GlobeAdd", false, tenant.Changes is null ? "This tenant can't be edited" : _manageSites.Reason ?? "");
         SharePoint = new SharePointAreaViewModel(sites, oneDrives, tenant.Records as IDeletedSiteRecords, tenant.Changes, _manageSites, tenant.ListState, _now);
         // Security & Compliance: admin roles (8a), read live.
@@ -191,7 +192,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             tenant.Sync is { } logSync ? () => logSync.ArchiveLogsNowAsync(null, CancellationToken.None) : null,
             id => { if (_index.User(id) is { } person) OpenUser(person); },
             tenant.Scripts, tenant.Scripts is null ? null : change => ShowPowerShell([change]),
-            tenant.PowerShell is null ? null : OpenConsole);
+            tenant.PowerShell is null ? null : OpenConsole,
+            tenant.Sync is { } noting ? () => noting.LogNotes : null);
         if (tenant.Sync is { } archiving)
         {
             // The archive runs on a worker thread; its pages re-read back on this (the UI) thread.
@@ -286,11 +288,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             list.ShowLoading("Reading sites and OneDrives from SharePoint…");
         try
         {
-            if (await SyncAsync(null, SyncScope.Refresh, _lifetime.Token, sitesOnly: true) is null)
-                foreach (var list in lists)
-                    list.ShowLoadError($"Couldn't read sites: {SyncError}");
+            var failed = await SyncAsync(null, SyncScope.Refresh, _lifetime.Token, sitesOnly: true) is null;
             foreach (var list in lists)
                 await list.ReloadAsync(_lifetime.Token);
+            // After the reloads, which clear the error line when the local copy reads fine.
+            if (failed)
+                foreach (var list in lists)
+                    list.ShowLoadError($"Couldn't read sites: {SyncError}");
         }
         catch (OperationCanceledException)
         {
@@ -314,7 +318,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     public void OpenRole(RoleSummary role) =>
         OpenTab(t => t is RoleDetailViewModel p && p.Role.Role.Id == role.Role.Id,
             () => new RoleDetailViewModel(role, SecurityArea.Directory ?? NoRoles, _tenant.Changes, _manageRoles, _index, OpenUser, OpenGroup,
-                _tenant.Changes is not null && _manageRoles.IsAvailable ? r => EditRole(r) : null, _tenant.Records as IRoleRecords));
+                _tenant.Changes is not null && _manageRoles.IsAvailable ? r => EditRole(r) : null, _tenant.Records as IRoleRecords) { Me = _tenant.Account });
 
     /// <summary>Opens the custom-role editor: a new role, or one to change.</summary>
     void EditRole(AdminRole? role)
@@ -339,7 +343,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             return;
         OpenTab(t => policy is not null && t is CaPolicyEditorViewModel e && e.EditingId == policy.Id,
             () => new CaPolicyEditorViewModel(policy, SecurityArea.CaDirectory ?? NoPolicies, changes, _tenant.Records as ICaEditingRecords,
-                _tenant.Records as IRoleRecords, _index, _tenant.Account, CloseTab));
+                _tenant.Records as IRoleRecords, _index, _tenant.Account, CloseTab, _tenant.Context.RoleTemplateIds));
     }
 
     /// <summary>Open policy pages show the policies as just read.</summary>
@@ -358,13 +362,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     public void OpenAppRegistration(AppRegistration app) =>
         OpenTab(t => t is AppRegistrationPageViewModel p && p.App.Id == app.Id,
             () => new AppRegistrationPageViewModel(app, SecurityArea.Apps ?? NoApps, _tenant.Records as IAppRecords, _index, OpenUser, OpenEnterpriseApp, _now,
-                _tenant.Changes, Evaluate(Capabilities.ManageApps)));
+                _tenant.Changes, Evaluate(Capabilities.ManageApps)) { TenantryClientId = _tenant.ClientId });
 
     /// <summary>Opens an enterprise app's page, or switches to it if it is already open.</summary>
     public void OpenEnterpriseApp(EnterpriseApp app) =>
         OpenTab(t => t is EnterpriseAppPageViewModel p && p.App.Id == app.Id,
             () => new EnterpriseAppPageViewModel(app, SecurityArea.Apps ?? NoApps, _tenant.Records as IAppRecords, _index, OpenUser, OpenGroup, OpenAppRegistration, _now,
-                _tenant.Changes, Evaluate(Capabilities.ManageApps)));
+                _tenant.Changes, Evaluate(Capabilities.ManageApps)) { TenantryClientId = _tenant.ClientId });
 
     /// <summary>Opens New App Registration as a popup.</summary>
     void NewApp()
@@ -504,9 +508,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         try
         {
             var progress = new Progress<string>(Devices.UpdateLoadingText);
-            if (await SyncAsync(progress, SyncScope.Refresh, _lifetime.Token, devicesOnly: true) is null)
-                Devices.ShowLoadError($"Couldn't read devices: {SyncError}");
+            var failed = await SyncAsync(progress, SyncScope.Refresh, _lifetime.Token, devicesOnly: true) is null;
             await Devices.ReloadAsync(_lifetime.Token);
+            // After the reload, which clears the list's error line when the local copy reads fine.
+            if (failed)
+                Devices.ShowLoadError($"Couldn't read devices: {SyncError}");
         }
         catch (OperationCanceledException)
         {
@@ -570,6 +576,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
+        // Closing the tenant (Switch Tenant) stops a first download that's still running.
+        if (!cancellationToken.CanBeCanceled)
+            cancellationToken = _lifetime.Token;
         if (_tenant.Sync is not { } sync)
         {
             await LoadListsAsync(cancellationToken);
@@ -597,23 +606,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         if (sync.LastSyncedAt is null)
         {
             const string first = "Downloading the directory for the first time…";
-            Users.ShowLoading(first);
-            Groups.ShowLoading(first);
-            Devices.ShowLoading(first);
+            // Every list the download fills shows the wheel, not "nothing matches", until it's done.
+            DataListViewModel[] filling = [Users, Groups, Devices, SharePoint.Sites, SharePoint.OneDrives];
+            foreach (var list in filling)
+                list.ShowLoading(first);
             var progress = new Progress<string>(text =>
             {
-                Users.UpdateLoadingText(text);
-                Groups.UpdateLoadingText(text);
-                Devices.UpdateLoadingText(text);
+                foreach (var list in filling)
+                    list.UpdateLoadingText(text);
             });
             var ok = await SyncAsync(progress, SyncScope.Everything, cancellationToken) is not null;
             await LoadListsAsync(cancellationToken);
             if (!ok)
             {
                 var message = $"Couldn't download the directory: {SyncError} Use Refresh (bottom left) to try again.";
-                Users.ShowLoadError(message);
-                Groups.ShowLoadError(message);
-                Devices.ShowLoadError(message);
+                foreach (var list in filling)
+                    list.ShowLoadError(message);
             }
         }
         else
@@ -652,7 +660,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         _checking?.Cancel();
         _checking?.Dispose();
         _checking = null;
-        if (_syncInterval is null || ChangesInterval is not { } interval)
+        // Not once the tenant has closed (its lifetime is then cancelled and disposed).
+        if (_lifetime.IsCancellationRequested || _syncInterval is null || ChangesInterval is not { } interval)
             return;
         _checking = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _ = CheckPeriodicallyAsync(interval, _checking.Token);
@@ -817,8 +826,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     {
         foreach (var console in Tabs.OfType<PowerShellConsoleViewModel>().ToArray())
             console.Dispose();
+        // Audit searches stop being checked on, and open search pages stop following their runs.
+        SecurityArea.AuditLog.Dispose();
+        foreach (var page in Tabs.OfType<EdSearchPageViewModel>().ToArray())
+            page.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();
+        // The background reads (mailbox details, the log archive) stop before the local copy closes.
+        (_tenant.Sync as IDisposable)?.Dispose();
         _tenant.Resources?.Dispose();
     }
 
@@ -1129,9 +1144,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     sealed class DirectoryIndex : IDirectoryIndex
     {
         Dictionary<string, UserSummary> _users = new(StringComparer.Ordinal);
+        Dictionary<string, UserSummary> _byUpn = new(StringComparer.OrdinalIgnoreCase);
         Dictionary<string, GroupSummary> _groups = new(StringComparer.Ordinal);
 
-        public void SetUsers(IReadOnlyList<UserSummary> users) => _users = users.ToDictionary(u => u.Id, StringComparer.Ordinal);
+        public void SetUsers(IReadOnlyList<UserSummary> users)
+        {
+            _users = users.ToDictionary(u => u.Id, StringComparer.Ordinal);
+            var byUpn = new Dictionary<string, UserSummary>(users.Count, StringComparer.OrdinalIgnoreCase);
+            foreach (var u in users)
+                byUpn.TryAdd(u.UserPrincipalName, u);
+            _byUpn = byUpn;
+        }
+
+        public UserSummary? UserByUpn(string upn) => _byUpn.GetValueOrDefault(upn);
 
         public void SetGroups(IReadOnlyList<GroupSummary> groups) => _groups = groups.ToDictionary(g => g.Id, StringComparer.Ordinal);
 

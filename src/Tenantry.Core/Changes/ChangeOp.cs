@@ -169,7 +169,14 @@ public abstract record ChangeOp
     /// applied, on top of the caution confirmation. Null for everything else.
     /// </summary>
     [JsonIgnore]
-    public virtual string? ConfirmPhrase => null;
+    public virtual string? ConfirmPhrase => TypedReason is null ? null : Target.Name;
+
+    /// <summary>
+    /// Why a change that could be undone still needs its phrase typed ("This is the app Tenantry
+    /// signs in with."), shown in the confirmation; null for most changes.
+    /// </summary>
+    [JsonIgnore]
+    public string? TypedReason { get; init; }
 
     /// <summary>
     /// The slot (on the same target) of a change this one must follow: when both are applied
@@ -1653,15 +1660,16 @@ public sealed record CreateCaPolicy(ChangeTarget Policy, string Json, string Des
 
 /// <summary>
 /// An edit from the editor: the policy's name, state, conditions and controls as the editor left them
-/// (everything it didn't touch kept as Entra had it). Switching it On is a caution change.
+/// (everything it didn't touch kept as Entra had it). Switching it On, or changing a policy that's
+/// already On (it takes effect for everyone at once), is a caution change.
 /// </summary>
-public sealed record UpdateCaPolicy(ChangeTarget Policy, string Json, string OldSummary, string NewSummary, bool TurnsOn) : CaPolicyChange(Policy)
+public sealed record UpdateCaPolicy(ChangeTarget Policy, string Json, string OldSummary, string NewSummary, bool TurnsOn, bool WasOn = false) : CaPolicyChange(Policy)
 {
     public override string Key => "edit";
     public override string Label => $"Policy \"{Policy.Name}\"";
     public override string Before => OldSummary;
     public override string After => NewSummary;
-    public override bool IsCaution => TurnsOn;
+    public override bool IsCaution => TurnsOn || WasOn;
     public override bool IsNoChange => OldSummary == NewSummary && !TurnsOn;
     public override ChangeOp Since(ChangeOp earlier) => earlier is UpdateCaPolicy e ? this with { OldSummary = e.OldSummary } : this;
 }

@@ -45,7 +45,7 @@ public abstract partial class LiveSection : RecordSection
     /// <summary>Reads again, if it has been shown (after changes to what it shows were applied).</summary>
     public void ReadAgainIfShown()
     {
-        if (_loaded || Note is not null)
+        if (_loaded || Note is not null || IsLoading)
             Reread();
     }
 
@@ -69,20 +69,38 @@ public abstract partial class LiveSection : RecordSection
             // Already in plain words (no access to a site's contents, an archived site).
             Note = e.Message;
             NoteActionText = NoteActionFor(e);
+            Forget();
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             Note = $"Couldn't read this: {Friendly.Message(e)}";
+            Forget();
         }
         finally
         {
             IsLoading = false;
             Loaded();
         }
+        // Changes applied while it read: what it just read may be from before them.
+        if (_again)
+        {
+            _again = false;
+            Reread();
+        }
     }
+
+    bool _again;
 
     /// <summary>After each read, for "nothing here" lines that depend on IsLoading.</summary>
     protected virtual void Loaded()
+    {
+    }
+
+    /// <summary>
+    /// A read failed: drop what an earlier read showed, so the note isn't read as being about
+    /// rows that may no longer be true.
+    /// </summary>
+    protected virtual void Forget()
     {
     }
 
@@ -90,6 +108,11 @@ public abstract partial class LiveSection : RecordSection
     protected void Reread()
     {
         _loaded = false;
+        if (IsLoading)
+        {
+            _again = true;
+            return;
+        }
         _ = LoadAsync();
     }
 
@@ -183,7 +206,9 @@ public sealed partial class DeviceOverviewSection(DeviceDetailViewModel page, Bu
                 chips.Add(new("Not Encrypted", BadgeKind.Warning, "Intune reports the drive isn't encrypted and no BitLocker key is backed up"));
             if (Device.StorageTotal is { } total && Device.StorageFree is { } free && free < total / 10)
                 chips.Add(new("Storage Nearly Full", BadgeKind.Warning, $"{DeviceText.Size(free)} free of {DeviceText.Size(total)}"));
-            if (Device.LastSeen is not { } seen || seen < DateTimeOffset.UtcNow.AddDays(-90))
+            // A device never used counts once it was registered that long ago (a new one hasn't signed in yet).
+            var cutoff = DateTimeOffset.UtcNow.AddDays(-90);
+            if (Device.LastSeen is { } seen ? seen < cutoff : Device.Registered is not { } registered || registered < cutoff)
                 chips.Add(new("Not Seen in 90+ Days", BadgeKind.Warning, "Nothing has signed in on it or checked in for three months"));
             return chips;
         }
@@ -194,10 +219,20 @@ public sealed partial class DeviceOverviewSection(DeviceDetailViewModel page, Bu
     protected override async Task ReadAsync(CancellationToken cancellationToken)
     {
         if (!Device.IsManaged)
+        {
+            // Nothing to read, but the summary still says what the warnings are.
+            Refresh();
             return;
+        }
         var live = await Page.LiveAsync();
         _hardware = live.Hardware;
         Note = live.IntuneProblem;
+        Refresh();
+    }
+
+    protected override void Forget()
+    {
+        _hardware = null;
         Refresh();
     }
 
@@ -280,6 +315,8 @@ public sealed partial class DeviceUsersSection(DeviceDetailViewModel page, IDire
         Summary = People.Count switch { 0 => "Nobody", 1 => "1 person", var n => $"{n} people" };
         OnPropertyChanged(nameof(HasNoPeople));
     }
+
+    protected override void Forget() => People.Clear();
 }
 
 // ---- Compliance -------------------------------------------------------------------------------
@@ -496,6 +533,14 @@ public sealed partial class DeviceAppsSection(DeviceDetailViewModel page) : Devi
         Summary = failed > 0 ? $"{failed} app{(failed == 1 ? "" : "s")} failed to install" : $"{_installed.Count:N0} installed";
         OnPropertyChanged(nameof(HasNoInstalled));
     }
+
+    protected override void Forget()
+    {
+        Assigned.Clear();
+        AssignedNote = null;
+        _installed = [];
+        Filter();
+    }
 }
 
 // ---- Groups -----------------------------------------------------------------------------------
@@ -560,7 +605,7 @@ public sealed partial class DeviceGroupsSection : DeviceSection, IDisposable
     IEnumerable<PickOption> Options()
     {
         var taken = _groups.Select(g => g.Id).Concat(Pending.Select(p => p.Group.Id)).ToHashSet(StringComparer.Ordinal);
-        return _index.AllGroups.Where(g => g.Kind == GroupKind.Security && !g.IsDynamic && !taken.Contains(g.Id)).Select(PickOption.Of);
+        return _index.AllGroups.Where(g => g.Kind == GroupKind.Security && GroupAccess.MembersEditable(g) && !taken.Contains(g.Id)).Select(PickOption.Of);
     }
 
     void Join(PickOption option)
@@ -580,8 +625,19 @@ public sealed partial class DeviceGroupsSection : DeviceSection, IDisposable
         var read = await pages.GetGroupsAsync(objectId, cancellationToken);
         _groups = read.Value ?? [];
         Note = read.Unavailable;
+        _read = true;
         Rebuild();
     }
+
+    protected override void Forget()
+    {
+        _read = false;
+        _groups = [];
+        Groups.Clear();
+    }
+
+    /// <summary>Its groups have been read: until then a pending change has no list to show in.</summary>
+    bool _read;
 
     void Rebuild()
     {
@@ -591,10 +647,12 @@ public sealed partial class DeviceGroupsSection : DeviceSection, IDisposable
         {
             var summary = _index.Group(g.Id);
             var leaving = pending.GetValueOrDefault(g.Id);
-            var locked = g.IsDynamic ? "Dynamic: membership follows the group's rule" : summary?.IsExchangeManaged == true ? "Managed in Exchange: devices can't be members" : null;
+            var locked = g.IsDynamic ? "Dynamic: membership follows the group's rule" : summary?.IsExchangeManaged == true ? "Managed in Exchange: devices can't be members"
+                : summary?.SyncedFromOnPremises == true ? "Synced from on-premises Active Directory: change its members there" : null;
             Groups.Add(new DeviceGroupRow(g.Name, g.IsDynamic, leaving is not null, false, CanEdit && locked is null,
                 locked ?? (CanEdit ? "Take the device out of this group (added to Pending changes)" : EditReason),
-                () => Toggle(leaving, summary, false),
+                // A group outside the local copy is named by what Entra said (devices only join security groups).
+                () => Toggle(leaving, summary is null ? new ChangeTarget("group", g.Id, g.Name, null) : GroupAccess.Target(summary), false),
                 summary is not null && _openGroup is not null ? () => _openGroup(summary) : null));
         }
         foreach (var join in pending.Values.Where(p => p.New && _groups.All(g => g.Id != p.Group.Id)))
@@ -607,17 +665,21 @@ public sealed partial class DeviceGroupsSection : DeviceSection, IDisposable
         OnPropertyChanged(nameof(HasNoGroups));
     }
 
-    void Toggle(SetGroupMembership? pending, GroupSummary? group, bool join)
+    void Toggle(SetGroupMembership? pending, ChangeTarget group, bool join)
     {
         if (!CanEdit)
             return;
         if (pending is not null)
             Page.Pipeline!.Unstage(pending);
-        else if (group is not null)
-            Page.Pipeline!.Stage(new SetGroupMembership(GroupAccess.Target(group), Me, "device", GroupRole.Member, false, !join, join));
+        else
+            Page.Pipeline!.Stage(new SetGroupMembership(group, Me, "device", GroupRole.Member, false, !join, join));
     }
 
-    void OnPendingChanged(object? sender, EventArgs e) => Rebuild();
+    void OnPendingChanged(object? sender, EventArgs e)
+    {
+        if (_read)
+            Rebuild();
+    }
 
     void OnApplied(object? sender, IReadOnlyList<ChangeOp> applied)
     {
@@ -715,6 +777,18 @@ public sealed partial class DeviceDefenderSection(DeviceDetailViewModel page) : 
             Malware.Add(new MalwareRow(m));
         Note = read.Unavailable;
         Summary = Malware.Count > 0 ? $"{Malware.Count} threat{(Malware.Count == 1 ? "" : "s")} found" : _state is null ? "Not reported" : "No threats found";
+        StateChanged();
+    }
+
+    protected override void Forget()
+    {
+        _state = null;
+        Malware.Clear();
+        StateChanged();
+    }
+
+    void StateChanged()
+    {
         foreach (var name in new[] { nameof(HasState), nameof(Chips), nameof(Facts), nameof(HasNoMalware) })
             OnPropertyChanged(name);
     }

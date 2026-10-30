@@ -19,7 +19,19 @@
     <Border Classes="divider" />
     <StackPanel Spacing="6">
       <TextBlock Classes="label" Text="WHAT HAPPENED TO IT" />
-      <TextBlock Classes="muted" Text="Reading its steps…" IsVisible="{Binding IsLoading}" />
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="16" Height="16" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" Text="Reading its steps…" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="muted" Text="Exchange has no steps for this message yet. Recent mail can take a few minutes to show them."
+                 IsVisible="{Binding HasNoSteps}" TextWrapping="Wrap" />
       <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
       <ItemsControl ItemsSource="{Binding Steps}">
         <ItemsControl.ItemTemplate>

@@ -23,6 +23,9 @@ public interface IDirectoryIndex
     GroupSummary? Group(string id);
     IEnumerable<UserSummary> AllUsers { get; }
     IEnumerable<GroupSummary> AllGroups { get; }
+
+    /// <summary>Someone by sign-in name (any case). The app's index looks it up; this default scans.</summary>
+    UserSummary? UserByUpn(string upn) => AllUsers.FirstOrDefault(u => string.Equals(u.UserPrincipalName, upn, StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>An empty local copy, for records shown without one (tests, demos of a single page).</summary>
@@ -79,7 +82,7 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
     public string TypeText => GroupList.TypeBadge(Group.Kind).Text;
     public BadgeKind TypeKind => GroupList.TypeBadge(Group.Kind).Kind;
 
-    public string MembershipText => Group.IsDynamic ? "Dynamic Membership" : "Assigned Membership";
+    public string MembershipText => Group.IsDynamic ? "Dynamic Membership" : Group.SyncedFromOnPremises ? "Synced from On-Premises AD" : "Assigned Membership";
     public bool ShowMembership => !Group.IsMailbox;
     public bool IsTeam => Group.IsTeam;
     public bool IsMailbox => Group.IsMailbox;

@@ -13,7 +13,22 @@ namespace Tenantry.Graph;
 /// </summary>
 public sealed class GraphChangeScripts : IChangeScripts
 {
-    public PsScript? For(ChangeOp change) => GraphChangeExecutor.ScriptFor(change);
+    /// <remarks>
+    /// A change logged by an older Tenantry can come back with a field it didn't have then (null),
+    /// which a script can't be drawn from: that change shows no PowerShell rather than failing.
+    /// </remarks>
+    public PsScript? For(ChangeOp change)
+    {
+        try
+        {
+            return GraphChangeExecutor.ScriptFor(change);
+        }
+        catch (Exception e) when (e is ArgumentException or NullReferenceException or FormatException or InvalidOperationException
+            or System.Text.Json.JsonException or KeyNotFoundException or IndexOutOfRangeException)
+        {
+            return null;
+        }
+    }
 }
 
 public sealed partial class GraphChangeExecutor

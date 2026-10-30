@@ -32,25 +32,29 @@ public sealed partial class LogHistoryViewModel : ObservableObject
     readonly string _kind;
     readonly Func<DateTimeOffset> _now;
     readonly Func<Task>? _readNew;
+    readonly Func<IReadOnlyList<string>>? _notes;
     string _noun = "events";
     bool _shown;
 
-    LogHistoryViewModel(ILogArchive? archive, string kind, string description, Func<DateTimeOffset> now, Func<Task>? readNew)
+    LogHistoryViewModel(ILogArchive? archive, string kind, string description, Func<DateTimeOffset> now, Func<Task>? readNew, Func<IReadOnlyList<string>>? notes)
     {
         _archive = archive;
         _kind = kind;
         _now = now;
         _readNew = readNew;
+        _notes = notes;
+        Problem = Notes();
         Description = description;
         Range = Ranges[1];
     }
 
     /// <param name="archive">The archive, or null where there is none (then the page says so).</param>
     /// <param name="readNew">Adds new events now (the sync's archive run), or null.</param>
+    /// <param name="notes">What the last archive run couldn't read, shown on the page; null where there's no sync.</param>
     public static LogHistoryViewModel Create<T>(ILogArchive? archive, string kind, string description, ListDefinition<T> definition, IListStateStore? listState,
-        Func<DateTimeOffset> now, Func<Task>? readNew) where T : class
+        Func<DateTimeOffset> now, Func<Task>? readNew, Func<IReadOnlyList<string>>? notes = null) where T : class
     {
-        var page = new LogHistoryViewModel(archive, kind, description, now, readNew) { _noun = definition.Noun };
+        var page = new LogHistoryViewModel(archive, kind, description, now, readNew, notes) { _noun = definition.Noun };
         page.List = DataListViewModel.Create(definition, async ct =>
         {
             // A year of sign-ins is a lot of rows: read them off the window's thread.
@@ -85,6 +89,15 @@ public sealed partial class LogHistoryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsBusy), nameof(CanReadNew))]
     public partial string? BusyText { get; private set; }
 
+    /// <summary>Why the last archive run didn't bring everything in (a missing license or role), or null.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProblem))]
+    public partial string? Problem { get; private set; }
+
+    public bool HasProblem => Problem is not null;
+
+    string? Notes() => _notes?.Invoke() is { Count: > 0 } notes ? string.Join(" ", notes) : null;
+
     public bool IsBusy => BusyText is not null;
 
     public bool CanReadNew => _readNew is not null && !IsBusy;
@@ -114,6 +127,7 @@ public sealed partial class LogHistoryViewModel : ObservableObject
         if (_shown)
             return Task.CompletedTask;
         _shown = true;
+        Problem = Notes();
         return List.LoadAsync();
     }
 
@@ -130,6 +144,7 @@ public sealed partial class LogHistoryViewModel : ObservableObject
         finally
         {
             BusyText = null;
+            Problem = Notes();
         }
         await List.ReloadAsync(busyText: "Reading the history…");
     }
@@ -137,6 +152,7 @@ public sealed partial class LogHistoryViewModel : ObservableObject
     /// <summary>After the sync archived new events.</summary>
     public void Archived()
     {
+        Problem = Notes();
         if (_shown)
             _ = List.ReloadAsync(busyText: "Reading the history…");
     }

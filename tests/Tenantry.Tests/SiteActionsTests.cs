@@ -195,13 +195,14 @@ public sealed class SiteActionsTests
         public IEnumerable<GroupSummary> AllGroups => _groups.Values;
     }
 
-    static async Task<(SiteDetailViewModel Page, ChangePipeline Pipeline, DemoTenantDirectory Directory)> DemoPage(Func<SiteSummary, bool> pick)
+    /// <param name="withGroups">False: the local copy has no groups yet (a team site's group just made).</param>
+    static async Task<(SiteDetailViewModel Page, ChangePipeline Pipeline, DemoTenantDirectory Directory)> DemoPage(Func<SiteSummary, bool> pick, bool withGroups = true)
     {
         var directory = new DemoTenantDirectory(userCount: 60);
         var records = new DemoUserRecords(directory);
         var pipeline = new ChangePipeline(new DemoChangeExecutor(directory, records), new ChangeLog(new MemoryEntityStore()), new MemoryTestModeStore(false),
             DemoUserRecords.Account);
-        var index = new Index(await directory.GetUsersAsync(Ct), await directory.GetGroupsAsync(Ct));
+        var index = new Index(await directory.GetUsersAsync(Ct), withGroups ? await directory.GetGroupsAsync(Ct) : []);
         var site = (await directory.GetSitesAsync(Ct)).First(pick);
         return (new SiteDetailViewModel(site, records, index, pipeline: pipeline, canEdit: Availability.Yes, me: DemoUserRecords.Account), pipeline, directory);
     }
@@ -246,5 +247,53 @@ public sealed class SiteActionsTests
         var staged = Assert.IsType<SetGroupMembership>(Assert.Single(pipeline.Pending));
         Assert.Equal((group.Id, GroupRole.Member, true), (staged.Group.Id, staged.Role, staged.New));
         Assert.Contains(permissions.Groups.Single(g => g.Name == "Members").Members, m => m.StateText == "Adding");
+    }
+
+    [Fact]
+    public async Task Site_pickers_label_people_SharePoint_wont_take()
+    {
+        var directory = new DemoTenantDirectory(userCount: 60);
+        var users = await directory.GetUsersAsync(Ct);
+        var index = new Index(users, []);
+
+        var options = GroupAccess.SitePeople(index).ToDictionary(o => o.Id);
+
+        var unlicensed = users.FirstOrDefault(u => UserFields.TypeOf(u) == UserFields.Member && u.Licenses.Count == 0);
+        var licensed = users.First(u => UserFields.TypeOf(u) == UserFields.Member && u.Licenses.Count > 0);
+        Assert.DoesNotContain(GroupAccess.NoSharePointLicense, options[licensed.Id].Detail, StringComparison.Ordinal);
+        if (unlicensed is not null)
+            Assert.EndsWith(GroupAccess.NoSharePointLicense, options[unlicensed.Id].Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_groups_site_whose_group_isnt_in_the_local_copy_shows_its_people_without_changing_them()
+    {
+        var (page, _, _) = await DemoPage(s => s.GroupId is not null && s.Kind == SiteKind.TeamSite && s.OwnerName is not null && !s.IsArchived, withGroups: false);
+        var permissions = page.Sections.OfType<SitePermissionsSection>().Single();
+        await permissions.LoadAsync(Ct);
+
+        foreach (var card in permissions.Groups.Where(g => g.Name is "Owners" or "Members"))
+        {
+            Assert.False(card.HasPicker);
+            Assert.All(card.Members, m => Assert.False(m.HasAction));
+            Assert.Contains("after the next refresh", card.Explanation!, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task With_one_owner_leaving_the_others_keep_the_last_owner_in_place()
+    {
+        var (page, pipeline, directory) = await DemoPage(s => s.GroupId is not null && s.Kind == SiteKind.TeamSite && s.OwnerName is not null && !s.IsArchived);
+        var group = (await directory.GetGroupsAsync(Ct)).Single(g => g.Id == page.Site.GroupId);
+        Assert.SkipWhen(group.OwnerList.Count != 2, "the demo site's group needs exactly two owners");
+        var permissions = page.Sections.OfType<SitePermissionsSection>().Single();
+        await permissions.LoadAsync(Ct);
+
+        permissions.Groups.Single(g => g.Name == "Owners").Members.First(m => m.HasAction).DoCommand.Execute(null);
+
+        Assert.Single(pipeline.Pending);
+        var owners = permissions.Groups.Single(g => g.Name == "Owners").Members.Where(m => m.Principal.Kind == PrincipalKind.Person).ToArray();
+        Assert.Single(owners, m => m.StateText == "Removing");
+        Assert.Single(owners, m => m.Locked == "The group's last owner");
     }
 }

@@ -48,6 +48,13 @@
           <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Summary}" />
         </StackPanel>
       </Border>
+      <!-- What the last archive run couldn't bring in (a missing license or role), so it's never silent. -->
+      <Border Classes="banner warning" IsVisible="{Binding HasProblem}">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="Warning" FontSize="16" VerticalAlignment="Center" />
+          <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Problem}" />
+        </StackPanel>
+      </Border>
     </StackPanel>
     <ContentControl Content="{Binding List}">
       <ContentControl.DataTemplates>

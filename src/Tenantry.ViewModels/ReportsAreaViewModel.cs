@@ -29,6 +29,7 @@ public sealed partial class ReportsAreaViewModel : TabViewModel
     readonly Action<string>? _openInConsole;
     bool _listsLoaded;
     bool _changeLogRead;
+    bool _changeLogBehind;
 
     public static IReadOnlyList<MailSecurityPage> Pages { get; } =
     [
@@ -45,26 +46,29 @@ public sealed partial class ReportsAreaViewModel : TabViewModel
     /// <param name="scripts">The PowerShell for a logged change (Show PowerShell), or null.</param>
     /// <param name="showPowerShell">Shows that PowerShell in a popup.</param>
     /// <param name="openInConsole">Puts a logged console command back in the console, or null without one.</param>
+    /// <param name="logNotes">What the last archive run couldn't read, for the history pages.</param>
     public ReportsAreaViewModel(IReadOnlyList<ReportCheck> checks, ChangePipeline? pipeline, Action<DataListViewModel, SavedViewItem> open, Action<ChangeTarget>? openTarget,
         IListStateStore? listState, Func<DateTimeOffset> now, Tenantry.Core.Cache.ILogArchive? archive = null, Func<Task>? readNew = null, Action<string>? openUserById = null,
-        Tenantry.Core.PowerShell.IChangeScripts? scripts = null, Action<ChangeOp>? showPowerShell = null, Action<string>? openInConsole = null)
+        Tenantry.Core.PowerShell.IChangeScripts? scripts = null, Action<ChangeOp>? showPowerShell = null, Action<string>? openInConsole = null,
+        Func<IReadOnlyList<string>>? logNotes = null)
     {
         _scripts = scripts;
         _showPowerShell = showPowerShell;
         _openInConsole = openInConsole;
         SignIns = LogHistoryViewModel.Create(archive, Tenantry.Core.Directory.LogKinds.SignIns,
             "Every interactive sign-in, kept on this computer for a year (Microsoft keeps 30 days). Non-interactive sign-ins can be added in Settings.",
-            LogLists.SignIns(e => LogLists.SignInPreview(e, openUserById)), listState, now, readNew);
+            LogLists.SignIns(e => LogLists.SignInPreview(e, openUserById)), listState, now, readNew, logNotes);
         Audits = LogHistoryViewModel.Create(archive, Tenantry.Core.Directory.LogKinds.Audits,
-            "Changes made in Entra (users, groups, roles, apps), kept on this computer for a year.", LogLists.Audits(LogLists.AuditPreview), listState, now, readNew);
+            "Changes made in Entra (users, groups, roles, apps), kept on this computer for a year.", LogLists.Audits(LogLists.AuditPreview), listState, now, readNew, logNotes);
         ExchangeAdmin = LogHistoryViewModel.Create(archive, Tenantry.Core.Directory.LogKinds.ExchangeAdmin,
             "Exchange commands run by admins (and by Tenantry), from the unified audit log, kept on this computer for a year.",
-            LogLists.ExchangeAdmin(LogLists.ExchangePreview), listState, now, readNew);
+            LogLists.ExchangeAdmin(LogLists.ExchangePreview), listState, now, readNew, logNotes);
         _checks = checks;
         _open = open;
         Reports = new AppSection("reports", "Reports", "DataBarVertical", BuildAsync, "Counting from the local copy…");
         ChangeLog = DataListViewModel.Create(ChangeLogList.Definition(e => Preview(e, openTarget)),
-            _ => Task.FromResult<IReadOnlyList<ChangeLogEntry>>(pipeline?.Log.All() ?? []), _ => { }, listState, now);
+            // A year of bulk edits is a lot to read: off the window's thread.
+            ct => Task.Run(() => (IReadOnlyList<ChangeLogEntry>)(pipeline?.Log.All() ?? []), ct), _ => { }, listState, now);
         ChangeLog.HasRecordPages = false;
         ChangeLog.EmptyText = pipeline is null ? "This tenant can't be changed here, so nothing has been logged." : "No changes match.";
         if (pipeline is not null)
@@ -75,10 +79,18 @@ public sealed partial class ReportsAreaViewModel : TabViewModel
         SelectedPage = Pages[0];
     }
 
+    /// <summary>
+    /// Something new was logged: the Change Log re-reads now if it's on screen, otherwise the next
+    /// time it's shown (rather than reading the whole log after every change and console command).
+    /// </summary>
     void FollowLog()
     {
-        if (_changeLogRead)
+        if (!_changeLogRead)
+            return;
+        if (ShowChangeLog)
             _ = ChangeLog.ReloadAsync(busyText: "Reading the change log…");
+        else
+            _changeLogBehind = true;
     }
 
     public override string Title => "Reports";
@@ -128,6 +140,11 @@ public sealed partial class ReportsAreaViewModel : TabViewModel
         {
             _changeLogRead = true;
             _ = ChangeLog.LoadAsync();
+        }
+        else if (ShowChangeLog && _changeLogBehind)
+        {
+            _changeLogBehind = false;
+            _ = ChangeLog.ReloadAsync(busyText: "Reading the change log…");
         }
     }
 

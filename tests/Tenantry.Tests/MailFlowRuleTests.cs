@@ -84,6 +84,25 @@ public sealed class MailFlowRuleTests
     }
 
     [Fact]
+    public void Rules_move_one_at_a_time()
+    {
+        var pipeline = Pipeline(new Nothing());
+        var first = new RulePreviewViewModel(Rule(priority: 2), 5, pipeline, Availability.Yes);
+        var other = new RulePreviewViewModel(Rule(priority: 3) with { Identity = "g2", Name = "zz-tenantry-test-other" }, 5, pipeline, Availability.Yes);
+
+        first.MoveUpCommand.Execute(null);
+
+        Assert.False(other.CanMoveUp);
+        Assert.False(other.CanMoveDown);
+        Assert.True(other.HasOrderNote);
+        other.MoveToTopCommand.Execute(null);
+        Assert.Single(pipeline.Pending);
+        // The rule with the pending move can still adjust it.
+        Assert.True(first.CanMoveUp);
+        Assert.False(first.HasOrderNote);
+    }
+
+    [Fact]
     public async Task Each_change_sends_its_cmdlet_and_reads_the_rule_back()
     {
         var reads = new Queue<string>(["""[{"Guid":"g1","Name":"zz-tenantry-test-rule","Priority":0,"State":"Disabled","Mode":"Audit"}]""", "[]"]);

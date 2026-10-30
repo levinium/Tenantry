@@ -171,9 +171,15 @@ public partial class DataListView : UserControl
             return;
         _syncingSelection = true;
         Grid.SelectedItems.Clear();
+        // A checked row the current filter hides (a count chip just narrowed the list) isn't in
+        // the grid's items, and the grid throws for one it doesn't hold: those are skipped.
+        var shown = Grid.ItemsSource is System.Collections.IEnumerable items
+            ? new HashSet<object>(items.Cast<object>(), ReferenceEqualityComparer.Instance)
+            : [];
         foreach (var row in _vm.SelectedRows)
-            Grid.SelectedItems.Add(row);
-        if (_vm.SelectedRows.Count == 0 && _vm.SelectedRow is { } single)
+            if (shown.Contains(row))
+                Grid.SelectedItems.Add(row);
+        if (_vm.SelectedRows.Count == 0 && _vm.SelectedRow is { } single && shown.Contains(single))
             Grid.SelectedItem = single;
         _syncingSelection = false;
         UpdateSelectAll();
@@ -675,9 +681,18 @@ public partial class DataListView : UserControl
         });
         if (file is null)
             return;
-        await using var stream = await file.OpenWriteAsync();
-        // UTF-8 with a byte-order mark, so Excel reads names with accents correctly.
-        await using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
-        _vm.ExportCsv(writer);
+        // A file open in Excel, or a folder that can't be written, says so above the list
+        // rather than closing the app.
+        try
+        {
+            await using var stream = await file.OpenWriteAsync();
+            // UTF-8 with a byte-order mark, so Excel reads names with accents correctly.
+            await using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            _vm.ExportCsv(writer);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _vm.ShowLoadError($"Couldn't save the CSV file: {ex.Message} If it's open in another app, close it and try again.");
+        }
     }
 }

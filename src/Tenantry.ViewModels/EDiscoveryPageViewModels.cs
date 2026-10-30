@@ -462,14 +462,19 @@ public sealed partial class EdSearchPageViewModel : CardPageViewModel
         var started = DateTimeOffset.UtcNow;
         try
         {
+            var finished = false;
             while (DateTimeOffset.UtcNow - started < GiveUpAfter)
             {
                 await Task.Delay(CheckEvery, _closing.Token);
                 _detail = null;
                 var detail = await DetailAsync(_closing.Token);
-                if (!EDiscovery.IsRunning(detail.Search.Status) && detail.Search.Status != "NotStarted")
+                finished = !EDiscovery.IsRunning(detail.Search.Status) && detail.Search.Status != "NotStarted";
+                if (finished)
                     break;
             }
+            // Big searches can outlast the wait: say so rather than look finished.
+            if (!finished)
+                Notice = "Purview is still counting. This page stopped checking after 30 minutes; choose Run Search later, or open the search again to see where it got to.";
         }
         catch (OperationCanceledException)
         {
@@ -570,10 +575,11 @@ public sealed partial class EdSearchPageViewModel : CardPageViewModel
         ];
     }
 
+    // Cancelled, not disposed: a check still in flight reads the token again, and a disposed
+    // source would throw instead of stopping it.
     public override void Dispose()
     {
         _closing.Cancel();
-        _closing.Dispose();
         base.Dispose();
     }
 }

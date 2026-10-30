@@ -14,7 +14,8 @@ public sealed class BulkEditTests
     static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     static UserSummary Person(string id, string name, string? department, bool enabled = true, params string[] licenses) =>
-        new(id, name, $"{name}@contoso.example", $"{name}@contoso.example", department, null, enabled, UserKind.Member, DateTimeOffset.UnixEpoch, null, licenses);
+        new(id, name, $"{name}@contoso.example", $"{name}@contoso.example", department, null, enabled, UserKind.Member, DateTimeOffset.UnixEpoch, null, licenses,
+            UsageLocation: "US");
 
     static readonly UserSummary Ada = Person("u1", "zz-tenantry-test-ada", "IT", true, "Microsoft 365 E3");
     static readonly UserSummary Bo = Person("u2", "zz-tenantry-test-bo", "Finance", false);
@@ -50,8 +51,11 @@ public sealed class BulkEditTests
 
         public Task<IReadOnlyList<string>> GetDomainsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<string>>([]);
 
+        /// <summary>Everyone holds E3 directly except Dee, who gets it from a group.</summary>
         public Task<UserLicensing> GetLicensingAsync(string userId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new UserLicensing("US", [], [new LicenseSku("sku-e3", "Microsoft 365 E3", 5, 4, []), new LicenseSku("sku-basic", "Business Basic", 10, 0, [])], []));
+            Task.FromResult(new UserLicensing("US",
+                [new LicenseAssignment("sku-e3", "Microsoft 365 E3", userId == "u4" ? "g9" : null, userId == "u4" ? "All Staff" : null, null, [])],
+                [new LicenseSku("sku-e3", "Microsoft 365 E3", 5, 4, []), new LicenseSku("sku-basic", "Business Basic", 10, 0, [])], []));
 
         public Task<IReadOnlyList<MailboxDelegate>> GetMailboxDelegatesAsync(string userId, string address, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<MailboxDelegate>>([]);
@@ -212,6 +216,40 @@ public sealed class BulkEditTests
         Assert.Equal(["u2", "u3"], plan.Changes.Select(c => c.Target.Id));
         Assert.StartsWith("Only 1 left for 2 people", plan.Skipped[0]);
         Assert.Contains("zz-tenantry-test-ada: already has it", plan.Skipped);
+    }
+
+    [Fact]
+    public async Task A_license_from_a_group_isnt_removed_and_no_usage_location_isnt_licensed()
+    {
+        var dee = Person("u4", "zz-tenantry-test-dee", "IT", true, "Microsoft 365 E3");
+        var nowhere = Person("u5", "zz-tenantry-test-eve", "IT") with { UsageLocation = null };
+        var remove = Action(BulkActions.ForUsers(() => [Ada, dee], new Index(), new Records()), "Remove a License");
+        await remove.LoadAsync(Ct);
+        remove.Choice = remove.Choices.Single();
+        var add = Action(BulkActions.ForUsers(() => [Bo, nowhere], new Index(), new Records()), "Add a License");
+        await add.LoadAsync(Ct);
+        add.Choice = add.Choices.Single(c => ((LicenseSku)c.Value).SkuId == "sku-e3");
+
+        var removed = await remove.PlanAsync(Ct);
+        var added = await add.PlanAsync(Ct);
+
+        Assert.Equal(["u1"], removed.Changes.Select(c => c.Target.Id));
+        Assert.Contains(removed.Skipped, s => s.StartsWith("zz-tenantry-test-dee: gets it from All Staff", StringComparison.Ordinal));
+        Assert.Equal(["u2"], added.Changes.Select(c => c.Target.Id));
+        Assert.Contains(added.Skipped, s => s.StartsWith("zz-tenantry-test-eve: no usage location", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Details_of_people_synced_from_AD_are_left_alone_except_usage_location()
+    {
+        var synced = Person("u6", "zz-tenantry-test-fay", "IT") with { SyncedFromOnPremises = true };
+
+        var department = await BulkActions.SetDetailAsync([Cy, synced], null, "department", "Sales", Ct);
+        var country = await BulkActions.SetDetailAsync([synced], null, "usageLocation", "gb", Ct);
+
+        Assert.Equal(["u3"], department.Changes.Select(c => c.Target.Id));
+        Assert.Contains(department.Skipped, s => s.Contains("synced from on-premises Active Directory", StringComparison.Ordinal));
+        Assert.Equal(["u6"], country.Changes.Select(c => c.Target.Id));
     }
 
     [Fact]

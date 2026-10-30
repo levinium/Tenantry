@@ -88,7 +88,7 @@ public sealed partial class CompromiseViewModel : ObservableObject
 
     public bool HasNoFindings => !IsChecking && Findings.Count == 0;
 
-    public string NoFindingsText => $"No warning signs found: no mailbox rules that forward or delete mail, no forwarding outside the organization, " +
+    public string NoFindingsText => $"No warning signs found: no mailbox rules that forward, delete or hide mail, no forwarding outside the organization, " +
                                     $"and no sign-in methods, app consents or sign-in countries new in the last {RecentDays} days.";
 
     /// <summary>What couldn't be checked, and why.</summary>
@@ -149,6 +149,8 @@ public sealed partial class CompromiseViewModel : ObservableObject
         }
 
         var tasks = new List<Task>();
+        if (person.Kind == UserKind.Guest)
+            notes.Add($"{name} is a guest: their password belongs to their own organization, so it isn't reset here. Ask them (or their admin) to change it.");
         // Mailbox forwarding, from the local copy.
         if (person.Mailbox is { ForwardingTo: { } to } mailbox)
         {
@@ -162,12 +164,11 @@ public sealed partial class CompromiseViewModel : ObservableObject
             {
                 foreach (var rule in await contents.GetInboxRulesAsync(person.Mailbox.PrimaryAddress ?? person.UserPrincipalName, ct))
                 {
-                    if (!rule.Enabled || !(rule.Forwards || rule.Deletes))
+                    if (!rule.Enabled || Suspicion(rule) is not { } suspicion)
                         continue;
-                    var what = rule.Forwards ? $"Forwards Mail to {string.Join(", ", rule.ForwardsTo)}" : "Deletes Mail";
                     lock (findings)
-                        findings.Add(new Finding(name, $"Mailbox Rule \"{rule.Name}\" {what}", rule.Description,
-                            new SetInboxRuleEnabled(target, rule.Identity, rule.Name, true, false), "Turn This Rule Off"));
+                        findings.Add(new Finding(name, $"Mailbox Rule \"{rule.Name}\" {suspicion.What}", rule.Description,
+                            new SetInboxRuleEnabled(target, rule.Identity, rule.Name, true, false), "Turn This Rule Off", isOn: suspicion.Likely));
                 }
             }));
         if (_records is ISecurityRecords security)
@@ -216,6 +217,34 @@ public sealed partial class CompromiseViewModel : ObservableObject
         return new Signs(findings, notes, methods);
     }
 
+    /// <summary>Folders an attacker hides replies in, where nobody looks.</summary>
+    static readonly HashSet<string> HidingFolders = new(StringComparer.OrdinalIgnoreCase) { "RSS Feeds", "RSS Subscriptions", "Conversation History" };
+
+    /// <summary>Folders people file mail into themselves, but that also hide it: shown, with the fix not ticked.</summary>
+    static readonly HashSet<string> QuietFolders = new(StringComparer.OrdinalIgnoreCase) { "Archive", "Junk Email", "Deleted Items" };
+
+    /// <summary>
+    /// Why a mailbox rule looks like an attacker's, and whether that's likely enough to tick its fix:
+    /// forwarding, deleting, moving mail out of sight, or a rule with no real name ("." is a classic).
+    /// Null when it looks ordinary.
+    /// </summary>
+    public static (string What, bool Likely)? Suspicion(InboxRule rule)
+    {
+        if (rule.Forwards)
+            return ($"Forwards Mail to {string.Join(", ", rule.ForwardsTo)}", true);
+        if (rule.Deletes)
+            return ("Deletes Mail", true);
+        // Exchange names a folder as "Mailbox:\Folder" or by its path; the last part is the folder.
+        var folder = rule.MovesTo?.Split('\\', ':').LastOrDefault(p => p.Trim().Length > 0)?.Trim();
+        if (folder is not null && HidingFolders.Contains(folder))
+            return ($"Moves Mail to {folder}", true);
+        if (!rule.Name.Any(char.IsLetterOrDigit))
+            return ("Has No Real Name", true);
+        if (folder is not null && QuietFolders.Contains(folder))
+            return ($"Moves Mail to {folder}", false);
+        return null;
+    }
+
     // ---- Staging ------------------------------------------------------------------------------
 
     /// <summary>The response for each person, then the fixes ticked for what was found.</summary>
@@ -227,7 +256,8 @@ public sealed partial class CompromiseViewModel : ObservableObject
             var target = GroupAccess.Target(person);
             if (On("block") && person.AccountEnabled)
                 changes.Add(new SetSignInAllowed(target, true, false));
-            if (On("password"))
+            // A guest's password belongs to their own organization (Graph refuses to set it).
+            if (On("password") && person.Kind != UserKind.Guest)
                 changes.Add(new ResetPassword(target, On("mustchange")));
             if (On("reregister"))
                 changes.AddRange(_methods.GetValueOrDefault(person.Id, []).Select(m => new RemoveAuthMethod(target, m.Id, m.Segment, m.Kind)));

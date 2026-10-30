@@ -181,21 +181,29 @@ public sealed partial class GraphChangeExecutor
         if (status == 3)
             return new ApplyResult(ChangeOutcome.Failed, "SharePoint couldn't make the site.");
         var unfinished = new List<string>();
-        if (status == 2 && change.Owners.Count > 0 && await admin.GetOwnerGroupIdAsync(change.SiteUrl, cancellationToken) is { } owners)
-            foreach (var other in change.Owners)
-            {
-                try
+        if (status == 2 && change.Owners.Count > 0)
+        {
+            if (await admin.GetOwnerGroupIdAsync(change.SiteUrl, cancellationToken) is { } owners)
+                foreach (var other in change.Owners)
                 {
-                    await admin.SetSiteGroupMemberAsync(change.SiteUrl, owners, SetOneDriveAccess.LoginFor(other.Address ?? other.Name), true, cancellationToken);
+                    try
+                    {
+                        await admin.SetSiteGroupMemberAsync(change.SiteUrl, owners, SetOneDriveAccess.LoginFor(other.Address ?? other.Name), true, cancellationToken);
+                    }
+                    catch (SharePointException e)
+                    {
+                        unfinished.Add($"{other.Name} ({e.Message})");
+                    }
                 }
-                catch (SharePointException e)
-                {
-                    unfinished.Add($"{other.Name} ({e.Message})");
-                }
-            }
+            else
+                unfinished.AddRange(change.Owners.Select(o => $"{o.Name} (its Owners group wasn't found)"));
+        }
         await RefreshSiteAsync(admin, change.SiteUrl, cancellationToken);
+        // Still being made: its Owners group doesn't exist yet, so other owners can't be added now.
+        var waiting = status == 2 || change.Owners.Count == 0 ? ""
+            : $" Once it's ready, add {string.Join(", ", change.Owners.Select(o => o.Name))} as owners from its Permissions tab.";
         return status == 2
             ? new ApplyResult(ChangeOutcome.Applied, unfinished.Count == 0 ? null : "The site was made, but these owners weren't added: " + string.Join("; ", unfinished) + ".")
-            : new ApplyResult(ChangeOutcome.AppliedNotYetVisible, "SharePoint is still making the site; it shows in Sites after the next refresh.");
+            : new ApplyResult(ChangeOutcome.AppliedNotYetVisible, "SharePoint is still making the site; it shows in Sites after the next refresh." + waiting);
     });
 }

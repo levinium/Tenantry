@@ -53,7 +53,7 @@ public sealed partial class SitePreviewViewModel
 
     /// <summary>A OneDrive's owner, or a group's site's group, when it's in the local copy.</summary>
     UserSummary? OwnerUser => Site.Kind == SiteKind.OneDrive && Site.OwnerLogin is { } login
-        ? _index.AllUsers.FirstOrDefault(u => string.Equals(u.UserPrincipalName, login[(login.LastIndexOf('|') + 1)..], StringComparison.OrdinalIgnoreCase))
+        ? _index.UserByUpn(login[(login.LastIndexOf('|') + 1)..])
         : null;
 
     GroupSummary? OwnerGroup => Site.GroupId is { } id ? _index.Group(id) : null;

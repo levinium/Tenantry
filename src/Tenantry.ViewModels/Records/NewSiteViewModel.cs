@@ -20,6 +20,7 @@ public sealed partial class NewSiteViewModel : ObservableObject
     readonly ChangePipeline _pipeline;
     readonly IDirectoryIndex _index;
     readonly IReadOnlyList<SiteSummary> _sites;
+    readonly IReadOnlyList<string> _deletedUrls;
     readonly Action _close;
     bool _aliasEdited;
     bool _filling;
@@ -33,16 +34,19 @@ public sealed partial class NewSiteViewModel : ObservableObject
     /// <param name="rootUrl">The tenant's SharePoint address (https://contoso.sharepoint.com).</param>
     /// <param name="sites">Sites in the local copy, to catch an address already taken.</param>
     /// <param name="me">The signed-in admin, the first owner unless they're taken off.</param>
-    public NewSiteViewModel(ChangePipeline pipeline, IDirectoryIndex index, string rootUrl, IReadOnlyList<SiteSummary> sites, string? me, Action close)
+    /// <param name="deletedUrls">Deleted sites still in SharePoint's recycle bin, when they've been read: their addresses are still taken.</param>
+    public NewSiteViewModel(ChangePipeline pipeline, IDirectoryIndex index, string rootUrl, IReadOnlyList<SiteSummary> sites, string? me, Action close,
+        IReadOnlyList<string>? deletedUrls = null)
     {
         _pipeline = pipeline;
         _index = index;
         _sites = sites;
+        _deletedUrls = deletedUrls ?? [];
         _close = close;
         RootUrl = rootUrl.TrimEnd('/');
         _kind = Kinds[0];
         OwnerPicker = new PersonPicker("Add an owner…", Candidates, p => AddOwner(p.Id));
-        _me = me is null ? null : index.AllUsers.FirstOrDefault(u => string.Equals(u.UserPrincipalName, me, StringComparison.OrdinalIgnoreCase));
+        _me = me is null ? null : index.UserByUpn(me);
         if (_me is not null)
             Owners.Add(new ChosenPerson(_me, true));
         Changed();
@@ -57,9 +61,16 @@ public sealed partial class NewSiteViewModel : ObservableObject
         ? "Owners manage the site and its Microsoft 365 group."
         : "You become its owner, since you create it. Anyone added here joins its Owners group too.";
 
+    // A communication site's other owners join its SharePoint Owners group, which takes licensed
+    // people only; a team site's join its Microsoft 365 group, which takes anyone.
     IEnumerable<PickOption> Candidates() =>
         _index.AllUsers.Where(u => u.Kind == UserKind.Member && u.Mailbox?.Type is not ("Shared" or "Room" or "Equipment"))
-            .Where(u => Owners.All(p => p.Person.Id != u.Id)).Select(PickOption.Of);
+            .Where(u => Owners.All(p => p.Person.Id != u.Id))
+            .Select(u =>
+            {
+                var o = PickOption.Of(u);
+                return !IsTeam && u.Licenses.Count == 0 ? o with { Detail = $"{o.Detail} · {GroupAccess.NoSharePointLicense}" } : o;
+            });
 
     NewSiteKind _kind;
 
@@ -151,6 +162,8 @@ public sealed partial class NewSiteViewModel : ObservableObject
             problems.Add("An address can use letters, digits, dashes and underscores.");
         else if (_sites.Any(s => string.Equals(s.Url.TrimEnd('/'), SiteUrl, StringComparison.OrdinalIgnoreCase)))
             problems.Add($"{SiteUrl} is already a site.");
+        else if (_deletedUrls.Any(u => string.Equals(u.TrimEnd('/'), SiteUrl, StringComparison.OrdinalIgnoreCase)))
+            problems.Add($"{SiteUrl} belongs to a deleted site still in SharePoint's recycle bin. Restore it from Deleted Sites, or choose another address.");
         else if (IsTeam && _index.AllGroups.Any(g => g.Mail is { } mail && mail.StartsWith(alias + "@", StringComparison.OrdinalIgnoreCase)))
             problems.Add($"A group already uses the alias {alias}.");
         if (IsTeam && Owners.Count == 0)

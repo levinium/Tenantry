@@ -18,15 +18,45 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
     readonly ChangePipeline? _pipeline;
     readonly Availability _canEdit;
 
-    public QuarantinePreviewViewModel(QuarantinedMessage message, IMailSecurity? records, ChangePipeline? pipeline, Availability canEdit)
+    readonly Func<IEnumerable<ListEntry>>? _listed;
+
+    /// <param name="listed">The block and allow entries read so far (none until that page has been shown).</param>
+    public QuarantinePreviewViewModel(QuarantinedMessage message, IMailSecurity? records, ChangePipeline? pipeline, Availability canEdit,
+        Func<IEnumerable<ListEntry>>? listed = null)
     {
         Message = message;
         _records = records;
         _pipeline = pipeline;
         _canEdit = canEdit;
+        _listed = listed;
         if (_pipeline is not null)
+        {
             _pipeline.Changed += OnPendingChanged;
+            _pipeline.Applied += OnApplied;
+        }
     }
+
+    /// <summary>
+    /// A release or delete of this message went through: the page (which can stay open as a tab)
+    /// says so and stops offering it again.
+    /// </summary>
+    void OnApplied(object? sender, IReadOnlyList<ChangeOp> applied)
+    {
+        foreach (var change in applied.Where(c => c.Target.Id == Message.Identity))
+            Outcome = change switch
+            {
+                ReleaseQuarantined => "Released to its recipients.",
+                DeleteQuarantined => "Deleted from quarantine.",
+                _ => Outcome,
+            };
+    }
+
+    /// <summary>What happened to it here (released, deleted), once applied.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasOutcome), nameof(CanAct), nameof(CanRelease))]
+    public partial string? Outcome { get; private set; }
+
+    public bool HasOutcome => Outcome is not null;
 
     public QuarantinedMessage Message { get; }
 
@@ -102,7 +132,10 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
 
     public string EditReason => _pipeline is null ? "This tenant can't be edited" : _canEdit.Reason ?? "";
 
-    public bool CanRelease => CanEdit && !Message.IsReleased;
+    /// <summary>The actions show while it can still be changed here.</summary>
+    public bool CanAct => CanEdit && Outcome is null;
+
+    public bool CanRelease => CanAct && !Message.IsReleased;
 
     ChangeTarget Target => new("quarantine", Message.Identity, Message.Subject, null);
 
@@ -147,7 +180,7 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
     [RelayCommand]
     void Delete()
     {
-        if (!CanEdit)
+        if (!CanAct)
             return;
         if (Pending is DeleteQuarantined pending)
             _pipeline!.Unstage(pending);
@@ -163,10 +196,26 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
 
     public string BlockText => IsBlockPending ? "Undo Block" : "Block the Sender";
 
+    /// <summary>The sender's own entry on the block and allow lists, if Tenantry has read one: Exchange refuses a second.</summary>
+    ListEntry? Listed => Message.Sender.Length == 0 ? null
+        : _listed?.Invoke().FirstOrDefault(e => e.Kind == ListKind.Sender && string.Equals(e.Value, Message.Sender, StringComparison.OrdinalIgnoreCase));
+
+    public bool CanBlock => Message.Sender.Length > 0 && (IsBlockPending || Listed is null);
+
+    /// <summary>Why the sender can't be blocked from here, when they're listed already.</summary>
+    public string? BlockNote => IsBlockPending ? null : Listed switch
+    {
+        { Block: true } => "This sender is already blocked.",
+        { } => "This sender is on the allow list. Remove that entry in Block and Allow Lists first, then block them.",
+        _ => null,
+    };
+
+    public bool HasBlockNote => BlockNote is not null;
+
     [RelayCommand]
     void BlockSender()
     {
-        if (!CanEdit || Message.Sender.Length == 0)
+        if (!CanEdit || !CanBlock)
             return;
         if (PendingBlock is { } pending)
             _pipeline!.Unstage(pending);
@@ -176,13 +225,17 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
 
     void OnPendingChanged(object? sender, EventArgs e)
     {
-        foreach (var name in new[] { nameof(HasPending), nameof(PendingText), nameof(ReleaseText), nameof(DeleteText), nameof(IsBlockPending), nameof(BlockText) })
+        foreach (var name in new[] { nameof(HasPending), nameof(PendingText), nameof(ReleaseText), nameof(DeleteText), nameof(IsBlockPending), nameof(BlockText),
+                     nameof(CanBlock), nameof(BlockNote), nameof(HasBlockNote) })
             OnPropertyChanged(name);
     }
 
     public void Dispose()
     {
         if (_pipeline is not null)
+        {
             _pipeline.Changed -= OnPendingChanged;
+            _pipeline.Applied -= OnApplied;
+        }
     }
 }

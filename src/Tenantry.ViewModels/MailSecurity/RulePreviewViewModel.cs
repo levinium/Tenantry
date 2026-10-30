@@ -121,12 +121,24 @@ public sealed partial class RulePreviewViewModel : ObservableObject, IDisposable
 
     int PlannedPriority => Pending("priority") is SetRulePriority p ? p.New : Rule.Priority;
 
-    public bool CanMoveUp => CanEdit && PlannedPriority > 0;
-    public bool CanMoveDown => CanEdit && PlannedPriority < _ruleCount - 1;
+    /// <summary>
+    /// Another rule's move waiting in Pending changes. Exchange renumbers the other rules on each
+    /// move, so two moves planned from the same order wouldn't end where either showed: one at a time.
+    /// </summary>
+    bool OtherMovePending => _pipeline?.Pending.Any(c => c is SetRulePriority p && p.Rule.Id != Rule.Identity) == true;
+
+    public string? OrderNote => CanEdit && OtherMovePending
+        ? "Another rule's move is waiting in Pending Changes. Apply it first: rules move one at a time, because each move renumbers the rest."
+        : null;
+
+    public bool HasOrderNote => OrderNote is not null;
+
+    public bool CanMoveUp => CanEdit && !OtherMovePending && PlannedPriority > 0;
+    public bool CanMoveDown => CanEdit && !OtherMovePending && PlannedPriority < _ruleCount - 1;
 
     void MoveTo(int priority)
     {
-        if (!CanEdit)
+        if (!CanEdit || OtherMovePending)
             return;
         _pipeline!.Stage(new SetRulePriority(Target, Rule.Priority, Math.Clamp(priority, 0, _ruleCount - 1)));
     }
@@ -158,7 +170,8 @@ public sealed partial class RulePreviewViewModel : ObservableObject, IDisposable
 
     void OnPendingChanged(object? sender, EventArgs e)
     {
-        foreach (var name in new[] { nameof(PendingText), nameof(HasPending), nameof(EnableText), nameof(CanMoveUp), nameof(CanMoveDown), nameof(DeleteText) })
+        foreach (var name in new[] { nameof(PendingText), nameof(HasPending), nameof(EnableText), nameof(CanMoveUp), nameof(CanMoveDown), nameof(DeleteText),
+                     nameof(OrderNote), nameof(HasOrderNote) })
             OnPropertyChanged(name);
         var planned = Pending("mode") is SetRuleMode m ? m.New : Rule.Mode;
         if (_mode.Value != planned)

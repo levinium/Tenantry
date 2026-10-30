@@ -66,8 +66,8 @@ public sealed partial class NewUserViewModel : ObservableObject
         _ = LoadAsync();
     }
 
-    /// <summary>Dynamic groups follow their rule; mailboxes give access rather than membership.</summary>
-    static bool CanJoin(GroupSummary g) => !g.IsDynamic && !g.IsMailbox;
+    /// <summary>Dynamic groups follow their rule, synced ones follow AD; mailboxes give access rather than membership.</summary>
+    static bool CanJoin(GroupSummary g) => GroupAccess.MembersEditable(g) && !g.IsMailbox;
 
     async Task LoadAsync()
     {
@@ -240,6 +240,9 @@ public sealed partial class NewUserViewModel : ObservableObject
 
     public PersonPicker GroupPicker { get; }
 
+    /// <summary>The groups the last "copy from a colleague" added.</summary>
+    readonly List<ChosenGroup> _copiedGroups = [];
+
     public ObservableCollection<ChosenGroup> Groups { get; } = [];
 
     public bool HasGroups => Groups.Count > 0;
@@ -250,6 +253,7 @@ public sealed partial class NewUserViewModel : ObservableObject
             return;
         Groups.Add(new ChosenGroup(group));
         OnPropertyChanged(nameof(HasGroups));
+        Changed();
     }
 
     [RelayCommand]
@@ -257,6 +261,7 @@ public sealed partial class NewUserViewModel : ObservableObject
     {
         Groups.Remove(group);
         OnPropertyChanged(nameof(HasGroups));
+        Changed();
     }
 
     [ObservableProperty]
@@ -299,8 +304,18 @@ public sealed partial class NewUserViewModel : ObservableObject
         CopiedFrom = person.DisplayName;
         Department = person.Department ?? "";
         JobTitle = person.JobTitle ?? "";
+        // Copying from someone else replaces what the last copy brought (groups picked by hand stay).
+        foreach (var earlier in _copiedGroups)
+            Groups.Remove(earlier);
+        _copiedGroups.Clear();
+        OnPropertyChanged(nameof(HasGroups));
         foreach (var group in _index.AllGroups.Where(CanJoin).Where(g => g.Members.Any(m => m.Id == userId)).OrderBy(g => g.DisplayName, StringComparer.CurrentCulture))
+        {
+            var count = Groups.Count;
             AddGroup(group);
+            if (Groups.Count > count)
+                _copiedGroups.Add(Groups[^1]);
+        }
         foreach (var license in Licenses)
             license.IsChosen = license.IsAvailable && person.Licenses.Contains(license.Name);
         ShowGroups = true;
@@ -309,12 +324,9 @@ public sealed partial class NewUserViewModel : ObservableObject
         try
         {
             var details = await _records.GetDetailsAsync(userId);
-            Office = details["officeLocation"] ?? Office;
-            if (details.ManagerId is { } managerId)
-            {
-                ManagerId = managerId;
-                ManagerName = details.ManagerName ?? _index.User(managerId)?.DisplayName;
-            }
+            Office = details["officeLocation"] ?? "";
+            ManagerId = details.ManagerId;
+            ManagerName = details.ManagerId is { } managerId ? details.ManagerName ?? _index.User(managerId)?.DisplayName : null;
             if (details["usageLocation"] is { } country && Countries.FirstOrDefault(c => c.Value == country) is { } match)
                 UsageLocation = match;
         }
@@ -347,16 +359,57 @@ public sealed partial class NewUserViewModel : ObservableObject
             problems.Add("A sign-in name can use letters, digits, dots, dashes and underscores, and can't start or end with a dot.");
         else if (Domain is null)
             problems.Add("Choose a domain for the sign-in name.");
-        else if (_index.AllUsers.Any(u => string.Equals(u.UserPrincipalName, SignInName, StringComparison.OrdinalIgnoreCase)))
-            problems.Add($"{SignInName} is already someone's sign-in name.");
+        else if (Taken().Contains(SignInName))
+            problems.Add($"{SignInName} is already in use: someone's sign-in name, or the address of a mailbox or group.");
+        else if (_pipeline.Pending.OfType<CreateUser>().Any(c => string.Equals(c.User.Address, SignInName, StringComparison.OrdinalIgnoreCase)))
+            problems.Add($"{SignInName} is already waiting in Pending changes as a new person.");
         if (TypeOwn && TemporaryPassword.Problem(Password) is { } weak)
             problems.Add(Password.Length == 0 ? "Type a password, or let Tenantry make one." : weak);
         foreach (var full in Licenses.Where(l => l.IsChosen && !l.IsAvailable))
             problems.Add($"No {full.Name} licenses are left.");
         Problems = problems;
+        // Distribution lists take only people with a mailbox, which comes with a license that includes Exchange.
+        var lists = Groups.Where(g => g.Group.IsExchangeManaged).Select(g => g.Group.DisplayName).ToArray();
+        var mailbox = Licenses.Any(l => l.IsChosen && (l.Sku.Plans.Count == 0 || l.Sku.Plans.Any(p => p.Name.Contains("Exchange", StringComparison.OrdinalIgnoreCase))));
+        Warning = lists.Length > 0 && !mailbox
+            ? $"{string.Join(", ", lists)} only take people with a mailbox. Without a license that includes Exchange, joining {(lists.Length == 1 ? "it" : "them")} will fail."
+            : null;
         OnPropertyChanged(nameof(ShowProblems));
         OnPropertyChanged(nameof(SignInName));
     }
+
+    HashSet<string>? _taken;
+
+    /// <summary>
+    /// Every sign-in name and address in the local copy, read once per form (it's checked on each
+    /// keystroke). Exchange gives a new mailbox its sign-in name as its address, so a clash with a
+    /// shared mailbox or group would leave them with a different address than expected.
+    /// </summary>
+    HashSet<string> Taken()
+    {
+        if (_taken is not null)
+            return _taken;
+        _taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var u in _index.AllUsers)
+        {
+            _taken.Add(u.UserPrincipalName);
+            if (u.Mail is { Length: > 0 } mail)
+                _taken.Add(mail);
+            foreach (var alias in u.Mailbox?.Aliases ?? [])
+                _taken.Add(alias);
+        }
+        foreach (var g in _index.AllGroups)
+            if (g.Mail is { Length: > 0 } mail)
+                _taken.Add(mail);
+        return _taken;
+    }
+
+    /// <summary>Something that will likely fail but needn't stop the person being made (a list they can't join yet).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasWarning))]
+    public partial string? Warning { get; private set; }
+
+    public bool HasWarning => Warning is not null;
 
     bool CanAdd => Problems.Count == 0;
 

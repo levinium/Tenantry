@@ -75,6 +75,38 @@ public sealed class DeviceActionsTests
     }
 
     [Fact]
+    public async Task Erasing_skips_personal_devices_but_retire_does_not()
+    {
+        var devices = new[] { Device("Work"), Device("Own") with { Ownership = DeviceFields.Personal } };
+
+        var wipe = await Plan("Wipe", devices);
+        var retire = await Plan("Retire", devices);
+
+        Assert.Equal(["Work"], wipe.Changes.Select(c => c.Target.Name));
+        Assert.Equal(["Own: a personal device can't be erased; use Retire"], wipe.Skipped);
+        Assert.Equal(2, retire.Changes.Count);
+    }
+
+    [Fact]
+    public async Task Deleting_and_wiping_the_same_device_cant_wait_together()
+    {
+        var pc = Device("PC");
+        var waiting = new List<ChangeOp>();
+        BulkAction Action(string title) =>
+            BulkActions.ForDevices(() => [pc], () => Now, one: true, pending: () => waiting).Single(a => a.Title == title);
+
+        waiting.Add(new RunDeviceAction(BulkActions.IntuneTarget(pc), DeviceCommand.Wipe));
+        var delete = await Action("Delete Device").PlanAsync(Ct);
+        Assert.Empty(delete.Changes);
+        Assert.Equal(["PC: Wipe is waiting in Pending changes; apply it first"], delete.Skipped);
+
+        waiting.Clear();
+        waiting.Add(new DeleteDevice(BulkActions.EntraTarget(pc), pc.ManagedId, "x"));
+        var wipe = await Action("Wipe").PlanAsync(Ct);
+        Assert.Equal(["PC: Delete Device is waiting in Pending changes"], wipe.Skipped);
+    }
+
+    [Fact]
     public async Task Windows_only_actions_skip_other_devices_and_say_why()
     {
         var plan = await Plan("Quick Scan", [Device("PC"), Device("Phone", "iOS"), Device("Old", managedId: null)]);

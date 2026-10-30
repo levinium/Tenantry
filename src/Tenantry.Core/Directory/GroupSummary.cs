@@ -35,7 +35,8 @@ public sealed record GroupSummary(
     string? Visibility,
     DateTimeOffset? CreatedAt,
     IReadOnlyList<GroupMember> Members,
-    IReadOnlyList<GroupMember>? Owners = null)
+    IReadOnlyList<GroupMember>? Owners = null,
+    bool SyncedFromOnPremises = false)
 {
     /// <summary>Who owns the group (manages it); shared mailboxes have none.</summary>
     public IReadOnlyList<GroupMember> OwnerList => Owners ?? [];

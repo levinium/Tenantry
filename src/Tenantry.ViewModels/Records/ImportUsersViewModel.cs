@@ -89,7 +89,25 @@ public sealed partial class ImportUsersViewModel : ObservableObject
 
     /// <summary>Saves the template: just its column headers.</summary>
     [RelayCommand]
-    async Task DownloadTemplate() => await Platform.SaveCsv("Tenantry users template.csv", Csv.Write([Columns]));
+    async Task DownloadTemplate()
+    {
+        try
+        {
+            await Platform.SaveCsv("Tenantry users template.csv", Csv.Write([Columns]));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            FileProblem = FileError("save the template", e);
+        }
+    }
+
+    /// <summary>
+    /// Why a file couldn't be opened or saved. A file open in Excel is the usual reason: Excel
+    /// keeps it locked until it's closed there.
+    /// </summary>
+    internal static string FileError(string what, Exception e) => e is IOException or UnauthorizedAccessException
+        ? $"Couldn't {what}: {Friendly.Message(e)} If it's open in Excel or another app, close it there and try again."
+        : $"Couldn't {what}: {Friendly.Message(e)}";
 
     // ---- Reading the file -------------------------------------------------------------------------
 
@@ -116,9 +134,18 @@ public sealed partial class ImportUsersViewModel : ObservableObject
     [RelayCommand]
     async Task ChooseFile()
     {
-        if (await Platform.OpenCsv() is not { } file)
+        (string Name, string Text)? file;
+        try
+        {
+            file = await Platform.OpenCsv();
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            FileProblem = FileError("open the file", e);
             return;
-        await LoadAsync(file.Name, file.Text);
+        }
+        if (file is { } chosen)
+            await LoadAsync(chosen.Name, chosen.Text);
     }
 
     /// <summary>Reads and plans a file (the file picker's, or a test's).</summary>
@@ -284,6 +311,8 @@ public sealed partial class ImportUsersViewModel : ObservableObject
                     problems.Add($"More than one group is called \"{name}\"; use its email address.");
                 else if (found[0].IsDynamic)
                     problems.Add($"{found[0].DisplayName} picks its members by a rule; people can't be added to it.");
+                else if (found[0].SyncedFromOnPremises)
+                    problems.Add($"{found[0].DisplayName} is synced from on-premises Active Directory; add people to it there.");
                 else if (found[0].IsMailbox)
                     problems.Add($"{found[0].DisplayName} is a mailbox; give people access to it from its page instead.");
                 else if (person is null || found[0].Members.All(m => m.Id != person.Id))
@@ -361,7 +390,9 @@ public sealed partial class ImportUsersViewModel : ObservableObject
                     ops.Add(new SetSignInAllowed(target, person.AccountEnabled, allowed));
                     changes.Add(allowed ? "Sign-in: allowed" : "Sign-in: blocked");
                 }
-                if (password is not null)
+                if (password is not null && person.Kind == UserKind.Guest)
+                    problems.Add("Password: guests sign in with their own organization's account, so their password can't be set here.");
+                else if (password is not null)
                 {
                     ops.Add(new ResetPassword(target, mustChange, password));
                     changes.Add("Password: reset to the one in the file");
@@ -432,7 +463,17 @@ public sealed partial class ImportMembersViewModel(GroupSummary group, ChangePip
         $"Choose a CSV file with a \"{Column}\" column: one sign-in name or email address per row. Everyone not already in {group.DisplayName} is added as a member.";
 
     [RelayCommand]
-    async Task DownloadTemplate() => await Platform.SaveCsv("Tenantry members template.csv", Csv.Write([[Column]]));
+    async Task DownloadTemplate()
+    {
+        try
+        {
+            await Platform.SaveCsv("Tenantry members template.csv", Csv.Write([[Column]]));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            FileProblem = ImportUsersViewModel.FileError("save the template", e);
+        }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasFile))]
@@ -454,8 +495,15 @@ public sealed partial class ImportMembersViewModel(GroupSummary group, ChangePip
     [RelayCommand]
     async Task ChooseFile()
     {
-        if (await Platform.OpenCsv() is { } file)
-            Load(file.Name, file.Text);
+        try
+        {
+            if (await Platform.OpenCsv() is { } file)
+                Load(file.Name, file.Text);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            FileProblem = ImportUsersViewModel.FileError("open the file", e);
+        }
     }
 
     public void Load(string name, string text)

@@ -46,14 +46,24 @@ public sealed partial class GraphUserRecords : IDevicePageRecords
             }
             catch (GraphException e) when (IsIntuneRefusal(e))
             {
-                problem = NoIntune;
+                problem = e.Status == HttpStatusCode.NotFound ? Gone("Intune") : NoIntune;
             }
         }
         static DevicePerson[] Persons(IEnumerable<JsonElement> items) => items
             .Select(p => Text(p, "id") is { } id ? new DevicePerson(id, Text(p, "displayName") ?? Text(p, "userPrincipalName") ?? id, Text(p, "userPrincipalName")) : null)
             .OfType<DevicePerson>().ToArray();
-        return new DeviceLive(hardware, loggedOn, Persons(await owners), Persons(await users), problem);
+        try
+        {
+            return new DeviceLive(hardware, loggedOn, Persons(await owners), Persons(await users), problem);
+        }
+        catch (GraphException e) when (e.Status == HttpStatusCode.NotFound)
+        {
+            return new DeviceLive(hardware, loggedOn, [], [], Gone("Entra"));
+        }
     }
+
+    /// <summary>A device deleted since the local copy was read.</summary>
+    static string Gone(string where) => $"{where} no longer lists this device: it may have been deleted since the last refresh.";
 
     internal static DeviceHardware Hardware(JsonElement m)
     {

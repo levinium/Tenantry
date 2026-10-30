@@ -145,13 +145,32 @@ public sealed partial class RoleAssignmentsSection : RecordSection
 
     // ---- The rows -------------------------------------------------------------------------------
 
+    /// <summary>
+    /// Why taking this role away needs the person's name typed: it's your own privileged role, or
+    /// it would leave no active Global Administrator. Null otherwise.
+    /// </summary>
+    string? RemovalReason(RoleGrant grant, bool privileged, bool lastGlobal)
+    {
+        if (grant.PrincipalType != RolePrincipalType.User || grant.Kind != RoleGrantKind.Active)
+            return null;
+        if (lastGlobal)
+            return "Nobody else would hold Global Administrator directly, and without one some settings can't be changed by anyone.";
+        var address = _page.Index.User(grant.PrincipalId)?.UserPrincipalName ?? grant.PrincipalDetail;
+        return privileged && _page.Me is { Length: > 0 } me && string.Equals(address, me, StringComparison.OrdinalIgnoreCase)
+            ? "This is your own privileged role: you may not be able to give it back."
+            : null;
+    }
+
     internal void Rebuild()
     {
         Rows.Clear();
         var role = _page.Role;
         var pending = _page.Pending.ToArray();
-        var lastGlobal = role.Role.Id == DirectoryRoles.GlobalAdministrator
-                         && role.Grants.Count(g => g.Kind == RoleGrantKind.Active && g.PrincipalType == RolePrincipalType.User) <= 1;
+        var isGlobal = role.Role.Id == DirectoryRoles.GlobalAdministrator;
+        var activeUsers = role.Grants.Count(g => g.Kind == RoleGrantKind.Active && g.PrincipalType == RolePrincipalType.User);
+        var lastGlobal = isGlobal && activeUsers <= 1;
+        // Removals already waiting count too: taking two of two Global Administrators away is as bad as one of one.
+        var lastAfterRemovals = isGlobal && activeUsers - pending.OfType<RemoveRoleAssignment>().Count(r => r.Kind == RoleGrantKind.Active && r.User.Kind == "user") <= 1;
         foreach (var g in role.Grants)
         {
             var removing = pending.OfType<RemoveRoleAssignment>().FirstOrDefault(r => r.AssignmentId == g.Id);
@@ -178,7 +197,10 @@ public sealed partial class RoleAssignmentsSection : RecordSection
                 ActionText = !CanEdit || (locked is not null && waiting is null) ? null : waiting is null ? "Remove" : "Undo",
                 ActionTip = waiting is null ? "Take the role away (added to Pending changes)" : "Take the change back out of Pending changes",
                 Act = waiting is not null ? () => _page.Pipeline!.Unstage(waiting)
-                    : () => _page.Pipeline!.Stage(new RemoveRoleAssignment(target, g.Id, role.Role.Name, role.Role.Id, g.ScopeId, g.Kind, g.ViaPim)),
+                    : () => _page.Pipeline!.Stage(new RemoveRoleAssignment(target, g.Id, role.Role.Name, role.Role.Id, g.ScopeId, g.Kind, g.ViaPim)
+                    {
+                        TypedReason = RemovalReason(g, role.Role.IsPrivileged, lastAfterRemovals),
+                    }),
                 Locked = CanEdit ? locked : null,
                 ExtendAction = CanEdit && g.ViaPim && g.End is { } ends && !g.Activated && waiting is null
                     ? () => _page.Pipeline!.Stage(new ExtendRoleAssignment(target, role.Role.Id, role.Role.Name, g.ScopeId, g.Kind, ends,

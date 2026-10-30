@@ -37,6 +37,9 @@ public sealed record QuarantinedMessage(
 
     /// <summary>Malware and high-confidence phishing are the riskiest to release: the preview warns before releasing them.</summary>
     public bool IsDangerous => Reason is "Malware" or "HighConfPhish" or "SPOMalware";
+
+    /// <summary>The most messages one quarantine read returns (Exchange pages 1,000 at a time; ten pages).</summary>
+    public const int MaxRead = 10_000;
 }
 
 /// <summary>A quarantined message's content, for the preview.</summary>

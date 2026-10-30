@@ -9,6 +9,7 @@ namespace Tenantry.ViewModels;
 /// <param name="Sync">Keeps the local copy current; null for the demo, which has nothing to sync.</param>
 /// <param name="Resources">Released when the tenant is closed (the local database's connection).</param>
 /// <param name="Changes">Stages, guards, applies and logs edits; null where editing isn't possible.</param>
+/// <param name="ClientId">The app Tenantry signs in with here, so changes that would lock Tenantry out are confirmed by typing.</param>
 public sealed record ConnectedTenant(
     string TenantName,
     string Account,
@@ -25,7 +26,8 @@ public sealed record ConnectedTenant(
     ISyncSettingsStore? SyncSettings = null,
     Tenantry.Core.Changes.IPasswordStyleStore? PasswordStyle = null,
     Tenantry.Core.PowerShell.IChangeScripts? Scripts = null,
-    Func<Tenantry.Core.PowerShell.IPowerShellSession>? PowerShell = null);
+    Func<Tenantry.Core.PowerShell.IPowerShellSession>? PowerShell = null,
+    string? ClientId = null);
 
 /// <summary>The outcome of the automatic setup.</summary>
 public sealed record SetupOutcome(TenantProfile Profile, bool Reused, IReadOnlyList<string> Unresolved);

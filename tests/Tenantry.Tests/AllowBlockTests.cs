@@ -147,4 +147,34 @@ public sealed class AllowBlockTests
         preview.RemoveCommand.Execute(null);
         Assert.IsType<RemoveListEntry>(Assert.Single(pipeline.Pending));
     }
+
+    [Fact]
+    public void An_allowed_entry_with_no_expiry_opens_as_never_expiring()
+    {
+        // Allowed spoofed senders have no expiry at all; the preview once failed to open them.
+        var spoof = new ListEntry("id2", ListKind.Spoof, "news.example", false, null, null, null, null, null, null, null, null, "198.51.100.0/24", "External");
+
+        var preview = new ListEntryPreviewViewModel(spoof, Pipeline(), Availability.Yes);
+
+        Assert.Equal(ExpiryChoice.Never, preview.Expiry.Choice);
+    }
+
+    [Fact]
+    public void Block_the_sender_says_so_when_they_are_listed_already()
+    {
+        var message = new QuarantinedMessage("a\\1", Now, "x@bad.example", ["zz-tenantry-test-bo@contoso.example"], "Verify now", 1, "Phish", null, null, "NOTRELEASED", null);
+        ListEntry Listed(bool block) => new("id1", ListKind.Sender, "X@bad.example", block, null, null, null, null, null, null, null, "Tenant");
+        var pipeline = Pipeline();
+
+        var blocked = new QuarantinePreviewViewModel(message, null, pipeline, Availability.Yes, () => [Listed(true)]);
+        var allowed = new QuarantinePreviewViewModel(message, null, pipeline, Availability.Yes, () => [Listed(false)]);
+        blocked.BlockSenderCommand.Execute(null);
+        allowed.BlockSenderCommand.Execute(null);
+
+        Assert.Empty(pipeline.Pending);
+        Assert.False(blocked.CanBlock);
+        Assert.Equal("This sender is already blocked.", blocked.BlockNote);
+        Assert.StartsWith("This sender is on the allow list.", allowed.BlockNote);
+        Assert.True(new QuarantinePreviewViewModel(message, null, pipeline, Availability.Yes, () => []).CanBlock);
+    }
 }

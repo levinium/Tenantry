@@ -74,7 +74,7 @@ public sealed class RuleDraft
 /// draft back into New-/Set-TransportRule parameters: everything for a new rule, only what changed
 /// (cleared parameters as null) for an edit.
 /// </summary>
-public static class RuleCodec
+public static partial class RuleCodec
 {
     /// <summary>Get-TransportRule fields that describe the rule rather than set it.</summary>
     static readonly HashSet<string> Metadata = new(StringComparer.OrdinalIgnoreCase)
@@ -293,11 +293,30 @@ public static class RuleCodec
             _ => actual.GetRawText(),
         };
         var want = expected.GetValueKind() == JsonValueKind.String ? expected.GetValue<string>() : expected.ToJsonString();
+        // Dates go out as a day's start ("2026-12-01T00:00:00-05:00") and come back as Exchange writes them.
+        if (SameDate(want, text))
+            return true;
         // Sizes go out as bytes ("10485760") and come back as "10 MB (10,485,760 bytes)".
         return string.Equals(text, want, StringComparison.OrdinalIgnoreCase)
                || want.Length > 0 && want.All(char.IsAsciiDigit) && MailDetails.ParseBytes(text) is { } bytes
                   && bytes.ToString(CultureInfo.InvariantCulture) == want;
     }
+
+    /// <summary>
+    /// Whether two texts are the same date: the same moment, or the same day however it's written
+    /// (Exchange may give the moment in UTC, or the day without an offset).
+    /// </summary>
+    static bool SameDate(string want, string? actual)
+    {
+        if (actual is null || !IsoDate().IsMatch(want) || !IsoDate().IsMatch(actual)
+            || !DateTimeOffset.TryParse(want, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var w)
+            || !DateTimeOffset.TryParse(actual, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var a))
+            return false;
+        return w == a || w.DateTime.Date == a.DateTime.Date || w.ToLocalTime().Date == a.ToLocalTime().Date;
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^\d{4}-\d{2}-\d{2}")]
+    private static partial System.Text.RegularExpressions.Regex IsoDate();
 
     static string? Text(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
@@ -353,6 +372,36 @@ public static class RuleCodec
         var except = draft.Exceptions.Count == 0 ? "" : $", except when {string.Join(" or ", draft.Exceptions.Select(l => Lower(Describe(l))))}";
         var then = draft.Actions.Count == 0 ? "do nothing" : string.Join("; ", draft.Actions.Select(l => Lower(Describe(l))));
         return string.Create(CultureInfo.InvariantCulture, $"When {when}{except}: {then}.");
+    }
+
+    /// <summary>
+    /// Before and after for an edit: the rule's sentence, followed by its name and each setting the
+    /// edit changes (notes, dates, stop processing…), so a rename or a new note doesn't read as no change.
+    /// </summary>
+    public static (string Before, string After) EditSummaries(RuleDraft original, RuleDraft edited, RuleCatalog? catalog = null)
+    {
+        catalog ??= RuleCatalog.Instance;
+        var before = new List<string> { Summary(original) };
+        var after = new List<string> { Summary(edited) };
+        if (!string.Equals(original.Name, edited.Name, StringComparison.Ordinal))
+        {
+            before.Add($"Name '{original.Name}'.");
+            after.Add($"Name '{edited.Name}'.");
+        }
+        var properties = catalog.Properties.ToDictionary(p => p.Parameter, StringComparer.OrdinalIgnoreCase);
+        foreach (var key in original.Settings.Keys.Union(edited.Settings.Keys, StringComparer.OrdinalIgnoreCase))
+        {
+            var old = original.Settings.GetValueOrDefault(key);
+            var now = edited.Settings.GetValueOrDefault(key);
+            if (JsonNode.DeepEquals(old, now))
+                continue;
+            var property = properties.GetValueOrDefault(key);
+            var label = property?.Label ?? key;
+            var type = property?.ValueType ?? "text";
+            before.Add($"{label}: {Describe(old, type)}.");
+            after.Add($"{label}: {Describe(now, type)}.");
+        }
+        return (string.Join(" ", before), string.Join(" ", after));
     }
 
     /// <summary>Mid-sentence case: "The sender is" → "the sender is"; "SCL…" stays.</summary>

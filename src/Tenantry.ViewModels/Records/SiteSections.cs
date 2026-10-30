@@ -111,7 +111,7 @@ public sealed partial class PrincipalRow(SitePrincipal principal, string? detail
     /// <summary>A principal as a row, looked up in the local copy.</summary>
     public static PrincipalRow Of(SitePrincipal p, IDirectoryIndex index, Action<UserSummary>? openUser, Action<GroupSummary>? openGroup, string? detail = null)
     {
-        var user = p.Upn is { } upn ? index.AllUsers.FirstOrDefault(u => string.Equals(u.UserPrincipalName, upn, StringComparison.OrdinalIgnoreCase)) : null;
+        var user = p.Upn is { } upn ? index.UserByUpn(upn) : null;
         var group = p.ObjectId is { } id ? index.Group(id) : null;
         return new PrincipalRow(p, detail ?? user?.UserPrincipalName ?? (p.Kind == PrincipalKind.Guest ? p.Upn?.Replace("#ext#", "", StringComparison.OrdinalIgnoreCase) : null),
             user, group, openUser, openGroup);
@@ -178,6 +178,13 @@ public sealed class SiteOverviewSection(SiteDetailViewModel page) : SiteSection(
         OnPropertyChanged(nameof(Activity));
         OnPropertyChanged(nameof(HasActivity));
     }
+
+    protected override void Forget()
+    {
+        _usage = null;
+        OnPropertyChanged(nameof(Activity));
+        OnPropertyChanged(nameof(HasActivity));
+    }
 }
 
 // ---- Permissions ------------------------------------------------------------------------------
@@ -237,16 +244,25 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
         Rebuild();
     }
 
+    protected override void Forget()
+    {
+        _permissions = null;
+        Groups.Clear();
+    }
+
+    // The pending changes the cards last showed: a change elsewhere in the app leaves them as they are.
+    ChangeOp[] _shown = [];
+
     void OnPendingChanged(object? sender, EventArgs e)
     {
-        if (_permissions is not null)
+        if (_permissions is not null && !Pending.SequenceEqual(_shown, ReferenceEqualityComparer.Instance))
             Rebuild();
     }
 
     PrincipalRow Row(SitePrincipal p) => PrincipalRow.Of(p, Page.Index, Page.OpenUserAction, Page.OpenGroupAction);
 
     ChangeTarget PersonTarget(SitePrincipal p) =>
-        p.Upn is { } upn && Page.Index.AllUsers.FirstOrDefault(u => string.Equals(u.UserPrincipalName, upn, StringComparison.OrdinalIgnoreCase)) is { } user
+        p.Upn is { } upn && Page.Index.UserByUpn(upn) is { } user
             ? GroupAccess.Target(user)
             : new ChangeTarget(p.Kind is PrincipalKind.Person or PrincipalKind.Guest ? "user" : "principal", p.Upn ?? p.Login, p.Name, p.Upn);
 
@@ -285,13 +301,14 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
         return row;
     }
 
-    PersonPicker? Picker(IEnumerable<string> present, Action<UserSummary> add)
+    /// <param name="sharePoint">Adds to SharePoint itself (not a Microsoft 365 group): people it won't take are labelled.</param>
+    PersonPicker? Picker(IEnumerable<string> present, Action<UserSummary> add, bool sharePoint = true)
     {
         if (!Page.CanEdit)
             return null;
         var taken = present.ToHashSet(StringComparer.OrdinalIgnoreCase);
         return new PersonPicker("Add someone: type a name",
-            () => GroupAccess.People(Page.Index).Where(o => o.Address is null || !taken.Contains(o.Address)),
+            () => (sharePoint ? GroupAccess.SitePeople(Page.Index) : GroupAccess.People(Page.Index)).Where(o => o.Address is null || !taken.Contains(o.Address)),
             o =>
             {
                 if (Page.Index.User(o.Id) is { } user)
@@ -306,7 +323,7 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
     {
         if (_permissions is not { } permissions)
             return;
-        var pending = Pending.ToArray();
+        var pending = _shown = Pending.ToArray();
         var site = SiteChange.TargetFor(Site);
         var groupSite = Site.GroupId is { } gid ? Page.Index.Group(gid) : null;
         Groups.Clear();
@@ -343,14 +360,16 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
                 var list = role == GroupRole.Owner ? groupSite.OwnerList : groupSite.Members;
                 var groupChanges = pending.OfType<SetGroupMembership>().Where(c => c.Role == role).ToArray();
                 var rows = new List<PrincipalRow>();
+                // Owners already waiting to be removed don't count: Graph refuses taking the last one away.
+                var ownersLeft = groupSite.OwnerList.Count - groupChanges.Count(c => !c.New);
                 foreach (var m in list)
                 {
                     if (Page.Index.User(m.Id) is not { } person)
                         continue;
-                    var lastOwner = role == GroupRole.Owner && groupSite.OwnerList.Count <= 1;
+                    var lastOwner = role == GroupRole.Owner && ownersLeft <= 1;
                     rows.Add(Editable(PrincipalRow.PersonOf(person), groupChanges.FirstOrDefault(c => !c.New && c.Person.Id == person.Id),
                         () => new SetGroupMembership(GroupAccess.Target(groupSite), GroupAccess.Target(person), "user", role, groupSite.IsExchangeManaged, true, false),
-                        lastOwner ? "The group's only owner" : null));
+                        lastOwner ? "The group's last owner" : null));
                 }
                 foreach (var add in groupChanges.Where(c => c.New && list.All(m => m.Id != c.Person.Id)))
                     rows.Add(Adding(PersonFromTarget(add.Person), add));
@@ -358,7 +377,17 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
                 rows.AddRange(addedHere);
                 var present = list.Select(m => Page.Index.User(m.Id)?.UserPrincipalName ?? "").Concat(groupChanges.Select(c => c.Person.Address ?? ""));
                 Groups.Add(new SiteGroupCard(g.Role, Explain(g.Role, true), rows, groupSite.IsDynamic && role == GroupRole.Member ? null : Picker(present,
-                    u => Page.Pipeline!.Stage(new SetGroupMembership(GroupAccess.Target(groupSite), GroupAccess.Target(u), "user", role, groupSite.IsExchangeManaged, false, true)))));
+                    u => Page.Pipeline!.Stage(new SetGroupMembership(GroupAccess.Target(groupSite), GroupAccess.Target(u), "user", role, groupSite.IsExchangeManaged, false, true)), sharePoint: false)));
+                continue;
+            }
+
+            if (Site.GroupId is not null && g.Role is "Owners" or "Members")
+            {
+                // The group isn't in the local copy (just made, or outside what's synced): its people
+                // can only change through the group, so they're shown but not changed here.
+                Groups.Add(new SiteGroupCard(g.Role,
+                    $"These are its Microsoft 365 group's {g.Role.ToLowerInvariant()}. The group isn't in Tenantry's local copy yet, so they can be changed here after the next refresh.",
+                    [.. g.Members.Select(Row)]));
                 continue;
             }
 
@@ -464,6 +493,13 @@ public sealed class SiteSharingSection(SiteDetailViewModel page) : SiteSection(p
         var anyone = sharing.Links.Count(l => l.Kind == LinkKind.Anyone);
         Summary = anyone > 0 ? $"{anyone} anyone link{(anyone == 1 ? "" : "s")}" : sharing.Links.Count == 0 ? "No sharing links" : $"{sharing.Links.Count} sharing links";
     }
+
+    protected override void Forget()
+    {
+        Links.Clear();
+        SharedWith.Clear();
+        Guests.Clear();
+    }
 }
 
 // ---- Libraries --------------------------------------------------------------------------------
@@ -565,6 +601,13 @@ public sealed class SiteLibrariesSection(SiteDetailViewModel page) : SiteSection
         foreach (var l in all)
             (l.IsLibrary ? Libraries : Lists).Add(new LibraryRow(l, () => Records.GetRecentFilesAsync(Site, l)));
         Summary = $"{Libraries.Count} libraries, {all.Where(l => l.IsLibrary).Sum(l => l.Items):N0} files and folders";
+        OnPropertyChanged(nameof(HasLists));
+    }
+
+    protected override void Forget()
+    {
+        Libraries.Clear();
+        Lists.Clear();
         OnPropertyChanged(nameof(HasLists));
     }
 }

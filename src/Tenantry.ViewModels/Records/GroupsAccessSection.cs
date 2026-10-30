@@ -218,7 +218,7 @@ public sealed partial class GroupsAccessSection : RecordSection, IDisposable
             Groups.Add(new ToggleRow(g.DisplayName, GroupSummary.KindName(g.Kind) + (g.IsTeam ? " · Team" : ""), g.IsTeam ? "Team" : "Group",
                 g.IsTeam ? BadgeKind.Success : BadgeKind.Info,
                 [Membership(g, GroupRole.Member, member), Membership(g, GroupRole.Owner, owner)],
-                g.IsDynamic ? "Dynamic: membership follows the group's rule" : null,
+                g.IsDynamic ? "Dynamic: membership follows the group's rule" : g.SyncedFromOnPremises ? "Synced from on-premises Active Directory" : null,
                 () => _openGroup(g)));
         OnPropertyChanged(nameof(HasNoGroups));
         OnPropertyChanged(nameof(GroupsHeading));
@@ -291,7 +291,7 @@ public sealed partial class GroupsAccessSection : RecordSection, IDisposable
         var ids = _groups.Select(g => g.Group.Id)
             .Concat(PendingFor<SetGroupMembership>(p => p.Person.Id == _user.Id).Select(p => p.Group.Id))
             .ToHashSet(StringComparer.Ordinal);
-        return _index.AllGroups.Where(g => !g.IsMailbox && !g.IsDynamic && !ids.Contains(g.Id)).Select(PickOption.Of);
+        return _index.AllGroups.Where(g => !g.IsMailbox && GroupAccess.MembersEditable(g) && !ids.Contains(g.Id)).Select(PickOption.Of);
     }
 
     void AddToGroup(PickOption option)

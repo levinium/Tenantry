@@ -84,7 +84,9 @@ public sealed partial class DemoTenantDirectory : ITenantDirectory
                 Licenses: isGuest ? []
                     : faker.Random.Bool(0.05f) ? []
                     : faker.Random.Bool(0.25f) ? [faker.PickRandom(Licenses), FreeAddOn]
-                    : [faker.PickRandom(Licenses)]));
+                    : [faker.PickRandom(Licenses)],
+                // Members work in one country (licenses need it); guests have none here.
+                UsageLocation: isGuest ? null : "US"));
         }
 
         return AddMailboxes(users);

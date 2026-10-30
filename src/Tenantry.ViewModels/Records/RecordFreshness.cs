@@ -112,29 +112,33 @@ public sealed partial class RecordFreshness : ObservableObject
     }
 
     /// <summary>Names what changed (quiet ones only tinted), then settles to "Up to date" after a few seconds.</summary>
+    /// <remarks>
+    /// async void (callers don't wait for the settle), so nothing may escape: an exception here
+    /// would end the app. A failure only means the line doesn't settle.
+    /// </remarks>
     public async void Updated(IReadOnlyList<FieldChange> changes, DateTimeOffset at)
     {
-        var generation = ++_generation;
-        CheckedAt = at;
-        var shown = changes.Where(c => !c.Quiet).ToArray();
-        Highlight?.Invoke(this, changes.Select(c => c.Key).ToHashSet(StringComparer.Ordinal));
-        if (shown.Length == 0)
-        {
-            State = FreshnessState.UpToDate;
-            return;
-        }
-        ChangedLabels = shown.Select(c => c.Label).ToArray();
-        State = FreshnessState.Updated;
         try
         {
+            var generation = ++_generation;
+            CheckedAt = at;
+            var shown = changes.Where(c => !c.Quiet).ToArray();
+            Highlight?.Invoke(this, changes.Select(c => c.Key).ToHashSet(StringComparer.Ordinal));
+            if (shown.Length == 0)
+            {
+                State = FreshnessState.UpToDate;
+                return;
+            }
+            ChangedLabels = shown.Select(c => c.Label).ToArray();
+            State = FreshnessState.Updated;
             await Task.Delay(SettleAfter);
+            if (generation == _generation)
+                State = FreshnessState.UpToDate;
         }
-        catch (TaskCanceledException)
+        catch (Exception)
         {
-            return;
+            // Nothing to show: the freshness line just keeps its last state.
         }
-        if (generation == _generation)
-            State = FreshnessState.UpToDate;
     }
 
     static string Join(IReadOnlyList<string> labels) => labels.Count switch

@@ -59,6 +59,9 @@ if (args.Contains("--behavior-check"))
     return passed && interactions == 0 ? 0 : 1;
 }
 
+if (args.Contains("--crawl"))
+    return Crawler.Run();
+
 var demoTenant = new TenantConnector().ConnectDemo();
 // No waiting anywhere: with no message loop, a delayed continuation would land on a worker thread.
 if (demoTenant.Directory is Tenantry.Demo.DemoTenantDirectory demoDirectory)

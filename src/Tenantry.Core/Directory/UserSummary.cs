@@ -24,4 +24,13 @@ public sealed record UserSummary(
     IReadOnlyList<string> Licenses,
     MailboxInfo? Mailbox = null,
     UserSecurity? Security = null,
-    IReadOnlyList<OfficeActivation>? Activations = null);
+    IReadOnlyList<OfficeActivation>? Activations = null,
+    bool SyncedFromOnPremises = false,
+    string? UsageLocation = null)
+{
+    /// <summary>
+    /// Why on-premises Active Directory, not Microsoft 365, decides this: synced people's names,
+    /// details and sign-in name are changed there and copied up by Entra Connect.
+    /// </summary>
+    public const string SyncedReason = "Synced from on-premises Active Directory: change it there, and Entra Connect copies it up.";
+}

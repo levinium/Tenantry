@@ -52,6 +52,9 @@ public interface ITenantSync
     /// <summary>Raised, possibly on a worker thread, whenever <see cref="BackgroundStatus"/> changes.</summary>
     event EventHandler? BackgroundStatusChanged { add { } remove { } }
 
+    /// <summary>What the last history run couldn't read (a missing license or role, a failure); empty when it all went in.</summary>
+    IReadOnlyList<string> LogNotes => [];
+
     /// <summary>Adds new sign-ins and audit events to the history kept on this computer now.</summary>
     Task ArchiveLogsNowAsync(IProgress<string>? progress, CancellationToken cancellationToken) => Task.CompletedTask;
 

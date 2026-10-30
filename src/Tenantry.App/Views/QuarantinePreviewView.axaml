@@ -35,7 +35,17 @@
           <TextBlock Text="Show the Message" />
         </StackPanel>
       </Button>
-      <TextBlock Classes="muted" Text="Reading the message…" IsVisible="{Binding IsLoadingBody}" />
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoadingBody}">
+        <Panel Width="16" Height="16" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" Text="Reading the message…" VerticalAlignment="Center" />
+      </StackPanel>
       <TextBlock Classes="error" Text="{Binding BodyError}" IsVisible="{Binding HasBodyError}" TextWrapping="Wrap" />
       <Border Classes="valuerow" IsVisible="{Binding HasBody}" MaxHeight="320">
         <ScrollViewer>
@@ -51,7 +61,10 @@
     <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
       <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
     </Border>
-    <StackPanel Spacing="10" IsVisible="{Binding CanEdit}">
+    <Border Classes="banner success" IsVisible="{Binding HasOutcome}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding Outcome}" />
+    </Border>
+    <StackPanel Spacing="10" IsVisible="{Binding CanAct}">
       <Border Classes="banner error" IsVisible="{Binding IsDangerous}">
         <TextBlock TextWrapping="Wrap" Text="{Binding DangerText}" />
       </Border>
@@ -64,9 +77,10 @@
       <WrapPanel ItemSpacing="8" LineSpacing="8">
         <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}"
                 ToolTip.Tip="Removes it from quarantine for good (added to Pending changes)" />
-        <Button Classes="danger-outline" Content="{Binding BlockText}" Command="{Binding BlockSenderCommand}"
+        <Button Classes="danger-outline" Content="{Binding BlockText}" Command="{Binding BlockSenderCommand}" IsEnabled="{Binding CanBlock}"
                 ToolTip.Tip="Adds the sender to the block list: their mail goes to quarantine from now on (added to Pending changes)" />
       </WrapPanel>
+      <TextBlock Classes="caption" Text="{Binding BlockNote}" IsVisible="{Binding HasBlockNote}" TextWrapping="Wrap" />
     </StackPanel>
   </StackPanel>
 </UserControl>

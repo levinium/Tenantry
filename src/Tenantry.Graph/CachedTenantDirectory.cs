@@ -480,7 +480,8 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             Visibility: Str(g, "visibility"),
             CreatedAt: Date(g, "createdDateTime"),
             Members: Relation(g, "members"),
-            Owners: Relation(g, "owners"));
+            Owners: Relation(g, "owners"),
+            SyncedFromOnPremises: Bool(g, "onPremisesSyncEnabled"));
     }
 
     /// <summary>A stored relation ({id: type}) as a list; empty when the group has none (or was synced before owners were).</summary>
@@ -573,7 +574,9 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
                 .Select(l => l.GetProperty("skuId").GetString()!)
                 .Select(id => skuNames.GetValueOrDefault(id, id))
                 .ToArray()
-            : []);
+            : [],
+        SyncedFromOnPremises: Bool(u, "onPremisesSyncEnabled"),
+        UsageLocation: Str(u, "usageLocation"));
 
     static string? Str(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;

@@ -37,6 +37,7 @@
           </StackPanel>
         </Button>
       </StackPanel>
+      <TextBlock DockPanel.Dock="Top" Classes="caption" Text="{Binding QuarantineNote}" IsVisible="{Binding HasQuarantineNote}" TextWrapping="Wrap" Margin="0,0,0,8" />
       <ContentControl Content="{Binding Quarantine}">
         <ContentControl.DataTemplates>
           <listviews:ListViewCache />
@@ -84,7 +85,7 @@
     <!-- Mail flow rules: in the order they run -->
     <DockPanel IsVisible="{Binding ShowRules}">
       <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
-        <Button Classes="accent" Command="{Binding NewRuleCommand}" IsEnabled="{Binding CanOpenEditor}" ToolTip.ShowOnDisabled="True"
+        <Button Classes="accent" Command="{Binding NewRuleCommand}" IsEnabled="{Binding CanStartRule}" ToolTip.ShowOnDisabled="True"
                 ToolTip.Tip="{Binding NewRuleTip}">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="Add" FontSize="14" />

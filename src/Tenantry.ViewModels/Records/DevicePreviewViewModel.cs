@@ -25,7 +25,7 @@ public sealed partial class DevicePreviewViewModel
         CanEdit = pipeline is not null && canEdit.IsAvailable;
         EditReason = pipeline is null ? "This tenant can't be edited" : canEdit.Reason ?? "";
         if (CanEdit)
-            Bulk = new BulkEditorViewModel(device.Name, BulkActions.ForDevices(() => [Device], now, one: true, index), pipeline!);
+            Bulk = new BulkEditorViewModel(device.Name, BulkActions.ForDevices(() => [Device], now, one: true, index, () => pipeline!.Pending), pipeline!);
     }
 
     public DeviceSummary Device { get; }

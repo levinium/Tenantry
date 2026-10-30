@@ -41,6 +41,21 @@ public abstract partial class AppPageViewModel : TabViewModel, IDisposable
     public bool CanEdit { get; }
     public string EditReason { get; }
 
+    /// <summary>The app Tenantry signs in with in this tenant (its client ID), when known.</summary>
+    public string? TenantryClientId { get; init; }
+
+    /// <summary>The app's application (client) ID.</summary>
+    protected abstract string AppId { get; }
+
+    /// <summary>This is Tenantry itself: taking anything away could lock Tenantry out, so it needs the name typed.</summary>
+    public bool IsTenantry => TenantryClientId is { Length: > 0 } id && string.Equals(AppId, id, StringComparison.OrdinalIgnoreCase);
+
+    public const string TenantryReason = "This is the app Tenantry signs in with: it could stop Tenantry working in this tenant.";
+
+    /// <summary>Puts a change in Pending changes; one that takes something away from Tenantry's own app needs its name typed.</summary>
+    protected void AddToPending(ChangeOp change) =>
+        Pipeline!.Stage(IsTenantry && change.IsCaution ? change with { TypedReason = TenantryReason } : change);
+
     public abstract string Subtitle { get; }
 
     /// <summary>The page's icon: an app registration's or an enterprise app's.</summary>
@@ -94,7 +109,7 @@ public abstract partial class AppPageViewModel : TabViewModel, IDisposable
     void Delete()
     {
         if (CanDelete)
-            Pipeline!.Stage(new DeleteApp(Target, DeleteDetail));
+            AddToPending(new DeleteApp(Target, DeleteDetail));
     }
 
     public abstract string DeleteText { get; }
@@ -131,7 +146,7 @@ public abstract partial class AppPageViewModel : TabViewModel, IDisposable
     protected AppRow Removable(AppRow row, ChangeOp? waiting, Func<ChangeOp> make, string verb = "Remove", string? tip = null, string state = "Removing") =>
         !CanEdit ? row
         : waiting is not null ? row.With(state, "Undo", "Take the change back out of Pending changes", () => Pipeline!.Unstage(waiting))
-        : row.With(null, verb, tip ?? $"{verb} (added to Pending changes)", () => Pipeline!.Stage(make()));
+        : row.With(null, verb, tip ?? $"{verb} (added to Pending changes)", () => AddToPending(make()));
 
     /// <summary>A row for something waiting to be added, with Undo.</summary>
     protected AppRow Adding(string title, string? detail, ChangeOp waiting) =>
@@ -206,6 +221,7 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
     public override string Subtitle => $"Application (client) ID {App.AppId}";
     public override string Icon => "AppFolder";
     public override ChangeTarget Target => new(AppChange.Registration, App.Id, App.Name, null);
+    protected override string AppId => App.AppId;
 
     EnterpriseApp? Enterprise => _directory.EnterpriseFor(App.AppId);
 
@@ -431,6 +447,7 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
     public override string Subtitle => App.Publisher is { } p ? $"{p}{(App.IsVerifiedPublisher ? " (verified publisher)" : "")}" : $"Application ID {App.AppId}";
     public override string Icon => "Apps";
     public override ChangeTarget Target => new(AppChange.Enterprise, App.Id, App.Name, null);
+    protected override string AppId => App.AppId;
 
     AppRegistration? Registration => _directory.RegistrationFor(App.AppId);
 
@@ -486,7 +503,7 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
                 Pipeline!.Unstage(waiting);
         }
         else
-            Pipeline!.Stage(new SetEnterpriseAppSetting(Target, setting, current, value));
+            AddToPending(new SetEnterpriseAppSetting(Target, setting, current, value));
     }
 
     protected override void PendingChanged()

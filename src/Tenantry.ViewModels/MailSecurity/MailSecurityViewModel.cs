@@ -52,7 +52,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         _tabs = tabs;
         _now = now ?? (() => DateTimeOffset.Now);
         Quarantine = DataListViewModel.Create(
-            MailSecurityLists.Quarantine(m => new QuarantinePreviewViewModel(m, records, pipeline, canEdit)),
+            MailSecurityLists.Quarantine(m => new QuarantinePreviewViewModel(m, records, pipeline, canEdit, () => _entries)),
             LoadQuarantineAsync, row => OpenQuarantined((QuarantinedMessage)row), listState, _now);
         Trace = DataListViewModel.Create(
             MailSecurityLists.Trace(m => new TracePreviewViewModel(m, records)),
@@ -145,8 +145,19 @@ public sealed partial class MailSecurityViewModel : TabViewModel
 
     IReadOnlyList<MailFlowRule> _rules = [];
 
-    async Task<IReadOnlyList<MailFlowRule>> LoadRulesAsync(CancellationToken cancellationToken) =>
+    bool _rulesLoaded;
+
+    async Task<IReadOnlyList<MailFlowRule>> LoadRulesAsync(CancellationToken cancellationToken)
+    {
         _rules = _records is null ? [] : await _records.GetRulesAsync(cancellationToken);
+        if (!_rulesLoaded)
+        {
+            _rulesLoaded = true;
+            OnPropertyChanged(nameof(CanStartRule));
+            OnPropertyChanged(nameof(NewRuleTip));
+        }
+        return _rules;
+    }
 
     [RelayCommand]
     Task RefreshRules() => Rules.ReloadAsync(busyText: "Reading the mail flow rules…");
@@ -154,14 +165,21 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     /// <summary>The editor opens in a tab; it needs somewhere to open and an admin who can change rules.</summary>
     public bool CanOpenEditor => _tabs is not null && _records is not null && _pipeline is not null && _canEdit.IsAvailable;
 
-    public string NewRuleTip => CanOpenEditor
-        ? "Start a new rule from a template or from scratch. New rules start in Test mode."
-        : _canEdit.Reason ?? "This tenant can't be edited";
+    /// <summary>
+    /// A new rule waits for the rules to be read: where it goes ("after every other rule") and
+    /// whether its name is taken both need them.
+    /// </summary>
+    public bool CanStartRule => CanOpenEditor && _rulesLoaded;
+
+    public string NewRuleTip => !CanOpenEditor
+        ? _canEdit.Reason ?? "This tenant can't be edited"
+        : _rulesLoaded ? "Start a new rule from a template or from scratch. New rules start in Test mode."
+        : "Reading the rules first, so the new one knows where it goes…";
 
     [RelayCommand]
     void NewRule()
     {
-        if (!CanOpenEditor)
+        if (!CanStartRule)
             return;
         _tabs!.OpenTab(_ => false, () => RuleEditorViewModel.New(_pipeline, _canEdit, _rules, e => _tabs.CloseTab(e)));
     }
@@ -171,7 +189,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     {
         var key = "quarantine:" + message.Identity;
         _tabs?.OpenTab(t => t is MailRecordPageViewModel p && p.Key == key,
-            () => new MailRecordPageViewModel(key, $"Quarantine: {message.Subject}", new QuarantinePreviewViewModel(message, _records, _pipeline, _canEdit)));
+            () => new MailRecordPageViewModel(key, $"Quarantine: {message.Subject}", new QuarantinePreviewViewModel(message, _records, _pipeline, _canEdit, () => _entries)));
     }
 
     /// <summary>Opens a block or allow entry as its own page, or switches to it.</summary>
@@ -222,8 +240,21 @@ public sealed partial class MailSecurityViewModel : TabViewModel
 
     string QuarantineBusy => $"Reading quarantine ({QuarantineRange.Label.ToLowerInvariant()})…";
 
-    async Task<IReadOnlyList<QuarantinedMessage>> LoadQuarantineAsync(CancellationToken cancellationToken) =>
-        _records is null ? [] : await _records.GetQuarantineAsync(QuarantineRange.Days, cancellationToken);
+    async Task<IReadOnlyList<QuarantinedMessage>> LoadQuarantineAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<QuarantinedMessage> messages = _records is null ? [] : await _records.GetQuarantineAsync(QuarantineRange.Days, cancellationToken);
+        QuarantineNote = messages.Count >= QuarantinedMessage.MaxRead
+            ? $"Showing the newest {QuarantinedMessage.MaxRead:N0} messages: choose a shorter range to see the rest."
+            : null;
+        return messages;
+    }
+
+    /// <summary>Set when quarantine held more than one read returns, so the list isn't taken as everything.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasQuarantineNote))]
+    public partial string? QuarantineNote { get; private set; }
+
+    public bool HasQuarantineNote => QuarantineNote is not null;
 
     [RelayCommand]
     Task RefreshQuarantine() => Quarantine.ReloadAsync(busyText: QuarantineBusy);

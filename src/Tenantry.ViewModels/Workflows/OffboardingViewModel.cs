@@ -222,15 +222,17 @@ public sealed partial class OffboardingViewModel : ObservableObject
         var memberships = On("groups") ? Memberships() : new Dictionary<string, List<(GroupSummary, bool, bool, string?)>>();
         var changes = new List<ChangeOp>();
         var notes = new List<string>();
+        // Owners taken off earlier in this plan: two people leaving can be a group's only two owners.
+        var ownersLeaving = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var person in _people)
-            PlanPerson(person, facts[person.Id], memberships.GetValueOrDefault(person.Id) ?? [], changes, notes);
+            PlanPerson(person, facts[person.Id], memberships.GetValueOrDefault(person.Id) ?? [], changes, notes, ownersLeaving);
         if (On("forward") && ForwardTo is null)
             notes.Insert(0, "Forwarding is ticked but no one is chosen to forward to, so it's left out.");
         return new WorkflowPlan(changes, notes);
     }
 
     void PlanPerson(UserSummary person, Facts facts, List<(GroupSummary Group, bool Member, bool Owner, string? Access)> groups, List<ChangeOp> changes,
-        List<string> notes)
+        List<string> notes, Dictionary<string, int> ownersLeaving)
     {
         var target = GroupAccess.Target(person);
         notes.AddRange(facts.Problems);
@@ -239,7 +241,9 @@ public sealed partial class OffboardingViewModel : ObservableObject
             changes.Add(new SetSignInAllowed(target, true, false));
         if (On("signout"))
             changes.Add(new RevokeSessions(target));
-        if (On("password"))
+        if (On("password") && person.Kind == UserKind.Guest)
+            notes.Add($"{person.DisplayName} is a guest: their password belongs to their own organization, so it isn't reset (blocking sign-in still keeps them out).");
+        else if (On("password"))
             changes.Add(new ResetPassword(target, false));
         if (On("methods"))
             changes.AddRange(facts.Methods.Select(m => new RemoveAuthMethod(target, m.Id, m.Segment, m.Kind)));
@@ -260,12 +264,17 @@ public sealed partial class OffboardingViewModel : ObservableObject
                 }
                 if (member && g.IsDynamic)
                     notes.Add($"{person.DisplayName}: stays in {g.DisplayName}, which follows a rule (change their details to take them out).");
+                else if (member && g.SyncedFromOnPremises)
+                    notes.Add($"{person.DisplayName}: stays in {g.DisplayName}, which is synced from on-premises Active Directory (take them out there).");
                 else if (member)
                     changes.Add(new SetGroupMembership(GroupAccess.Target(g), target, "user", GroupRole.Member, g.IsExchangeManaged, true, false));
-                if (owner && !g.IsExchangeManaged && g.OwnerList.Count == 1)
-                    notes.Add($"{person.DisplayName}: stays an owner of {g.DisplayName}, its only owner (add another owner first).");
+                if (owner && GroupAccess.LastOwnerReason(g, _pipeline, ownersLeaving.GetValueOrDefault(g.Id)) is not null)
+                    notes.Add($"{person.DisplayName}: stays an owner of {g.DisplayName}, its last owner (add another owner first).");
                 else if (owner)
+                {
                     changes.Add(new SetGroupMembership(GroupAccess.Target(g), target, "user", GroupRole.Owner, g.IsExchangeManaged, true, false));
+                    ownersLeaving[g.Id] = ownersLeaving.GetValueOrDefault(g.Id) + 1;
+                }
             }
         }
 
@@ -310,7 +319,11 @@ public sealed partial class OffboardingViewModel : ObservableObject
             convertKey = convert.Key;
             changes.Add(convert);
         }
-        if (On("licenses") && facts.Licenses.Count > 0)
+        // A shared mailbox still needs a license over 50 GB, on hold or with an archive.
+        var stillNeeds = mailbox is not null && (convertKey is not null || !isUserMailbox) ? SharedNeedsLicense(mailbox) : null;
+        if (On("licenses") && facts.Licenses.Count > 0 && stillNeeds is not null)
+            notes.Add($"{person.DisplayName}: keeps their licenses, because a shared mailbox {stillNeeds} still needs one.");
+        else if (On("licenses") && facts.Licenses.Count > 0)
         {
             if (isUserMailbox && convertKey is null)
                 notes.Add($"{person.DisplayName}: their mailbox isn't converted to shared, so it's deleted 30 days after its license goes.");
@@ -322,6 +335,13 @@ public sealed partial class OffboardingViewModel : ObservableObject
             changes.AddRange(facts.Devices.Where(d => d.ManagedId is not null)
                 .Select(d => new RunDeviceAction(new ChangeTarget("manageddevice", d.ManagedId!, d.Name, null), DeviceCommand.Retire)));
     }
+
+    /// <summary>Why a shared mailbox still needs a license (Microsoft's rules), or null when it doesn't.</summary>
+    static string? SharedNeedsLicense(MailboxInfo mailbox) =>
+        mailbox.UsedBytes > 50L * 1024 * 1024 * 1024 ? "over 50 GB"
+        : mailbox.LitigationHold ? "on litigation hold"
+        : mailbox.ArchiveEnabled ? "with an archive"
+        : null;
 
     // ---- Staging ------------------------------------------------------------------------------
 

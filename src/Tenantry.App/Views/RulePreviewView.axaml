@@ -82,6 +82,7 @@
             <ic:FluentIcon Icon="ArrowDownload" FontSize="14" />
           </Button>
         </WrapPanel>
+        <TextBlock Classes="caption" Text="{Binding OrderNote}" IsVisible="{Binding HasOrderNote}" TextWrapping="Wrap" />
       </StackPanel>
       <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}" HorizontalAlignment="Left"
               ToolTip.Tip="Deletes the rule for good (added to Pending changes)" />

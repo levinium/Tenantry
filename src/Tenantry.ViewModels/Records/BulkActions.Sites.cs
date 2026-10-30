@@ -20,7 +20,7 @@ public static partial class BulkActions
 
     /// <summary>A person as a site change's target: from the local copy, or by sign-in name alone.</summary>
     static ChangeTarget PersonTarget(string upn, IDirectoryIndex? index) =>
-        index?.AllUsers.FirstOrDefault(u => string.Equals(u.UserPrincipalName, upn, StringComparison.OrdinalIgnoreCase)) is { } user
+        index?.UserByUpn(upn) is { } user
             ? GroupAccess.Target(user)
             : new ChangeTarget("user", upn, upn, upn);
 
@@ -46,7 +46,7 @@ public static partial class BulkActions
             actions.Add(new("Add a Site Admin", "Give someone full control of the site, including its permissions and settings.", "PersonAdd",
                 (a, _) => Task.FromResult(Plan(selected(), s => (new SetSiteAdmin(SiteChange.TargetFor(s), s.Url, a.Picked!.Target("user"),
                     SetOneDriveAccess.LoginFor(a.Picked.Address ?? a.Picked.Name), false, true), null))),
-                pickPlaceholder: "Choose a person: type a name", pickOptions: () => GroupAccess.People(index), group: SiteAccess));
+                pickPlaceholder: "Choose a person: type a name", pickOptions: () => GroupAccess.SitePeople(index), group: SiteAccess));
             actions.Add(new("Remove a Site Admin", "Take someone's site admin rights away. A OneDrive's own owner and a group's owners keep theirs.", "PersonDelete",
                 (a, _) => Task.FromResult(Plan(selected(), s =>
                     s.Kind == SiteKind.OneDrive && s.OwnerLogin is { } owner && owner.EndsWith("|" + a.Picked!.Address, StringComparison.OrdinalIgnoreCase)

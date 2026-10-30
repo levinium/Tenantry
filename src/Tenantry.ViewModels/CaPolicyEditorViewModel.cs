@@ -26,13 +26,17 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
     readonly CaDirectory _directory;
     readonly IDirectoryIndex _index;
     readonly string? _meId;
+    readonly IReadOnlySet<string>? _myRoles;
+    readonly IReadOnlySet<string>? _myGroups;
     readonly Action<TabViewModel> _close;
     JsonObject _base;
     ChangeOp? _staged;
     bool _filling = true;
 
+    /// <param name="myRoles">The admin roles (template IDs) the signed-in admin holds, so a policy
+    /// that would block them through a role is caught too.</param>
     public CaPolicyEditorViewModel(CaPolicy? existing, CaDirectory directory, ChangePipeline pipeline, ICaEditingRecords? records, IRoleRecords? roles,
-        IDirectoryIndex index, string? me, Action<TabViewModel> close)
+        IDirectoryIndex index, string? me, Action<TabViewModel> close, IReadOnlySet<string>? myRoles = null)
     {
         _existing = existing;
         _directory = directory;
@@ -41,6 +45,10 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
         _index = index;
         _close = close;
         _meId = me is null ? null : index.AllUsers.FirstOrDefault(u => string.Equals(u.UserPrincipalName, me, StringComparison.OrdinalIgnoreCase))?.Id;
+        _myRoles = myRoles;
+        // Direct memberships, read once (a policy can cover the admin through one of these groups).
+        _myGroups = _meId is null ? null
+            : index.AllGroups.Where(g => g.Members.Any(m => string.Equals(m.Id, _meId, StringComparison.OrdinalIgnoreCase))).Select(g => g.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         _base = existing?.Node ?? Blank();
 
         void Changed() => Edited();
@@ -242,6 +250,7 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
         new("Office365", "Office 365"),
         new("MicrosoftAdminPortals", "Microsoft Admin Portals"),
         new("chosen", "Chosen Apps"),
+        new("None", "No Apps (Nothing Yet)"),
         new("urn:user:registersecurityinfo", "Registering Security Info (a user action)"),
         new("urn:user:registerdevice", "Registering or Joining Devices (a user action)"),
     ];
@@ -470,9 +479,10 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
         var apps = CaJson.Strings(p, "conditions/applications/includeApplications");
         var actions = CaJson.Strings(p, "conditions/applications/includeUserActions");
         Target = actions.Count > 0 ? Pick(TargetChoices, actions[0])
-            : apps.Count == 1 && apps[0] is "All" or "Office365" or "MicrosoftAdminPortals" ? Pick(TargetChoices, apps[0])
+            : apps.Count == 1 && apps[0] is "All" or "Office365" or "MicrosoftAdminPortals" or "None" ? Pick(TargetChoices, apps[0])
             : apps.Count == 0 ? TargetChoices[0] : Pick(TargetChoices, "chosen");
-        IncludeApps.Fill(apps.Where(a => Guid.TryParse(a, out _)).Select(a => Named(a, names.Apps, "app")));
+        // Chosen apps can include Office 365 or the admin portals beside single apps: keep them as chips.
+        IncludeApps.Fill(apps.Where(a => a is not ("All" or "None")).Select(a => AppName(a, names)));
         ExcludeApps.Fill(CaJson.Strings(p, "conditions/applications/excludeApplications").Select(a => AppName(a, names)));
 
         var platforms = CaJson.Strings(p, "conditions/platforms/includePlatforms");
@@ -485,7 +495,9 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
 
         var places = CaJson.Strings(p, "conditions/locations/includeLocations");
         LocationMode = Pick(LocationModes, places.Count == 0 ? "none" : places[0] is "All" or "AllTrusted" && places.Count == 1 ? places[0] : "chosen");
-        IncludeLocations.Fill(places.Where(l => l is not ("All" or "AllTrusted")).Select(l => Named(l, names.Locations, "location")));
+        // Trusted locations beside named ones stay as a chip of their own.
+        IncludeLocations.Fill(places.Where(l => l != "All" && (l != "AllTrusted" || places.Count > 1))
+            .Select(l => l == "AllTrusted" ? new PickOption(l, "All Trusted Locations", "location", "location", null, "") : Named(l, names.Locations, "location")));
         var notPlaces = CaJson.Strings(p, "conditions/locations/excludeLocations");
         ExcludeTrusted = notPlaces.Contains("AllTrusted");
         ExcludeLocations.Fill(notPlaces.Where(l => l != "AllTrusted").Select(l => Named(l, names.Locations, "location")));
@@ -549,10 +561,15 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
 
         var users = CaJson.Object(p, "conditions/users");
         var chosen = Who?.Value == "chosen";
+        // Guests can be named two ways: the GuestsOrExternalUsers keyword, or the newer
+        // …GuestsOrExternalUsers object (by kind of guest). A policy using the object keeps it, and
+        // never gets the keyword too: Entra refuses both at once.
+        var guestsIn = IncludeGuests && users["includeGuestsOrExternalUsers"] is not JsonObject;
+        var guestsOut = ExcludeGuests && users["excludeGuestsOrExternalUsers"] is not JsonObject;
         string[] included = Who?.Value switch
         {
             "all" => ["All"],
-            "chosen" => [.. IncludePeople.Ids, .. IncludeGuests ? ["GuestsOrExternalUsers"] : Array.Empty<string>()],
+            "chosen" => [.. IncludePeople.Ids, .. guestsIn ? ["GuestsOrExternalUsers"] : Array.Empty<string>()],
             _ => ["None"],
         };
         CaJson.SetStrings(p, "conditions/users/includeUsers", included);
@@ -563,7 +580,7 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
         if (!chosen || !IncludeGuests)
             users.Remove("includeGuestsOrExternalUsers");
         CaJson.SetStrings(p, "conditions/users/excludeUsers",
-            [.. ExcludePeople.Ids, .. LeaveMeOut && _meId is not null ? [_meId] : Array.Empty<string>(), .. ExcludeGuests ? ["GuestsOrExternalUsers"] : Array.Empty<string>()]);
+            [.. ExcludePeople.Ids, .. LeaveMeOut && _meId is not null ? [_meId] : Array.Empty<string>(), .. guestsOut ? ["GuestsOrExternalUsers"] : Array.Empty<string>()]);
         if (!ExcludeGuests)
             users.Remove("excludeGuestsOrExternalUsers");
         CaJson.SetStrings(p, "conditions/users/excludeGroups", ExcludeGroups.Ids);
@@ -598,9 +615,13 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
         conditions["authenticationFlows"] = Flows.Any(o => o.IsChecked)
             ? new JsonObject { ["transferMethods"] = string.Join(',', Flows.Where(o => o.IsChecked).Select(o => o.Value)) }
             : null;
-        conditions["devices"] = HasDeviceFilter && FilterRule.Trim().Length > 0
-            ? new JsonObject { ["deviceFilter"] = new JsonObject { ["mode"] = FilterMode!.Value, ["rule"] = FilterRule.Trim() } }
-            : null;
+        // Only the filter is the editor's: older device settings beside it (includeDevices) stay.
+        var devices = (conditions["devices"] as JsonObject)?.DeepClone().AsObject() ?? [];
+        if (HasDeviceFilter && FilterRule.Trim().Length > 0)
+            devices["deviceFilter"] = new JsonObject { ["mode"] = FilterMode!.Value, ["rule"] = FilterRule.Trim() };
+        else
+            devices.Remove("deviceFilter");
+        conditions["devices"] = devices.Any(kv => kv.Value is not null) ? devices : null;
 
         p["grantControls"] = GrantMode?.Value switch
         {
@@ -684,7 +705,7 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
             problems.Add("Choose the device platforms it covers.");
         if (LocationsAreChosen && !IncludeLocations.HasItems)
             problems.Add("Choose the named locations it covers.");
-        problems.AddRange(CaJson.Problems(policy, _meId));
+        problems.AddRange(CaJson.Problems(policy, _meId, _myGroups, _myRoles));
         Problems = [.. problems.Distinct()];
         Stage(policy, names);
     }
@@ -734,7 +755,7 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
                 return;
             }
             _staged = new UpdateCaPolicy(new ChangeTarget("capolicy", _existing.Id, _existing.Name, null), json, old,
-                renamed ? $"Named \"{name}\"; {now}" : now, turnsOn);
+                renamed ? $"Named \"{name}\"; {now}" : now, turnsOn, WasOn: _existing.State == "enabled");
         }
         _pipeline.Stage(_staged);
         Status = "In Pending changes; it changes when you apply them.";

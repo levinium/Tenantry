@@ -75,6 +75,26 @@ public sealed class RuleEditorTests
     }
 
     [Fact]
+    public void Done_on_a_rule_that_isnt_in_pending_changes_asks_first()
+    {
+        var closed = false;
+        var editor = RuleEditorViewModel.New(Pipeline(), Availability.Yes, Rules, _ => closed = true);
+        editor.StartCommand.Execute(RuleStarters.All.Single(s => s.Title == "Blank Rule"));
+        editor.Name = "zz-tenantry-test-half-done";
+
+        editor.DoneCommand.Execute(null);
+        Assert.False(closed);
+        Assert.True(editor.IsConfirmingClose);
+        Assert.Equal("Close Anyway", editor.DoneText);
+
+        editor.KeepEditingCommand.Execute(null);
+        Assert.False(editor.IsConfirmingClose);
+        editor.DoneCommand.Execute(null);
+        editor.DoneCommand.Execute(null);
+        Assert.True(closed);
+    }
+
+    [Fact]
     public async Task Once_its_changes_are_applied_the_editor_closes()
     {
         var pipeline = Pipeline();

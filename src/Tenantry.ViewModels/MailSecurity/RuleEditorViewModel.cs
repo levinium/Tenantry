@@ -55,10 +55,13 @@ public sealed partial class RuleEditorViewModel : TabViewModel, IDisposable
         }
     }
 
-    /// <summary>Once the rule is saved the editor's work is done: it closes.</summary>
+    /// <summary>
+    /// Once the rule is saved the editor's work is done: it closes. So it does when the rule is
+    /// deleted (from its preview), rather than offering edits to a rule that's gone.
+    /// </summary>
     void OnApplied(object? sender, IReadOnlyList<ChangeOp> applied)
     {
-        if (applied.Any(c => ReferenceEquals(c, _staged) || c is RuleChange r && RuleIdentity is not null && r.Rule.Id == RuleIdentity && c is UpdateRule or SetRuleMode))
+        if (applied.Any(c => ReferenceEquals(c, _staged) || c is RuleChange r && RuleIdentity is not null && r.Rule.Id == RuleIdentity && c is UpdateRule or SetRuleMode or RemoveRule))
         {
             _staged = null;
             _close(this);
@@ -374,6 +377,7 @@ public sealed partial class RuleEditorViewModel : TabViewModel, IDisposable
     {
         if (_building)
             return;
+        IsConfirmingClose = false;
         Summary = RuleCodec.Summary(_draft);
         Problems = FindProblems();
         // The sentence joins its lines: all conditions must match ("and"), any exception excuses ("or").
@@ -391,6 +395,8 @@ public sealed partial class RuleEditorViewModel : TabViewModel, IDisposable
     /// <summary>Keeps Pending changes in step with the editor: the rule while it's valid, nothing while it isn't.</summary>
     void Stage()
     {
+        if (!CanEdit)
+            UpdateStatus();
         if (!CanEdit || IsLoading || LoadError is not null || ShowStarters)
             return;
         var pipeline = _pipeline!;
@@ -419,13 +425,21 @@ public sealed partial class RuleEditorViewModel : TabViewModel, IDisposable
                     pipeline.Unstage(pending);
             }
             else
-                pipeline.Stage(new UpdateRule(target, new JsonObject(changes).ToJsonString(), RuleCodec.Summary(original), Summary, false));
+            {
+                var (before, after) = RuleCodec.EditSummaries(original, _draft);
+                pipeline.Stage(new UpdateRule(target, new JsonObject(changes).ToJsonString(), before, after, false));
+            }
         }
         UpdateStatus();
     }
 
     void UpdateStatus()
     {
+        if (!CanEdit)
+        {
+            (Status, StatusKind) = ("Read Only", BadgeKind.Neutral);
+            return;
+        }
         var waiting = IsNew ? _staged is not null && _pipeline!.Pending.Contains(_staged) :_original is { } o && (_pipeline?.PendingFor(o.Identity!, "edit") ?? _pipeline?.PendingFor(o.Identity!, "mode")) is not null;
         (Status, StatusKind) = (waiting, Problems.Count) switch
         {
@@ -437,9 +451,38 @@ public sealed partial class RuleEditorViewModel : TabViewModel, IDisposable
 
     // ---- Leaving --------------------------------------------------------------------------------
 
-    /// <summary>Closes the tab; what's in Pending changes stays there.</summary>
+    /// <summary>
+    /// Work that would be lost on closing: the rule has problems, so it isn't in Pending changes,
+    /// yet it holds something (a new rule with a name or a line, or an edit to an existing rule).
+    /// </summary>
+    bool HasUnsavedWork => CanEdit && !IsLoading && LoadError is null && !ShowStarters && Problems.Count > 0
+                           && (IsNew ? _draft.Name.Length > 0 || _draft.AllLines.Any() : _original is { } o && RuleCodec.Changes(o, _draft).Count > 0);
+
+    /// <summary>Done was pressed with unsaved work: the next press closes anyway.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DoneText))]
+    public partial bool IsConfirmingClose { get; private set; }
+
+    public string DoneText => IsConfirmingClose ? "Close Anyway" : "Done";
+
+    public string ConfirmCloseText => IsNew
+        ? "This rule has problems, so it isn't in Pending Changes yet. Closing now loses it."
+        : "Your edits have problems, so they aren't in Pending Changes yet. Closing now loses them.";
+
+    /// <summary>Closes the tab; what's in Pending changes stays there. Unsaved work asks first, in place.</summary>
     [RelayCommand]
-    void Done() => _close(this);
+    void Done()
+    {
+        if (!IsConfirmingClose && HasUnsavedWork)
+        {
+            IsConfirmingClose = true;
+            return;
+        }
+        _close(this);
+    }
+
+    [RelayCommand]
+    void KeepEditing() => IsConfirmingClose = false;
 
     /// <summary>Takes this rule's changes out of Pending changes and closes the tab.</summary>
     [RelayCommand]

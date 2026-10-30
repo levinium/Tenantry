@@ -34,6 +34,14 @@ public partial class App : Application
             Platform.PickFolder = () => PickFolderAsync(window);
             Platform.OpenFolder = path => _ = window.Launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(path));
             desktop.MainWindow = window;
+            // Last chance for an error no screen caught (a button's command, a key handler): it's
+            // written to the crash log and said above the page, and the app keeps running.
+            Avalonia.Threading.Dispatcher.UIThread.UnhandledException += (_, e) =>
+            {
+                Program.WriteCrashLog(e.Exception);
+                shell.ShowProblem(e.Exception);
+                e.Handled = true;
+            };
             // Once the window is up (so a browser sign-in has something to return to).
             window.Opened += async (_, _) => await shell.StartAsync();
             UpdateChecker.Start();
@@ -53,9 +61,32 @@ public partial class App : Application
         if (files.Count == 0)
             return null;
         await using var stream = await files[0].OpenReadAsync();
-        // Excel saves CSV with a byte-order mark (UTF-8) or in the system code page; the reader finds out which.
-        using var reader = new StreamReader(stream, detectEncodingFromByteOrderMarks: true);
-        return (files[0].Name, await reader.ReadToEndAsync());
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer);
+        return (files[0].Name, DecodeCsv(buffer.ToArray()));
+    }
+
+    /// <summary>
+    /// Excel saves "CSV UTF-8" with a byte-order mark, and plain "CSV" in the Windows code page
+    /// (Zoë's ë is one byte there, not valid UTF-8). A mark decides; otherwise strict UTF-8, and
+    /// Windows-1252 when that fails.
+    /// </summary>
+    internal static string DecodeCsv(byte[] bytes)
+    {
+        using (var marked = new StreamReader(new MemoryStream(bytes), System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
+        {
+            marked.Peek();
+            if (marked.CurrentEncoding is not System.Text.UTF8Encoding || bytes is [0xEF, 0xBB, 0xBF, ..])
+                return marked.ReadToEnd();
+        }
+        try
+        {
+            return new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true).GetString(bytes);
+        }
+        catch (System.Text.DecoderFallbackException)
+        {
+            return System.Text.CodePagesEncodingProvider.Instance.GetEncoding(1252)!.GetString(bytes);
+        }
     }
 
     static async Task<string?> PickFolderAsync(MainWindow window)

@@ -63,9 +63,12 @@ public sealed partial class AccountSection : RecordSection, IDisposable
 
     ChangeTarget Target => new("user", _user.Id, _user.DisplayName, _user.UserPrincipalName);
 
-    public bool CanEdit => _pipeline is not null && _canEdit.IsAvailable;
+    /// <summary>The manager, like the profile, comes from on-premises AD for a synced person.</summary>
+    public bool CanEdit => _pipeline is not null && _canEdit.IsAvailable && !_user.SyncedFromOnPremises;
 
-    public string EditReason => _pipeline is null ? "This tenant can't be edited" : _canEdit.Reason ?? "";
+    public string EditReason => _pipeline is null ? "This tenant can't be edited"
+        : _user.SyncedFromOnPremises ? UserSummary.SyncedReason
+        : _canEdit.Reason ?? "";
 
     public PersonPicker ManagerPicker { get; }
 
@@ -106,6 +109,9 @@ public sealed partial class AccountSection : RecordSection, IDisposable
         OnPropertyChanged(nameof(HasPendingManager));
         OnPropertyChanged(nameof(PendingManagerText));
         OnPropertyChanged(nameof(CanClearManager));
+        OnPropertyChanged(nameof(CanEdit));
+        OnPropertyChanged(nameof(EditReason));
+        OnPropertyChanged(nameof(ClearManagerTip));
     }
 
     [ObservableProperty]
@@ -152,9 +158,12 @@ public sealed partial class AccountSection : RecordSection, IDisposable
     void Build(UserDetails d, IReadOnlyList<string> domains)
     {
         var target = new ChangeTarget("user", _user.Id, _user.DisplayName, _user.UserPrincipalName);
+        // A synced person's profile and sign-in name come from on-premises AD (Graph refuses changes);
+        // only cloud settings such as usage location are changed here.
+        var fromAd = _user.SyncedFromOnPremises ? Availability.No(UserSummary.SyncedReason) : _canEdit;
         EditableField Field(string label, string property, bool required = false, IReadOnlyList<FieldChoice>? choices = null,
-            Func<string, string?>? validate = null, string? hint = null) =>
-            new(label, property, d[property], target, _pipeline, _canEdit, required, choices: choices, validate: validate, hint: hint);
+            Func<string, string?>? validate = null, string? hint = null, bool cloud = false) =>
+            new(label, property, d[property], target, _pipeline, cloud ? _canEdit : fromAd, required, choices: choices, validate: validate, hint: hint);
 
         var countries = Countries.All.Select(c => new FieldChoice(c.Code, $"{c.Name} ({c.Code})")).ToArray();
         Groups =
@@ -188,10 +197,10 @@ public sealed partial class AccountSection : RecordSection, IDisposable
             ]),
             new("Sign-In and Licensing", "Key",
             [
-                Field("Sign-In Name", "userPrincipalName", required: true, validate: upn => ValidateSignInName(upn, domains),
+                Field("Sign-In Name", "userPrincipalName", required: true, validate: upn => ValidateSignInName(upn, domains) ?? InUse(upn),
                     hint: "Changing it changes how they sign in everywhere; their old name stops working."),
                 Field("Usage Location", "usageLocation", choices: countries,
-                    hint: "The country they use Microsoft 365 in. Required before licenses can be assigned."),
+                    hint: "The country they use Microsoft 365 in. Required before licenses can be assigned.", cloud: true),
             ]),
         ];
         _manager = (d.ManagerId, d.ManagerName);
@@ -208,6 +217,7 @@ public sealed partial class AccountSection : RecordSection, IDisposable
     public override void RecordChanged(UserSummary user)
     {
         _user = user;
+        RefreshManager();
         if (!_loaded)
             return;
         _loaded = false;
@@ -224,6 +234,16 @@ public sealed partial class AccountSection : RecordSection, IDisposable
         if (domains.Count > 0 && !domains.Contains(domain, StringComparer.OrdinalIgnoreCase))
             return $"\"{domain}\" isn't one of this tenant's domains ({string.Join(", ", domains)}).";
         return null;
+    }
+
+    /// <summary>Someone else's sign-in name or address (theirs, a mailbox's or a group's), or null when it's free.</summary>
+    string? InUse(string upn)
+    {
+        bool Same(string? address) => string.Equals(address, upn, StringComparison.OrdinalIgnoreCase);
+        return _index.AllUsers.Any(u => u.Id != _user.Id && (Same(u.UserPrincipalName) || Same(u.Mail)))
+               || _index.AllGroups.Any(g => g.Id != _user.Id && Same(g.Mail))
+            ? $"{upn} is already in use: someone else's sign-in name, or the address of a mailbox or group."
+            : null;
     }
 
     void OnPendingChanged(object? sender, EventArgs e)

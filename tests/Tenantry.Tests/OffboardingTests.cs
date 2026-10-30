@@ -22,15 +22,18 @@ public sealed class OffboardingTests
         public IEnumerable<GroupSummary> AllGroups => groups;
     }
 
-    static async Task<(OffboardingViewModel Workflow, ChangePipeline Pipeline, UserSummary[] People, Index Index)> Setup(int people = 1)
+    static async Task<(OffboardingViewModel Workflow, ChangePipeline Pipeline, UserSummary[] People, Index Index)> Setup(int people = 1,
+        bool needsLicenseAsShared = false)
     {
         var directory = new DemoTenantDirectory();
         var records = new DemoUserRecords(directory);
         var users = await directory.GetUsersAsync(Ct);
         var groups = await directory.GetGroupsAsync(Ct);
         var index = new Index(users, groups);
-        // Licensed members with a user mailbox who are in at least one group.
+        // Licensed members with a user mailbox who are in at least one group; with no archive or hold
+        // (a shared mailbox then needs no license), unless asked for one that does.
         var chosen = users.Where(u => u.Kind == UserKind.Member && u.AccountEnabled && u.Licenses.Count > 0 && u.Mailbox is { Type: "User" }
+                                      && (u.Mailbox.ArchiveEnabled || u.Mailbox.LitigationHold) == needsLicenseAsShared
                                       && groups.Any(g => g.Members.Any(m => m.Id == u.Id)))
             .Take(people).ToArray();
         var pipeline = new ChangePipeline(new DemoChangeExecutor(directory, records), new ChangeLog(new MemoryEntityStore()), new MemoryTestModeStore(false), "admin");
@@ -68,6 +71,18 @@ public sealed class OffboardingTests
     }
 
     [Fact]
+    public async Task A_mailbox_that_still_needs_a_license_as_shared_keeps_it()
+    {
+        var (workflow, _, people, _) = await Setup(needsLicenseAsShared: true);
+
+        var plan = await workflow.PlanAsync(Ct);
+
+        Assert.Contains(plan.Changes, c => c is ConvertMailbox && c.Target.Id == people[0].Id);
+        Assert.DoesNotContain(plan.Changes, c => c is SetLicenseAssigned);
+        Assert.Contains(plan.Notes, n => n.StartsWith($"{people[0].DisplayName}: keeps their licenses", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Unticked_steps_plan_nothing_and_licenses_without_converting_carry_a_warning()
     {
         var (workflow, _, people, _) = await Setup();
@@ -92,6 +107,26 @@ public sealed class OffboardingTests
         Assert.True(workflow.IsDone || pipeline.Pending.Count > 0);
         Assert.All(people, p => Assert.Contains(pipeline.Pending, c => c is RevokeSessions && c.Target.Id == p.Id));
         Assert.Equal("Offboard 3 people", workflow.Heading);
+    }
+
+    [Fact]
+    public async Task Two_people_who_are_a_groups_only_owners_leave_one_of_them_as_owner()
+    {
+        UserSummary Person(string id) => new(id, $"zz-tenantry-test-{id}", $"zz-tenantry-test-{id}@contoso.example", null, null, null, true, UserKind.Member,
+            DateTimeOffset.UnixEpoch, null, []);
+        var (a, b) = (Person("a"), Person("b"));
+        var team = new GroupSummary("g1", "zz-tenantry-test-group", null, null, GroupKind.Microsoft365, false, false, null, null, [],
+            [new GroupMember("a", "user"), new GroupMember("b", "user")]);
+        var directory = new DemoTenantDirectory();
+        var pipeline = new ChangePipeline(new DemoChangeExecutor(directory), new ChangeLog(new MemoryEntityStore()), new MemoryTestModeStore(false), "admin");
+        var workflow = new OffboardingViewModel([a, b], new Index([a, b], [team]), null, pipeline, "Northgate", () => { });
+        foreach (var step in workflow.Sections.SelectMany(s => s.Steps))
+            step.IsOn = step.Key == "groups";
+
+        var plan = await workflow.PlanAsync(Ct);
+
+        Assert.Single(plan.Changes.OfType<SetGroupMembership>(), m => m.Role == GroupRole.Owner);
+        Assert.Contains(plan.Notes, n => n.StartsWith("zz-tenantry-test-b: stays an owner of zz-tenantry-test-group", StringComparison.Ordinal));
     }
 
     [Fact]

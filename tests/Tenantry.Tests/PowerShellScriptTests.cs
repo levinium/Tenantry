@@ -185,6 +185,27 @@ public sealed class PowerShellScriptTests
     }
 
     [Fact]
+    public void A_change_logged_by_an_older_Tenantry_without_a_field_has_no_PowerShell_rather_than_failing()
+    {
+        // As the change log reads back an entry written before the field existed: null.
+        var old = new SetSiteSetting(new ChangeTarget("site", "s1", "Sales", null), "https://contoso.sharepoint.com/sites/sales",
+            "sharing", "Sharing", "Off", "On", Values: null!);
+
+        Assert.Null(Scripts.For(old));
+    }
+
+    [Theory]
+    [InlineData("=HYPERLINK(\"http://x\")", "\"'=HYPERLINK(\"\"http://x\"\")\"")]
+    [InlineData("@SUM(A1)", "'@SUM(A1)")]
+    [InlineData("+cmd", "'+cmd")]
+    [InlineData("-5", "-5")]
+    [InlineData("+1 555 0100", "+1 555 0100")]
+    [InlineData("-", "-")]
+    [InlineData("Ada, Example", "\"Ada, Example\"")]
+    public void Csv_cells_are_never_spreadsheet_formulas(string value, string cell) =>
+        Assert.Equal(cell, Tenantry.ViewModels.Lists.DataListViewModel.Csv(value));
+
+    [Fact]
     public void A_password_never_appears_in_its_script()
     {
         var reset = new ResetPassword(new ChangeTarget("user", "u1", "Ada Example", "ada@contoso.example"), true, Chosen: "Typed-Secret-123");

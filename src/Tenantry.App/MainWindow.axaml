@@ -8,7 +8,15 @@
         Icon="/Assets/tenantry.ico"
         Width="1280" Height="800" MinWidth="800" MinHeight="500">
 
-  <!-- The shell: welcome screen, setup wizard or a connected tenant. -->
+  <!-- The shell: welcome screen, setup wizard or a connected tenant; above it, something that went
+       wrong unexpectedly (the app keeps running), until dismissed. -->
+  <DockPanel>
+  <Border DockPanel.Dock="Top" Classes="banner error" Margin="20,12,20,0" IsVisible="{Binding HasProblem}">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Problem}" />
+      <Button Grid.Column="1" Content="Dismiss" Command="{Binding DismissProblemCommand}" VerticalAlignment="Center" />
+    </Grid>
+  </Border>
   <ContentControl Content="{Binding CurrentPage}">
     <ContentControl.DataTemplates>
       <DataTemplate DataType="vm:StartingViewModel">
@@ -25,4 +33,5 @@
       </DataTemplate>
     </ContentControl.DataTemplates>
   </ContentControl>
+  </DockPanel>
 </Window>

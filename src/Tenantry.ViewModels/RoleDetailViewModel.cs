@@ -49,6 +49,9 @@ public sealed partial class RoleDetailViewModel : TabViewModel, IDisposable
     internal ChangePipeline? Pipeline => _pipeline;
     internal IRoleRecords? Records { get; }
 
+    /// <summary>The signed-in admin's sign-in name: taking a privileged role from yourself needs it typed.</summary>
+    public string? Me { get; init; }
+
     public RoleSettingsSection Settings { get; }
 
     public bool CanEdit { get; }

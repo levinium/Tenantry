@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Tenantry.Core.Tenancy;
 
 namespace Tenantry.ViewModels;
@@ -52,6 +53,20 @@ public sealed partial class ShellViewModel : ObservableObject
         if (CurrentPage is StartingViewModel)
             CurrentPage = welcome;
     }
+
+    /// <summary>Something that went wrong unexpectedly, shown above the page until dismissed; the app keeps running.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProblem))]
+    public partial string? Problem { get; private set; }
+
+    public bool HasProblem => Problem is not null;
+
+    /// <summary>An error no screen caught (the app's last-chance handler): said once, in plain words.</summary>
+    public void ShowProblem(Exception exception) =>
+        Problem = $"Something went wrong: {Friendly.Message(exception)} Tenantry kept running; if it happens again, try the last step once more.";
+
+    [RelayCommand]
+    void DismissProblem() => Problem = null;
 
     /// <summary>Shows a page directly (snapshots and tests drive pages this way).</summary>
     public void ShowPage(object page) => CurrentPage = page;

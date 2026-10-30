@@ -80,14 +80,19 @@
     <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="8,16,8,12" MaxWidth="920">
       <TextBlock Classes="h1" Text="{Binding Title}" TextWrapping="Wrap" VerticalAlignment="Center" />
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <Button Classes="danger-outline" Command="{Binding DiscardCommand}" ToolTip.Tip="Take this rule's changes out of Pending Changes and close">
+        <Button Classes="danger-outline" Command="{Binding DiscardCommand}" IsVisible="{Binding CanEdit}" ToolTip.Tip="Take this rule's changes out of Pending Changes and close">
           <TextBlock Text="Discard Changes" />
         </Button>
-        <Button Classes="accent" Command="{Binding DoneCommand}" ToolTip.Tip="Close the editor. Changes stay in Pending Changes until you apply them.">
-          <TextBlock Text="Done" />
+        <Button Command="{Binding KeepEditingCommand}" IsVisible="{Binding IsConfirmingClose}" Content="Keep Editing" />
+        <Button Classes="accent" Classes.danger="{Binding IsConfirmingClose}" Command="{Binding DoneCommand}"
+                ToolTip.Tip="Close the editor. Changes stay in Pending Changes until you apply them.">
+          <TextBlock Text="{Binding DoneText}" />
         </Button>
       </StackPanel>
     </Grid>
+    <Border DockPanel.Dock="Top" Classes="banner warning" Margin="8,0,8,12" MaxWidth="920" IsVisible="{Binding IsConfirmingClose}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding ConfirmCloseText}" />
+    </Border>
 
     <ScrollViewer>
       <StackPanel Margin="8,0,8,32" Spacing="16" MaxWidth="920">
@@ -142,7 +147,8 @@
         </StackPanel>
 
         <!-- The rule -->
-        <StackPanel Spacing="16" IsVisible="{Binding IsReady}">
+        <!-- Read only (inputs off) for an admin who can't change rules; the banner above says why. -->
+        <StackPanel Spacing="16" IsVisible="{Binding IsReady}" IsEnabled="{Binding CanEdit}">
 
           <!-- In plain words, kept up to date -->
           <Border Classes="summary">

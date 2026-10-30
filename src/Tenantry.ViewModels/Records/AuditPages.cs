@@ -87,7 +87,7 @@ public sealed class AuditRecordPreviewViewModel(AuditRecord record)
 /// minutes), so searches are listed with their state and checked every so often; a finished one's
 /// records open in a list with the usual filters, sorting and CSV export.
 /// </summary>
-public sealed partial class AuditLogViewModel : ObservableObject
+public sealed partial class AuditLogViewModel : ObservableObject, IDisposable
 {
     /// <summary>Records read from one search at most (Purview returns up to 50,000).</summary>
     public const int RecordLimit = 10_000;
@@ -354,28 +354,42 @@ public sealed partial class AuditLogViewModel : ObservableObject
         _ = PollAsync();
     }
 
+    /// <summary>Reads of one search that may fail in a row before it's no longer checked (about five minutes).</summary>
+    const int GiveUpAfterFailures = 15;
+
+    readonly CancellationTokenSource _closing = new();
+    readonly Dictionary<string, int> _failures = new(StringComparer.Ordinal);
+
     async Task PollAsync()
     {
+        _failures.Clear();
         try
         {
-            while (Searches.Any(s => s.IsWaiting))
+            while (Searches.Any(Checked))
             {
-                await _delay(CheckEvery, CancellationToken.None);
-                foreach (var row in Searches.Where(s => s.IsWaiting).ToArray())
+                await _delay(CheckEvery, _closing.Token);
+                foreach (var row in Searches.Where(Checked).ToArray())
                 {
                     AuditSearch fresh;
                     try
                     {
-                        fresh = await _records!.GetSearchAsync(row.Search.Id);
+                        fresh = await _records!.GetSearchAsync(row.Search.Id, _closing.Token);
+                        _failures.Remove(row.Search.Id);
                     }
                     catch (Exception e) when (e is not OperationCanceledException)
                     {
+                        // A search deleted in Purview (or Purview failing) mustn't be read every 20 seconds for ever.
+                        if ((_failures[row.Search.Id] = _failures.GetValueOrDefault(row.Search.Id) + 1) >= GiveUpAfterFailures)
+                            Note = $"Stopped checking on \"{row.Search.Name}\": Purview hasn't answered for a while ({Friendly.Message(e)}). Choose Refresh beside Searches to check again.";
                         continue;
                     }
                     if (fresh.Status == row.Search.Status)
                         continue;
-                    var updated = new AuditSearchRow(fresh);
+                    // The list may have been read again while this one was being checked.
                     var at = Searches.IndexOf(row);
+                    if (at < 0)
+                        continue;
+                    var updated = new AuditSearchRow(fresh);
                     var wasSelected = ReferenceEquals(SelectedSearch, row);
                     Searches[at] = updated;
                     if (wasSelected)
@@ -383,9 +397,21 @@ public sealed partial class AuditLogViewModel : ObservableObject
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            // The tenant was closed.
+        }
         finally
         {
             _polling = false;
         }
     }
+
+    bool Checked(AuditSearchRow row) => row.IsWaiting && _failures.GetValueOrDefault(row.Search.Id) < GiveUpAfterFailures;
+
+    /// <summary>
+    /// Stops checking on searches (the tenant is closing). Cancelled, not disposed: a check that
+    /// starts afterwards must still be able to read the token (and stop at once).
+    /// </summary>
+    public void Dispose() => _closing.Cancel();
 }

@@ -84,9 +84,19 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
             AutopilotNote = "Autopilot isn't available for this tenant.";
             return [];
         }
-        var read = await _autopilot.GetAutopilotDevicesAsync(cancellationToken);
-        AutopilotNote = read.Unavailable;
-        return read.Value ?? [];
+        try
+        {
+            AutopilotNote = null;
+            var read = await _autopilot.GetAutopilotDevicesAsync(cancellationToken);
+            AutopilotNote = read.Unavailable;
+            return read.Value ?? [];
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // As Deleted Sites does: the note says why, rather than an empty list saying there's nothing.
+            AutopilotNote = $"Couldn't read Autopilot devices: {Friendly.Message(e)}";
+            return [];
+        }
     }
 
     [RelayCommand]

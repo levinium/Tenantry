@@ -229,7 +229,11 @@ public sealed class PwshSession(Func<bool, CancellationToken, Task<PsSignIn>> si
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                // The command is still running in that PowerShell: end it before anything else
+                // can be sent to it (a reply from it would otherwise answer the next command).
                 stopped = true;
+                Kill();
+                SetStatus(PsSessionStatus.NotStarted, "Starting PowerShell again…");
                 return new PsRunResult(false, 0, watch.Elapsed, Stopped: true);
             }
             catch (InvalidOperationException e)
@@ -245,8 +249,9 @@ public sealed class PwshSession(Func<bool, CancellationToken, Task<PsSignIn>> si
             if (Status == PsSessionStatus.Running)
                 SetStatus(PsSessionStatus.Ready);
             _gate.Release();
-            if (stopped)
-                _ = RestartAsync();
+            // Starts a fresh one, unless the next command already has.
+            if (stopped && !_disposed)
+                _ = StartAsync();
         }
     }
 

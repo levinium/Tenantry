@@ -93,8 +93,60 @@ public sealed class CaEditorTests
 
         editor.LeaveMeOut = false;
 
-        Assert.Contains(editor.Problems, p => p.Contains("you included", StringComparison.Ordinal));
+        Assert.Contains(editor.Problems, p => p.Contains("it covers everyone", StringComparison.Ordinal));
         Assert.Empty(s.Pipeline.Pending);
+    }
+
+    [Fact]
+    public void Blocking_a_role_or_group_you_hold_is_refused_unless_you_are_left_out()
+    {
+        var policy = JsonNode.Parse("""
+            {"displayName":"Block admins","state":"enabled",
+             "conditions":{"users":{"includeRoles":["role-1"],"includeGroups":["group-1"]},"applications":{"includeApplications":["MicrosoftAdminPortals"]},"clientAppTypes":["all"]},
+             "grantControls":{"operator":"OR","builtInControls":["block"]}}
+            """)!.AsObject();
+
+        Assert.Contains(CaJson.Problems(policy, "me", myRoles: new HashSet<string> { "role-1" }), p => p.Contains("admin role you hold", StringComparison.Ordinal));
+        Assert.Contains(CaJson.Problems(policy, "me", myGroups: new HashSet<string> { "group-1" }), p => p.Contains("group you're in", StringComparison.Ordinal));
+        Assert.DoesNotContain(CaJson.Problems(policy, "me", new HashSet<string>(), new HashSet<string>()), p => p.Contains("block you", StringComparison.Ordinal));
+
+        policy["conditions"]!["users"]!["excludeUsers"] = new JsonArray("me");
+        Assert.DoesNotContain(CaJson.Problems(policy, "me", myRoles: new HashSet<string> { "role-1" }), p => p.Contains("block you", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Any_edit_to_a_policy_that_is_on_is_a_caution_change()
+    {
+        var s = await Demo();
+        var on = s.Directory.Policies.First(p => p.State == "enabled");
+        var editor = Editor(s, on);
+
+        editor.Name = on.Name + " (edited)";
+
+        var update = Assert.IsType<UpdateCaPolicy>(Assert.Single(s.Pipeline.Pending));
+        Assert.True(update.IsCaution);
+    }
+
+    [Fact]
+    public async Task Guests_named_the_newer_way_stay_one_way_and_shared_apps_and_trusted_places_are_kept()
+    {
+        var s = await Demo();
+        var original = s.Directory.Policies.First(p => p.Name == "Require MFA for everyone");
+        var node = original.Node;
+        node["conditions"]!["users"]!["excludeGuestsOrExternalUsers"] = new JsonObject { ["guestOrExternalUserTypes"] = "b2bCollaborationGuest" };
+        node["conditions"]!["applications"]!["includeApplications"] = new JsonArray("Office365", "00000003-0000-0ff1-ce00-000000000000");
+        node["conditions"]!["locations"] = new JsonObject { ["includeLocations"] = new JsonArray("AllTrusted", "11111111-1111-1111-1111-111111111111"), ["excludeLocations"] = new JsonArray() };
+        node["conditions"]!["devices"] = new JsonObject { ["includeDevices"] = new JsonArray("All") };
+        var editor = Editor(s, original with { Json = node.ToJsonString() });
+
+        editor.Name = "Renamed";
+
+        var json = JsonNode.Parse(Assert.IsType<UpdateCaPolicy>(Assert.Single(s.Pipeline.Pending)).Json)!;
+        Assert.DoesNotContain("GuestsOrExternalUsers", json["conditions"]!["users"]!["excludeUsers"]!.AsArray().Select(x => x!.GetValue<string>()));
+        Assert.NotNull(json["conditions"]!["users"]!["excludeGuestsOrExternalUsers"]);
+        Assert.Contains("Office365", json["conditions"]!["applications"]!["includeApplications"]!.AsArray().Select(x => x!.GetValue<string>()));
+        Assert.Contains("AllTrusted", json["conditions"]!["locations"]!["includeLocations"]!.AsArray().Select(x => x!.GetValue<string>()));
+        Assert.NotNull(json["conditions"]!["devices"]?["includeDevices"]);
     }
 
     [Fact]

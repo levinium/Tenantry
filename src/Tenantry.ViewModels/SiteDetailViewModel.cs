@@ -111,7 +111,7 @@ public sealed partial class SiteDetailViewModel : TabViewModel, IDisposable
     {
         if (!CanAddMe)
             return;
-        var me = Index.AllUsers.FirstOrDefault(u => string.Equals(u.UserPrincipalName, Me, StringComparison.OrdinalIgnoreCase)) is { } user
+        var me = Index.UserByUpn(Me!) is { } user
             ? GroupAccess.Target(user)
             : new ChangeTarget("user", Me!, Me!, Me);
         _pipeline!.Stage(new SetSiteAdmin(SiteChange.TargetFor(Site), Site.Url, me, SetOneDriveAccess.LoginFor(Me!), false, true));

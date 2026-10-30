@@ -44,7 +44,7 @@
       </Border>
       <views:FreshnessView DataContext="{Binding Freshness}" HorizontalAlignment="Left" Margin="0,2,0,0" />
       <WrapPanel ItemSpacing="8" LineSpacing="8">
-        <Button Command="{Binding ResetPasswordCommand}" IsEnabled="{Binding CanEdit}"
+        <Button Command="{Binding ResetPasswordCommand}" IsEnabled="{Binding CanResetPassword}"
                 ToolTip.Tip="{Binding ResetPasswordTip}" ToolTip.ShowOnDisabled="True">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="Password" FontSize="14" />

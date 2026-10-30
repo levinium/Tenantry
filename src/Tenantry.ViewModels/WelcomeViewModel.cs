@@ -162,6 +162,9 @@ public sealed partial class WelcomeViewModel : ObservableObject
         OnPropertyChanged(nameof(HasProfiles));
         OnPropertyChanged(nameof(HasNoProfiles));
         OnPropertyChanged(nameof(ShowSearch));
+        // The removed tenant may have been the default.
+        OnPropertyChanged(nameof(HasDefault));
+        OnPropertyChanged(nameof(StartupTenant));
     }
 
     public bool HasNoProfiles => Profiles.Count == 0;

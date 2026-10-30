@@ -1191,8 +1191,26 @@ public sealed partial class DataListViewModel : TabViewModel
 
     public string SuggestedExportName => $"{_source.Key}-{_now():yyyy-MM-dd}.csv";
 
-    static string Csv(string value) =>
-        value.IndexOfAny([',', '"', '\n', '\r']) >= 0 ? $"\"{value.Replace("\"", "\"\"")}\"" : value;
+    /// <summary>One CSV cell: quoted when it must be (RFC 4180), and never a spreadsheet formula.</summary>
+    public static string Csv(string value)
+    {
+        value = Inert(value);
+        return value.IndexOfAny([',', '"', '\n', '\r']) >= 0 ? $"\"{value.Replace("\"", "\"\"")}\"" : value;
+    }
+
+    /// <summary>
+    /// Text a spreadsheet would run as a formula (a guest named "=HYPERLINK(…)") gets a leading
+    /// apostrophe, so Excel shows it as text. Plain numbers and phone numbers ("-5", "+1 555 0100")
+    /// are left alone.
+    /// </summary>
+    static string Inert(string value)
+    {
+        if (value.Length == 0 || value[0] is not ('=' or '@' or '+' or '-' or '\t' or '\r'))
+            return value;
+        if (value[0] is '+' or '-' && value.Skip(1).All(ch => char.IsDigit(ch) || ch is ' ' or '.' or ',' or '-' or '(' or ')'))
+            return value;
+        return "'" + value;
+    }
 
     // ---- Running the query, and remembering it --------------------------------------------
 

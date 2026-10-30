@@ -168,6 +168,26 @@ public sealed class AppEditTests
     }
 
     [Fact]
+    public async Task Taking_something_from_Tenantrys_own_app_needs_its_name_typed()
+    {
+        var (records, pipeline, apps) = await Demo();
+        var app = apps.EnterpriseApps.Single(e => e.Name == "Fabrikam Whiteboard");
+        var page = new EnterpriseAppPageViewModel(app, apps, records, null, null, null, null, () => DateTimeOffset.UtcNow, pipeline, Availability.Yes)
+        {
+            TenantryClientId = app.AppId.ToUpperInvariant(),
+        };
+        var overview = (AppSection)page.Sections[0];
+        await overview.LoadAsync(Ct);
+
+        ((AppToggleForm)overview.Cards[0].Form!).Toggles[0].IsOn = false;
+
+        var off = Assert.IsType<SetEnterpriseAppSetting>(Assert.Single(pipeline.Pending));
+        Assert.Equal(app.Name, off.ConfirmPhrase);
+        Assert.Equal(AppPageViewModel.TenantryReason, off.TypedReason);
+        Assert.True(page.IsTenantry);
+    }
+
+    [Fact]
     public async Task Access_is_given_as_the_chosen_role_and_a_consent_revoked()
     {
         var (records, pipeline, apps) = await Demo();

@@ -31,7 +31,7 @@ public sealed partial class DeviceDetailViewModel : TabViewModel, IDisposable
         EditReason = pipeline is null ? "This tenant can't be edited" : canEdit.Reason ?? "";
         index ??= EmptyIndex.Instance;
         Overview = new DeviceOverviewSection(this, CanEdit
-            ? new Editing.BulkEditorViewModel(device.Name, BulkActions.ForDevices(() => [Device], now, one: true, index), pipeline!)
+            ? new Editing.BulkEditorViewModel(device.Name, BulkActions.ForDevices(() => [Device], now, one: true, index, () => pipeline!.Pending), pipeline!)
             : null);
         Sections =
         [
@@ -45,7 +45,21 @@ public sealed partial class DeviceDetailViewModel : TabViewModel, IDisposable
         ];
         SelectedSection = Sections[0];
         if (_pipeline is not null)
+        {
             _pipeline.Changed += OnPendingChanged;
+            _pipeline.Applied += OnApplied;
+        }
+    }
+
+    /// <summary>A change to this device went through: its details (primary user, name) are read again.</summary>
+    void OnApplied(object? sender, IReadOnlyList<ChangeOp> applied)
+    {
+        if (!applied.Any(c => c.Target.Id == Device.ObjectId || c.Target.Id == Device.ManagedId))
+            return;
+        _live = null;
+        Overview.ReadAgainIfShown();
+        foreach (var users in Sections.OfType<DeviceUsersSection>())
+            users.ReadAgainIfShown();
     }
 
     public DeviceSummary Device { get; private set; }
@@ -83,10 +97,18 @@ public sealed partial class DeviceDetailViewModel : TabViewModel, IDisposable
     /// <summary>Each tab reads what it shows the first time it's opened.</summary>
     partial void OnSelectedSectionChanged(RecordSection? value) => _ = value?.LoadAsync();
 
-    /// <summary>The device's own details, read once for the tabs that show them.</summary>
-    internal Task<DeviceLive> LiveAsync() => _live ??= _pages is null
-        ? Task.FromResult(new DeviceLive(null, [], [], []))
-        : _pages.GetDeviceAsync(Device);
+    /// <summary>
+    /// The device's own details, read once for the tabs that show them. A read that failed isn't
+    /// kept, so the next tab (or a re-read) tries again.
+    /// </summary>
+    internal Task<DeviceLive> LiveAsync()
+    {
+        if (_live is { IsFaulted: true } or { IsCanceled: true })
+            _live = null;
+        return _live ??= _pages is null
+            ? Task.FromResult(new DeviceLive(null, [], [], []))
+            : _pages.GetDeviceAsync(Device);
+    }
 
     /// <summary>What's waiting in Pending changes for this device.</summary>
     public string? PendingText
@@ -130,7 +152,10 @@ public sealed partial class DeviceDetailViewModel : TabViewModel, IDisposable
     public void Dispose()
     {
         if (_pipeline is not null)
+        {
             _pipeline.Changed -= OnPendingChanged;
+            _pipeline.Applied -= OnApplied;
+        }
         foreach (var section in Sections.OfType<IDisposable>())
             section.Dispose();
     }

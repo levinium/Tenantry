@@ -49,7 +49,9 @@ public static partial class BulkActions
                 async (a, ct) =>
                 {
                     var sku = (LicenseSku)a.Choice!.Value;
+                    // Microsoft refuses a license to someone with no usage location (the country they work in).
                     var plan = Plan(selected(), u => u.Licenses.Contains(sku.Name) ? (null, $"{u.DisplayName}: already has it")
+                        : string.IsNullOrEmpty(u.UsageLocation) ? (null, $"{u.DisplayName}: no usage location set (set their Usage Location first)")
                         : (new SetLicenseAssigned(GroupAccess.Target(u), sku.SkuId, sku.Name, false, true), null));
                     return plan.Changes.Count > sku.Available
                         ? plan with { Skipped = [$"Only {sku.Available:N0} left for {plan.Changes.Count:N0} people: the rest will fail when applied.", .. plan.Skipped] }
@@ -60,11 +62,15 @@ public static partial class BulkActions
                     .Select(s => new BulkChoice($"{s.Name} · {s.Available:N0} left", s)).ToArray()),
 
             new("Remove a License", "Take a license away from everyone who has it directly.", "Subtract",
-                (a, _) =>
+                async (a, ct) =>
                 {
                     var sku = (LicenseSku)a.Choice!.Value;
-                    return Task.FromResult(Plan(selected(), u => !u.Licenses.Contains(sku.Name) ? (null, $"{u.DisplayName}: doesn't have it")
-                        : (new SetLicenseAssigned(GroupAccess.Target(u), sku.SkuId, sku.Name, true, false), null)));
+                    var users = selected();
+                    // The list's licenses include ones that come from a group, which only leaving the group takes away.
+                    var notDirect = await NotDirectAsync(users.Where(u => u.Licenses.Contains(sku.Name)).ToArray(), records, sku.SkuId, ct);
+                    return Plan(users, u => !u.Licenses.Contains(sku.Name) ? (null, $"{u.DisplayName}: doesn't have it")
+                        : notDirect.GetValueOrDefault(u.Id) is { } why ? (null, $"{u.DisplayName}: {why}")
+                        : (new SetLicenseAssigned(GroupAccess.Target(u), sku.SkuId, sku.Name, true, false), null));
                 },
                 choiceLabel: "License",
                 loadChoices: async ct =>
@@ -120,7 +126,7 @@ public static partial class BulkActions
                 (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } g ? Membership(selected(), g, GroupRole.Member, true)
                     : BulkPlan.Invalid("That group isn't in the local copy any more.")),
                 pickPlaceholder: "Choose a group: type its name",
-                pickOptions: () => index.AllGroups.Where(g => !g.IsMailbox && !g.IsDynamic).Select(PickOption.Of)),
+                pickOptions: () => index.AllGroups.Where(g => !g.IsMailbox && GroupAccess.MembersEditable(g)).Select(PickOption.Of)),
 
             new("Remove from a Group", "Take everyone out of one group.", "PeopleRemove",
                 (a, _) => Task.FromResult(index.Group(a.Picked!.Id) is { } g ? Membership(selected(), g, GroupRole.Member, false)
@@ -129,7 +135,7 @@ public static partial class BulkActions
                 pickOptions: () =>
                 {
                     var ids = Ids();
-                    return index.AllGroups.Where(g => !g.IsMailbox && !g.IsDynamic && g.Members.Any(m => ids.Contains(m.Id))).Select(PickOption.Of);
+                    return index.AllGroups.Where(g => !g.IsMailbox && GroupAccess.MembersEditable(g) && g.Members.Any(m => ids.Contains(m.Id))).Select(PickOption.Of);
                 },
                 isCaution: true),
 
@@ -151,6 +157,31 @@ public static partial class BulkActions
                 },
                 choiceLabel: "Right", choices: Rights(), isCaution: true),
         ];
+    }
+
+    /// <summary>
+    /// Of these people, the ones who hold a license only through a group (or whose licenses
+    /// couldn't be read), with why, read a few at a time. Empty when there's nothing to read with.
+    /// </summary>
+    static async Task<Dictionary<string, string>> NotDirectAsync(IReadOnlyList<UserSummary> users, IUserRecords? records, string skuId, CancellationToken ct)
+    {
+        var why = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.Ordinal);
+        if (records is null)
+            return [];
+        await Parallel.ForEachAsync(users, new ParallelOptions { MaxDegreeOfParallelism = ReadsAtOnce, CancellationToken = ct }, async (u, token) =>
+        {
+            try
+            {
+                var held = (await records.GetLicensingAsync(u.Id, token)).Assignments.Where(l => l.SkuId == skuId).ToArray();
+                if (held.Length > 0 && !held.Any(l => l.IsDirect))
+                    why[u.Id] = $"gets it from {string.Join(", ", held.Select(l => l.AssignedByGroupName ?? "a group"))} (take them out of that group instead)";
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                why[u.Id] = $"couldn't read their licenses ({Friendly.Message(e)})";
+            }
+        });
+        return new Dictionary<string, string>(why, StringComparer.Ordinal);
     }
 
     static BulkChoice[] Rights() => GroupAccess.Rights.Select(r => new BulkChoice(SetMailboxAccess.RightLabel(r), r)).ToArray();
@@ -219,6 +250,9 @@ public static partial class BulkActions
         var wanted = value.Length == 0 ? null : value;
         return Plan(users, u =>
         {
+            // Usage location is a cloud setting; the other details of a synced person come from AD.
+            if (u.SyncedFromOnPremises && property != "usageLocation")
+                return (null, $"{u.DisplayName}: synced from on-premises Active Directory (change it there)");
             var old = current.GetValueOrDefault(u.Id);
             return string.Equals(old ?? "", wanted ?? "", StringComparison.Ordinal)
                 ? (null, $"{u.DisplayName}: already {(wanted is null ? "empty" : $"\"{wanted}\"")}")
@@ -364,9 +398,18 @@ public static partial class BulkActions
     /// (rename, primary user, lost mode), and deleting it is plain "Delete Device", with no staleness test.
     /// </param>
     /// <param name="index">People, for choosing a primary user.</param>
+    /// <param name="pending">What's in Pending changes: deleting a device and erasing or retiring it can't wait there together.</param>
     public static IReadOnlyList<BulkAction> ForDevices(Func<IReadOnlyList<DeviceSummary>> selected, Func<DateTimeOffset> now, bool one = false,
-        IDirectoryIndex? index = null)
+        IDirectoryIndex? index = null, Func<IReadOnlyList<ChangeOp>>? pending = null)
     {
+        // Deleting a device's Intune record before it has checked in would stop a wipe or retire
+        // reaching it; and once deleted there's nothing left to wipe. So each skips the other.
+        IReadOnlyList<ChangeOp> Waiting() => pending?.Invoke() ?? [];
+        string? RemovalWaiting(DeviceSummary d) => Waiting().OfType<RunDeviceAction>()
+            .FirstOrDefault(a => a.Removes && a.Device.Id == d.ManagedId) is { } r ? $"{d.Name}: {r.Label} is waiting in Pending changes; apply it first" : null;
+        string? DeleteWaiting(DeviceSummary d) => Waiting().OfType<DeleteDevice>()
+            .Any(x => x.Device.Id == d.ObjectId || x.Device.Id == d.ManagedId) ? $"{d.Name}: Delete Device is waiting in Pending changes" : null;
+
         BulkPlan Intune(DeviceCommand command, bool keepUserData = false) => Plan(selected(), d => d.ManagedId is null
             ? (null, $"{d.Name}: not managed by Intune")
             : (new RunDeviceAction(IntuneTarget(d), command, keepUserData), null));
@@ -377,20 +420,33 @@ public static partial class BulkActions
             : d.Platform != "Windows" ? (null, $"{d.Name}: not Windows")
             : (new RunDeviceAction(IntuneTarget(d), command, keepUserData), null));
 
+        // Retire, wipe, Fresh Start and Autopilot reset. Intune erases only company-owned devices.
+        BulkPlan Removal(DeviceCommand command, bool windowsOnly = false, bool keepUserData = false) => Plan(selected(), d =>
+            d.ManagedId is null ? (null, $"{d.Name}: not managed by Intune")
+            : windowsOnly && d.Platform != "Windows" ? (null, $"{d.Name}: not Windows")
+            : command != DeviceCommand.Retire && d.Ownership == DeviceFields.Personal ? (null, $"{d.Name}: a personal device can't be erased; use Retire")
+            : DeleteWaiting(d) is { } waiting ? (null, waiting)
+            : (new RunDeviceAction(IntuneTarget(d), command, keepUserData), null));
+
         static DeleteDevice Delete(DeviceSummary d) =>
             new(d.ObjectId is not null ? EntraTarget(d) : IntuneTarget(d), d.ObjectId is not null ? d.ManagedId : null,
                 d.LastSeen is { } last ? $"Last seen {Display.Exact(last)}" : "Never seen");
 
         var delete = one
             ? new BulkAction("Delete Device", "Delete its records from Intune and Entra. If it's still in use, it has to be registered again.", "DeleteDismiss",
-                (_, _) => Task.FromResult(Plan(selected(), d => (Delete(d), null))), isCaution: true, group: Remove)
+                (_, _) => Task.FromResult(Plan(selected(), d => RemovalWaiting(d) is { } waiting ? (null, waiting) : (Delete(d), null))), isCaution: true, group: Remove)
             : new BulkAction("Delete Stale Devices", "Delete the records of devices nobody has used for a while, from Intune and Entra. Devices seen more recently are skipped.", "DeleteDismiss",
                 (a, _) =>
                 {
                     var days = (int)a.Choice!.Value;
                     var cutoff = now().AddDays(-days);
-                    return Task.FromResult(Plan(selected(), d => d.LastSeen is { } seen && seen > cutoff
-                        ? (null, $"{d.Name}: seen {Display.Exact(seen)}")
+                    // A device never used is only stale once it was registered before the cutoff: a new
+                    // one (or an Autopilot device waiting to be set up) hasn't signed in yet.
+                    return Task.FromResult(Plan(selected(), d => RemovalWaiting(d) is { } waiting ? (null, waiting)
+                        : d.LastSeen is { } seen
+                        ? seen > cutoff ? (null, $"{d.Name}: seen {Display.Exact(seen)}") : (Delete(d), null)
+                        : d.Registered is not { } registered ? (null, $"{d.Name}: never used, and when it was registered isn't known")
+                        : registered > cutoff ? (null, $"{d.Name}: never used yet, registered {Display.Exact(registered)}")
                         : (Delete(d), null)));
                 },
                 choiceLabel: "Not Seen For", choices: StaleDays.Select(n => new BulkChoice($"{n} Days or More", n)).ToArray(), isCaution: true, group: Remove);
@@ -485,14 +541,14 @@ public static partial class BulkActions
                 textLabel: "Message on Its Screen (Needed When Turning On)", group: Settings));
 
         actions.Add(new("Retire", "Remove work data, apps and settings and stop managing it. The owner's own things stay.", "PhoneLinkSetup",
-            (_, _) => Task.FromResult(Intune(DeviceCommand.Retire)), isCaution: true, group: Remove));
-        actions.Add(new("Wipe", "Erase it back to factory settings. You type its name to confirm before it's sent.", "Delete",
-            (_, _) => Task.FromResult(Intune(DeviceCommand.Wipe)), isCaution: true, group: Remove));
+            (_, _) => Task.FromResult(Removal(DeviceCommand.Retire)), isCaution: true, group: Remove));
+        actions.Add(new("Wipe", "Erase it back to factory settings (company-owned devices only). You type its name to confirm before it's sent.", "Delete",
+            (_, _) => Task.FromResult(Removal(DeviceCommand.Wipe)), isCaution: true, group: Remove));
         actions.Add(new("Fresh Start", "Reinstall Windows and remove apps the manufacturer added; keep or remove the user's files. You type its name to confirm.", "ArrowReset",
-            (a, _) => Task.FromResult(Windows(DeviceCommand.FreshStart, keepUserData: (bool)a.Choice!.Value)),
+            (a, _) => Task.FromResult(Removal(DeviceCommand.FreshStart, windowsOnly: true, keepUserData: (bool)a.Choice!.Value)),
             choiceLabel: "Their Files", choices: [new BulkChoice("Keep Their Files", true), new BulkChoice("Remove Their Files", false)], isCaution: true, group: Remove));
         actions.Add(new("Autopilot Reset", "Return Windows to a business-ready state: apps, settings and files removed, still joined and enrolled. You type its name to confirm.", "ArrowCounterclockwise",
-            (_, _) => Task.FromResult(Windows(DeviceCommand.AutopilotReset)), isCaution: true, group: Remove));
+            (_, _) => Task.FromResult(Removal(DeviceCommand.AutopilotReset, windowsOnly: true)), isCaution: true, group: Remove));
         actions.Add(delete);
         return actions;
     }

@@ -25,7 +25,7 @@ internal static class Program
     /// Keeps the exception of a crash in logs/crash-*.txt under the app-data folder (never the
     /// repository), so a crash can be diagnosed afterwards. Stack traces only: no tenant data.
     /// </summary>
-    static void WriteCrashLog(object exception)
+    internal static void WriteCrashLog(object exception)
     {
         try
         {

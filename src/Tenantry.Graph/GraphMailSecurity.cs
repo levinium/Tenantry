@@ -10,7 +10,7 @@ public sealed partial class GraphUserRecords : IMailSecurity
     /// <summary>Exchange keeps quarantined mail up to 30 days and pages it 1,000 at a time.</summary>
     const int QuarantineDays = 30;
     const int QuarantinePage = 1000;
-    const int QuarantineMaxPages = 10;
+    const int QuarantineMaxPages = QuarantinedMessage.MaxRead / QuarantinePage;
 
     public async Task<IReadOnlyList<QuarantinedMessage>> GetQuarantineAsync(int days, CancellationToken cancellationToken = default)
     {

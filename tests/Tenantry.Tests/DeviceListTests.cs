@@ -54,6 +54,23 @@ public sealed class DeviceListTests
     }
 
     [Fact]
+    public async Task A_device_never_used_is_stale_only_if_registered_before_the_cutoff()
+    {
+        var devices = new[]
+        {
+            Device("New") with { LastCheckIn = null, Registered = Now.AddDays(-2) },
+            Device("Forgotten") with { LastCheckIn = null, Registered = Now.AddDays(-300) },
+            Device("Unknown") with { LastCheckIn = null, Registered = null },
+        };
+
+        var plan = await Plan("Delete Stale Devices", devices, c => (int)c.Value == 90);
+
+        Assert.Equal(["Forgotten"], plan.Changes.Select(c => c.Target.Name));
+        Assert.StartsWith("New: never used yet, registered", plan.Skipped[0], StringComparison.Ordinal);
+        Assert.Equal("Unknown: never used, and when it was registered isn't known", plan.Skipped[1]);
+    }
+
+    [Fact]
     public async Task Deleting_stale_devices_skips_any_seen_since_the_cutoff()
     {
         var devices = new[]

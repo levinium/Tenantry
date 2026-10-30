@@ -119,6 +119,8 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
                 chips.Add(new("Unlicensed", BadgeKind.Warning, "A member account with no licenses: no mailbox, Office apps or OneDrive."));
             if (!isPerson && User.Licenses.Count > 0)
                 chips.Add(new("Licensed Mailbox Account", BadgeKind.Info, "Shared, room and equipment mailboxes usually need no license (up to 50 GB)."));
+            if (User.SyncedFromOnPremises)
+                chips.Add(new("Synced from On-Premises AD", BadgeKind.Info, UserSummary.SyncedReason));
             if (User.Mailbox?.LitigationHold == true)
                 chips.Add(new("Litigation Hold", BadgeKind.Info, "Mailbox content is preserved, even if deleted."));
             // From the mailbox itself, once the Mail tab has read it.
@@ -209,12 +211,17 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
             _pipeline!.Stage(new SetSignInAllowed(Target, User.AccountEnabled, !User.AccountEnabled));
     }
 
-    public string ResetPasswordTip => CanEdit ? "Give them a new temporary password (shown to you once)" : EditReason;
+    /// <summary>A guest's password belongs to their own organization; Graph refuses to set it.</summary>
+    public bool CanResetPassword => CanEdit && User.Kind != UserKind.Guest;
+
+    public string ResetPasswordTip => !CanEdit ? EditReason
+        : User.Kind == UserKind.Guest ? "Guests sign in with their own organization's account, so their password is changed there."
+        : "Give them a new temporary password (shown to you once)";
 
     [RelayCommand]
     void ResetPassword()
     {
-        if (CanEdit)
+        if (CanResetPassword)
             _openDialog?.Invoke(new DialogViewModel("Reset Password", User.DisplayName,
                 new ResetPasswordViewModel(Target, _pipeline!, () => _closeDialog?.Invoke())));
     }
@@ -295,6 +302,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
                      nameof(KindText), nameof(KindKind), nameof(Email), nameof(LastSignInText), nameof(LastSignInExact), nameof(CreatedText),
                      nameof(Licenses), nameof(HasLicenses), nameof(MailboxText), nameof(ForwardingText), nameof(Health), nameof(HasHealth),
                      nameof(SignInActionText), nameof(SignInActionTip), nameof(PendingSignInText), nameof(HasPendingSignIn),
+                     nameof(CanResetPassword), nameof(ResetPasswordTip),
                  })
             OnPropertyChanged(name);
     }

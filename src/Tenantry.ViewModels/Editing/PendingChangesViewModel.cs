@@ -47,7 +47,7 @@ public sealed partial class TypedConfirmRow(ChangeOp change, Action changed) : O
 
     public string Phrase => Change.ConfirmPhrase ?? "";
 
-    public string Prompt => $"{Change.Label} ({Change.Target.Name}): {Change.After}. This can't be undone. Type {Phrase} to confirm.";
+    public string Prompt => $"{Change.Label} ({Change.Target.Name}): {Change.After}. {Change.TypedReason ?? "This can't be undone."} Type {Phrase} to confirm.";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Matches))]
@@ -144,7 +144,15 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         var csv = new System.Text.StringBuilder("Name,Sign-in name,Password\r\n");
         foreach (var r in Reveals)
             csv.Append(Csv(r.Person?.Name ?? r.Label)).Append(',').Append(Csv(r.Person?.Address ?? "")).Append(',').Append(Csv(r.Secret)).Append("\r\n");
-        await Platform.SaveCsv($"new-passwords-{DateTime.Now:yyyy-MM-dd-HHmm}.csv", csv.ToString());
+        try
+        {
+            await Platform.SaveCsv($"new-passwords-{DateTime.Now:yyyy-MM-dd-HHmm}.csv", csv.ToString());
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // The passwords stay on screen, so nothing is lost: copy them instead, or save elsewhere.
+            Result = Records.ImportUsersViewModel.FileError("save the file", e);
+        }
     }
 
     // Always quoted, never altered: a password must arrive exactly as set.
@@ -183,7 +191,8 @@ public sealed partial class PendingChangesViewModel : ObservableObject
 
     public string HeaderText => Count == 0 ? "Pending Changes" : $"Pending Changes ({Count})";
 
-    int CautionCount => Rows.Count(r => r.IsCaution);
+    // A change with a phrase to type is confirmed like a caution change, even if it isn't one.
+    int CautionCount => Rows.Count(r => r.IsCaution || r.Change.ConfirmPhrase is not null);
 
     [ObservableProperty]
     public partial bool IsOpen { get; set; }
@@ -265,7 +274,17 @@ public sealed partial class PendingChangesViewModel : ObservableObject
             };
             Rebuild();
             if (applied > 0)
-                await _afterApply();
+            {
+                // The changes went through; only showing them failed, so say that and carry on.
+                try
+                {
+                    await _afterApply();
+                }
+                catch (Exception e)
+                {
+                    Result += $" The lists couldn't be refreshed ({Friendly.Message(e)}); Refresh shows the changes.";
+                }
+            }
         }
         finally
         {

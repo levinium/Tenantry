@@ -277,6 +277,22 @@ public class DirectorySyncTests
     }
 
     [Fact]
+    public async Task Users_synced_before_new_fields_do_one_full_pass_that_brings_them()
+    {
+        // A delta link from before on-premises sync and usage location were kept: changes alone would never fill them in.
+        var http = FirstRun();
+        var store = new MemoryEntityStore();
+        store.SetMark(DirectorySync.Users, new SyncMark($"{Base}users/delta?$deltatoken=old", Now.AddDays(-1)));
+
+        await new DirectorySync(Graph(http), store, now: () => Now).SyncAsync(cancellationToken: Ct);
+
+        Assert.Contains(http.Requests, r => r.PathAndQuery.Contains("users/delta?$select", StringComparison.Ordinal)
+            && r.PathAndQuery.Contains("onPremisesSyncEnabled", StringComparison.Ordinal));
+        Assert.DoesNotContain(http.Requests, r => r.PathAndQuery.Contains("$deltatoken=old", StringComparison.Ordinal));
+        Assert.EndsWith("$deltatoken=d1", store.GetMark(DirectorySync.Users)!.Cursor);
+    }
+
+    [Fact]
     public async Task Groups_synced_before_owners_existed_do_one_full_pass()
     {
         // A delta link saved under the old key knows nothing of owners: it must be ignored.
@@ -512,7 +528,7 @@ public class DirectorySyncTests
     }
 
     [Fact]
-    public async Task Reopening_shows_the_copy_then_applies_changes_without_losing_the_users_place()
+    public void Reopening_shows_the_copy_then_applies_changes_without_losing_the_users_place() => SingleThread.Run(async () =>
     {
         var store = new MemoryEntityStore();
         var http = FirstRun()
@@ -529,10 +545,10 @@ public class DirectorySyncTests
         Assert.Equal("contoso", vm.Users.SearchText);
         var selected = Assert.IsType<UserSummary>(vm.Users.SelectedRow);
         Assert.Equal("Cyrus", selected.DisplayName);
-    }
+    });
 
     [Fact]
-    public async Task A_failed_first_download_says_so_in_the_list_and_the_status()
+    public void A_failed_first_download_says_so_in_the_list_and_the_status() => SingleThread.Run(async () =>
     {
         var http = new FakeHttp().On(HttpMethod.Get, "/subscribedSkus", """{"error":{"code":"Authorization_RequestDenied","message":"Insufficient privileges."}}""", HttpStatusCode.Forbidden);
         var vm = new MainViewModel(Tenant(http, new MemoryEntityStore()), now: () => Now);
@@ -543,7 +559,7 @@ public class DirectorySyncTests
         Assert.Equal("Couldn't update", vm.SyncText);
         Assert.Contains("Insufficient privileges", vm.Users.LoadError);
         Assert.Contains("Insufficient privileges", vm.SyncTip);
-    }
+    });
 
     /// <summary>Collects progress synchronously (Progress&lt;T&gt; posts later, which a test can't wait for).</summary>
     sealed class SyncProgress(List<string> into) : IProgress<string>

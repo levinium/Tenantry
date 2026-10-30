@@ -189,4 +189,43 @@ public sealed class RuleCodecTests
         Assert.Contains("'[X] '", summary);
         Assert.Equal("When every message: do nothing.", RuleCodec.Summary(new RuleDraft()));
     }
+
+    [Theory]
+    [InlineData("2026-12-01T05:00:00Z")]
+    [InlineData("2026-12-01T00:00:00")]
+    [InlineData("2026-12-01T00:00:00-05:00")]
+    public void A_date_reads_back_as_sent_however_Exchange_writes_it(string readBack)
+    {
+        using var rule = JsonDocument.Parse($$"""{"ExpiryDate":"{{readBack}}"}""");
+
+        Assert.Empty(RuleCodec.Mismatches(rule.RootElement, [new("ExpiryDate", JsonValue.Create("2026-12-01T00:00:00-05:00"))]));
+        Assert.Equal("ExpiryDate", Assert.Single(RuleCodec.Mismatches(rule.RootElement, [new("ExpiryDate", JsonValue.Create("2026-12-09T00:00:00-05:00"))])));
+    }
+
+    [Fact]
+    public void A_rename_or_a_note_shows_in_the_edit_summaries()
+    {
+        var original = new RuleDraft { Name = "Old name" };
+        var edited = original.Clone();
+        edited.Name = "New name";
+        edited.Settings["Comments"] = "Asked for by the help desk";
+
+        var (before, after) = RuleCodec.EditSummaries(original, edited);
+
+        Assert.NotEqual(before, after);
+        Assert.Contains("Name 'Old name'.", before);
+        Assert.Contains("Name 'New name'.", after);
+        Assert.Contains("'Asked for by the help desk'", after);
+        Assert.Contains("(not set)", before);
+    }
+
+    [Fact]
+    public void Rule_dates_go_out_as_the_start_of_the_local_day()
+    {
+        var sent = Tenantry.ViewModels.MailSecurity.RuleValueEditor.SendDate(new DateTime(2026, 12, 1));
+
+        Assert.StartsWith("2026-12-01T00:00:00", sent);
+        Assert.Equal(new DateTime(2026, 12, 1), Tenantry.ViewModels.MailSecurity.RuleValueEditor.ReadDate(sent));
+        Assert.Equal(new DateTime(2026, 12, 1), Tenantry.ViewModels.MailSecurity.RuleValueEditor.ReadDate("2026-12-01"));
+    }
 }

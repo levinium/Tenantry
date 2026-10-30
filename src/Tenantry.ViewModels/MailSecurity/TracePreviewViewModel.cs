@@ -11,10 +11,14 @@ public sealed record TraceStepRow(string When, string Event, string Detail)
     public bool HasDetail => Detail.Length > 0;
 }
 
-/// <summary>A message from the trace results in the preview pane, with every step it went through (read when shown).</summary>
-public sealed partial class TracePreviewViewModel : ObservableObject
+/// <summary>
+/// A message from the trace results in the preview pane, with every step it went through (read when
+/// shown). Moving on to another row cancels the read, so arrowing through results doesn't pile them up.
+/// </summary>
+public sealed partial class TracePreviewViewModel : ObservableObject, IDisposable
 {
     readonly IMailSecurity? _records;
+    readonly CancellationTokenSource _lifetime = new();
 
     public TracePreviewViewModel(TracedMessage message, IMailSecurity? records)
     {
@@ -42,6 +46,10 @@ public sealed partial class TracePreviewViewModel : ObservableObject
 
     public bool HasError => Error is not null;
 
+    /// <summary>Read, and Exchange had no steps for it (yet).</summary>
+    [ObservableProperty]
+    public partial bool HasNoSteps { get; private set; }
+
     async Task LoadAsync()
     {
         if (_records is null)
@@ -49,8 +57,13 @@ public sealed partial class TracePreviewViewModel : ObservableObject
         IsLoading = true;
         try
         {
-            foreach (var e in await _records.TraceDetailAsync(Message))
+            foreach (var e in await _records.TraceDetailAsync(Message, _lifetime.Token))
                 Steps.Add(new TraceStepRow(e.Date.ToLocalTime().ToString("h:mm:ss tt"), e.Event, e.Detail.Trim()));
+            HasNoSteps = Steps.Count == 0;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // Moved on to another row.
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -61,4 +74,6 @@ public sealed partial class TracePreviewViewModel : ObservableObject
             IsLoading = false;
         }
     }
+
+    public void Dispose() => _lifetime.Cancel();
 }
