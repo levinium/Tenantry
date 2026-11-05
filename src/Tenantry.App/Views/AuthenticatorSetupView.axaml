@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.AuthenticatorSetupView"
+             x:DataType="rec:AuthenticatorSetupViewModel">
+  <!-- First the pass is made (they're waiting to use it), then the QR code, the pass and the steps. -->
+  <StackPanel Spacing="16" Width="760">
+    <TextBlock TextWrapping="Wrap" Text="{Binding Intro}" />
+
+    <!-- Before the pass -->
+    <StackPanel Spacing="12" IsVisible="{Binding IsStarting}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <TextBlock Text="The pass lasts" VerticalAlignment="Center" />
+        <ComboBox ItemsSource="{x:Static rec:AuthenticatorSetupViewModel.Lifetimes}" SelectedItem="{Binding Lifetime}" MinWidth="120" />
+        <CheckBox IsChecked="{Binding OneUse}" Content="for one sign-in only" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="caption" TextWrapping="Wrap"
+                 Text="The pass is made in Microsoft 365 as soon as you press the button below (it's logged in the Change Log; the pass itself is never stored)." />
+      <Border Classes="banner error" IsVisible="{Binding HasProblem}">
+        <SelectableTextBlock Text="{Binding Problem}" TextWrapping="Wrap" />
+      </Border>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Classes="accent" Command="{Binding CreatePassCommand}" Content="Make the Pass and Show the Steps" />
+        <Button Content="Cancel" Command="{Binding CloseCommand}" />
+        <ProgressBar Classes="working" Width="100" IsVisible="{Binding IsWorking}" VerticalAlignment="Center" />
+      </StackPanel>
+    </StackPanel>
+
+    <!-- The pass is ready -->
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="24" IsVisible="{Binding IsReady}">
+      <StackPanel Spacing="6" VerticalAlignment="Top">
+        <Border CornerRadius="8" ClipToBounds="True" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
+          <c:QrCode Text="{Binding Link}" Width="220" Height="220" />
+        </Border>
+        <TextBlock Classes="caption" Text="Scan with their phone's camera" HorizontalAlignment="Center" />
+        <SelectableTextBlock Classes="caption" Text="{Binding Link}" HorizontalAlignment="Center" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Spacing="14">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="label" Text="TEMPORARY ACCESS PASS" />
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <SelectableTextBlock Classes="code" FontSize="22" Text="{Binding Pass}" VerticalAlignment="Center" />
+            <Button Command="{Binding CopyPassCommand}" VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Copy" FontSize="14" />
+                <TextBlock Text="Copy" IsVisible="{Binding !Copied}" />
+                <TextBlock Text="Copied" IsVisible="{Binding Copied}" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+          <TextBlock Classes="caption" Text="{Binding PassNote}" TextWrapping="Wrap" />
+        </StackPanel>
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="WHAT THEY DO" />
+          <ItemsControl ItemsSource="{Binding Steps}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                  <ic:FluentIcon Icon="ChevronRight" FontSize="12" Foreground="{DynamicResource Accent}" VerticalAlignment="Top" Margin="0,4,0,0" />
+                  <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </StackPanel>
+    </Grid>
+    <Button Classes="accent" Content="Done" Command="{Binding CloseCommand}" IsVisible="{Binding IsReady}" HorizontalAlignment="Left"
+            ToolTip.Tip="Closes this; the pass can't be shown again" />
+  </StackPanel>
+</UserControl>

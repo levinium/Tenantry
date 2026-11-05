@@ -60,10 +60,10 @@ public sealed partial class TypedConfirmRow(ChangeOp change, Action changed) : O
 
 /// <summary>
 /// Something to show the admin once after applying (a temporary password): with a Copy button,
-/// kept only until dismissed, never stored or logged.
+/// kept only until the tray is closed, never stored or logged.
 /// </summary>
 /// <param name="person">Who it's for, and their sign-in name (for Copy all and the CSV).</param>
-public sealed partial class RevealRow(string label, string secret, Action<RevealRow> dismiss, ChangeTarget? person = null) : ObservableObject
+public sealed partial class RevealRow(string label, string secret, Action copied, ChangeTarget? person = null) : ObservableObject
 {
     public string Label { get; } = label;
 
@@ -79,10 +79,8 @@ public sealed partial class RevealRow(string label, string secret, Action<Reveal
     {
         Platform.CopyText(Secret);
         Copied = true;
+        copied();
     }
-
-    [RelayCommand]
-    void Dismiss() => dismiss(this);
 }
 
 /// <summary>
@@ -110,7 +108,13 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         _showPowerShell = showPowerShell;
         ShowTestModeBanner = showTestMode;
         TurnOffText = "";
-        _pipeline.Changed += (_, _) => Rebuild();
+        _pipeline.Changed += (_, _) =>
+        {
+            // A new edit starts a new batch: "applied" from the last one would read as if it were pending.
+            if (!IsApplying && ResultIsSuccess)
+                Result = null;
+            Rebuild();
+        };
         Rebuild();
     }
 
@@ -121,14 +125,27 @@ public sealed partial class PendingChangesViewModel : ObservableObject
 
     public bool HasReveals => Reveals.Count > 0;
 
-    /// <summary>Two or more passwords (a bulk reset): copy or save them all at once.</summary>
+    /// <summary>Two or more passwords (a bulk reset): copy all of them at once.</summary>
     public bool HasManyReveals => Reveals.Count > 1;
 
-    public string RevealsHeader => $"{Reveals.Count} new {(Reveals.All(r => r.Label.StartsWith("Client Secret", StringComparison.Ordinal)) ? "client secrets" : "passwords and codes")}. "
-        + "Shown once and never stored: copy or save them now, then pass each on securely.";
+    public string RevealsHeader => $"{Reveals.Count:N0} new {RevealNoun(Reveals.Count == 1)}. Shown once and never stored: copy or save now, then pass on securely.";
+
+    /// <summary>What the secrets are, in words: one kind by its name, a mix as "passwords and codes".</summary>
+    string RevealNoun(bool one)
+    {
+        var kinds = Reveals.Select(r => r.Label.StartsWith("Client Secret", StringComparison.Ordinal) ? "client secret"
+            : r.Label.StartsWith("Temporary Access Pass", StringComparison.Ordinal) ? "Temporary Access Pass"
+            : "password").Distinct().ToArray();
+        return kinds.Length != 1 ? "passwords and codes" : one ? kinds[0] : kinds[0] + (kinds[0].EndsWith('s') ? "es" : "s");
+    }
 
     [ObservableProperty]
     public partial bool AllCopied { get; private set; }
+
+    /// <summary>Every password copied (together or one by one) or saved: closing loses nothing.</summary>
+    bool RevealsKept => AllCopied || _revealsSaved || Reveals.All(r => r.Copied);
+
+    bool _revealsSaved;
 
     /// <summary>One line per person: name, sign-in name and password, separated by tabs (pastes into a spreadsheet).</summary>
     [RelayCommand]
@@ -136,6 +153,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     {
         Platform.CopyText(string.Join(Environment.NewLine, Reveals.Select(r => string.Join('\t', r.Person?.Name ?? r.Label, r.Person?.Address ?? "", r.Secret))));
         AllCopied = true;
+        IsConfirmingClose = false;
     }
 
     [RelayCommand]
@@ -146,11 +164,16 @@ public sealed partial class PendingChangesViewModel : ObservableObject
             csv.Append(Csv(r.Person?.Name ?? r.Label)).Append(',').Append(Csv(r.Person?.Address ?? "")).Append(',').Append(Csv(r.Secret)).Append("\r\n");
         try
         {
-            await Platform.SaveCsv($"new-passwords-{DateTime.Now:yyyy-MM-dd-HHmm}.csv", csv.ToString());
+            if (await Platform.SaveCsv($"new-passwords-{DateTime.Now:yyyy-MM-dd-HHmm}.csv", csv.ToString()))
+            {
+                _revealsSaved = true;
+                IsConfirmingClose = false;
+            }
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             // The passwords stay on screen, so nothing is lost: copy them instead, or save elsewhere.
+            _resultSucceeded = false;
             Result = Records.ImportUsersViewModel.FileError("save the file", e);
         }
     }
@@ -158,12 +181,65 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     // Always quoted, never altered: a password must arrive exactly as set.
     static string Csv(string value) => "\"" + value.Replace("\"", "\"\"") + "\"";
 
+    // ---- Closing the tray ---------------------------------------------------------------------
+
+    /// <summary>Close shows once nothing is waiting: after an apply, to clear the result and any passwords.</summary>
+    public bool CanClose => !HasChanges && (HasResult || HasReveals);
+
+    /// <summary>Close was clicked with passwords not yet copied or saved: the next click closes anyway.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CloseText), nameof(CloseTip))]
+    public partial bool IsConfirmingClose { get; private set; }
+
+    public string CloseText => IsConfirmingClose ? "Close Without Copying" : "Close";
+
+    public string CloseTip => IsConfirmingClose
+        ? "The passwords aren't copied or saved, and can't be shown again. Click again to close anyway."
+        : "Close this bar; the Change Log keeps what was applied";
+
     [RelayCommand]
-    void DismissAllReveals()
+    void Close()
     {
+        if (HasReveals && !RevealsKept && !IsConfirmingClose)
+        {
+            IsConfirmingClose = true;
+            return;
+        }
+        CloseNow();
+    }
+
+    void CloseNow()
+    {
+        _lingering?.Cancel();
+        IsConfirmingClose = false;
         Reveals.Clear();
         AllCopied = false;
+        _revealsSaved = false;
+        Result = null;
         RevealsChanged();
+    }
+
+    /// <summary>How long a clean result stays before the bar closes by itself (nothing to copy, nothing failed).</summary>
+    public static TimeSpan DefaultSuccessLingers { get; set; } = TimeSpan.FromSeconds(8);
+
+    public TimeSpan SuccessLingers { get; set; } = DefaultSuccessLingers;
+
+    CancellationTokenSource? _lingering;
+
+    async void CloseAfterSuccess()
+    {
+        _lingering?.Cancel();
+        var lingering = _lingering = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(SuccessLingers, lingering.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        if (ResultIsSuccess && !HasChanges && !HasReveals)
+            CloseNow();
     }
 
     void RevealsChanged()
@@ -173,6 +249,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         OnPropertyChanged(nameof(RevealsHeader));
         OnPropertyChanged(nameof(IsVisible));
         OnPropertyChanged(nameof(HeaderText));
+        OnPropertyChanged(nameof(CanClose));
     }
 
     public int Count => Rows.Count;
@@ -184,14 +261,18 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     /// <summary>The tray shows while there are changes, a result to read, or a password to pass on.</summary>
     public bool IsVisible => HasChanges || HasResult || HasReveals;
 
-    void DismissReveal(RevealRow row)
+    void RevealCopied()
     {
-        Reveals.Remove(row);
-        RevealsChanged();
+        if (RevealsKept)
+            IsConfirmingClose = false;
     }
 
     // With only new passwords to pass on (nothing waiting), the tray is about those.
-    public string HeaderText => Count > 0 ? $"Pending Changes ({Count})" : HasReveals ? "New Passwords and Codes" : "Pending Changes";
+    public string HeaderText =>
+        Count > 0 ? $"Pending Changes ({Count})"
+        : HasReveals ? "New " + Title(RevealNoun(Reveals.Count == 1))
+        : HasResult ? "Changes Applied"
+        : "Pending Changes";
 
     // A change with a phrase to type is confirmed like a caution change, even if it isn't one.
     int CautionCount => Rows.Count(r => r.IsCaution || r.Change.ConfirmPhrase is not null);
@@ -226,8 +307,13 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     public partial bool IsApplying { get; private set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasResult), nameof(IsVisible))]
+    [NotifyPropertyChangedFor(nameof(HasResult), nameof(IsVisible), nameof(HeaderText), nameof(ResultIsSuccess), nameof(CanClose))]
     public partial string? Result { get; private set; }
+
+    /// <summary>The last apply went through completely: shown as done, cleared by the next edit.</summary>
+    public bool ResultIsSuccess => Result is not null && _resultSucceeded;
+
+    bool _resultSucceeded;
 
     public string ApplyText =>
         IsConfirming ? $"Confirm: {CautionCount} {(CautionCount == 1 ? "Change Takes" : "Changes Take")} Something Away"
@@ -250,6 +336,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         IsConfirming = false;
         IsApplying = true;
         Result = null;
+        _resultSucceeded = false;
         try
         {
             var results = await _pipeline.ApplyAsync();
@@ -259,8 +346,12 @@ public sealed partial class PendingChangesViewModel : ObservableObject
                         CreateTemporaryAccessPass => $"Temporary Access Pass for {change.Target.Name}",
                         AddAppSecret s => $"Client Secret \"{s.Description}\" for {change.Target.Name}",
                         _ => $"New Password for {change.Target.Name}",
-                    }, result.Reveal!, DismissReveal, change.Target));
-            AllCopied = false;
+                    }, result.Reveal!, RevealCopied, change.Target));
+            if (results.Any(r => r.Result.Reveal is not null))
+            {
+                AllCopied = false;
+                _revealsSaved = false;
+            }
             RevealsChanged();
             _problems.Clear();
             foreach (var (change, result) in results.Where(r => !r.Result.Succeeded))
@@ -268,6 +359,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
             var applied = results.Count(r => r.Result.Succeeded);
             var lagging = results.Count(r => r.Result.Outcome == ChangeOutcome.AppliedNotYetVisible);
             var failed = results.Count - applied;
+            _resultSucceeded = failed == 0;
             Result = (applied, failed) switch
             {
                 (_, 0) => $"{Plural(applied, "change")} applied." + (lagging > 0 ? $" {lagging} not visible yet; Microsoft 365 usually shows it within a minute." : ""),
@@ -284,9 +376,13 @@ public sealed partial class PendingChangesViewModel : ObservableObject
                 }
                 catch (Exception e)
                 {
+                    _resultSucceeded = false;
                     Result += $" The lists couldn't be refreshed ({Friendly.Message(e)}); Refresh shows the changes.";
                 }
             }
+            // Nothing to read twice: a clean result goes away by itself.
+            if (ResultIsSuccess && lagging == 0 && !HasReveals && !HasChanges)
+                CloseAfterSuccess();
         }
         finally
         {
@@ -313,9 +409,6 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     [RelayCommand]
     void CancelConfirm() => IsConfirming = false;
 
-    [RelayCommand]
-    void DismissResult() => Result = null;
-
     void Rebuild()
     {
         Rows.Clear();
@@ -332,6 +425,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         OnPropertyChanged(nameof(Count));
         OnPropertyChanged(nameof(HasChanges));
         OnPropertyChanged(nameof(IsVisible));
+        OnPropertyChanged(nameof(CanClose));
         OnPropertyChanged(nameof(HeaderText));
         OnPropertyChanged(nameof(ApplyText));
         OnPropertyChanged(nameof(IsTestMode));
@@ -342,6 +436,9 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     }
 
     static string Plural(int n, string noun) => n == 1 ? $"1 {noun}" : $"{n} {noun}s";
+
+    // Headings are in Title Case; "and" stays lower case.
+    static string Title(string words) => string.Join(' ', words.Split(' ').Select(w => w == "and" ? w : char.ToUpperInvariant(w[0]) + w[1..]));
 
     // ---- Test mode ------------------------------------------------------------------------
 

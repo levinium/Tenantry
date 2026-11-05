@@ -10,7 +10,7 @@
              x:Class="Tenantry.App.Views.ChipPickerView"
              x:DataType="ed:ChipPicker"
              x:Name="Root">
-  <!-- Chosen things as chips with ×, and a picker to add more. -->
+  <!-- Chosen things as chips with ×, then an Add button whose popup lists what can be added. -->
   <StackPanel Spacing="6">
     <ItemsControl ItemsSource="{Binding Items}">
       <ItemsControl.ItemsPanel>
@@ -31,6 +31,7 @@
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>
-    <views:PersonPickerView DataContext="{Binding Picker}" MinWidth="380" MaxWidth="420" HorizontalAlignment="Left" />
+    <views:AddButton DataContext="{Binding Picker}" Text="{Binding #Root.((ed:ChipPicker)DataContext).AddText}" HorizontalAlignment="Left"
+                     Hint="Choose from the list, or type to narrow it." />
   </StackPanel>
 </UserControl>

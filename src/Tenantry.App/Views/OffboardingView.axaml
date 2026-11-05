@@ -56,6 +56,26 @@
                       <views:PersonPickerView DataContext="{Binding ForwardPicker}" IsVisible="{Binding !#Root.((wf:OffboardingViewModel)DataContext).HasForwardTo}" />
                     </StackPanel>
                   </StackPanel>
+                  <!-- Who gets the mailbox, under its step -->
+                  <StackPanel Margin="28,0,0,0">
+                    <StackPanel.IsVisible>
+                      <MultiBinding Converter="{x:Static BoolConverters.And}">
+                        <Binding Path="IsOn" />
+                        <Binding Path="Key" Converter="{x:Static ObjectConverters.Equal}" ConverterParameter="mailaccess" />
+                      </MultiBinding>
+                    </StackPanel.IsVisible>
+                    <views:ChipPickerView DataContext="{Binding #Root.((wf:OffboardingViewModel)DataContext).MailAccess}" />
+                  </StackPanel>
+                  <!-- Who gets the OneDrive, under its step -->
+                  <StackPanel Margin="28,0,0,0">
+                    <StackPanel.IsVisible>
+                      <MultiBinding Converter="{x:Static BoolConverters.And}">
+                        <Binding Path="IsOn" />
+                        <Binding Path="Key" Converter="{x:Static ObjectConverters.Equal}" ConverterParameter="onedriveaccess" />
+                      </MultiBinding>
+                    </StackPanel.IsVisible>
+                    <views:ChipPickerView DataContext="{Binding #Root.((wf:OffboardingViewModel)DataContext).OneDriveAccess}" />
+                  </StackPanel>
                 </StackPanel>
               </Border>
             </DataTemplate>
@@ -68,6 +88,27 @@
   <!-- A checklist, the usual steps ticked; confirming stages one change per item into Pending changes. -->
   <StackPanel Spacing="16" Width="1040">
     <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding Intro}" />
+
+    <!-- Nobody's manager is set: someone can stand in for this offboarding only -->
+    <Border Classes="banner neutral">
+      <Border.IsVisible>
+        <MultiBinding Converter="{x:Static BoolConverters.And}">
+          <Binding Path="NeedsStandIn" />
+          <Binding Path="!IsDone" />
+        </MultiBinding>
+      </Border.IsVisible>
+      <StackPanel Spacing="8">
+        <TextBlock Text="{Binding StandInText}" TextWrapping="Wrap" />
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding HasStandIn}">
+          <TextBlock Text="{Binding StandInChosenText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+          <Button Grid.Column="1" Classes="rowaction" Command="{Binding ClearStandInCommand}" ToolTip.Tip="Choose someone else">
+            <ic:FluentIcon Icon="Dismiss" FontSize="13" />
+          </Button>
+        </Grid>
+        <views:PersonPickerView DataContext="{Binding StandInPicker}" MaxWidth="420" HorizontalAlignment="Left"
+                                IsVisible="{Binding !#Root.((wf:OffboardingViewModel)DataContext).HasStandIn}" />
+      </StackPanel>
+    </Border>
 
     <Grid ColumnDefinitions="*,*" ColumnSpacing="24" IsVisible="{Binding !IsDone}">
       <ItemsControl ItemsSource="{Binding LeftSections}" ItemTemplate="{StaticResource SectionTemplate}">

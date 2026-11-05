@@ -168,11 +168,11 @@ public abstract partial class AppPageViewModel : TabViewModel, IDisposable
     }
 
     protected AppPickForm OwnerPicker(Func<IEnumerable<string>> current) =>
-        new(new PersonPicker("Add an owner: type a name", () =>
+        new(new PersonPicker("Person's name or address", () =>
         {
             var have = current().Concat(Pending.OfType<SetAppOwner>().Where(p => p.Add).Select(p => p.Owner.Id)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             return GroupAccess.People(Index).Where(o => !have.Contains(o.Id));
-        }, o => Pipeline?.Stage(new SetAppOwner(Target, o.Target("user"), true))));
+        }, o => Pipeline?.Stage(new SetAppOwner(Target, o.Target("user"), true)))) { AddText = "Add Owner" };
 
     /// <summary>Delegated (on behalf of whoever signs in) or Application (on its own, with no one signed in).</summary>
     protected static HealthChip KindChip(bool isApplication) => isApplication
@@ -407,7 +407,7 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
         _openRegistration = openRegistration;
         _openGroup = openGroup;
         _ownerForm = OwnerPicker(() => _owners.Select(o => o.Id));
-        _assignForm = new AppPickForm(new PersonPicker("Give access to: type a person or group", () =>
+        _assignForm = new AppPickForm(new PersonPicker("Person or group name", () =>
         {
             var role = _assignForm!.Role?.Value ?? AppUserAssignment.DefaultAccess;
             var have = _assignments.Where(a => a.RoleId == role).Select(a => a.PrincipalId)
@@ -419,7 +419,7 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
             var role = _assignForm!.Role;
             Pipeline?.Stage(new AddAppUserAssignment(Target, o.Target(o.Type), o.Type == "group" ? "Group" : "User", role?.Value ?? AppUserAssignment.DefaultAccess,
                 role?.Label ?? "Default Access"));
-        }), [new EditorChoice(AppUserAssignment.DefaultAccess, "Default Access", "Plain access")]);
+        }), [new EditorChoice(AppUserAssignment.DefaultAccess, "Default Access", "Plain access")]) { AddText = "Give Access" };
         _enabled = new AppToggle("Sign-In On", "Off stops everyone signing in to it (and it signing in on its own).", app.IsEnabled, CanEdit, v => SetSetting("enabled", App.IsEnabled, v));
         _assignment = new AppToggle("Assignment Required", "Only the people and groups on Users & Groups can sign in.", app.AssignmentRequired, CanEdit,
             v => SetSetting("assignment", App.AssignmentRequired, v));

@@ -86,7 +86,7 @@ public sealed partial class DataListViewModel : TabViewModel
     // ---- Rows and counts ------------------------------------------------------------------
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CountText), nameof(IsEmpty), nameof(SelectAllTip), nameof(PreviewPrompt))]
+    [NotifyPropertyChangedFor(nameof(CountText), nameof(IsEmpty), nameof(SelectAllTip), nameof(PreviewPrompt), nameof(AllRowsTicked), nameof(AllTickedText))]
     public partial IReadOnlyList<object> Rows { get; private set; }
 
     /// <summary>What the empty preview pane says: pick a row, or that there's nothing to pick yet.</summary>
@@ -99,10 +99,16 @@ public sealed partial class DataListViewModel : TabViewModel
 
     /// <summary>Every checked row (the grid's selection); the preview follows <see cref="SelectedRow"/>.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SelectionCount), nameof(HasSelection), nameof(IsPaneVisible), nameof(PaneTitle), nameof(CanExpandPreview), nameof(ShowOpenRecord))]
+    [NotifyPropertyChangedFor(nameof(SelectionCount), nameof(HasSelection), nameof(IsPaneVisible), nameof(PaneTitle), nameof(CanExpandPreview), nameof(ShowOpenRecord),
+        nameof(AllRowsTicked), nameof(AllTickedText))]
     public partial IReadOnlyList<object> SelectedRows { get; set; } = [];
 
     public int SelectionCount => SelectedRows.Count;
+
+    /// <summary>Every row the filters match is ticked (the header box), more than fit on screen: a banner says so.</summary>
+    public bool AllRowsTicked => HasSelection && SelectedRows.Count == Rows.Count && Rows.Count > 2;
+
+    public string AllTickedText => $"All {Rows.Count:N0} rows that match are ticked, including those you'd have to scroll to see. Changes in the selection panel apply to every one.";
 
     /// <summary>Two or more rows checked: the preview pane becomes the selection panel.</summary>
     public bool HasSelection => SelectedRows.Count > 1 && SelectionPanel is not null;
@@ -1093,15 +1099,9 @@ public sealed partial class DataListViewModel : TabViewModel
         IsPreviewOpen = true;
     }
 
-    /// <summary>Closes the preview; on a selection panel, clears the selection (which is what shows it).</summary>
+    /// <summary>Closes the preview. It never unticks rows: that's Clear Selection, said in words.</summary>
     [RelayCommand]
-    public void ClosePreview()
-    {
-        if (HasSelection)
-            ClearSelection();
-        else
-            IsPreviewOpen = false;
-    }
+    public void ClosePreview() => IsPreviewOpen = false;
 
     [RelayCommand]
     public void ExpandPreview()

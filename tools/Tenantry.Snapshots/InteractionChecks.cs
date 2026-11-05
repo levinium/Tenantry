@@ -48,6 +48,47 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Adding is a button: Add Address and Add License open a form with Add and Cancel, and Add stages it and closes the form", () =>
+        {
+            var (window, main, page) = OpenRecord(p => p.User.Mailbox is not null);
+            page.SelectedSection = page.MailTab;
+            Settle();
+            page.MailTab.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var mail = page.MailTab;
+            Expect(!window.GetVisualDescendants().OfType<TextBox>().Any(t => t.IsEffectivelyVisible && t.PlaceholderText == "Name before the @"),
+                "no address box on the page until the button is pressed");
+            Click(window, FindButton(window, b => b.Command == mail.StartAddAliasCommand && b.IsEffectivelyVisible));
+            Settle();
+            var box = window.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(t => t.IsEffectivelyVisible && t.PlaceholderText == "Name before the @");
+            Expect(box is not null, "Add Address opened the form");
+            Expect(box!.IsFocused, "the cursor is in the address box");
+            Click(window, FindButton(window, b => b.Command == mail.CancelAddAliasCommand && b.IsEffectivelyVisible));
+            Expect(!mail.IsAddingAlias, "Cancel closed the form");
+            Click(window, FindButton(window, b => b.Command == mail.StartAddAliasCommand && b.IsEffectivelyVisible));
+            Settle();
+            window.KeyTextInput("checked.alias");
+            Settle();
+            Click(window, FindButton(window, b => b.Command == mail.AddAliasCommand && b.IsEffectivelyVisible));
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetMailAlias { New: true } a && a.Address.StartsWith("checked.alias@", StringComparison.Ordinal)),
+                "the address is in Pending Changes");
+            Expect(!mail.IsAddingAlias, "Add closed the form");
+
+            page.SelectedSection = page.LicensesTab;
+            Settle();
+            page.LicensesTab.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var licenses = page.LicensesTab;
+            Click(window, FindButton(window, b => b.Command == licenses.StartAddLicenseCommand && b.IsEffectivelyVisible));
+            Expect(licenses.IsAddingLicense, "Add License opened the form");
+            licenses.SelectedToAdd = licenses.AddOptions.First(o => o.IsAvailable);
+            Settle();
+            Click(window, FindButton(window, b => b.Command == licenses.AddLicenseCommand && b.IsEffectivelyVisible));
+            Expect(main.Pending.Rows.Any(r => r.Change is SetLicenseAssigned { New: true }), "the license is in Pending Changes");
+            Expect(!licenses.IsAddingLicense, "Add closed the form");
+            window.Close();
+        });
+
         Check("Mail tab, mobile devices: a wipe choice closes its menu and adds the change", () =>
         {
             var (window, main, page) = OpenRecord();
@@ -98,6 +139,46 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("List ticks: a plain click on a row keeps them; the pane has no ✕ while they show; ticking all says so", () =>
+        {
+            var (window, main, _) = OpenList();
+            var grid = window.GetVisualDescendants().OfType<DataGrid>().First(g => g.IsEffectivelyVisible);
+            var rows = grid.GetVisualDescendants().OfType<DataGridRow>().Where(r => r.IsEffectivelyVisible).Take(4).ToArray();
+            foreach (var row in rows.Take(3))
+                Click(window, row.GetVisualDescendants().OfType<CheckBox>().First());
+            Expect(main.Users.SelectionCount == 3, $"three rows are ticked (got {main.Users.SelectionCount})");
+            // A plain text cell of the fourth row: not its name link or a button.
+            var cell = rows[3].GetVisualDescendants().OfType<DataGridCell>().Last(c => c.IsEffectivelyVisible && c.Bounds.Width > 0);
+            Click(window, cell);
+            Expect(main.Users.SelectionCount == 3, $"the plain click kept all three ticks (now {main.Users.SelectionCount})");
+            Expect(!window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == main.Users.ClosePreviewCommand && b.IsEffectivelyVisible),
+                "the pane shows Clear Selection, not a ✕");
+            main.Users.ClosePreview();
+            Expect(main.Users.SelectionCount == 3, "closing never unticks");
+            var all = grid.GetVisualDescendants().OfType<CheckBox>().First(c => c.FindAncestorOfType<DataGridColumnHeader>() is not null);
+            Click(window, all);
+            Expect(main.Users.SelectionCount == main.Users.Rows.Count && main.Users.AllRowsTicked, "the header box ticked every matching row");
+            Expect(window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == main.Users.AllTickedText && t.IsEffectivelyVisible), "a banner says all are ticked");
+            window.Close();
+        });
+
+        Check("A chip in a column too narrow for it ends in … inside the column", () =>
+        {
+            var (window, _, _) = OpenList();
+            var grid = window.GetVisualDescendants().OfType<DataGrid>().First(g => g.IsEffectivelyVisible);
+            var chip = grid.GetVisualDescendants().OfType<Tenantry.App.Controls.Badge>().First(b => b.Text == "Member" && b.IsEffectivelyVisible);
+            var cell = chip.FindAncestorOfType<DataGridCell>()!;
+            var row = chip.FindAncestorOfType<DataGridRow>()!;
+            var column = grid.Columns.First(c => c.GetCellContent(row) is { } content && (content == chip || content.IsVisualAncestorOf(chip)));
+            column.Width = new DataGridLength(70);
+            Settle();
+            var text = chip.GetVisualDescendants().OfType<TextBlock>().First();
+            var right = chip.TranslatePoint(new Point(chip.Bounds.Width, 0), cell)!.Value.X;
+            Expect(right <= cell.Bounds.Width + 0.5, $"the chip ends inside its cell ({right:0} of {cell.Bounds.Width:0})");
+            Expect(text.Bounds.Width < text.DesiredSize.Width + 0.5 && text.Bounds.Width < 60, $"its text is shortened ({text.Bounds.Width:0} px)");
+            window.Close();
+        });
+
         Check("Save as a view: Save with no name stays open; with a name it saves and closes", () =>
         {
             var (window, main, _) = OpenList();
@@ -124,6 +205,100 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Groups & Access: Add to Group opens a popup that adds; the list's own search only hides rows", () =>
+        {
+            var (window, main, page) = OpenRecord(p => p.GroupsTab.Groups.Count >= 2);
+            var tab = page.GroupsTab;
+            page.SelectedSection = tab;
+            Settle();
+            var before = tab.Groups.Count;
+            AddVia(window, tab.GroupPicker, "sg");
+            Expect(main.Pending!.Count == 1 && tab.Groups.Count == before + 1, "the group was added, as a pending row");
+
+            var lists = window.GetVisualDescendants().OfType<Tenantry.App.Views.ListSearchBox>().Where(s => s.IsEffectivelyVisible).ToArray();
+            var search = lists.First(s => s.Target?.ItemsSource == tab.Groups);
+            var rows = search.Target!.GetRealizedContainers().ToArray();
+            var first = tab.Groups[0].Name;
+            search.Text = first;
+            Settle();
+            Expect(rows.Count(r => r.IsVisible) >= 1 && rows.Where(r => r.IsVisible).All(r => ((ToggleRow)search.Target.ItemFromContainer(r)!).Name.Contains(first, StringComparison.CurrentCultureIgnoreCase)),
+                "typing a group's name leaves only matching rows");
+            Expect(main.Pending.Count == 1, "searching added nothing");
+            search.Text = "no group is called this";
+            Settle();
+            Expect(rows.All(r => !r.IsVisible) && search.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "Nothing here matches." && t.IsVisible),
+                "no match hides every row and says so");
+            search.Text = "";
+            Settle();
+            Expect(rows.All(r => r.IsVisible), "clearing the search shows every row again");
+            window.Close();
+        });
+
+        Check("Account tab: while still typing in a field, one click on its pending chip undoes the change", () =>
+        {
+            var (window, main, page) = OpenRecord();
+            page.SelectedSection = page.Account;
+            page.Account.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var field = page.Account.Groups.SelectMany(g => g.Fields).First(f => f.Property == "businessPhones");
+            var edit = FindButton(window, b => b.Command == field.EditCommand && b.IsEffectivelyVisible);
+            edit.BringIntoView();
+            Settle();
+            Click(window, edit);
+            Settle();
+            var box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.DataContext == field && t.IsEffectivelyVisible);
+            Expect(box.IsFocused, "the box has the cursor");
+            field.Draft = "+1 555 0199";
+            field.StageDraftCommand.Execute(null);
+            Settle();
+            Expect(field.HasPending && main.Pending!.Count == 1, "the typed number is pending");
+            Expect(box.IsFocused, "the cursor is still in the box");
+            var chip = FindButton(window, b => b.Command == field.UnstageCommand && b.IsEffectivelyVisible);
+            Click(window, chip);
+            var pending = main.Pending!;
+            Expect(!field.HasPending && pending.Count == 0, $"one click took it back out (pending {pending.Count})");
+            Expect(!field.IsEditing, "and ended the edit");
+            window.Close();
+        });
+
+        Check("Sign-in methods: Add Another Phone opens a form that adds a row; Change and Set Up Authenticator open theirs", () =>
+        {
+            var (window, main, page) = OpenRecord(p => p.User.Security?.Methods.Contains("mobilePhone") == true);
+            var security = page.Sections.OfType<SecuritySection>().Single();
+            page.SelectedSection = security;
+            security.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var add = FindButton(window, b => b.Command == security.AddPhoneCommand && b.IsEffectivelyVisible);
+            add.BringIntoView();
+            Settle();
+            Click(window, add);
+            var form = security.Form as ContactMethodForm;
+            Expect(form is not null, "the phone form opened");
+            var box = window.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(t => t.DataContext == form && t.IsEffectivelyVisible);
+            Expect(box?.IsFocused == true, "the cursor is in its box");
+            form!.Value = "+1 555 0100 333";
+            Settle();
+            Click(window, FindButton(window, b => b.Command == form.SaveCommand && b.IsEffectivelyVisible));
+            Expect(security.Form is null && security.Methods.Any(m => m.PendingText == "Adding"), "the form closed and the phone shows as Adding");
+            var phone = security.Methods.First(m => m.Kind == "Phone" && m.CanChange);
+            var change = FindButton(window, b => b.Command == phone.ChangeCommand && b.IsEffectivelyVisible);
+            Click(window, change);
+            Expect(phone.Form is ContactMethodForm { Value.Length: > 0 } && security.Form is null, "Change opened the form under its row, with the number in it");
+            var rowBox = window.GetVisualDescendants().OfType<TextBox>().First(t => t.DataContext == phone.Form && t.IsEffectivelyVisible);
+            var rowTop = change.TranslatePoint(default, window)!.Value.Y;
+            Expect(rowBox.TranslatePoint(default, window)!.Value.Y > rowTop, "the form is below the row it changes");
+            Expect(rowBox.IsFocused, "the cursor is in it");
+            var cancel = FindButton(window, b => b.Command == ((ContactMethodForm)phone.Form!).CancelCommand && b.IsEffectivelyVisible);
+            cancel.BringIntoView();
+            Settle();
+            Click(window, cancel);
+            Expect(phone.Form is null, "Cancel closed it");
+            Click(window, FindButton(window, b => b.Command == security.SetUpAuthenticatorCommand && b.IsEffectivelyVisible));
+            Expect(main.Dialog?.Content is AuthenticatorSetupViewModel, "Set Up Authenticator opened its guide");
+            main.CloseDialog();
+            window.Close();
+        });
+
         Check("OneDrive tab: picking a person adds an Adding row, and its undo button takes it back out", () =>
         {
             var (window, main, page) = OpenRecord(p =>
@@ -135,11 +310,7 @@ static class InteractionChecks
             var tab = page.Sections.OfType<OneDriveSection>().Single();
             page.SelectedSection = tab;
             Settle();
-            tab.AccessPicker.Query = "a";
-            Settle();
-            var pick = FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == tab.AccessPicker);
-            var name = ((Tenantry.ViewModels.Editing.PickOption)pick.DataContext!).Name;
-            Click(window, pick);
+            var name = AddVia(window, tab.AccessPicker, "a");
             Expect(main.Pending!.Count == 1, "the access change is in Pending Changes");
             Expect(tab.Access.Any(r => r.Name == name && r.PendingText == "Adding"), "the person shows as Adding");
             Click(window, FindButton(window, b => b.DataContext is OneDriveAccessRow r && r.Name == name && b.Command == r.RemoveCommand));
@@ -172,6 +343,10 @@ static class InteractionChecks
             var workflow = main.Dialog?.Content as Tenantry.ViewModels.Workflows.OffboardingViewModel;
             Expect(workflow is not null, "the Offboard popup is open");
             Settle();
+            workflow!.Sections.SelectMany(s => s.Steps).Single(s => s.Key == "mailaccess").IsOn = true;
+            Settle();
+            Expect(window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "Their Manager" && t.IsEffectivelyVisible),
+                "the mailbox step shows its people, starting with Their Manager");
             var stage = FindButton(window, b => b.Content as string == "Add to Pending Changes");
             stage.BringIntoView();
             Settle();
@@ -181,6 +356,33 @@ static class InteractionChecks
             Expect(main.Pending!.Count > 3, $"the checklist's changes are in Pending Changes (planning {workflow!.IsPlanning}, pending {main.Pending.Count}, " +
                 $"result '{workflow.Result}', notes '{string.Join(" | ", workflow.Notes)}', dialog {main.Dialog?.Content?.GetType().Name})");
             Expect(main.Pending.Rows.Any(r => r.Change is RevokeSessions), "sign out everywhere is among them");
+            Expect(main.Pending.Rows.Any(r => r.Change is SetMailboxAccess { Right: MailboxRight.FullAccess, New: true }), "their manager gets the mailbox");
+            window.Close();
+        });
+
+        Check("Pending Changes: after Apply the bar says it's done, and its Close button hides it", () =>
+        {
+            var (window, main, page) = OpenRecord();
+            // Demo people aren't test-marked: Test mode off (by typing the name) so the change goes through.
+            main.Pending!.StartTurnOffCommand.Execute(null);
+            main.Pending.TurnOffText = main.TenantName;
+            main.Pending.TurnOffTestModeCommand.Execute(null);
+            page.ToggleSignInCommand.Execute(null);
+            Settle();
+            var apply = FindButton(window, b => ToolTip.GetTip(b) as string == "Send these changes to Microsoft 365, then read each one back to confirm it");
+            Click(window, apply);
+            Settle();
+            Click(window, apply);
+            for (var i = 0; i < 50 && main.Pending!.IsApplying; i++)
+                Settle();
+            Expect(main.Pending!.HeaderText == "Changes Applied",
+                $"the header says the changes are applied (was '{main.Pending.HeaderText}', confirming {main.Pending.IsConfirming}, result '{main.Pending.Result}', " +
+                $"problem '{main.Pending.Rows.FirstOrDefault()?.Problem}')");
+            var close = FindButton(window, b => ToolTip.GetTip(b) as string == main.Pending.CloseTip && b.IsEffectivelyVisible);
+            Click(window, close);
+            Settle();
+            Expect(!main.Pending.IsVisible, "the bar is gone");
+            main.Pending.TurnOnTestModeCommand.Execute(null);
             window.Close();
         });
 
@@ -408,9 +610,7 @@ static class InteractionChecks
             Click(window, shared);
             Expect(form.IsShared, "Shared mailbox was chosen");
             form.Name = "Zz-tenantry-test Desk";
-            form.MemberPicker.Query = main.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member).DisplayName;
-            Settle();
-            Click(window, FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == form.MemberPicker));
+            AddVia(window, form.MemberPicker, main.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member).DisplayName);
             Expect(form.Members.Count() == 1, "the person was added");
             var add = FindButton(window, b => b.Command == form.AddCommand);
             add.BringIntoView();
@@ -543,9 +743,7 @@ static class InteractionChecks
                 Settle();
             var before = groups.Groups.Count;
             Expect(before > 0, "it's already in a group");
-            groups.Picker.Query = "SG Fin";
-            Settle();
-            Click(window, FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == groups.Picker));
+            AddVia(window, groups.Picker, "SG Fin");
             Expect(groups.Groups.Count == before + 1 && groups.Groups.Any(g => g.PendingText == "Joining"), "a Joining row appeared");
             Expect(main.Pending!.Rows.Any(r => r.Change is SetGroupMembership { PersonType: "device", New: true }), "joining is in Pending Changes");
             var existing = groups.Groups.First(g => !g.HasPending);
@@ -666,13 +864,7 @@ static class InteractionChecks
             Click(window, undo);
             Expect(!main.Pending.Rows.Any(r => r.Change is SetGroupMembership { New: false }), "Undo took it back out");
             var visitors = permissions.Groups.Single(g => g.Name == "Visitors");
-            visitors.Picker!.Query = main.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member).DisplayName;
-            Settle();
-            Expect(visitors.Picker.HasResults, "the picker found them");
-            var option = FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == visitors.Picker);
-            option.BringIntoView();
-            Settle();
-            Click(window, option);
+            AddVia(window, visitors.Picker!, main.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member).DisplayName);
             Expect(main.Pending.Rows.Any(r => r.Change is SetSiteGroupMember { New: true }), "adding them to Visitors is in Pending Changes");
             Expect(permissions.Groups.Single(g => g.Name == "Visitors").Members.Any(m => m.StateText == "Adding"), "an Adding row appeared");
             window.Close();
@@ -775,9 +967,15 @@ static class InteractionChecks
             Settle();
             Click(window, remove);
             Expect(main.Pending!.Rows.Any(r => r.Change is RemoveRoleAssignment), "taking it away is in Pending Changes");
+            Expect(!page.Assignments.IsGiving, "the Give the Role form starts closed: only its button shows");
+            var give = FindButton(window, b => b.Command == page.Assignments.StartGiveCommand && b.IsEffectivelyVisible);
+            give.BringIntoView();
+            Settle();
+            Click(window, give);
+            Expect(page.Assignments.IsGiving, "the button opened the form");
             page.Assignments.Picker.Query = main.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member).DisplayName;
             Settle();
-            var option = FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == page.Assignments.Picker);
+            var option = FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickRow && b.FindAncestorOfType<UserControl>()?.DataContext == page.Assignments.Picker);
             option.BringIntoView();
             Settle();
             Click(window, option);
@@ -787,6 +985,7 @@ static class InteractionChecks
             Settle();
             Click(window, add);
             Expect(main.Pending.Rows.Any(r => r.Change is AddRoleAssignment { Kind: RoleGrantKind.Active }), "giving the role is in Pending Changes");
+            Expect(!page.Assignments.IsGiving, "adding closed the form");
             Expect(page.Assignments.Rows.Any(r => r.StateText == "Adding") && page.HasPending, "an Adding row appeared and the header says what's pending");
             window.Close();
         });
@@ -919,7 +1118,7 @@ static class InteractionChecks
             var whatIf = main.SecurityArea.WhatIf;
             whatIf.Picker.Query = main.Users.Rows.Cast<UserSummary>().First(u => u.Kind == UserKind.Member).DisplayName;
             Settle();
-            Click(window, FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickOption && b.FindAncestorOfType<UserControl>()?.DataContext == whatIf.Picker));
+            Click(window, FindButton(window, b => b.DataContext is Tenantry.ViewModels.Editing.PickRow && b.FindAncestorOfType<UserControl>()?.DataContext == whatIf.Picker));
             Expect(whatIf.HasPerson, "the person was chosen");
             Click(window, FindButton(window, b => b.Command == whatIf.CheckCommand && b.IsEffectivelyVisible));
             for (var i = 0; i < 20 && whatIf.Results.Count == 0; i++)
@@ -983,6 +1182,11 @@ static class InteractionChecks
             Click(window, browser);
             Expect(main.Pending!.Rows.Count(r => r.Change is UpdateCaPolicy) == 1, "one change to the policy is in Pending Changes");
             Expect(editor!.Lines.Any(l => l.Label == "Client Apps" && l.Value == "Browsers"), "the words beside it follow");
+            // Leaving people out: an Add button whose popup lists people; tick one, Shift-click a third, Add 3.
+            var before = editor.ExcludePeople.Items.Count;
+            var names = AddSeveralVia(window, editor.ExcludePeople.Picker, "", 3);
+            Expect(editor.ExcludePeople.Items.Count == before + 3 && names.All(n => editor.ExcludePeople.Items.Any(i => i.Name == n)), "all three are chips");
+            Expect(main.Pending!.Rows.Count(r => r.Change is UpdateCaPolicy) == 1, "still one change to the policy");
             window.Close();
         });
 
@@ -1108,7 +1312,12 @@ static class InteractionChecks
             Click(window, window.GetVisualDescendants().OfType<TabItem>().First(t => t.DataContext is AppSection { Key: "credentials" }));
             for (var i = 0; i < 10; i++)
                 Settle();
-            var box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.PlaceholderText?.StartsWith("What it's for", StringComparison.Ordinal) == true);
+            static bool SecretBox(TextBox t) => t.IsEffectivelyVisible && t.PlaceholderText?.StartsWith("What it's for", StringComparison.Ordinal) == true;
+            Expect(!window.GetVisualDescendants().OfType<TextBox>().Any(SecretBox), "no secret form on the page until Add Secret is pressed");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is AddSecretForm f && b.Command == f.OpenCommand));
+            Settle();
+            var box = window.GetVisualDescendants().OfType<TextBox>().First(SecretBox);
+            Expect(box.IsFocused, "the cursor is in the description box");
             box.Text = "Rotation";
             Settle();
             Click(window, FindButton(window, b => b.IsEffectivelyVisible && Labelled(b, "Add Secret")));
@@ -1345,9 +1554,7 @@ static class InteractionChecks
             var chosen = window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.IsEffectivelyVisible && i.DataContext is Tenantry.ViewModels.Editing.EditorChoice { Value: "chosen" });
             Click(window, chosen);
             Expect(editor.Mailboxes.IsChosen, "Chosen shows the mailbox picker");
-            editor.Mailboxes.Picker.Query = main.Users.Rows.Cast<UserSummary>().First(u => u.Mailbox is not null).DisplayName;
-            Settle();
-            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is Tenantry.ViewModels.Editing.PickOption));
+            AddVia(window, editor.Mailboxes.Picker, main.Users.Rows.Cast<UserSummary>().First(u => u.Mailbox is not null).DisplayName);
             Expect(editor.Mailboxes.Chips.Count == 1, "the picked mailbox is a chip");
             Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.DataContext is PlaceChip), "with a × to take it off");
             Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == editor.SaveCommand));
@@ -1716,6 +1923,55 @@ static class InteractionChecks
     /// <summary>A button whose own text says this (its command may not be bound until it's shown).</summary>
     static bool Labelled(Button button, string text) => button.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == text);
 
+    /// <summary>
+    /// Adds through an Add button as a person would: click it, the popup opens with the cursor in its
+    /// search box, type, tick the first match, press Add; the popup closes. Returns the name chosen.
+    /// </summary>
+    static string AddVia(Window window, Tenantry.ViewModels.Editing.PersonPicker picker, string query) =>
+        AddSeveralVia(window, picker, query, 1)[0];
+
+    /// <summary>
+    /// The same, ticking several: the first match, then Shift-click on the <paramref name="count"/>th
+    /// ticks the range between. Add adds them all and closes the popup. Returns the names ticked.
+    /// </summary>
+    static string[] AddSeveralVia(Window window, Tenantry.ViewModels.Editing.PersonPicker picker, string query, int count)
+    {
+        var add = window.GetVisualDescendants().OfType<Tenantry.App.Views.AddButton>().First(a => a.DataContext == picker && a.IsEffectivelyVisible);
+        var open = add.GetVisualDescendants().OfType<Button>().First();
+        open.BringIntoView();
+        Settle();
+        Click(window, open);
+        var flyout = (Flyout)open.Flyout!;
+        Expect(flyout.IsOpen, "the Add button opened its popup");
+        Settle();
+        var box = (flyout.Content as Control)?.GetVisualDescendants().OfType<TextBox>().FirstOrDefault();
+        Expect(box?.IsFocused == true, "the cursor is in the popup's search box");
+        Expect(Buttons(flyout).Any(b => b.DataContext is Tenantry.ViewModels.Editing.PickRow), "the popup lists what can be added before anything is typed");
+        picker.Query = query;
+        Settle();
+        // Each of the first rows' button on screen now: the list is rebuilt as the search changes, and
+        // old buttons linger in the tree, so they're found from the picker's rows, not by position.
+        var shown = Buttons(flyout).Where(b => b.IsAttachedToVisualTree() && b.IsEffectivelyVisible).ToArray();
+        var rows = picker.Rows.Take(count).Select(r => shown.Last(b => ReferenceEquals(b.DataContext, r))).ToArray();
+        Expect(rows.Length >= count, $"at least {count} to choose from");
+        var top = TopLevel.GetTopLevel(rows[0])!;
+        Click(top, rows[0]);
+        Expect(flyout.IsOpen, "ticking leaves the popup open for more");
+        if (count > 1)
+        {
+            rows[count - 1].BringIntoView();
+            Settle();
+            Click(top, rows[count - 1], RawInputModifiers.Shift);
+        }
+        var names = rows.Take(count).Select(b => ((Tenantry.ViewModels.Editing.PickRow)b.DataContext!)).ToArray();
+        Expect(names.All(r => r.IsTicked) && picker.Ticks.Ticked.Count == count, $"{count} ticked{(count > 1 ? " (Shift-click ticked the range)" : "")}, not {picker.Ticks.Ticked.Count}");
+        var addAll = Buttons(flyout).First(b => b.Command == picker.AddTickedCommand);
+        Expect(addAll.Content as string == $"Add {count}", $"the button says Add {count}");
+        Click(top, addAll);
+        Expect(!flyout.IsOpen, "Add closed the popup");
+        return names.Select(r => r.Option.Name).ToArray();
+    }
+
     static IEnumerable<Button> Buttons(Flyout flyout) =>
         (flyout.Content as Control)?.GetLogicalDescendants().OfType<Button>() ?? [];
 
@@ -1725,12 +1981,12 @@ static class InteractionChecks
     /// <summary>A real mouse click (down and up) at the middle of the control, on whatever top level shows it.</summary>
     static void Click(Control control) => Click(TopLevel.GetTopLevel(control) ?? throw new InvalidOperationException("not shown"), control);
 
-    static void Click(TopLevel top, Control control)
+    static void Click(TopLevel top, Control control, RawInputModifiers keys = RawInputModifiers.None)
     {
         var middle = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), top)
             ?? throw new InvalidOperationException("control isn't on screen");
-        top.MouseDown(middle, MouseButton.Left);
-        top.MouseUp(middle, MouseButton.Left);
+        top.MouseDown(middle, MouseButton.Left, keys);
+        top.MouseUp(middle, MouseButton.Left, keys);
         Settle();
     }
 

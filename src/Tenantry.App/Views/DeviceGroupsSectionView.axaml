@@ -21,11 +21,19 @@
         <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
       </StackPanel>
     </Border>
-    <views:PersonPickerView DataContext="{Binding Picker}" MaxWidth="440" HorizontalAlignment="Left"
-                            IsVisible="{Binding #Root.((rec:DeviceGroupsSection)DataContext).CanEdit}" />
     <views:DeviceSectionStatusView />
+    <!-- Above the list: Add on the left, search on the right -->
+    <c:ReadableWidth>
+    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+      <views:AddButton DataContext="{Binding Picker}" Text="Add to Group" VerticalAlignment="Top"
+                       Hint="Choose a security group. It goes to Pending Changes."
+                       IsVisible="{Binding #Root.((rec:DeviceGroupsSection)DataContext).CanEdit}" />
+      <views:ListSearchBox Grid.Column="2" Target="{Binding #GroupsList}" Placeholder="Search its groups" />
+    </Grid>
+    </c:ReadableWidth>
     <TextBlock Classes="muted" Text="Not in any groups." IsVisible="{Binding HasNoGroups}" />
-    <ItemsControl ItemsSource="{Binding Groups}">
+    <c:ReadableWidth>
+    <ItemsControl x:Name="GroupsList" ItemsSource="{Binding Groups}">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate>
           <StackPanel Spacing="8" />
@@ -49,6 +57,7 @@
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>
+    </c:ReadableWidth>
     </StackPanel>
     </Border>
   </StackPanel>

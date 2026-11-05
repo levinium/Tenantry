@@ -17,18 +17,25 @@
         <DataTemplate x:DataType="rec:SiteGroupCard">
           <Border Classes="card">
             <StackPanel Spacing="8">
-              <Grid ColumnDefinitions="*,Auto">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                 <StackPanel Spacing="2">
                   <TextBlock Classes="h3" Text="{Binding Name}" />
                   <TextBlock Classes="caption" Text="{Binding Explanation}" IsVisible="{Binding HasExplanation}" TextWrapping="Wrap" />
                 </StackPanel>
                 <c:Badge Grid.Column="1" Text="{Binding CountText}" Kind="Neutral" VerticalAlignment="Top" />
               </Grid>
+              <!-- Above the list: Add on the left, search on the right -->
+              <c:ReadableWidth>
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <views:AddButton DataContext="{Binding Picker}" Text="Add Someone" VerticalAlignment="Top"
+                                 IsVisible="{Binding $parent[Border].((rec:SiteGroupCard)DataContext).HasPicker}" />
+                <views:ListSearchBox Grid.Column="2" Target="{Binding #MembersList}" Placeholder="Search this list" />
+              </Grid>
+              </c:ReadableWidth>
               <TextBlock Classes="muted" Text="Nobody." IsVisible="{Binding IsEmpty}" />
-              <ItemsControl ItemsSource="{Binding Members}" />
-              <Panel IsVisible="{Binding HasPicker}">
-                <views:PersonPickerView DataContext="{Binding Picker}" MaxWidth="440" HorizontalAlignment="Left" />
-              </Panel>
+              <c:ReadableWidth>
+              <ItemsControl x:Name="MembersList" ItemsSource="{Binding Members}" />
+              </c:ReadableWidth>
             </StackPanel>
           </Border>
         </DataTemplate>

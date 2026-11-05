@@ -86,6 +86,209 @@ public sealed class SecurityTests
         Assert.Contains(http.Requests, r => r.Method == HttpMethod.Delete && r.PathAndQuery.EndsWith("/phoneMethods/p1", StringComparison.Ordinal));
     }
 
+    const string Mobile = "3179e48a-750b-4051-897c-87b9720928f7";
+    const string DefaultRefusal = """{"error":{"code":"badRequest","message":"The requested authentication method id of [x] matches the user's current default authentication method, and cannot be deleted until the default authentication method is changed"}}""";
+    const string TwoPhones = $$"""{"value":[{"id":"pw","@odata.type":"#microsoft.graph.passwordAuthenticationMethod"},{"id":"{{Mobile}}","@odata.type":"#microsoft.graph.phoneAuthenticationMethod","phoneType":"mobile"},{"id":"e37fc753-ff3b-4958-9484-eaa9425c82bc","@odata.type":"#microsoft.graph.phoneAuthenticationMethod","phoneType":"office"}]}""";
+
+    [Fact]
+    public async Task Removing_the_default_method_moves_the_default_to_one_they_keep_then_removes_it()
+    {
+        var http = new FakeHttp()
+            .Once(HttpMethod.Delete, $"/phoneMethods/{Mobile}", DefaultRefusal, System.Net.HttpStatusCode.BadRequest)
+            .On(HttpMethod.Delete, $"/phoneMethods/{Mobile}", "")
+            .Once(HttpMethod.Get, "/users/u2/authentication/methods", TwoPhones)
+            .On(HttpMethod.Get, "/users/u2/authentication/methods", """{"value":[{"id":"pw","@odata.type":"#microsoft.graph.passwordAuthenticationMethod"}]}""")
+            .On(HttpMethod.Patch, "/beta/users/u2/authentication/signInPreferences", "");
+
+        var result = await Executor(http).ApplyAsync(new RemoveAuthMethod(Bo, Mobile, "phoneMethods", "Phone"), Ct);
+
+        Assert.Equal((ChangeOutcome.Applied, "Their default sign-in method is now their office phone."), (result.Outcome, result.Detail));
+        var patch = Assert.Single(http.Requests, r => r.Method == HttpMethod.Patch);
+        Assert.Equal("voiceOffice", patch.Json!["userPreferredMethodForSecondaryAuthentication"]!.GetValue<string>());
+        Assert.Equal(2, http.Requests.Count(r => r.Method == HttpMethod.Delete));
+    }
+
+    [Fact]
+    public async Task When_no_kept_method_can_be_the_default_the_removal_says_what_to_do()
+    {
+        var http = new FakeHttp()
+            .On(HttpMethod.Delete, $"/phoneMethods/{Mobile}", DefaultRefusal, System.Net.HttpStatusCode.BadRequest)
+            .On(HttpMethod.Get, "/users/u2/authentication/methods", TwoPhones)
+            .On(HttpMethod.Patch, "/beta/users/u2/authentication/signInPreferences",
+                """{"error":{"code":"badRequest","message":"Authentication method policy is not enabled for this user."}}""", System.Net.HttpStatusCode.BadRequest);
+
+        var result = await Executor(http).ApplyAsync(new RemoveAuthMethod(Bo, Mobile, "phoneMethods", "Phone"), Ct);
+
+        Assert.Equal(ChangeOutcome.Failed, result.Outcome);
+        Assert.Contains("Remove their other methods first", result.Detail);
+        Assert.Single(http.Requests, r => r.Method == HttpMethod.Delete);
+    }
+
+    [Fact]
+    public async Task The_default_method_is_read_from_sign_in_preferences()
+    {
+        var http = new FakeHttp()
+            .On(HttpMethod.Get, "/users/u2/authentication/methods", TwoPhones)
+            .On(HttpMethod.Get, "/beta/users/u2/authentication/hardwareOathMethods", """{"value":[]}""")
+            .On(HttpMethod.Get, "/beta/users/u2/authentication/signInPreferences", """{"userPreferredMethodForSecondaryAuthentication":"sms"}""");
+        var records = new GraphUserRecords(new GraphClient(http.Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore());
+
+        var methods = await records.GetAuthMethodsAsync("u2", Ct);
+
+        Assert.Equal([Mobile], methods.Where(m => m.IsDefault).Select(m => m.Id));
+    }
+
+    [Fact]
+    public void Several_removals_take_the_default_last()
+    {
+        AuthMethod Method(string id, bool isDefault = false) => new(id, "phoneMethods", "Phone", null, null, true, IsDefault: isDefault);
+
+        Assert.Equal(["b", "c", "a"], AuthMethod.RemovalOrder([Method("a", true), Method("b"), Method("c")]).Select(m => m.Id));
+    }
+
+    [Fact]
+    public async Task Changing_a_phone_patches_its_own_slot_and_reads_the_new_number_back()
+    {
+        var http = new FakeHttp()
+            .On(HttpMethod.Patch, "/users/u2/authentication/phoneMethods/3179e48a-750b-4051-897c-87b9720928f7", "")
+            .On(HttpMethod.Get, "/users/u2/authentication/phoneMethods/3179e48a-750b-4051-897c-87b9720928f7",
+                """{"id":"3179e48a-750b-4051-897c-87b9720928f7","phoneNumber":"+1 2065550000","phoneType":"mobile"}""");
+
+        var result = await Executor(http).ApplyAsync(
+            new UpdatePhoneMethod(Bo, "3179e48a-750b-4051-897c-87b9720928f7", "mobile", "+1 2065551234", "+1 2065550000"), Ct);
+
+        Assert.Equal(ChangeOutcome.Applied, result.Outcome);
+        var body = System.Text.Json.JsonDocument.Parse(http.Requests.First().Body!).RootElement;
+        Assert.Equal(("+1 2065550000", "mobile"), (body.GetProperty("phoneNumber").GetString(), body.GetProperty("phoneType").GetString()));
+    }
+
+    [Fact]
+    public async Task A_password_reset_email_is_added_when_they_have_none_and_patched_when_they_do()
+    {
+        var http = new FakeHttp()
+            .On(HttpMethod.Post, "/users/u2/authentication/emailMethods", """{"id":"e1","emailAddress":"bo@example.com"}""")
+            .On(HttpMethod.Patch, "/users/u2/authentication/emailMethods/e1", "")
+            .On(HttpMethod.Get, "/users/u2/authentication/emailMethods", """{"value":[{"id":"e1","emailAddress":"bo@example.com"}]}""");
+
+        Assert.Equal(ChangeOutcome.Applied, (await Executor(http).ApplyAsync(new SetEmailMethod(Bo, null, null, "bo@example.com"), Ct)).Outcome);
+        Assert.Equal(ChangeOutcome.Applied, (await Executor(http).ApplyAsync(new SetEmailMethod(Bo, "e1", "old@example.com", "bo@example.com"), Ct)).Outcome);
+        Assert.Equal([HttpMethod.Post, HttpMethod.Get, HttpMethod.Patch, HttpMethod.Get], http.Requests.Select(r => r.Method));
+    }
+
+    [Fact]
+    public async Task A_hardware_token_is_added_and_assigned_in_one_preview_request_then_activated_with_its_code()
+    {
+        var http = new FakeHttp()
+            .On(HttpMethod.Post, "/beta/directory/authenticationMethodDevices/hardwareOathDevices", """{"id":"d1","status":"assigned"}""")
+            .On(HttpMethod.Get, "/beta/users/u2/authentication/hardwareOathMethods", """{"value":[{"id":"m1","device":{"serialNumber":"SN123"}}]}""")
+            .On(HttpMethod.Post, "/beta/users/u2/authentication/hardwareOathMethods/m1/activate", "");
+
+        var added = await Executor(http).ApplyAsync(new AddHardwareToken(Bo, "SN123", "Contoso", "T1", 30, "hmacsha1", "JBSWY3DPEHPK3PXPJBSWY3DP"), Ct);
+        var activated = await Executor(http).ApplyAsync(new ActivateHardwareToken(Bo, "m1", "SN123", "123456"), Ct);
+
+        Assert.Equal((ChangeOutcome.Applied, ChangeOutcome.Applied), (added.Outcome, activated.Outcome));
+        var body = JsonDocument.Parse(http.Requests[0].Body!).RootElement;
+        Assert.Equal(("u2", "JBSWY3DPEHPK3PXPJBSWY3DP", 30), (body.GetProperty("assignTo").GetProperty("id").GetString(), body.GetProperty("secretKey").GetString(),
+            body.GetProperty("timeIntervalInSeconds").GetInt32()));
+        Assert.Equal("123456", JsonDocument.Parse(http.Requests.Last().Body!).RootElement.GetProperty("verificationCode").GetString());
+    }
+
+    [Fact]
+    public void A_tokens_secret_key_and_activation_code_never_reach_the_log()
+    {
+        var json = JsonSerializer.Serialize<ChangeOp>(new AddHardwareToken(Bo, "SN123", "Contoso", "T1", 30, "hmacsha1", "JBSWY3DPEHPK3PXPJBSWY3DP"))
+                   + JsonSerializer.Serialize<ChangeOp>(new ActivateHardwareToken(Bo, "m1", "SN123", "123456"));
+        Assert.DoesNotContain("JBSWY3DP", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("123456", json, StringComparison.Ordinal);
+        Assert.Contains("SN123", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Applying_now_skips_the_tray_but_not_Test_mode_or_the_log()
+    {
+        var log = new ChangeLog(new MemoryEntityStore());
+        var pipeline = new ChangePipeline(new Noop(), log, new MemoryTestModeStore(true), "admin");
+        var applied = new List<ChangeOp>();
+        pipeline.Applied += (_, changes) => applied.AddRange(changes);
+
+        var real = await pipeline.ApplyNowAsync(new CreateTemporaryAccessPass(new ChangeTarget("user", "u9", "Real Person", "real@contoso.example"), 60, true), Ct);
+        var test = await pipeline.ApplyNowAsync(new CreateTemporaryAccessPass(Bo, 60, true), Ct);
+
+        Assert.Equal((ChangeOutcome.Refused, ChangeOutcome.Applied), (real.Outcome, test.Outcome));
+        Assert.Empty(pipeline.Pending);
+        Assert.Equal(2, log.All().Count());
+        Assert.Equal("u2", Assert.Single(applied).Target.Id);
+    }
+
+    [Fact]
+    public async Task The_Authenticator_guide_makes_the_pass_then_shows_it_with_the_steps()
+    {
+        var made = 0;
+        var guide = new AuthenticatorSetupViewModel("Bo", "zz-tenantry-test-bo@contoso.example",
+            (minutes, once) =>
+            {
+                made++;
+                return Task.FromResult(minutes == 60 && once ? new ApplyResult(ChangeOutcome.Applied, Reveal: "Tap-123!") : new ApplyResult(ChangeOutcome.Failed, "wrong"));
+            }, () => { });
+        Assert.True(guide.IsStarting);
+
+        await guide.CreatePassCommand.ExecuteAsync(null);
+
+        Assert.Equal((1, "Tap-123!", true), (made, guide.Pass, guide.IsReady));
+        Assert.False(guide.CreatePassCommand.CanExecute(null));
+        Assert.Contains(guide.Steps, s => s.Contains("zz-tenantry-test-bo@contoso.example", StringComparison.Ordinal));
+        Assert.Equal("https://aka.ms/mysecurityinfo", guide.Link);
+    }
+
+    [Fact]
+    public async Task A_change_form_stays_open_under_its_row_when_something_else_is_staged()
+    {
+        var (tab, pipeline, _) = await Tab(SecurityPage.Methods);
+        tab.Methods.Single(m => m.Kind == "Phone").ChangeCommand.Execute(null);
+        var form = Assert.IsType<ContactMethodForm>(tab.Methods.Single(m => m.Kind == "Phone").Form);
+        form.Value = "+1 206 555";
+
+        // Removing the Authenticator rebuilds the list; the half-typed number stays where it was.
+        tab.Methods.Single(m => m.Kind == "Microsoft Authenticator").RemoveCommand.Execute(null);
+
+        Assert.Same(form, tab.Methods.Single(m => m.Kind == "Phone").Form);
+        form.CancelCommand.Execute(null);
+        Assert.Null(tab.Methods.Single(m => m.Kind == "Phone").Form);
+        Assert.IsType<RemoveAuthMethod>(Assert.Single(pipeline.Pending));
+    }
+
+    [Fact]
+    public async Task In_the_demo_the_guide_gets_a_pass_through_the_pipeline()
+    {
+        var directory = new Tenantry.Demo.DemoTenantDirectory();
+        var pipeline = new ChangePipeline(new Tenantry.Demo.DemoChangeExecutor(directory), new ChangeLog(new MemoryEntityStore()), new MemoryTestModeStore(true), "admin");
+        var guide = new AuthenticatorSetupViewModel("Bo", Bo.Address!, (minutes, once) => pipeline.ApplyNowAsync(new CreateTemporaryAccessPass(Bo, minutes, once)), () => { });
+
+        await guide.CreatePassCommand.ExecuteAsync(null);
+
+        Assert.True(guide.IsReady, guide.Problem);
+        Assert.StartsWith("Tap", guide.Pass, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_hardware_token_form_waits_for_a_Base32_key_and_stages_one_change()
+    {
+        var (tab, pipeline, _) = await Tab(SecurityPage.Methods);
+        tab.AddHardwareTokenCommand.Execute(null);
+        var form = Assert.IsType<HardwareTokenForm>(tab.Form);
+        (form.Serial, form.Manufacturer, form.Model, form.SecretKey) = ("SN123", "Contoso", "T1", "not base32!");
+        Assert.NotNull(form.Hint);
+        Assert.False(form.SaveCommand.CanExecute(null));
+
+        form.SecretKey = "JBSW Y3DP EHPK 3PXP";
+        form.SaveCommand.Execute(null);
+
+        var token = Assert.IsType<AddHardwareToken>(pipeline.Pending.Single());
+        Assert.Equal(("JBSWY3DPEHPK3PXP", 30, "hmacsha1"), (token.SecretKey, token.Seconds, token.Hash));
+        Assert.Null(tab.Form);
+        Assert.Contains(tab.Methods, m => m.Kind == "Hardware Token" && m.PendingText == "Adding");
+    }
+
     [Fact]
     public async Task A_temporary_access_pass_is_handed_back_once_and_never_kept()
     {
@@ -113,7 +316,7 @@ public sealed class SecurityTests
             [
                 new("pw", "passwordMethods", "Password", null, null, false),
                 new("a1", "microsoftAuthenticatorMethods", "Microsoft Authenticator", "iPhone", null, true),
-                new("p1", "phoneMethods", "Phone", "+1 2065551234 (mobile)", null, true),
+                new("p1", "phoneMethods", "Phone", "+1 2065551234 (mobile)", null, true, Value: "+1 2065551234", PhoneType: "mobile"),
             ]);
         public SignInQuery? LastQuery { get; private set; }
 
@@ -194,17 +397,45 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task A_phone_stages_once_its_number_is_valid_and_a_pass_stages_from_its_button()
+    public async Task A_second_phone_is_added_from_its_form_the_mobile_is_changed_in_place_and_a_pass_stages_from_its_button()
     {
         var (tab, pipeline, _) = await Tab(SecurityPage.Methods);
 
-        tab.NewPhoneType = "Office";
-        tab.NewPhoneNumber = "2065551234";
-        Assert.NotNull(tab.PhoneError);
+        // They have a mobile, so the button offers another phone: alternate or office.
+        Assert.Equal("Add Another Phone", tab.AddPhoneText);
+        tab.AddPhoneCommand.Execute(null);
+        var form = Assert.IsType<ContactMethodForm>(tab.Form);
+        Assert.Equal(["Alternate Mobile", "Office"], form.PhoneTypes.Select(t => t.Name));
+        form.PhoneTypes[1].IsChosen = true;
+        form.Value = "2065551234";
+        Assert.NotNull(form.Hint);
+        Assert.False(form.SaveCommand.CanExecute(null));
+        // A whole number is still only typed: nothing goes to Pending Changes until Add Phone.
+        form.Value = "+1 206 555 9999";
+        Assert.Null(form.Hint);
         Assert.Empty(pipeline.Pending);
-
-        tab.NewPhoneNumber = "+1 206 555 9999";
+        form.SaveCommand.Execute(null);
+        Assert.Null(tab.Form);
         Assert.Equal(("office", "+1 2065559999"), (Assert.IsType<AddPhoneMethod>(pipeline.Pending.Single()).PhoneType, ((AddPhoneMethod)pipeline.Pending[0]).Number));
+        // It shows as a row being added, with Undo.
+        var adding = tab.Methods.Single(m => m.PendingText == "Adding");
+        Assert.True(adding.CanUndo);
+
+        // The mobile is changed in place: the same slot, its old number kept for the log.
+        var mobile = tab.Methods.Single(m => m.Detail?.Contains("mobile", StringComparison.Ordinal) == true);
+        mobile.ChangeCommand.Execute(null);
+        // The change form opens under its own row, not with the add forms.
+        Assert.Null(tab.Form);
+        var change = Assert.IsType<ContactMethodForm>(mobile.Form);
+        Assert.Equal("+1 2065551234", change.Value);
+        change.Value = "+1 206 555 0000";
+        change.SaveCommand.Execute(null);
+        var update = Assert.IsType<UpdatePhoneMethod>(pipeline.Pending.Last());
+        Assert.Equal(("p1", "+1 2065551234", "+1 2065550000"), (update.MethodId, update.OldNumber, update.NewNumber));
+        Assert.StartsWith("Changing to", tab.Methods.Single(m => m.Detail?.Contains("mobile", StringComparison.Ordinal) == true).PendingText);
+        adding.UndoCommand.Execute(null);
+        Assert.IsType<UpdatePhoneMethod>(Assert.Single(pipeline.Pending));
+        pipeline.Clear();
 
         tab.TapLifetime = "8 Hours";
         tab.CreateTapCommand.Execute(null);

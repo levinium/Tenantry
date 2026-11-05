@@ -62,6 +62,7 @@ public sealed partial class PlacesEditor : ObservableObject
     {
         _kind = kind;
         Title = title;
+        AddText = kind == "site" ? "Add a Site or OneDrive" : "Add a Mailbox";
         var plural = kind == "site" ? "sites and OneDrives" : "mailboxes";
         Modes =
         [
@@ -85,6 +86,9 @@ public sealed partial class PlacesEditor : ObservableObject
     }
 
     public string Title { get; }
+
+    /// <summary>The Add button's words; its popup holds the search.</summary>
+    public string AddText { get; }
 
     public IReadOnlyList<EditorChoice> Modes { get; }
 

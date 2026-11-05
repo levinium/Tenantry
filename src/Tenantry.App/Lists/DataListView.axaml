@@ -364,7 +364,7 @@
                   </Button>
                 </Grid>
                 <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                  <Button Classes="ghost" Content="Remove Filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
+                  <Button Content="Remove Filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
                   <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                     <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}" />
                     <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyFilterCommand}" />
@@ -419,7 +419,7 @@
                   </Button>
                 </Grid>
                 <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                  <Button Classes="ghost" Content="Remove Filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
+                  <Button Content="Remove Filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
                   <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                     <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}" />
                     <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyFilterCommand}" />
@@ -444,7 +444,7 @@
                   </Button>
                 </Grid>
                 <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                  <Button Classes="ghost" Content="Remove Filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
+                  <Button Content="Remove Filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
                   <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                     <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}" />
                     <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyFilterCommand}" />
@@ -493,7 +493,7 @@
                   </Button>
                 </Grid>
                 <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                  <Button Classes="ghost" Content="Remove Filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
+                  <Button Content="Remove Filter" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ClearEditorFilterCommand}" />
                   <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                     <Button Content="Cancel" Command="{Binding #Root.((lists:DataListViewModel)DataContext).CancelFilterCommand}" />
                     <Button Classes="accent" Content="Apply" Command="{Binding #Root.((lists:DataListViewModel)DataContext).ApplyFilterCommand}" />
@@ -689,7 +689,7 @@
             </Button>
           </Grid>
           <Grid DockPanel.Dock="Bottom" Classes="panelfooter" ColumnDefinitions="Auto,*,Auto">
-            <Button Classes="ghost" Content="Reset to Default" Command="{Binding ResetColumnsCommand}" />
+            <Button Content="Reset to Default" Command="{Binding ResetColumnsCommand}" />
             <Button Grid.Column="2" Classes="accent" Content="Done" Command="{Binding ClosePanelsCommand}" />
           </Grid>
           <ScrollViewer>
@@ -776,6 +776,15 @@
         <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
       </Border>
 
+      <!-- The header box ticks every matching row, not just those on screen: said plainly. -->
+      <Border DockPanel.Dock="Top" Classes="banner info" Margin="0,0,0,8" IsVisible="{Binding AllRowsTicked}">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+          <ic:FluentIcon Icon="CheckboxChecked" FontSize="16" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Text="{Binding AllTickedText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <Button Grid.Column="2" Classes="link" Content="Clear Selection" Command="{Binding ClearSelectionCommand}" VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+
       <!-- The table -->
       <!-- No minimum height: in a very short window an open panel (and its buttons) wins over
            the table, which comes back as soon as the panel closes. -->
@@ -822,7 +831,9 @@
                   ToolTip.Tip="Uncheck every row and go back to the preview">
             <TextBlock Text="Clear Selection" />
           </Button>
-          <Button Grid.Column="2" Classes="rowaction" Command="{Binding ClosePreviewCommand}" ToolTip.Tip="Close (clears a selection)">
+          <!-- ✕ only closes. With rows ticked the pane is the selection itself: Clear Selection empties it. -->
+          <Button Grid.Column="2" Classes="rowaction" Command="{Binding ClosePreviewCommand}" ToolTip.Tip="Close the preview"
+                  IsVisible="{Binding !HasSelection}">
             <ic:FluentIcon Icon="Dismiss" FontSize="14" />
           </Button>
         </Grid>

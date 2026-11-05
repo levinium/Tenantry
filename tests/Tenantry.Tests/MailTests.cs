@@ -243,6 +243,22 @@ public sealed class MailTests
     }
 
     [Fact]
+    public async Task An_address_that_stops_being_valid_takes_the_earlier_one_out_of_pending()
+    {
+        var (tab, pipeline) = await Tab();
+        tab.ForwardOn = true;
+        tab.ForwardTo = "ada@contoso.example";
+        Assert.Single(pipeline.Pending);
+
+        // Typing on: "ada@contoso.example x" isn't an address, so the earlier one mustn't be applied.
+        tab.ForwardTo = "ada@contoso.example x";
+
+        Assert.NotNull(tab.ForwardError);
+        Assert.Empty(pipeline.Pending);
+        Assert.Equal("ada@contoso.example x", tab.ForwardTo);
+    }
+
+    [Fact]
     public async Task Discarding_in_the_tray_resets_the_forms()
     {
         var (tab, pipeline) = await Tab();

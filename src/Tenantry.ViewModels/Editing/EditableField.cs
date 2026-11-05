@@ -189,11 +189,14 @@ public sealed partial class EditableField : ObservableObject
 
     void RestoreStart() => _pipeline?.Restore([(_target.Id, Property, _pendingAtStart)]);
 
+    /// <summary>Takes the change back out; mid-edit, that ends the edit too (the value is back as it was).</summary>
     [RelayCommand]
     void Unstage()
     {
         if (Pending is { } p)
             _pipeline!.Unstage(p);
+        IsEditing = false;
+        Problem = null;
     }
 
     /// <summary>Re-reads the pending state (the record calls this when the tray changes).</summary>

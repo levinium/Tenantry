@@ -128,6 +128,8 @@
                     <TextBlock Classes="label" Text="WHO CAN USE IT" />
                     <CheckBox IsChecked="{Binding Everyone}" Content="Everyone" />
                     <StackPanel Spacing="6" IsVisible="{Binding !Everyone}">
+                      <views:AddButton DataContext="{Binding IncludePicker}" Text="Add Group" HorizontalAlignment="Left"
+                                       Hint="Choose a group whose people can use this method. It goes to Pending Changes." />
                       <ItemsControl ItemsSource="{Binding IncludeGroups}">
                         <ItemsControl.ItemsPanel>
                           <ItemsPanelTemplate>
@@ -147,10 +149,11 @@
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
-                      <views:PersonPickerView DataContext="{Binding IncludePicker}" MaxWidth="420" HorizontalAlignment="Left" />
                     </StackPanel>
                     <StackPanel Spacing="6" IsVisible="{Binding HasExclusions}" Margin="0,6,0,0">
                       <TextBlock Classes="label" Text="LEAVE OUT" />
+                      <views:AddButton DataContext="{Binding ExcludePicker}" Text="Leave Out a Group" HorizontalAlignment="Left"
+                                       Hint="Choose a group whose people can't use this method, even if a group above includes them. It goes to Pending Changes." />
                       <ItemsControl ItemsSource="{Binding ExcludeGroups}">
                         <ItemsControl.ItemsPanel>
                           <ItemsPanelTemplate>
@@ -170,7 +173,6 @@
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
-                      <views:PersonPickerView DataContext="{Binding ExcludePicker}" MaxWidth="420" HorizontalAlignment="Left" />
                     </StackPanel>
                     <!-- Who it reaches in the end, said as a sentence so it doesn't read as part of Leave Out. -->
                     <TextBlock Classes="caption" TextWrapping="Wrap" Margin="0,4,0,0">

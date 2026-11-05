@@ -890,6 +890,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             return;
         var workflow = new Workflows.OffboardingViewModel(people, _index, _tenant.Records, pipeline, TenantName, CloseDialog);
         ShowDialog(new Records.DialogViewModel(workflow.Heading, workflow.Subtitle, workflow, Footnote: null));
+        _ = workflow.LoadManagersAsync();
     }
 
     /// <summary>Opens the compromised-account response for one person or several.</summary>

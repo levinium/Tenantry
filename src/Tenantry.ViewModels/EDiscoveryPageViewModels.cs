@@ -42,12 +42,12 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
     {
         Case = eCase;
         _ctx = ctx;
-        _memberForm = new AppPickForm(new PersonPicker("Add someone to the case: type a name", () =>
+        _memberForm = new AppPickForm(new PersonPicker("Person's name or address", () =>
         {
             var have = (_last?.Members ?? []).Select(m => m.Address).Concat(Mine.OfType<SetCaseMember>().Where(m => m.Add).Select(m => m.Member.Address))
                 .OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
             return GroupAccess.People(ctx.Index).Where(o => o.Address is null || !have.Contains(o.Address));
-        }, o => Pipeline?.Stage(new SetCaseMember(Target, o.Target("user"), true))));
+        }, o => Pipeline?.Stage(new SetCaseMember(Target, o.Target("user"), true)))) { AddText = "Add Member" };
         Sections =
         [
             new AppSection("overview", "Overview", "Home", OverviewAsync, "Reading the case…"),

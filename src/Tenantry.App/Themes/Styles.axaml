@@ -215,6 +215,19 @@
     <Setter Property="CornerRadius" Value="6" />
     <Setter Property="Padding" Value="8,3" />
   </Style>
+  <!-- A pending value that is itself the Undo button: looks like Border.pending, clickable all over. -->
+  <Style Selector="Button.pendingchip">
+    <Setter Property="Background" Value="{DynamicResource DropSlotBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="8,3" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.pendingchip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+  </Style>
   <Style Selector="StackPanel.unavailable">
     <Setter Property="Opacity" Value="0.5" />
   </Style>
@@ -256,6 +269,7 @@
     <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
   </Style>
   <Style Selector="Button.bulkhead">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="12,9" />
@@ -265,6 +279,7 @@
     <Setter Property="Cursor" Value="Hand" />
   </Style>
   <Style Selector="Button.bulkhead:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="Background" Value="{DynamicResource NavHoverBg}" />
   </Style>
 
@@ -278,6 +293,7 @@
     <Setter Property="BoxShadow" Value="0 4 14 0 #22000000" />
   </Style>
   <Style Selector="Button.pickrow">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="10,6" />
@@ -287,6 +303,7 @@
     <Setter Property="Cursor" Value="Hand" />
   </Style>
   <Style Selector="Button.pickrow:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="Background" Value="{DynamicResource NavHoverBg}" />
   </Style>
 
@@ -312,10 +329,13 @@
     <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
     <Setter Property="TextDecorations" Value="Strikethrough" />
   </Style>
+  <!-- A risky action: a soft red fill with maroon text (filled maroon is Button.danger). -->
   <Style Selector="Button.danger-outline">
-    <Setter Property="Background" Value="Transparent" />
-    <Setter Property="BorderBrush" Value="{DynamicResource BadgeDangerFg}" />
-    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource BadgeDangerBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource BadgeDangerFg}" />
+  </Style>
+  <Style Selector="Button.danger-outline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource BadgeDangerBorder}" />
     <Setter Property="Foreground" Value="{DynamicResource BadgeDangerFg}" />
   </Style>
   <!-- Expanders in the app's own colours (the theme's are near-black in dark mode). -->
@@ -336,16 +356,26 @@
 
   <!-- Quiet: a Remove on every row of a long list stays calm until pointed at. -->
   <Style Selector="Button.danger-outline.quiet">
-    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="Background" Value="{DynamicResource ButtonNeutralBg}" />
     <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
   </Style>
   <Style Selector="Button.danger-outline.quiet:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="BorderBrush" Value="{DynamicResource BadgeDangerFg}" />
+    <Setter Property="Background" Value="{DynamicResource BadgeDangerBg}" />
     <Setter Property="Foreground" Value="{DynamicResource BadgeDangerFg}" />
   </Style>
   <Style Selector="Button.danger-outline.undo">
-    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="Background" Value="{DynamicResource ButtonNeutralBg}" />
     <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+  </Style>
+  <Style Selector="Button.danger-outline.undo:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ButtonNeutralBgHover}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+  </Style>
+  <!-- Disabled is disabled, whatever the button's colour. -->
+  <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ButtonBackgroundDisabled}" />
+    <Setter Property="Foreground" Value="{DynamicResource ButtonForegroundDisabled}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
   </Style>
 
   <Style Selector="Border.divider">
@@ -490,8 +520,14 @@
   <Style Selector="Button.ghost">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+  </Style>
+  <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ButtonNeutralBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
   </Style>
   <Style Selector="Button.choice">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="HorizontalAlignment" Value="Stretch" />
     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     <Setter Property="Padding" Value="18,16" />
@@ -501,18 +537,25 @@
     <Setter Property="CornerRadius" Value="10" />
   </Style>
   <Style Selector="Button.choice:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
     <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
   </Style>
 
   <!-- Quick-filter chips -->
   <Style Selector="Button.chip">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="CornerRadius" Value="15" />
     <Setter Property="Padding" Value="12,5" />
     <Setter Property="Background" Value="{DynamicResource CardBg}" />
     <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="FontSize" Value="13" />
+  </Style>
+  <Style Selector="Button.chip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ButtonNeutralBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
   </Style>
   <Style Selector="Button.chip.selected">
     <Setter Property="Background" Value="{DynamicResource NavSelectedBg}" />
@@ -583,11 +626,6 @@
   </Style>
 
   <!-- Buttons by role -->
-  <Style Selector="Button.outline">
-    <Setter Property="Background" Value="Transparent" />
-    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
-    <Setter Property="BorderThickness" Value="1" />
-  </Style>
   <!-- A saved view has unsaved changes: the Save view button says so. -->
   <Style Selector="Button.outline.attention">
     <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
@@ -615,6 +653,7 @@
 
   <!-- A whole-row button in a list (the home page's tenants) -->
   <Style Selector="Button.listrow">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="0" />
@@ -623,6 +662,7 @@
     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
   </Style>
   <Style Selector="Button.listrow:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
   </Style>
 
@@ -754,6 +794,7 @@
     <Setter Property="Margin" Value="0,1" />
   </Style>
   <Style Selector="Button.menurow">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="7" />
@@ -763,6 +804,7 @@
     <Setter Property="Margin" Value="0,1" />
   </Style>
   <Style Selector="Button.menurow:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="Background" Value="{DynamicResource NavHoverBg}" />
   </Style>
   <Style Selector="Button.menurow.selected /template/ ContentPresenter#PART_ContentPresenter">
@@ -846,15 +888,18 @@
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="Padding" Value="4" />
   </Style>
+  <!-- A row in a list: a line under each and a highlight under the pointer, so a row's buttons
+       (Remove at the far right) plainly belong to the item on the left. -->
   <Style Selector="Border.valuerow">
-    <Setter Property="Padding" Value="10,4" />
-    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="CornerRadius" Value="0" />
     <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Divider}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
   </Style>
   <Style Selector="Border.valuerow:pointerover">
     <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
-  </Style>
-  <Style Selector="Border.levelrow">
+  </Style>  <Style Selector="Border.levelrow">
     <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="Padding" Value="10,8" />
@@ -1106,6 +1151,18 @@
     <Setter Property="CornerRadius" Value="12" />
     <Setter Property="BoxShadow" Value="{DynamicResource DragShadow}" />
   </Style>
+  <!-- The popup over the window: sized to its content, or (a record's areas) one width, and for
+       areas with pages one height, so moving between them doesn't resize the popup. -->
+  <Style Selector="Border.dialog">
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.dialog.wide">
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+  </Style>
+  <Style Selector="Border.dialog.tall">
+    <Setter Property="VerticalAlignment" Value="Stretch" />
+  </Style>
   <!-- A borderless text box, for inputs that sit inside their own framed area -->
   <Style Selector="TextBox.bare">
     <Setter Property="BorderThickness" Value="0" />
@@ -1124,10 +1181,13 @@
   <Style Selector="c|Badge">
     <Setter Property="Template">
       <ControlTemplate>
-        <Border Background="{TemplateBinding Background}" CornerRadius="10" Padding="9,2"
-                HorizontalAlignment="Left" VerticalAlignment="Center">
-          <TextBlock Text="{TemplateBinding Text}" Foreground="{TemplateBinding Foreground}"
-                     FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                CornerRadius="6" Padding="8,2,9,3" HorizontalAlignment="Left" VerticalAlignment="Center">
+          <Grid ColumnDefinitions="Auto,*">
+            <Ellipse Width="6" Height="6" Margin="0,0,6,0" Fill="{TemplateBinding DotBrush}" IsVisible="{TemplateBinding ShowDot}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="{TemplateBinding Text}" Foreground="{TemplateBinding Foreground}"
+                       FontSize="12" FontWeight="Medium" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+          </Grid>
         </Border>
       </ControlTemplate>
     </Setter>

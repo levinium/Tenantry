@@ -145,6 +145,9 @@
     <DataTemplate DataType="wf:OffboardingViewModel">
       <views:OffboardingView />
     </DataTemplate>
+    <DataTemplate DataType="rec:AuthenticatorSetupViewModel">
+      <views:AuthenticatorSetupView />
+    </DataTemplate>
     <DataTemplate DataType="wf:CompromiseViewModel">
       <views:CompromiseView />
     </DataTemplate>

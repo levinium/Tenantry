@@ -24,11 +24,24 @@ Records serialise as-is into the change log.
   "before", so the review always shows where things started.
 - Staging back to that original drops the change.
 
+## Lists on record pages
+
+- Above each list: an **Add** button on the left (`AddButton`) and a search box on the right
+  (`ListSearchBox`). The search only hides rows; it never adds anything.
+- The Add button's popup lists what can be added straight away (A to Z, first 100, scrolling), and
+  typing narrows it. Choosing one stages it and closes the popup.
+- Taking a row off a list is a quiet **Remove** text button (red on hover), **Undo** while it's
+  pending. ✕ only closes something or unpicks a chip; the bin only deletes a real object.
+
 ## Applying
 
 - Changes apply one at a time, in the order they were staged.
 - Each one is checked by the write guard, executed, and logged.
 - Successes leave the tray. Failures and refusals stay, with the reason, ready to retry or discard.
+- After an apply the tray's header says how it went ("Changes Applied", with a check, or a warning
+  when something failed). Once nothing is waiting, the header has one **Close** button, the only
+  way to dismiss the bar. A clean result with nothing to copy closes by itself after 8 seconds;
+  the next edit also clears it. Pending rows are taken out with a bin icon, not a cross.
 - When any change is a caution change (blocking sign-in, and later removing access or
   licenses), the Apply button first turns into a confirmation that names how many changes take
   something away. A second click applies.
@@ -151,7 +164,30 @@ shown, and again after changes to that mailbox apply (the pipeline's `Applied` e
 |---|---|---|---|
 | Remove a sign-in method | `DELETE users/{id}/authentication/{collection}/{id}` | the method list no longer has it | always |
 | Add a phone | `POST …/authentication/phoneMethods` (`+1 2065551234`: country code, space, number) | `phoneMethods` has that type | no |
+| Change a phone | `PATCH …/phoneMethods/{id}` (ids are fixed per kind: mobile, alternate, office) | that phone has the new number | no |
+| Password reset email | `POST …/emailMethods`, or `PATCH …/emailMethods/{id}` when they have one (one per person; not MFA) | `emailMethods` has the address | no |
+| Hardware token | beta `POST directory/authenticationMethodDevices/hardwareOathDevices` with `assignTo` (the secret key is `[JsonIgnore]`: never logged) | beta `…/hardwareOathMethods` has the serial | no |
+| Activate a token | beta `POST …/hardwareOathMethods/{id}/activate` with the code it shows; **applied at once** (`ApplyNowAsync`), as the code lasts a minute | none | no |
 | Temporary Access Pass | `POST …/temporaryAccessPassMethods`; the pass comes back once and is shown in the tray, never stored | none | no |
+
+- **The Multi-Factor Sign-In card:** one row per method with Change (a phone's number, the email),
+  Activate (a token not yet in use) and Remove, or only Undo while something waits for it. Methods
+  being added are rows marked Adding. Below the list, buttons open one small form at a time: Add
+  Phone (Add Another Phone once they have one: alternate mobile or office), Add Password Reset
+  Email (only when they have none), Add Hardware Token.
+- **Set Up Authenticator:** Microsoft has no API to register the app for someone, so a guide makes a
+  Temporary Access Pass at once (`ApplyNowAsync`: Test mode and the log still apply), then shows a QR
+  code for `https://aka.ms/mysecurityinfo`, the pass, and the steps they follow on their phone.
+- **`ChangePipeline.ApplyNowAsync`:** one change straight away, not through the tray, for steps that
+  can't wait. Guarded and logged like any other; what's already pending is untouched.
+- **The default method:** Microsoft refuses to remove someone's default second-step method while
+  they have others. The default is read from beta `users/{id}/authentication/signInPreferences`
+  (`userPreferredMethodForSecondaryAuthentication`: push, oath, sms/voiceMobile,
+  voiceAlternateMobile, voiceOffice) and marked "Default" on its row. Removals staged together
+  (Remove All, Offboarding, Compromised Account) put it last (`AuthMethod.RemovalOrder`). Removing
+  it alone first PATCHes the preference to a method they keep (Authenticator, app code, mobile,
+  alternate, office, in that order); a method the tenant's policy doesn't allow for them is refused,
+  and when none takes, the change fails with what to do instead.
 | Remove a role | `DELETE roleManagement/directory/roleAssignments/{id}` | not found | always |
 | Revoke an app consent | `DELETE oauth2PermissionGrants/{id}` | not found | always |
 | Confirm compromised / dismiss risk | `POST identityProtection/riskyUsers/confirmCompromised` or `dismiss` | none | when confirming |
@@ -851,18 +887,24 @@ Each workflow runs for one person (from the record page's Actions menu) or for e
   - remove them from groups, lists and shared-mailbox access;
   - set an automatic reply, hide them from the address list;
   - convert the mailbox to shared, then remove direct licenses.
-- **Unticked:** forward their mail, give the manager the mailbox or the OneDrive, retire their
-  Intune devices.
+- **Unticked:** forward their mail, give Full access to the mailbox, give access to the OneDrive,
+  retire their Intune devices.
+- **Handing over:** the mailbox and the OneDrive each have their own list of people (chips and a
+  picker, any number). Both start with a "Their Manager" chip, which means each person's own
+  manager. The person themselves and repeats are dropped.
+- **Stand-in manager:** managers are read when the checklist opens. If anyone has none, the popup
+  asks for a stand-in. The stand-in takes the "Their Manager" access and the `{manager}` slot in the
+  reply, for this offboarding only; the account's manager isn't changed.
 - **The account is never deleted.**
 - **Reads:** the planner reads only what ticked steps need, four people at a time: methods, roles,
-  consents, licenses, mailbox, manager, OneDrive and devices. Group memberships come from one pass
-  over the local copy.
+  consents, licenses, mailbox, manager (unless already read on open), OneDrive and devices. Group
+  memberships come from one pass over the local copy.
 - **Order:** changes are listed person by person in a safe order. License removals `DependsOn` the
   conversion, so a failed conversion keeps the license.
 - **What's skipped, with a note:** dynamic groups, a group they're the only owner of, missing
   managers, and anything that couldn't be read.
 - **Automatic reply:** filled in per person from `{name}`, `{first name}`, `{organization}` and
-  `{manager}`. With no manager set, `{manager}` becomes "us".
+  `{manager}`. With no manager set, `{manager}` becomes the stand-in, or "us" without one.
 - **Confirming:** the tray's usual second click. There's no typed confirmation (Mark, 2026-10-26).
 
 **Compromised-account response** (`CompromiseViewModel`):
@@ -884,8 +926,9 @@ Each workflow runs for one person (from the record page's Actions menu) or for e
   re-registering removes anyway, isn't staged twice.
 
 **Passwords:** generated passwords follow the tenant's `PasswordStyle` (Settings › Passwords; kept
-in `password-style.json`). After a bulk reset, the tray offers Copy all, Save as file (CSV) and Done
-with all. Passwords are still never stored.
+in `password-style.json`). The tray shows each new password with Copy, plus Save as file (CSV) and,
+for several, Copy all. Close clears them; if none was copied or saved, the first click turns into
+"Close Without Copying" and the second closes. Passwords are still never stored.
 
 ### Mail & security (5a)
 

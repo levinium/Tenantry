@@ -40,10 +40,10 @@ public sealed partial class GroupsAccessSection : RecordSection, IDisposable
         _records = records;
         _openGroup = openGroup ?? (_ => { });
         _openUser = openUser ?? (_ => { });
-        GroupPicker = new PersonPicker("Add to a group: type its name", GroupOptions, AddToGroup);
-        MailboxPicker = new PersonPicker("Give access to a shared mailbox: type its name", MailboxOptions, o =>
+        GroupPicker = new PersonPicker("Group name or address", GroupOptions, AddToGroup);
+        MailboxPicker = new PersonPicker("Shared mailbox name or address", MailboxOptions, o =>
             _pipeline?.Stage(new SetMailboxAccess(GroupAccess.Target(_index.Group(o.Id)!), Me, MailboxRight.FullAccess, false, true)));
-        DelegatePicker = new PersonPicker("Give someone access to this mailbox: type a name", DelegateOptions, o =>
+        DelegatePicker = new PersonPicker("Person's name or address", DelegateOptions, o =>
             _pipeline?.Stage(new SetMailboxAccess(OwnMailbox, o.Target("user"), MailboxRight.FullAccess, false, true)));
         Compute();
         Rebuild();
@@ -155,11 +155,19 @@ public sealed partial class GroupsAccessSection : RecordSection, IDisposable
                 if (!string.IsNullOrEmpty(key))
                     byName.TryAdd(key, u);
         }
-        return delegates.Select(d =>
+        // Full access and Send as name an address, Send on behalf a display name: one row per person, not per name.
+        var merged = new Dictionary<string, (GroupMember Member, HashSet<MailboxRight> Rights)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var d in delegates)
         {
             var member = byName.TryGetValue(d.Trustee, out var u) ? new GroupMember(u.Id, "user") : new GroupMember(d.Trustee, "unresolved", Name: d.Trustee);
-            var row = GroupAccess.Describe(member, _index);
-            return (GroupAccess.PersonTarget(member, row), row, d.Rights.ToHashSet());
+            if (!merged.TryGetValue(member.Id, out var entry))
+                merged[member.Id] = entry = (member, []);
+            entry.Rights.UnionWith(d.Rights);
+        }
+        return merged.Values.Select(e =>
+        {
+            var row = GroupAccess.Describe(e.Member, _index);
+            return (GroupAccess.PersonTarget(e.Member, row), row, e.Rights);
         }).ToArray();
     }
 

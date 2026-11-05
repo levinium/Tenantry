@@ -26,7 +26,7 @@
       </StackPanel>
       <Border Classes="fresh" HorizontalAlignment="Left" c:FreshHighlight.Source="{Binding Freshness}" c:FreshHighlight.Keys="status,type,mailbox,forwarding,autoreply,storagestate,hold,archive,addresslist,emailapps">
       <WrapPanel ItemSpacing="8" LineSpacing="6">
-        <c:Badge Text="{Binding StatusText}" Kind="{Binding StatusKind}" />
+        <c:Badge Text="{Binding StatusText}" Kind="{Binding StatusKind}" ShowDot="True" />
         <c:Badge Text="{Binding KindText}" Kind="{Binding KindKind}" />
         <ItemsControl ItemsSource="{Binding Health}">
           <ItemsControl.ItemsPanel>
@@ -36,7 +36,7 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="rec:HealthChip">
-              <c:Badge Text="{Binding Text}" Kind="{Binding Kind}" ToolTip.Tip="{Binding Tip}" />
+              <c:Badge Text="{Binding Text}" Kind="{Binding Kind}" ToolTip.Tip="{Binding Tip}" ShowDot="True" />
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
@@ -51,7 +51,7 @@
             <TextBlock Text="Reset Password" />
           </StackPanel>
         </Button>
-        <Button Classes="danger-outline" Classes.undo="{Binding HasPendingSignIn}" Command="{Binding ToggleSignInCommand}"
+        <Button Classes.danger="{Binding IsBlockAction}" Command="{Binding ToggleSignInCommand}"
                 IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding SignInActionTip}" ToolTip.ShowOnDisabled="True">
           <TextBlock Text="{Binding SignInActionText}" />
         </Button>

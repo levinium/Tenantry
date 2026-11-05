@@ -66,8 +66,38 @@
               <ic:FluentIcon Icon="MailMultiple" FontSize="18" Foreground="{DynamicResource Accent}" />
               <TextBlock Classes="h3" Text="Email Addresses" VerticalAlignment="Center" />
             </StackPanel>
+            <!-- One centred column: what it is, adding a new address, then the list. -->
+            <c:ReadableWidth>
+            <StackPanel Spacing="10">
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="Mail sent to any of these arrives in this mailbox. The primary address is the one people see when they reply." />
+            <!-- Adding: a button; it opens a small form here, and nothing is staged until Add. -->
+            <Button Command="{Binding StartAddAliasCommand}" IsEnabled="{Binding CanEdit}" IsVisible="{Binding !IsAddingAlias}" HorizontalAlignment="Left">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Add" FontSize="14" />
+                <TextBlock Text="Add Address" />
+              </StackPanel>
+            </Button>
+            <Border Classes="levelrow" IsVisible="{Binding IsAddingAlias}" HorizontalAlignment="Left">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Add an Email Address" FontWeight="SemiBold" />
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBox Text="{Binding NewAliasName}" Width="200" PlaceholderText="Name before the @" c:FocusWhen.Value="{Binding IsAddingAlias}">
+                    <TextBox.KeyBindings>
+                      <KeyBinding Gesture="Enter" Command="{Binding AddAliasCommand}" />
+                      <KeyBinding Gesture="Escape" Command="{Binding CancelAddAliasCommand}" />
+                    </TextBox.KeyBindings>
+                  </TextBox>
+                  <TextBlock Text="@" VerticalAlignment="Center" />
+                  <ComboBox ItemsSource="{Binding Domains}" SelectedItem="{Binding NewAliasDomain}" MinWidth="220" />
+                </StackPanel>
+                <TextBlock Classes="error" Text="{Binding AliasError}" IsVisible="{Binding HasAliasError}" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="accent" Content="Add Address" Command="{Binding AddAliasCommand}" ToolTip.Tip="Goes to Pending Changes; nothing changes until you apply" />
+                  <Button Content="Cancel" Command="{Binding CancelAddAliasCommand}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
             <ItemsControl ItemsSource="{Binding Addresses}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="rec:AddressRow">
@@ -76,13 +106,13 @@
                       <SelectableTextBlock Text="{Binding Address}" VerticalAlignment="Center" />
                       <c:Badge Grid.Column="1" Text="Primary" Kind="Success" IsVisible="{Binding IsPrimary}" VerticalAlignment="Center" />
                       <c:Badge Grid.Column="2" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
-                      <Button Grid.Column="3" Classes="ghost" Content="Make Primary" Command="{Binding MakePrimaryCommand}" IsVisible="{Binding CanMakePrimary}"
+                      <Button Grid.Column="3" Content="Make Primary" Command="{Binding MakePrimaryCommand}" IsVisible="{Binding CanMakePrimary}"
                               ToolTip.Tip="Make this the address people see (added to Pending Changes); the current primary stays as an alias" />
-                      <Button Grid.Column="4" Classes="rowaction" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}" IsVisible="{Binding !IsPrimary}"
+                      <Button Grid.Column="4" Classes="danger-outline quiet" Classes.undo="{Binding HasPending}" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}" IsVisible="{Binding !IsPrimary}"
                               ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
                         <Panel>
-                          <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !HasPending}" />
-                          <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding HasPending}" />
+                          <TextBlock Text="Remove" IsVisible="{Binding !HasPending}" />
+                          <TextBlock Text="Undo" IsVisible="{Binding HasPending}" />
                         </Panel>
                       </Button>
                     </Grid>
@@ -90,13 +120,8 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <StackPanel Orientation="Horizontal" Spacing="6" IsEnabled="{Binding CanEdit}">
-              <TextBox Text="{Binding NewAliasName}" Width="200" PlaceholderText="New address" />
-              <TextBlock Text="@" VerticalAlignment="Center" />
-              <ComboBox ItemsSource="{Binding Domains}" SelectedItem="{Binding NewAliasDomain}" MinWidth="220" />
-              <Button Classes="accent" Content="Add Address" Command="{Binding AddAliasCommand}" ToolTip.Tip="Add this address (added to Pending Changes)" />
             </StackPanel>
-            <TextBlock Classes="error" Text="{Binding AliasError}" IsVisible="{Binding HasAliasError}" TextWrapping="Wrap" />
+            </c:ReadableWidth>
           </StackPanel>
         </Border>
 
@@ -108,7 +133,7 @@
                 <ic:FluentIcon Icon="MailArrowForward" FontSize="18" Foreground="{DynamicResource Accent}" />
                 <TextBlock Classes="h3" Text="Forwarding" VerticalAlignment="Center" />
               </StackPanel>
-              <TextBlock Classes="value" Text="{Binding ForwardingText}" TextWrapping="Wrap" />
+              <TextBlock Classes="value" Text="{Binding ForwardingText}" TextWrapping="Wrap" IsVisible="{Binding ShowForwardingText}" />
               <c:Badge Text="Forwarding Outside the Organization" Kind="Danger" IsVisible="{Binding IsForwardingOutside}" HorizontalAlignment="Left" />
               <TextBlock Classes="pendingtext" Text="{Binding ForwardingPendingText}" IsVisible="{Binding HasForwardingPending}" TextWrapping="Wrap" />
               <StackPanel Spacing="8" IsEnabled="{Binding CanEdit}">
@@ -149,7 +174,7 @@
               <ic:FluentIcon Icon="MailArrowUp" FontSize="18" Foreground="{DynamicResource Accent}" />
               <TextBlock Classes="h3" Text="Automatic Replies" VerticalAlignment="Center" />
             </StackPanel>
-            <TextBlock Classes="value" Text="{Binding AutoReplyText}" />
+            <TextBlock Classes="value" Text="{Binding AutoReplyText}" IsVisible="{Binding ShowAutoReplyText}" />
             <TextBlock Classes="pendingtext" Text="{Binding AutoReplyPendingText}" IsVisible="{Binding HasAutoReplyPending}" />
             <StackPanel Spacing="10" IsEnabled="{Binding CanEdit}">
               <StackPanel Orientation="Horizontal" Spacing="16">
@@ -246,7 +271,18 @@
             </CheckBox>
             <TextBlock Classes="pendingtext" Text="{Binding SendersPendingText}" IsVisible="{Binding HasSendersPending}" />
             <TextBlock Classes="caption" Text="{Binding SendersText}" TextWrapping="Wrap" />
-            <ItemsControl ItemsSource="{Binding AllowedSenders}">
+            <!-- Above the list: Add on the left, search on the right -->
+            <c:ReadableWidth>
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+              <Panel IsEnabled="{Binding CanEdit}" VerticalAlignment="Top">
+                <views:AddButton DataContext="{Binding SenderPicker}" Text="Add Allowed Sender"
+                                 Hint="Choose a person or group whose mail they'll always accept. It goes to Pending Changes." />
+              </Panel>
+              <views:ListSearchBox Grid.Column="2" Target="{Binding #SendersList}" Placeholder="Search allowed senders" />
+            </Grid>
+            </c:ReadableWidth>
+            <c:ReadableWidth>
+            <ItemsControl x:Name="SendersList" ItemsSource="{Binding AllowedSenders}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="rec:SenderRow">
                   <Border Classes="valuerow">
@@ -256,11 +292,11 @@
                         <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextTrimming="CharacterEllipsis" />
                       </StackPanel>
                       <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
-                      <Button Grid.Column="2" Classes="rowaction" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
+                      <Button Grid.Column="2" Classes="danger-outline quiet" Classes.undo="{Binding HasPending}" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
                               ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
                         <Panel>
-                          <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !HasPending}" />
-                          <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding HasPending}" />
+                          <TextBlock Text="Remove" IsVisible="{Binding !HasPending}" />
+                          <TextBlock Text="Undo" IsVisible="{Binding HasPending}" />
                         </Panel>
                       </Button>
                     </Grid>
@@ -268,9 +304,7 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <Panel IsEnabled="{Binding CanEdit}">
-              <views:PersonPickerView DataContext="{Binding SenderPicker}" />
-            </Panel>
+            </c:ReadableWidth>
           </StackPanel>
         </Border>
 
@@ -283,6 +317,7 @@
             </StackPanel>
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="The ways their mail can be reached. Turning one off stops apps and devices that use it; each switch adds a change to Pending Changes." />
+            <c:ReadableWidth>
             <ItemsControl ItemsSource="{Binding AppRows}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="rec:EmailAppRow">
@@ -299,6 +334,7 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+            </c:ReadableWidth>
           </StackPanel>
         </Border>
       </StackPanel>
@@ -316,7 +352,7 @@
                 <ic:FluentIcon Icon="Archive" FontSize="18" Foreground="{DynamicResource Accent}" />
                 <TextBlock Classes="h3" Text="Online Archive" VerticalAlignment="Center" />
               </StackPanel>
-              <TextBlock Classes="value" Text="{Binding ArchiveText}" TextWrapping="Wrap" />
+              <TextBlock Classes="value" Text="{Binding ArchiveText}" TextWrapping="Wrap" IsVisible="{Binding ArchiveText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
               <ToggleSwitch IsChecked="{Binding ArchiveOn}" IsEnabled="{Binding CanEdit}" OnContent="Archive On" OffContent="Archive Off"
                             ToolTip.Tip="Switching adds the change to Pending Changes. Turning it off deletes the archive's contents after 30 days." />
               <Button Classes="ghost" HorizontalAlignment="Left" Content="Let the Archive Grow Automatically…" Command="{Binding EnableAutoExpandingCommand}"
@@ -387,6 +423,7 @@
             <TextBlock Classes="muted" Text="Reading their rules…" IsVisible="{Binding RulesLoading}" />
             <TextBlock Classes="error" Text="{Binding RulesError}" IsVisible="{Binding HasRulesError}" TextWrapping="Wrap" />
             <TextBlock Classes="muted" Text="No inbox rules." IsVisible="{Binding HasNoRules}" />
+            <c:ReadableWidth>
             <ItemsControl ItemsSource="{Binding Rules}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="rec:RuleRow">
@@ -405,11 +442,11 @@
                       <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
                       <ToggleSwitch Grid.Column="2" IsChecked="{Binding IsEnabled}" IsEnabled="{Binding CanEdit}" OnContent="On" OffContent="Off"
                                     VerticalAlignment="Center" ToolTip.Tip="Switching adds the change to Pending Changes" />
-                      <Button Grid.Column="3" Classes="rowaction" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanDelete}"
+                      <Button Grid.Column="3" Classes="danger-outline quiet" Classes.undo="{Binding IsDeleting}" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanDelete}"
                               ToolTip.Tip="{Binding DeleteTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
                         <Panel>
-                          <ic:FluentIcon Icon="Delete" FontSize="14" IsVisible="{Binding !IsDeleting}" />
-                          <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding IsDeleting}" />
+                          <TextBlock Text="Remove" IsVisible="{Binding !IsDeleting}" />
+                          <TextBlock Text="Undo" IsVisible="{Binding IsDeleting}" />
                         </Panel>
                       </Button>
                     </Grid>
@@ -417,6 +454,7 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+            </c:ReadableWidth>
           </StackPanel>
         </Border>
 
@@ -431,32 +469,42 @@
                        Text="Who can see or change their calendar. Choosing a level adds the change to Pending Changes." />
             <TextBlock Classes="muted" Text="Reading their calendar's sharing…" IsVisible="{Binding SharingLoading}" />
             <TextBlock Classes="error" Text="{Binding SharingError}" IsVisible="{Binding HasSharingError}" TextWrapping="Wrap" />
-            <ItemsControl ItemsSource="{Binding CalendarSharing}">
+            <c:ReadableWidth>
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+              <Panel IsEnabled="{Binding CanEdit}" VerticalAlignment="Top">
+                <views:AddButton DataContext="{Binding SharingPicker}" Text="Share with Someone"
+                                 Hint="Choose a person. They start with the level shown on their row; change it there. It goes to Pending Changes." />
+              </Panel>
+              <views:ListSearchBox Grid.Column="2" Target="{Binding #SharingList}" Placeholder="Search who it's shared with" />
+            </Grid>
+            </c:ReadableWidth>
+            <c:ReadableWidth>
+            <ItemsControl x:Name="SharingList" ItemsSource="{Binding CalendarSharing}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="rec:SharingRow">
                   <Border Classes="valuerow">
-                    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+                    <Grid ColumnDefinitions="*,Auto,320,84" ColumnSpacing="10">
                       <StackPanel Spacing="1" VerticalAlignment="Center">
                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                         <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextTrimming="CharacterEllipsis" />
                       </StackPanel>
                       <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
                       <ComboBox Grid.Column="2" ItemsSource="{x:Static rec:SharingRow.Roles}" SelectedItem="{Binding SelectedRole}" IsEnabled="{Binding CanEdit}"
-                                MinWidth="250" VerticalAlignment="Center">
+                                HorizontalAlignment="Stretch" VerticalAlignment="Center">
                         <ComboBox.ItemTemplate>
                           <DataTemplate x:DataType="rec:RoleOption">
                             <StackPanel Spacing="1">
-                              <TextBlock Text="{Binding Name}" />
-                              <TextBlock Classes="caption" Text="{Binding Explanation}" />
+                              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                              <TextBlock Classes="caption" Text="{Binding Explanation}" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                           </DataTemplate>
                         </ComboBox.ItemTemplate>
                       </ComboBox>
-                      <Button Grid.Column="3" Classes="rowaction" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}"
-                              ToolTip.Tip="{Binding RemoveTip}" VerticalAlignment="Center">
+                      <Button Grid.Column="3" Classes="danger-outline quiet" Classes.undo="{Binding HasPending}" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}"
+                              ToolTip.Tip="{Binding RemoveTip}" VerticalAlignment="Center" HorizontalAlignment="Right">
                         <Panel>
-                          <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !HasPending}" />
-                          <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding HasPending}" />
+                          <TextBlock Text="Remove" IsVisible="{Binding !HasPending}" />
+                          <TextBlock Text="Undo" IsVisible="{Binding HasPending}" />
                         </Panel>
                       </Button>
                     </Grid>
@@ -464,9 +512,7 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <Panel IsEnabled="{Binding CanEdit}">
-              <views:PersonPickerView DataContext="{Binding SharingPicker}" />
-            </Panel>
+            </c:ReadableWidth>
           </StackPanel>
         </Border>
     </StackPanel>
@@ -485,6 +531,7 @@
             <TextBlock Classes="muted" Text="Reading their devices…" IsVisible="{Binding DevicesLoading}" />
             <TextBlock Classes="error" Text="{Binding DevicesError}" IsVisible="{Binding HasDevicesError}" TextWrapping="Wrap" />
             <TextBlock Classes="muted" Text="No phones or tablets sync this mailbox." IsVisible="{Binding HasNoDevices}" />
+            <c:ReadableWidth>
             <ItemsControl ItemsSource="{Binding Devices}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="rec:DeviceRow">
@@ -525,6 +572,7 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+            </c:ReadableWidth>
           </StackPanel>
         </Border>
     </StackPanel>
@@ -540,12 +588,15 @@
             </StackPanel>
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="Items they deleted that Exchange still keeps (usually 14 days after emptying Deleted Items). Restoring puts an item back in the folder it was deleted from." />
-            <TextBox Text="{Binding DeletedSearch, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True"
-                     PlaceholderText="Search by subject" Width="360" HorizontalAlignment="Left" />
+            <c:ReadableWidth>
+              <TextBox Text="{Binding DeletedSearch, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True"
+                       PlaceholderText="Search by subject" Width="360" HorizontalAlignment="Left" />
+            </c:ReadableWidth>
             <TextBlock Classes="muted" Text="Reading their deleted items…" IsVisible="{Binding DeletedLoading}" />
             <TextBlock Classes="error" Text="{Binding DeletedError}" IsVisible="{Binding HasDeletedError}" TextWrapping="Wrap" />
             <TextBlock Classes="muted" Text="No deleted items found." IsVisible="{Binding HasNoDeleted}" />
             <ScrollViewer MaxHeight="420">
+              <c:ReadableWidth>
               <ItemsControl ItemsSource="{Binding DeletedItems}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="rec:DeletedRow">
@@ -562,6 +613,7 @@
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
+              </c:ReadableWidth>
             </ScrollViewer>
           </StackPanel>
         </Border>

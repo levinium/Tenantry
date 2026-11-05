@@ -29,6 +29,8 @@ AppBuilder.Configure<App>()
     .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
     .WithInterFont()
     .SetupWithoutStarting();
+// The tray's clean result closes itself after a delay; here that would land on a pool thread.
+Tenantry.ViewModels.Editing.PendingChangesViewModel.DefaultSuccessLingers = TimeSpan.FromDays(1);
 
 if (args.Contains("--behavior-check"))
 {
@@ -69,6 +71,67 @@ if (demoTenant.Directory is Tenantry.Demo.DemoTenantDirectory demoDirectory)
 MainViewModel.PreviewSettle = TimeSpan.Zero;
 Tenantry.ViewModels.Records.RecordFreshness.SettleAfter = TimeSpan.FromHours(1);
 var connector = new SnapshotConnector(demoTenant);
+
+// --manage-popups: every Manage popup from a person's preview (and each page inside Mail and
+// Security), in both themes, at a full-size and a small window. For reviewing the popups by eye.
+if (args.Contains("--manage-popups"))
+{
+    foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+    {
+        Application.Current!.RequestedThemeVariant = theme;
+        var suffix = theme == ThemeVariant.Light ? "light" : "dark";
+        var demo = connector.ConnectDemo();
+        var main = new MainViewModel(demo with
+        {
+            IsDemo = false,
+            ListState = new Tenantry.Core.Lists.MemoryListStateStore(),
+            Changes = new Tenantry.Core.Changes.ChangePipeline(new NoopExecutor(), new Tenantry.Core.Changes.ChangeLog(new Tenantry.Core.Cache.MemoryEntityStore()),
+                new Tenantry.Core.Changes.MemoryTestModeStore(true), demo.Account),
+        }, () => { });
+        main.Users.LoadAsync().GetAwaiter().GetResult();
+        main.Users.PreviewRow(main.Users.Rows[1]);
+        var person = (UserDetailViewModel)main.Users.PreviewModel!;
+        var n = 0;
+        foreach (var row in person.ManageRows)
+        {
+            n++;
+            person.ManageCommand.Execute(row);
+            row.LoadAsync().GetAwaiter().GetResult();
+            var slug = $"manage-{n:00}-{new string(row.Title.Where(char.IsLetter).ToArray()).ToLowerInvariant()}";
+            if (row is Tenantry.ViewModels.Records.MailSection mail)
+                foreach (var p in Tenantry.ViewModels.Records.MailSection.Pages)
+                {
+                    mail.SelectedPage = p.Page;
+                    Settle();
+                    Render(main, $"{slug}-{p.Page.ToString().ToLowerInvariant()}-{suffix}");
+                }
+            else if (row is Tenantry.ViewModels.Records.SecuritySection security)
+                foreach (var p in Tenantry.ViewModels.Records.SecuritySection.Pages)
+                {
+                    security.SelectedPage = p.Page;
+                    Settle();
+                    Render(main, $"{slug}-{p.Page.ToString().ToLowerInvariant()}-{suffix}");
+                }
+            else
+                Render(main, $"{slug}-{suffix}");
+            // Groups & Access: Add to Group's popup with two ticked (Shift-click would tick the range).
+            if (row is Tenantry.ViewModels.Records.GroupsAccessSection access)
+                Render(main, $"{slug}-ticking-{suffix}", during: window =>
+                {
+                    var add = window.GetVisualDescendants().OfType<Tenantry.App.Views.AddButton>().First(a => a.DataContext == access.GroupPicker);
+                    var open = add.GetVisualDescendants().OfType<Button>().First();
+                    open.Flyout!.ShowAt(open);
+                    Settle();
+                    access.GroupPicker.Choose(access.GroupPicker.Rows[0]);
+                    access.GroupPicker.Choose(access.GroupPicker.Rows[2]);
+                });
+            if (theme == ThemeVariant.Light)
+                Render(main, $"{slug}-small-{suffix}", 1100, 700);
+            main.CloseDialog();
+        }
+    }
+    return 0;
+}
 
 foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
 {
@@ -394,6 +457,36 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Render(editing, name, height: 1200);
         }
         security.SelectedPage = Tenantry.ViewModels.Records.SecurityPage.Methods;
+        Settle();
+
+        // Sign-in methods: changing the phone, adding a hardware token, then the Authenticator guide.
+        // Drawn once first: showing the page reads its methods again, which would drop an open form.
+        Render(editing, "user-security-phone-change-light", height: 1200);
+        var phoneRow = security.Methods.First(m => m.Kind == "Phone");
+        phoneRow.ChangeCommand.Execute(null);
+        ((Tenantry.ViewModels.Records.ContactMethodForm)phoneRow.Form!).Value = "+1 555 0100 222";
+        Settle();
+        Render(editing, "user-security-phone-change-light", height: 1200);
+        ((Tenantry.ViewModels.Records.ContactMethodForm)phoneRow.Form!).CancelCommand.Execute(null);
+        security.AddHardwareTokenCommand.Execute(null);
+        Settle();
+        Render(editing, "user-security-token-light", height: 1300);
+        ((Tenantry.ViewModels.Records.HardwareTokenForm)security.Form!).CancelCommand.Execute(null);
+        // Demo people aren't test-marked: Test mode off (by typing the name) so the pass is made, then on again.
+        editing.Pending.StartTurnOffCommand.Execute(null);
+        editing.Pending.TurnOffText = editing.TenantName;
+        editing.Pending.TurnOffTestModeCommand.Execute(null);
+        security.SetUpAuthenticatorCommand.Execute(null);
+        Settle();
+        Render(editing, "user-security-authenticator-start-light", height: 900);
+        var guide = (Tenantry.ViewModels.Records.AuthenticatorSetupViewModel)editing.Dialog!.Content;
+        guide.CreatePassCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        Settle();
+        if (guide.HasProblem)
+            Console.WriteLine($"guide: {guide.Problem} (test mode {editing.Pending.IsTestMode})");
+        Render(editing, "user-security-authenticator-light", height: 900);
+        editing.CloseDialog();
+        editing.Pending.TurnOnTestModeCommand.Execute(null);
 
         // Devices: the laptop opened to its keys and actions, then its (made-up) recovery key shown.
         var devices = page.Sections.OfType<Tenantry.ViewModels.Records.DevicesSection>().Single();
@@ -557,19 +650,19 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         page.GroupsTab.LoadAsync().GetAwaiter().GetResult();
         if (page.GroupsTab.Groups.FirstOrDefault() is { } firstGroup)
             firstGroup.Toggles[0].IsOn = false;
-        page.GroupsTab.GroupPicker.Query = "sg";
         Render(editing, "user-groups-light");
         editing.Pending.DiscardAllCommand.Execute(null);
 
-        // A group's preview → Manage: owners and members in a popup, one owner being removed, a member being searched for.
+        // A group's preview → Manage: owners and members in a popup, one owner being removed, the members searched.
         editing.SelectedSection = editing.Sections.Single(s => s.Key == "groups");
         editing.Groups.PreviewRow(editing.Groups.Rows.Cast<GroupSummary>().First(g => g.DisplayName == "Finance"));
         Render(editing, "group-preview-manage-light");
         var finance = (GroupDetailViewModel)editing.Groups.PreviewModel!;
         finance.ManagePeopleCommand.Execute(null);
         finance.People.Owners[0].RemoveCommand.Execute(null);
-        finance.People.MemberPicker.Query = "a";
+        finance.People.MemberFilter = "a";
         Render(editing, "group-people-light");
+        finance.People.MemberFilter = "";
         editing.CloseDialog();
         editing.Pending.DiscardAllCommand.Execute(null);
 
@@ -1059,7 +1152,7 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         editing.Pending.ApplyCommand.ExecuteAsync(null).GetAwaiter().GetResult();
         Render(editing, "password-reveal-light");
 
-        // Several reset at once: Copy all, Save as file, Done with all.
+        // Several reset at once: Copy all, Save as file, Close.
         foreach (var other in editing.Users.Rows.Cast<UserSummary>().Skip(3).Take(2))
         {
             editing.OpenUser(other);
@@ -1070,7 +1163,10 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         editing.Pending.ApplyCommand.ExecuteAsync(null).GetAwaiter().GetResult();
         editing.Pending.ApplyCommand.ExecuteAsync(null).GetAwaiter().GetResult();
         Render(editing, "password-reveal-many-light", height: 1100);
-        editing.Pending.DismissAllRevealsCommand.Execute(null);
+        // Not copied: the first Close asks, the second closes.
+        editing.Pending.CloseCommand.Execute(null);
+        Render(editing, "password-reveal-close-confirm-light", height: 1100);
+        editing.Pending.CloseCommand.Execute(null);
     }
 
     // A synced tenant: the sidebar shows when the local copy was last brought up to date.
@@ -1236,7 +1332,12 @@ sealed class NoopExecutor : Tenantry.Core.Changes.IChangeExecutor
 {
     public Task<Tenantry.Core.Changes.ApplyResult> ApplyAsync(Tenantry.Core.Changes.ChangeOp change, CancellationToken cancellationToken = default) =>
         Task.FromResult(new Tenantry.Core.Changes.ApplyResult(Tenantry.Core.Changes.ChangeOutcome.Applied,
-            Reveal: change is Tenantry.Core.Changes.ResetPassword ? "Kp7r-Xw3n-Bq9t-Hm4s" : null));
+            Reveal: change switch
+            {
+                Tenantry.Core.Changes.ResetPassword => "Kp7r-Xw3n-Bq9t-Hm4s",
+                Tenantry.Core.Changes.CreateTemporaryAccessPass => "Tap7Kq2!wX",
+                _ => null,
+            }));
 }
 
 /// <summary>A sync that last ran a few minutes ago and never runs again (nothing to fetch in a snapshot).</summary>

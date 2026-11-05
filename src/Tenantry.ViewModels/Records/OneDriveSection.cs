@@ -46,7 +46,7 @@ public sealed partial class OneDriveSection : RecordSection, IDisposable
         _canEdit = canEdit;
         _index = index;
         Summary = "Storage, and who can open it";
-        AccessPicker = new PersonPicker("Give someone access: type a name", AccessOptions, GiveAccess);
+        AccessPicker = new PersonPicker("Person's name or address", AccessOptions, GiveAccess);
         if (_pipeline is not null)
         {
             _pipeline.Changed += OnPendingChanged;

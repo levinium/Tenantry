@@ -54,7 +54,7 @@ public sealed partial class MailSection : RecordSection, IDisposable
         _canEdit = canEdit;
         _index = index ?? EmptyIndex.Instance;
         _convert = convert;
-        SenderPicker = new PersonPicker("Accept mail only from: type a name or group", SenderOptions, AddSender);
+        SenderPicker = new PersonPicker("Person or group name", SenderOptions, AddSender);
         CreateSharingPicker();
         Summary = SummaryFor(user.Mailbox, null);
         if (_pipeline is not null)
@@ -194,8 +194,8 @@ public sealed partial class MailSection : RecordSection, IDisposable
         foreach (var name in new[]
                  {
                      nameof(IsReady), nameof(UsedText), nameof(UsedPercent), nameof(ItemsText), nameof(IsNearlyFull), nameof(HasStorage),
-                     nameof(ForwardingText), nameof(ForwardingPendingText), nameof(HasForwardingPending), nameof(IsForwardingOutside),
-                     nameof(AutoReplyText), nameof(AutoReplyPendingText), nameof(HasAutoReplyPending),
+                     nameof(ForwardingText), nameof(ShowForwardingText), nameof(ForwardingPendingText), nameof(HasForwardingPending), nameof(IsForwardingOutside),
+                     nameof(AutoReplyText), nameof(ShowAutoReplyText), nameof(AutoReplyPendingText), nameof(HasAutoReplyPending),
                      nameof(ShowInAddressList), nameof(AddressListPendingText), nameof(HasAddressListPending), nameof(Domains),
                      nameof(IsSharedMailbox), nameof(MailboxTypeText), nameof(ConvertText), nameof(MailboxTypePendingText), nameof(HasMailboxTypePending),
                  })
@@ -305,7 +305,28 @@ public sealed partial class MailSection : RecordSection, IDisposable
         }
         AliasError = null;
         NewAliasName = "";
+        IsAddingAlias = false;
         _pipeline!.Stage(new SetMailAlias(Target, address, false, true));
+    }
+
+    /// <summary>The Add Address form is open (the button opens it; Add or Cancel closes it).</summary>
+    [ObservableProperty]
+    public partial bool IsAddingAlias { get; private set; }
+
+    [RelayCommand]
+    void StartAddAlias()
+    {
+        AliasError = null;
+        NewAliasName = "";
+        IsAddingAlias = true;
+    }
+
+    [RelayCommand]
+    void CancelAddAlias()
+    {
+        AliasError = null;
+        NewAliasName = "";
+        IsAddingAlias = false;
     }
 
     // ---- Forwarding -------------------------------------------------------------------------
@@ -315,6 +336,9 @@ public sealed partial class MailSection : RecordSection, IDisposable
     public string ForwardingText => _data?.ForwardingTo is { } to
         ? $"Forwarding to {to}{(_data.KeepCopy ? ", keeping a copy" : ", no copy kept")}"
         : "Not Forwarding";
+
+    /// <summary>The line above the switch says where mail goes; "Not Forwarding" would only repeat the switch.</summary>
+    public bool ShowForwardingText => _data?.ForwardingTo is not null;
 
     public bool IsForwardingOutside => _data?.ForwardingTo is { } to && !IsInternal(to);
 
@@ -370,7 +394,10 @@ public sealed partial class MailSection : RecordSection, IDisposable
             var at = to.IndexOf('@');
             if (at <= 0 || at != to.LastIndexOf('@') || at == to.Length - 1 || to.Contains(' '))
             {
+                // What was staged on an earlier pause (a half-typed address) must not stay pending.
                 ForwardError = "Type a full email address, like name@example.com.";
+                if (PendingForwarding is { } partial)
+                    _pipeline!.Unstage(partial);
                 return;
             }
         }
@@ -383,6 +410,9 @@ public sealed partial class MailSection : RecordSection, IDisposable
     SetAutoReply? PendingAutoReply => _pipeline?.PendingFor(_user.Id, "autoreply") as SetAutoReply;
 
     public string AutoReplyText => _data?.AutoReply.Describe() ?? "";
+
+    /// <summary>Only a schedule adds anything to the Off / On / Only Between These Times buttons.</summary>
+    public bool ShowAutoReplyText => _data?.AutoReply.State is AutoReplyState.Scheduled;
 
     /// <summary>Replies are going out now or on a schedule (a health chip on the record).</summary>
     public bool IsAutoReplying => _data?.AutoReply.State is AutoReplyState.On or AutoReplyState.Scheduled;
@@ -450,6 +480,7 @@ public sealed partial class MailSection : RecordSection, IDisposable
             if (StartDate is not { } sd || EndDate is not { } ed)
             {
                 ReplyError = "Choose when the replies start and stop.";
+                UnstageAutoReply();
                 return;
             }
             start = new DateTimeOffset(sd.Date + (StartTime ?? TimeSpan.FromHours(9)), TimeZoneInfo.Local.GetUtcOffset(sd.Date));
@@ -457,6 +488,7 @@ public sealed partial class MailSection : RecordSection, IDisposable
             if (end <= start)
             {
                 ReplyError = "The replies must stop after they start.";
+                UnstageAutoReply();
                 return;
             }
         }
@@ -464,8 +496,7 @@ public sealed partial class MailSection : RecordSection, IDisposable
         if (NeedsReplyText)
         {
             ReplyError = null;
-            if (PendingAutoReply is { } waiting)
-                _pipeline!.Unstage(waiting);
+            UnstageAutoReply();
             return;
         }
         ReplyError = null;
@@ -474,6 +505,13 @@ public sealed partial class MailSection : RecordSection, IDisposable
             ? _data.AutoReply with { State = AutoReplyState.Off, Start = null, End = null }
             : new AutoReply(ReplyState, start, end, InternalMessage.Trim(), (SameOutside ? InternalMessage : ExternalMessage).Trim(), Audience);
         _pipeline!.Stage(new SetAutoReply(Target, _data.AutoReply, reply));
+    }
+
+    /// <summary>The form doesn't say something valid right now: nothing from an earlier pause stays pending.</summary>
+    void UnstageAutoReply()
+    {
+        if (PendingAutoReply is { } waiting)
+            _pipeline!.Unstage(waiting);
     }
 
     // ---- Address list -----------------------------------------------------------------------

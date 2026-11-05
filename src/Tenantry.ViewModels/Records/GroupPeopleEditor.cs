@@ -33,9 +33,9 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
         _canEdit = canEdit;
         _openUser = openUser;
         _openGroup = openGroup;
-        OwnerPicker = new PersonPicker("Add an owner: type a name or address", OwnerOptions, o => Add(o, GroupRole.Owner));
-        MemberPicker = new PersonPicker("Add a member: type a name or address", MemberOptions, o => Add(o, GroupRole.Member));
-        AccessPicker = new PersonPicker("Give someone access: type a name or address", AccessOptions, o =>
+        OwnerPicker = new PersonPicker("Person's name or address", OwnerOptions, o => Add(o, GroupRole.Owner));
+        MemberPicker = new PersonPicker("Name or address", MemberOptions, o => Add(o, GroupRole.Member));
+        AccessPicker = new PersonPicker("Person's name or address", AccessOptions, o =>
             _pipeline?.Stage(new SetMailboxAccess(GroupAccess.Target(_group), o.Target("user"), MailboxRight.FullAccess, false, true)));
         Rebuild();
         if (_pipeline is not null)
@@ -100,7 +100,7 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
     [ObservableProperty]
     public partial string? MoreMembersText { get; private set; }
 
-    public bool ShowFilter => _group.Members.Count > 12;
+    public bool ShowFilter => _group.Members.Count > 0;
 
     /// <summary>Shows the group as it is now (after changes are applied and read back).</summary>
     public void Update(GroupSummary group)

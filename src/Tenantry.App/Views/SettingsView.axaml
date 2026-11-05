@@ -43,7 +43,7 @@
                 ToolTip.Tip="This can take a few minutes for a large tenant">
           <TextBlock Text="Yes, Download Everything Again" />
         </Button>
-        <Button Classes="ghost" Content="Cancel" Command="{Binding CancelStartOverCommand}" IsVisible="{Binding IsConfirmingStartOver}" />
+        <Button Content="Cancel" Command="{Binding CancelStartOverCommand}" IsVisible="{Binding IsConfirmingStartOver}" />
       </StackPanel>
 
       <!-- A sync running now (from here, the sidebar or the timer), and the background read -->

@@ -32,6 +32,7 @@
         <CheckBox IsChecked="{Binding ApprovalRequired}" Content="Needs Approval" />
         <StackPanel Spacing="6" Margin="28,0,0,0" IsVisible="{Binding ApprovalRequired}">
           <TextBlock Classes="caption" TextWrapping="Wrap" Text="Approvers. With none, the Privileged Role Administrators approve." />
+          <views:AddButton DataContext="{Binding ApproverPicker}" Text="Add Approver" HorizontalAlignment="Left" />
           <ItemsControl ItemsSource="{Binding Approvers}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
@@ -52,7 +53,6 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <views:PersonPickerView DataContext="{Binding ApproverPicker}" MaxWidth="440" HorizontalAlignment="Left" />
         </StackPanel>
       </StackPanel>
     </Border>

@@ -44,6 +44,10 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(ConvertMailbox), "convertMailbox")]
 [JsonDerivedType(typeof(RemoveAuthMethod), "removeAuthMethod")]
 [JsonDerivedType(typeof(AddPhoneMethod), "addPhoneMethod")]
+[JsonDerivedType(typeof(UpdatePhoneMethod), "updatePhoneMethod")]
+[JsonDerivedType(typeof(SetEmailMethod), "setEmailMethod")]
+[JsonDerivedType(typeof(AddHardwareToken), "addHardwareToken")]
+[JsonDerivedType(typeof(ActivateHardwareToken), "activateHardwareToken")]
 [JsonDerivedType(typeof(CreateTemporaryAccessPass), "createTemporaryAccessPass")]
 [JsonDerivedType(typeof(RemoveRoleAssignment), "removeRoleAssignment")]
 [JsonDerivedType(typeof(RevokeAppConsent), "revokeAppConsent")]
@@ -809,6 +813,73 @@ public sealed record AddPhoneMethod(ChangeTarget User, string PhoneType, string 
     public override string After => Number;
     public override bool IsNoChange => Number.Length == 0;
     public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Changes the number of a phone they already sign in with (the same slot, so the same key as adding one).</summary>
+/// <param name="MethodId">Graph's id for the phone ("3179e48a-…" is always the mobile one).</param>
+public sealed record UpdatePhoneMethod(ChangeTarget User, string MethodId, string PhoneType, string OldNumber, string NewNumber) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "phone:" + PhoneType;
+    public override string Label => PhoneType switch { "alternateMobile" => "Alternate Phone", "office" => "Office Phone", _ => "Mobile Phone" };
+    public override string Before => OldNumber;
+    public override string After => NewNumber;
+    public override bool IsNoChange => PhoneNumbers.Same(OldNumber, NewNumber);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is UpdatePhoneMethod e ? this with { OldNumber = e.OldNumber } : this;
+}
+
+/// <summary>
+/// An email address they can use to reset their own password (Microsoft doesn't count it for MFA).
+/// One per person: <see cref="MethodId"/> is set when changing the one they have.
+/// </summary>
+public sealed record SetEmailMethod(ChangeTarget User, string? MethodId, string? OldAddress, string NewAddress) : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "emailmethod";
+    public override string Label => "Password Reset Email";
+    public override string Before => OldAddress ?? "Not set";
+    public override string After => NewAddress;
+    public override bool IsNoChange => string.Equals(OldAddress, NewAddress, StringComparison.OrdinalIgnoreCase);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetEmailMethod e ? this with { OldAddress = e.OldAddress, MethodId = e.MethodId } : this;
+}
+
+/// <summary>
+/// A hardware token (a key-fob that shows a code), added to the tenant and given to them. Microsoft's
+/// preview API. It works once it's activated with the code it shows (<see cref="ActivateHardwareToken"/>,
+/// or they do it in Security info). The secret key is sent once and never kept or logged.
+/// </summary>
+/// <param name="Seconds">How often the code changes: 30 or 60.</param>
+/// <param name="Hash">"hmacsha1" (most tokens) or "hmacsha256".</param>
+public sealed record AddHardwareToken(ChangeTarget User, string Serial, string Manufacturer, string Model, int Seconds, string Hash,
+    [property: JsonIgnore] string SecretKey = "") : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "hwtoken:" + Serial;
+    public override string Label => "Hardware Token";
+    public override string Before => "None";
+    public override string After => $"{Manufacturer} {Model}, serial {Serial} (activate it next)";
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Activates their hardware token with the code it shows now (good for a minute, so it isn't kept).</summary>
+public sealed record ActivateHardwareToken(ChangeTarget User, string MethodId, string Serial, [property: JsonIgnore] string Code = "") : ChangeOp
+{
+    public override ChangeTarget Target => User;
+    public override string Key => "hwactivate:" + MethodId;
+    public override string Label => $"Hardware Token {Serial}";
+    public override string Before => "Not activated";
+    public override string After => "Activated";
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>Phone numbers as Graph keeps them ("+1 2065551234"): compared without spaces, dashes or brackets.</summary>
+public static class PhoneNumbers
+{
+    public static string Digits(string number) => new([.. number.Where(c => char.IsDigit(c) || c is '+' or 'x' or 'X')]);
+
+    public static bool Same(string? a, string? b) => string.Equals(Digits(a ?? ""), Digits(b ?? ""), StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>

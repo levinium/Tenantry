@@ -110,7 +110,7 @@
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
-        <views:PersonPickerView DataContext="{Binding OwnerPicker}" />
+        <views:AddButton DataContext="{Binding OwnerPicker}" Text="Add an Owner" HorizontalAlignment="Left" Hint="Choose from the list, or type to narrow it." />
       </StackPanel>
       <StackPanel Spacing="6" IsVisible="{Binding ShowMembers}">
         <TextBlock Classes="label" Text="{Binding MembersTitle}" />
@@ -121,7 +121,8 @@
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
-        <views:PersonPickerView DataContext="{Binding MemberPicker}" />
+        <views:AddButton DataContext="{Binding MemberPicker}" Text="{Binding #Root.((rec:NewGroupViewModel)DataContext).MembersAddText}" HorizontalAlignment="Left"
+                         Hint="Choose from the list, or type to narrow it." />
       </StackPanel>
     </StackPanel>
 

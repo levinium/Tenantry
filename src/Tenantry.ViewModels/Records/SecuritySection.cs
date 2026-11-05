@@ -18,19 +18,225 @@ public enum SecurityPage
 
 public sealed record SecurityPageItem(SecurityPage Page, string Title, string Icon);
 
-/// <summary>One sign-in method, with remove (pressing again undoes).</summary>
-public sealed partial class MethodRow(AuthMethod method, bool removing, bool canEdit, Action toggle) : ObservableObject
+/// <summary>
+/// One sign-in method: Change (a phone's number, the email) and Remove; while a change to it waits
+/// in Pending Changes, only Undo. A method being added shows as a row too, with Undo.
+/// </summary>
+public sealed partial class MethodRow(string kind, string? detail, string addedText, string? pendingText, Action? change, Action? remove, Action? undo,
+    string changeText = "Change", string? key = null, bool isDefault = false) : ObservableObject
 {
-    public string Kind => method.Kind;
-    public string? Detail => method.Detail;
-    public bool HasDetail => !string.IsNullOrEmpty(method.Detail);
-    public string AddedText => method.Added is { } at ? $"Added {at.ToLocalTime():d MMM yyyy}" : "";
-    public bool CanRemove => canEdit && method.Removable;
-    public bool IsRemoving => removing;
-    public string RemoveTip => removing ? "Keep this method (take the removal out of Pending Changes)" : "Remove this method (added to Pending Changes)";
+    /// <summary>Their default way to confirm a sign-in (removing it moves the default to another method).</summary>
+    public bool IsDefault => isDefault;
+
+    /// <summary>The method's id: a rebuilt list keeps a form open on the same method.</summary>
+    public string? Key => key;
+
+    public string Kind => kind;
+
+    /// <summary>"Change" (a number or address) or "Activate" (a hardware token not yet in use).</summary>
+    public string ChangeText => changeText;
+    public string? Detail => detail;
+    public bool HasDetail => !string.IsNullOrEmpty(detail);
+    public string AddedText => addedText;
+
+    /// <summary>"Adding", "Removing" or "Changing to …" while it waits in Pending Changes.</summary>
+    public string? PendingText => pendingText;
+    public bool HasPending => pendingText is not null;
+
+    public bool CanChange => change is not null && !HasPending && !HasForm;
+
+    /// <summary>Changing this method (its number, its activation code): the form opens under this row.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasForm), nameof(CanChange))]
+    public partial object? Form { get; set; }
+
+    public bool HasForm => Form is not null;
+    public bool CanRemove => remove is not null && !HasPending;
+    public bool CanUndo => undo is not null && HasPending;
 
     [RelayCommand]
-    void Remove() => toggle();
+    void Change() => change?.Invoke();
+
+    [RelayCommand]
+    void Remove() => remove?.Invoke();
+
+    [RelayCommand]
+    void Undo() => undo?.Invoke();
+}
+
+/// <summary>
+/// The small form under the sign-in methods for adding or changing a phone or the password-reset
+/// email: one box, plus which phone when it's a second one. Save puts it in Pending Changes.
+/// </summary>
+public sealed partial class ContactMethodForm : ObservableObject
+{
+    readonly Func<ContactMethodForm, bool> _save;
+    readonly Action _close;
+
+    public ContactMethodForm(string title, string saveText, bool isPhone, string value, IReadOnlyList<(string Type, string Name)> phoneTypes,
+        Func<ContactMethodForm, bool> save, Action close)
+    {
+        Title = title;
+        SaveText = saveText;
+        IsPhone = isPhone;
+        _save = save;
+        _close = close;
+        PhoneTypes = phoneTypes.Select(t => new PhoneTypeChoice(t.Type, t.Name, this)).ToArray();
+        PhoneType = phoneTypes.FirstOrDefault().Type;
+        Value = value;
+    }
+
+    public string Title { get; }
+    public string SaveText { get; }
+    public bool IsPhone { get; }
+    public string Placeholder => IsPhone ? "+1 2065551234" : "name@example.com";
+
+    /// <summary>Which phone, only when adding one beside another (mobile otherwise).</summary>
+    public IReadOnlyList<PhoneTypeChoice> PhoneTypes { get; }
+    public bool HasPhoneTypes => PhoneTypes.Count > 1;
+
+    [ObservableProperty]
+    public partial string? PhoneType { get; set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    [NotifyPropertyChangedFor(nameof(Hint), nameof(HasHint))]
+    public partial string Value { get; set; } = "";
+
+    /// <summary>How to finish what's typed, while it isn't whole yet (a hint, not an error).</summary>
+    public string? Hint => Value.Trim().Length == 0 || IsValid ? null
+        : IsPhone ? "Type the country code, a space, then the number: +1 2065551234." : "Type a full email address, like name@example.com.";
+    public bool HasHint => Hint is not null;
+
+    bool IsValid => IsPhone ? SecuritySection.NormalizePhone(Value) is not null : SecuritySection.IsEmail(Value.Trim());
+
+    [RelayCommand(CanExecute = nameof(IsValid))]
+    void Save()
+    {
+        if (IsValid && _save(this))
+            _close();
+    }
+
+    [RelayCommand]
+    void Cancel() => _close();
+}
+
+/// <summary>
+/// Adding a hardware token: what's printed on it or in the vendor's file (serial, maker, model, the
+/// secret key) and how its code works. Save puts it in Pending Changes; after applying, it's activated.
+/// </summary>
+public sealed partial class HardwareTokenForm(Func<HardwareTokenForm, bool> save, Action close) : ObservableObject
+{
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    [NotifyPropertyChangedFor(nameof(Hint), nameof(HasHint))]
+    public partial string Serial { get; set; } = "";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    [NotifyPropertyChangedFor(nameof(Hint), nameof(HasHint))]
+    public partial string Manufacturer { get; set; } = "";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    [NotifyPropertyChangedFor(nameof(Hint), nameof(HasHint))]
+    public partial string Model { get; set; } = "";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    [NotifyPropertyChangedFor(nameof(Hint), nameof(HasHint))]
+    public partial string SecretKey { get; set; } = "";
+
+    /// <summary>The code changes every 30 seconds (most tokens) or every 60.</summary>
+    [ObservableProperty]
+    public partial bool SixtySeconds { get; set; }
+
+    /// <summary>SHA-256 tokens are rarer; the vendor's file says which.</summary>
+    [ObservableProperty]
+    public partial bool Sha256 { get; set; }
+
+    /// <summary>The secret key as Microsoft takes it: Base32 (letters and the digits 2-7), no spaces.</summary>
+    public string Key => SecretKey.Replace(" ", "", StringComparison.Ordinal).Trim();
+
+    static bool IsBase32(string key) => key.Length is >= 16 and <= 128 && key.All(c => c is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '2' and <= '7');
+
+    bool IsValid => Serial.Trim().Length > 0 && Manufacturer.Trim().Length > 0 && Model.Trim().Length > 0 && IsBase32(Key);
+
+    public string? Hint => SecretKey.Trim().Length > 0 && !IsBase32(Key)
+        ? "The secret key is Base32: letters and the digits 2 to 7, 16 to 128 of them (as in the vendor's file)."
+        : IsValid || (Serial + Manufacturer + Model + SecretKey).Trim().Length == 0 ? null : "Fill in all four, as printed on the token or in the vendor's file.";
+    public bool HasHint => Hint is not null;
+
+    [RelayCommand(CanExecute = nameof(IsValid))]
+    void Save()
+    {
+        if (IsValid && save(this))
+            close();
+    }
+
+    [RelayCommand]
+    void Cancel() => close();
+}
+
+/// <summary>
+/// Activating a hardware token with the code it shows right now. The code lasts a minute, so this
+/// is sent at once (guarded and logged) rather than waiting in Pending Changes.
+/// </summary>
+public sealed partial class TokenActivationForm(string serial, Func<string, Task<string?>> activate, Action close) : ObservableObject
+{
+    public string Title => $"Activate Hardware Token {serial}";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ActivateCommand))]
+    public partial string Code { get; set; } = "";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ActivateCommand))]
+    public partial bool IsWorking { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProblem))]
+    public partial string? Problem { get; private set; }
+
+    public bool HasProblem => Problem is not null;
+
+    bool CanActivate => !IsWorking && Code.Trim().Length == 6 && Code.Trim().All(char.IsDigit);
+
+    [RelayCommand(CanExecute = nameof(CanActivate))]
+    async Task Activate()
+    {
+        IsWorking = true;
+        Problem = null;
+        try
+        {
+            Problem = await activate(Code.Trim());
+        }
+        finally
+        {
+            IsWorking = false;
+        }
+        if (Problem is null)
+            close();
+    }
+
+    [RelayCommand]
+    void Cancel() => close();
+}
+
+/// <summary>One of the phones a second number can be (a radio button).</summary>
+public sealed partial class PhoneTypeChoice(string type, string name, ContactMethodForm form) : ObservableObject
+{
+    public string Name => name;
+
+    public bool IsChosen
+    {
+        get => form.PhoneType == type;
+        set
+        {
+            if (value)
+                form.PhoneType = type;
+        }
+    }
 }
 
 /// <summary>One sign-in from the log.</summary>
@@ -89,12 +295,18 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
     readonly Availability _canEdit;
     bool _shown;
 
-    public SecuritySection(UserSummary user, ISecurityRecords? records, ChangePipeline? pipeline, Availability canEdit)
+    readonly Action<DialogViewModel>? _openDialog;
+    readonly Action? _closeDialog;
+
+    public SecuritySection(UserSummary user, ISecurityRecords? records, ChangePipeline? pipeline, Availability canEdit,
+        Action<DialogViewModel>? openDialog = null, Action? closeDialog = null)
     {
         _user = user;
         _records = records;
         _pipeline = pipeline;
         _canEdit = canEdit;
+        _openDialog = openDialog;
+        _closeDialog = closeDialog;
         Summary = SummaryFor(user);
         if (_pipeline is not null)
         {
@@ -191,7 +403,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
             _ = LoadPageAsync(SelectedPage);
         // Microsoft's list of sign-in methods lags a new or removed one by up to half a minute
         // (seen live): read it once more when that's had time to catch up.
-        if (_shown && applied.Any(c => c.Target.Id == _user.Id && c is AddPhoneMethod or CreateTemporaryAccessPass or RemoveAuthMethod))
+        if (_shown && applied.Any(c => c.Target.Id == _user.Id && c is AddPhoneMethod or UpdatePhoneMethod or SetEmailMethod or CreateTemporaryAccessPass or RemoveAuthMethod))
             _ = ReadMethodsAgainAsync();
     }
 
@@ -209,7 +421,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
     {
         RebuildMethods();
         RebuildAccess();
-        foreach (var name in new[] { nameof(TapPendingText), nameof(HasTapPending), nameof(RiskPendingText), nameof(HasRiskPending), nameof(PhonePendingText), nameof(HasPhonePending) })
+        foreach (var name in new[] { nameof(TapPendingText), nameof(HasTapPending), nameof(RiskPendingText), nameof(HasRiskPending) })
             OnPropertyChanged(name);
     }
 
@@ -280,24 +492,55 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
     void RebuildMethods()
     {
+        // A form open under a row stays open on the same method (the list is rebuilt when anything is staged).
+        var openForms = Methods.Where(r => r is { Form: not null, Key: not null }).ToDictionary(r => r.Key!, r => r.Form);
         Methods.Clear();
         foreach (var method in _methods ?? [])
         {
-            var captured = method;
-            Methods.Add(new MethodRow(method, PendingFor("authmethod:" + method.Id) is not null, CanEdit, () => ToggleRemove(captured)));
+            var m = method;
+            // What waits for this method: its removal, or a new number or address.
+            var pending = PendingFor("authmethod:" + m.Id)
+                ?? (m.PhoneType is { } type ? PendingFor("phone:" + type) as UpdatePhoneMethod : null)
+                ?? (m.Segment == "emailMethods" ? PendingFor("emailmethod") : null);
+            var pendingText = pending switch
+            {
+                RemoveAuthMethod => "Removing",
+                UpdatePhoneMethod p => $"Changing to {p.NewNumber}",
+                SetEmailMethod e => $"Changing to {e.NewAddress}",
+                _ => null,
+            };
+            var inactiveToken = m.Segment == "hardwareOathMethods" && m.Status is { } s && s != "activated";
+            // The row's own form opens under it, so the change reads as part of that row.
+            Action? change = !CanEdit ? null
+                : inactiveToken ? () => OpenRowForm(m.Id, close => ActivateToken(m, close))
+                : m.Value is null ? null
+                : m.Segment == "phoneMethods" ? () => OpenRowForm(m.Id, close => ChangePhone(m, close))
+                : m.Segment == "emailMethods" ? () => OpenRowForm(m.Id, close => ChangeEmail(m, close))
+                : null;
+            var row = new MethodRow(m.Kind, m.Detail, m.Added is { } at ? $"Added {at.ToLocalTime():d MMM yyyy}" : "", pendingText,
+                change,
+                CanEdit && m.Removable ? () => _pipeline!.Stage(new RemoveAuthMethod(Target, m.Id, m.Segment, m.Kind)) : null,
+                pending is null ? null : () => _pipeline!.Unstage(pending),
+                inactiveToken ? "Activate" : "Change", m.Id, m.IsDefault);
+            if (pending is null && openForms.GetValueOrDefault(m.Id) is { } open)
+                row.Form = open;
+            Methods.Add(row);
+        }
+        // Methods being added are rows too, so they read as part of the list.
+        foreach (var adding in _pipeline?.Pending.Where(p => p.Target.Id == _user.Id && p is AddPhoneMethod or SetEmailMethod { MethodId: null } or Core.Changes.AddHardwareToken).ToArray() ?? [])
+        {
+            var captured = adding;
+            var (kind, detail) = adding switch
+            {
+                AddPhoneMethod p => ("Phone", $"{p.Number} ({PhoneName(p.PhoneType).ToLowerInvariant()})"),
+                Core.Changes.AddHardwareToken t => ("Hardware Token", $"{t.Manufacturer} {t.Model} · serial {t.Serial}"),
+                _ => ("Email (Password Reset)", ((SetEmailMethod)adding).NewAddress),
+            };
+            Methods.Add(new MethodRow(kind, detail, "", "Adding", null, null, () => _pipeline!.Unstage(captured)));
         }
         OnPropertyChanged(nameof(CanRemoveAll));
+        RefreshContactButtons();
         RefreshLostPhone();
-    }
-
-    void ToggleRemove(AuthMethod method)
-    {
-        if (!CanEdit || !method.Removable)
-            return;
-        if (PendingFor("authmethod:" + method.Id) is { } pending)
-            _pipeline!.Unstage(pending);
-        else
-            _pipeline!.Stage(new RemoveAuthMethod(Target, method.Id, method.Segment, method.Kind));
     }
 
     /// <summary>
@@ -309,7 +552,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
     {
         if (!CanRemoveAll)
             return;
-        _pipeline!.StageAll(_methods!.Where(m => m.Removable && PendingFor("authmethod:" + m.Id) is null)
+        _pipeline!.StageAll(AuthMethod.RemovalOrder(_methods!.Where(m => m.Removable && PendingFor("authmethod:" + m.Id) is null))
             .Select(m => new RemoveAuthMethod(Target, m.Id, m.Segment, m.Kind)));
     }
 
@@ -368,33 +611,166 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
             OnPropertyChanged(name);
     }
 
-    // ---- Add a phone ------------------------------------------------------------------------
+    // ---- Phones and the password-reset email ---------------------------------------------------
 
+    /// <summary>Microsoft allows one phone of each kind; a second is the alternate mobile or office phone.</summary>
     public static IReadOnlyList<(string Type, string Name)> PhoneTypes { get; } = [("mobile", "Mobile"), ("alternateMobile", "Alternate Mobile"), ("office", "Office")];
 
-    public IReadOnlyList<string> PhoneTypeNames { get; } = PhoneTypes.Select(p => p.Name).ToArray();
+    static string PhoneName(string type) => PhoneTypes.FirstOrDefault(p => p.Type == type).Name ?? "Mobile";
 
+    /// <summary>The phone kinds they have, counting ones being added.</summary>
+    IReadOnlyList<string> PhonesHeld => (_methods ?? []).Where(m => m.Segment == "phoneMethods").Select(m => m.PhoneType ?? "mobile")
+        .Concat(_pipeline?.Pending.OfType<AddPhoneMethod>().Where(p => p.User.Id == _user.Id).Select(p => p.PhoneType) ?? [])
+        .Distinct().ToArray();
+
+    bool HasEmailMethod => (_methods ?? []).Any(m => m.Segment == "emailMethods")
+        || _pipeline?.Pending.OfType<SetEmailMethod>().Any(e => e.User.Id == _user.Id) == true;
+
+    bool MethodsReady => _methods is not null && CanEdit && Form is null;
+
+    public bool CanAddPhone => MethodsReady && PhonesHeld.Count < PhoneTypes.Count;
+
+    /// <summary>"Add Phone" for the first one; after that, "Add Another Phone".</summary>
+    public string AddPhoneText => PhonesHeld.Count == 0 ? "Add Phone" : "Add Another Phone";
+
+    public bool CanAddEmail => MethodsReady && !HasEmailMethod;
+
+    /// <summary>The one form open under the list (a phone or email, a hardware token, an activation), or null.</summary>
     [ObservableProperty]
-    public partial string NewPhoneType { get; set; } = "Mobile";
+    [NotifyPropertyChangedFor(nameof(HasForm), nameof(CanAddPhone), nameof(CanAddEmail), nameof(CanAddMethod))]
+    public partial object? Form { get; private set; }
 
+    public bool HasForm => Form is not null;
+
+    /// <summary>Hardware tokens and the Authenticator guide: whenever methods can be added.</summary>
+    public bool CanAddMethod => MethodsReady;
+
+    void RefreshContactButtons()
+    {
+        foreach (var name in new[] { nameof(CanAddPhone), nameof(AddPhoneText), nameof(CanAddEmail), nameof(CanAddMethod) })
+            OnPropertyChanged(name);
+    }
+
+    // ---- Hardware tokens (Microsoft's preview API) ----------------------------------------------
+
+    [RelayCommand]
+    void AddHardwareToken()
+    {
+        if (!CanAddMethod)
+            return;
+        Form = new HardwareTokenForm(form =>
+        {
+            _pipeline!.Stage(new Core.Changes.AddHardwareToken(Target, form.Serial.Trim(), form.Manufacturer.Trim(), form.Model.Trim(),
+                form.SixtySeconds ? 60 : 30, form.Sha256 ? "hmacsha256" : "hmacsha1", form.Key));
+            return true;
+        }, CloseForm);
+    }
+
+    /// <param name="token">Its <see cref="AuthMethod.Value"/> is the serial number.</param>
+    object ActivateToken(AuthMethod token, Action close) =>
+        new TokenActivationForm(token.Value ?? "", async code =>
+        {
+            var result = await _pipeline!.ApplyNowAsync(new ActivateHardwareToken(Target, token.Id, token.Value ?? "", code));
+            return result.Succeeded ? null : result.Detail ?? "It wasn't activated.";
+        }, close);
+
+    // ---- Microsoft Authenticator (set up by them, guided) ----------------------------------------
+
+    [RelayCommand]
+    void SetUpAuthenticator()
+    {
+        if (!CanAddMethod || _openDialog is null)
+            return;
+        var guide = new AuthenticatorSetupViewModel(_user.DisplayName, _user.UserPrincipalName,
+            (minutes, once) => _pipeline!.ApplyNowAsync(new CreateTemporaryAccessPass(Target, minutes, once)), () => _closeDialog?.Invoke());
+        // Its pass is made at once, so the usual "nothing is sent until you apply" footnote would be wrong.
+        _openDialog(new DialogViewModel("Set Up Microsoft Authenticator", _user.DisplayName, guide, Footnote: null));
+    }
+
+    void CloseForm() => Form = null;
+
+    [RelayCommand]
+    void AddPhone()
+    {
+        var free = PhoneTypes.Where(t => !PhonesHeld.Contains(t.Type)).ToArray();
+        if (!CanAddPhone || free.Length == 0)
+            return;
+        var first = PhonesHeld.Count == 0;
+        Form = new ContactMethodForm(first ? "Add a Phone" : "Add Another Phone", "Add Phone", isPhone: true, "",
+            first ? [free[0]] : free,
+            form =>
+            {
+                _pipeline!.Stage(new AddPhoneMethod(Target, form.PhoneType ?? "mobile", NormalizePhone(form.Value)!));
+                return true;
+            }, CloseForm);
+    }
+
+    /// <summary>The form most recently opened (an add form at the top, or one under a row): the view puts the cursor in it.</summary>
     [ObservableProperty]
-    public partial string NewPhoneNumber { get; set; } = "";
+    public partial object? OpenedForm { get; private set; }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasPhoneError))]
-    public partial string? PhoneError { get; private set; }
+    partial void OnFormChanged(object? value)
+    {
+        if (value is null)
+            return;
+        // One form at a time: an add form closes any row's.
+        foreach (var row in Methods)
+            row.Form = null;
+        OpenedForm = value;
+    }
 
-    public bool HasPhoneError => PhoneError is not null;
+    /// <summary>Opens a form under one method's row, closing any other form first.</summary>
+    /// <param name="key">The method's id: closing finds its row even after the list is rebuilt.</param>
+    void OpenRowForm(string key, Func<Action, object> make)
+    {
+        Form = null;
+        foreach (var other in Methods)
+            other.Form = null;
+        if (Methods.FirstOrDefault(r => r.Key == key) is not { } row)
+            return;
+        row.Form = make(() =>
+        {
+            if (Methods.FirstOrDefault(r => r.Key == key) is { } current)
+                current.Form = null;
+        });
+        OpenedForm = row.Form;
+    }
 
-    string PhoneTypeKey => PhoneTypes.First(p => p.Name == NewPhoneType).Type;
+    object ChangePhone(AuthMethod phone, Action close)
+    {
+        var type = phone.PhoneType ?? "mobile";
+        return new ContactMethodForm($"Change {PhoneName(type)} Phone", "Save", isPhone: true, phone.Value ?? "", [(type, PhoneName(type))],
+            form =>
+            {
+                var number = NormalizePhone(form.Value)!;
+                if (PhoneNumbers.Same(number, phone.Value))
+                    return true;
+                _pipeline!.Stage(new UpdatePhoneMethod(Target, phone.Id, type, phone.Value ?? "", number));
+                return true;
+            }, close);
+    }
 
-    public string? PhonePendingText => _pipeline?.Pending.OfType<AddPhoneMethod>().Where(p => p.User.Id == _user.Id)
-        .Select(p => $"Pending: {p.Label.ToLowerInvariant()} {p.Number}").FirstOrDefault();
+    [RelayCommand]
+    void AddEmail()
+    {
+        if (!CanAddEmail)
+            return;
+        Form = new ContactMethodForm("Add a Password Reset Email", "Add Email", isPhone: false, "", [],
+            form =>
+            {
+                _pipeline!.Stage(new SetEmailMethod(Target, null, null, form.Value.Trim()));
+                return true;
+            }, CloseForm);
+    }
 
-    public bool HasPhonePending => PhonePendingText is not null;
-
-    partial void OnNewPhoneNumberChanged(string value) => StagePhone();
-    partial void OnNewPhoneTypeChanged(string value) => StagePhone();
+    object ChangeEmail(AuthMethod email, Action close) =>
+        new ContactMethodForm("Change Password Reset Email", "Save", isPhone: false, email.Value ?? "", [],
+            form =>
+            {
+                if (!string.Equals(form.Value.Trim(), email.Value, StringComparison.OrdinalIgnoreCase))
+                    _pipeline!.Stage(new SetEmailMethod(Target, email.Id, email.Value, form.Value.Trim()));
+                return true;
+            }, close);
 
     /// <summary>Graph wants "+{country code} {number}": a space after the country code, digits after.</summary>
     public static string? NormalizePhone(string typed)
@@ -410,30 +786,11 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
         return $"{parts[0]} {number}";
     }
 
-    void StagePhone()
+    /// <summary>One @, something before it, a dot after it, no spaces.</summary>
+    public static bool IsEmail(string text)
     {
-        if (!CanEdit)
-            return;
-        // One phone of each type: a new number replaces a pending one.
-        foreach (var pending in _pipeline!.Pending.OfType<AddPhoneMethod>().Where(p => p.User.Id == _user.Id).ToArray())
-            _pipeline.Unstage(pending);
-        if (NewPhoneNumber.Trim().Length == 0)
-        {
-            PhoneError = null;
-            return;
-        }
-        if (NormalizePhone(NewPhoneNumber) is not { } number)
-        {
-            PhoneError = "Type the country code, a space, then the number: +1 2065551234.";
-            return;
-        }
-        if (_methods?.Any(m => m.Segment == "phoneMethods" && (m.Detail ?? "").Contains($"({NewPhoneType.ToLowerInvariant()})", StringComparison.OrdinalIgnoreCase)) == true)
-        {
-            PhoneError = $"They already have a{(NewPhoneType == "Office" ? "n" : "")} {NewPhoneType.ToLowerInvariant()} phone. Remove it first to change it.";
-            return;
-        }
-        PhoneError = null;
-        _pipeline.Stage(new AddPhoneMethod(Target, PhoneTypeKey, number));
+        var at = text.IndexOf('@');
+        return at > 0 && at == text.LastIndexOf('@') && text.IndexOf('.', at) > at + 1 && !text.EndsWith('.') && !text.Contains(' ');
     }
 
     // ---- Temporary Access Pass --------------------------------------------------------------

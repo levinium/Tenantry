@@ -56,6 +56,18 @@ public partial class DataListView : UserControl
             _vm.SelectedRows = Grid.SelectedItems.Cast<object>().ToArray();
             _syncingSelection = false;
         };
+        // With several rows ticked, a plain click on a row would make the grid select only that
+        // row and untick the rest. Ticks change only by their checkboxes, Ctrl-click or Shift-click.
+        Grid.AddHandler(PointerPressedEvent, (_, e) =>
+        {
+            if (Grid.SelectedItems.Count < 2 || (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Shift | KeyModifiers.Meta)) != 0
+                || !e.GetCurrentPoint(Grid).Properties.IsLeftButtonPressed || e.Source is not Visual source)
+                return;
+            // Buttons in a row (the name link, More actions, the checkbox itself) still work.
+            if (source.FindAncestorOfType<DataGridRow>(includeSelf: true) is null || source.FindAncestorOfType<Button>(includeSelf: true) is not null)
+                return;
+            e.Handled = true;
+        }, RoutingStrategies.Tunnel);
         Grid.ContextRequested += OnContextRequested;
         // On a narrow toolbar the display tools drop their labels; on a very narrow one every tool
         // does. Tooltips still name each one, and the left group wraps rather than overflowing.
@@ -517,7 +529,7 @@ public partial class DataListView : UserControl
             }
             case CellKind.Badge:
             {
-                var badge = new Badge { Margin = new Thickness(12, 0) };
+                var badge = new Badge { Margin = new Thickness(12, 0), HorizontalAlignment = HorizontalAlignment.Left };
                 badge.Bind(Badge.TextProperty, Row(r => c.Badge!(r).Text));
                 badge.Bind(Badge.KindProperty, Row(r => c.Badge!(r).Kind));
                 // No text, no pill (a role that isn't privileged).
@@ -531,21 +543,23 @@ public partial class DataListView : UserControl
                 var first = new Badge { Kind = BadgeKind.Info, MaxWidth = 210 };
                 first.Bind(Badge.TextProperty, Row(r => c.Badges(r).FirstOrDefault()));
                 first.Bind(IsVisibleProperty, Row(r => c.Badges(r).Count > 0));
-                var more = new Badge { Kind = BadgeKind.Neutral };
+                var more = new Badge { Kind = BadgeKind.Neutral, Margin = new Thickness(6, 0, 0, 0) };
                 more.Bind(Badge.TextProperty, Row(r => $"+{c.Badges(r).Count - 1}"));
                 more.Bind(IsVisibleProperty, Row(r => c.Badges(r).Count > 1));
                 var empty = new TextBlock { Text = c.EmptyText, VerticalAlignment = VerticalAlignment.Center };
                 empty.Classes.Add("caption");
                 empty.Bind(IsVisibleProperty, Row(r => c.Badges(r).Count == 0));
-                var panel = new StackPanel
+                // In a narrow column the first pill shortens to "…" inside its edge and "+N" stays
+                // in view (a StackPanel would let both run on past the column).
+                var panel = new Grid
                 {
-                    Orientation = Orientation.Horizontal,
-                    Spacing = 6,
+                    ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                    HorizontalAlignment = HorizontalAlignment.Left,
                     Margin = new Thickness(12, 0),
                     VerticalAlignment = VerticalAlignment.Center,
-                    ClipToBounds = true,
                     Children = { first, more, empty },
                 };
+                Avalonia.Controls.Grid.SetColumn(more, 1);
                 panel.Bind(ToolTip.TipProperty, Row(r => c.Badges(r).Count == 0 ? null : string.Join("\n", c.Badges(r))));
                 return panel;
             }

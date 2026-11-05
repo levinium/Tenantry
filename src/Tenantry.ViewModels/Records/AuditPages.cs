@@ -109,7 +109,7 @@ public sealed partial class AuditLogViewModel : ObservableObject, IDisposable
         _index = index ?? EmptyIndex.Instance;
         _now = now;
         _delay = delay ?? Task.Delay;
-        People = new ChipPicker("Add a person: type a name", () => GroupAccess.People(_index), () => { });
+        People = new ChipPicker("Add a person: type a name", "Add a Person", () => GroupAccess.People(_index), () => { });
         RecordTypes = [.. AuditRecordTypes.Common.Select(t => new CheckOption(t.Value, t.Label, () => { }))];
         Results = DataListViewModel.Create(Definition, _ => Task.FromResult(_shown), _ => { }, listState, now);
         Results.HasRecordPages = false;

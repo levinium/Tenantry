@@ -378,7 +378,7 @@ public sealed partial class MailSection
     public PersonPicker SharingPicker { get; private set; } = null!;
 
     void CreateSharingPicker() =>
-        SharingPicker = new PersonPicker("Share their calendar with: type a name", SharingOptions, AddSharing);
+        SharingPicker = new PersonPicker("Person's name or address", SharingOptions, AddSharing);
 
     IEnumerable<PickOption> SharingOptions()
     {

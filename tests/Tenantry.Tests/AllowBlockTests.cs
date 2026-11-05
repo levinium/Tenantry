@@ -132,7 +132,8 @@ public sealed class AllowBlockTests
     public void The_preview_stages_only_what_was_changed()
     {
         var pipeline = Pipeline();
-        var entry = new ListEntry("id1", ListKind.Sender, "zz-tenantry-test.example", true, "old note", Now.AddDays(5), null, null, null, null, null, "Tenant");
+        // The preview checks the expiry against today's date, so it's set from today, not the fixed Now.
+        var entry = new ListEntry("id1", ListKind.Sender, "zz-tenantry-test.example", true, "old note", DateTimeOffset.UtcNow.AddDays(5), null, null, null, null, null, "Tenant");
         var preview = new ListEntryPreviewViewModel(entry, pipeline, Availability.Yes);
 
         preview.SaveDetailsCommand.Execute(null);

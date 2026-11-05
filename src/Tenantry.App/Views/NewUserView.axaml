@@ -122,7 +122,7 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <views:PersonPickerView DataContext="{Binding GroupPicker}" />
+          <views:AddButton DataContext="{Binding GroupPicker}" Text="Add to a Group" HorizontalAlignment="Left" Hint="Choose from the list, or type to narrow it." />
         </StackPanel>
       </StackPanel>
     </StackPanel>

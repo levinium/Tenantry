@@ -24,6 +24,7 @@
     <PackageReference Include="Avalonia.Controls.DataGrid" />
     <PackageReference Include="FluentIcons.Avalonia" />
     <PackageReference Include="Velopack" />
+    <PackageReference Include="QRCoder" />
   </ItemGroup>
 
   <!-- Installers ship no debug symbols: DebugType=none covers Tenantry's own, and this drops the

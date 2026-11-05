@@ -28,9 +28,14 @@ public sealed partial class DemoUserRecords : ISecurityRecords
                 methods.Add(m switch
                 {
                     "microsoftAuthenticatorPush" => new AuthMethod($"ma-{userId}", "microsoftAuthenticatorMethods", "Microsoft Authenticator", "iPhone 15", added, true),
-                    "mobilePhone" => new AuthMethod($"ph-{userId}", "phoneMethods", "Phone", $"+1 55501{random.Next(10000, 99999)} (mobile)", added.AddDays(-30), true),
-                    _ => new AuthMethod($"em-{userId}", "emailMethods", "Email (Password Reset)", person.Mail?.Replace("@", ".home@"), added, true),
+                    "mobilePhone" => Phone($"ph-mobile-{userId}", "mobile", $"+1 55501{random.Next(10000, 99999)}", added.AddDays(-30)),
+                    _ => new AuthMethod($"em-{userId}", "emailMethods", "Email (Password Reset)", person.Mail?.Replace("@", ".home@"), added, true,
+                        Value: person.Mail?.Replace("@", ".home@")),
                 });
+            // Their default for the second step: the Authenticator when they have it, else their phone.
+            var preferred = methods.FindIndex(m => m.Segment == "microsoftAuthenticatorMethods") is var app and >= 0 ? app : methods.FindIndex(m => m.Segment == "phoneMethods");
+            if (preferred >= 0)
+                methods[preferred] = methods[preferred] with { IsDefault = true };
             _methods[userId] = methods;
         }
         return methods.ToArray();
@@ -102,12 +107,32 @@ public sealed partial class DemoUserRecords : ISecurityRecords
     public bool ApplySecurity(ChangeOp change) => change switch
     {
         RemoveAuthMethod m when _methods.TryGetValue(m.User.Id, out var list) => list.RemoveAll(x => x.Id == m.MethodId) >= 0,
-        AddPhoneMethod p when _methods.TryGetValue(p.User.Id, out var list) => Added(list, new AuthMethod($"ph-{p.PhoneType}-{p.User.Id}", "phoneMethods", "Phone",
-            $"{p.Number} ({p.PhoneType switch { "alternateMobile" => "alternate", "office" => "office", _ => "mobile" }})", DateTimeOffset.UtcNow, true)),
+        AddPhoneMethod p when _methods.TryGetValue(p.User.Id, out var list) => Added(list, Phone($"ph-{p.PhoneType}-{p.User.Id}", p.PhoneType, p.Number, DateTimeOffset.UtcNow)),
+        UpdatePhoneMethod p when _methods.TryGetValue(p.User.Id, out var list) => Replaced(list, p.MethodId, m => Phone(m.Id, p.PhoneType, p.NewNumber, m.Added)),
+        SetEmailMethod { MethodId: { } id } e when _methods.TryGetValue(e.User.Id, out var list) =>
+            Replaced(list, id, m => m with { Detail = e.NewAddress, Value = e.NewAddress }),
+        SetEmailMethod e when _methods.TryGetValue(e.User.Id, out var list) =>
+            Added(list, new AuthMethod($"em-{e.User.Id}", "emailMethods", "Email (Password Reset)", e.NewAddress, DateTimeOffset.UtcNow, true, Value: e.NewAddress)),
+        AddHardwareToken t when _methods.TryGetValue(t.User.Id, out var list) => Added(list, new AuthMethod($"hw-{t.Serial}", "hardwareOathMethods", "Hardware Token",
+            $"{t.Manufacturer} {t.Model} · serial {t.Serial} · not activated yet", DateTimeOffset.UtcNow, true, Value: t.Serial, Status: "assigned")),
+        ActivateHardwareToken a when _methods.TryGetValue(a.User.Id, out var list) =>
+            Replaced(list, a.MethodId, m => m with { Status = "activated", Detail = m.Detail?.Replace(" · not activated yet", "", StringComparison.Ordinal) }),
         RevokeAppConsent c when _consents.TryGetValue(c.User.Id, out var list) => list.RemoveAll(x => x.GrantId == c.GrantId) >= 0,
-        RemoveAuthMethod or AddPhoneMethod or RevokeAppConsent or SetUserRisk => true,
+        RemoveAuthMethod or AddPhoneMethod or UpdatePhoneMethod or SetEmailMethod or AddHardwareToken or ActivateHardwareToken or RevokeAppConsent or SetUserRisk => true,
         _ => false,
     };
+
+    static AuthMethod Phone(string id, string type, string number, DateTimeOffset? added) =>
+        new(id, "phoneMethods", "Phone", $"{number} ({type switch { "alternateMobile" => "alternate", "office" => "office", _ => "mobile" }})", added, true,
+            Value: number, PhoneType: type);
+
+    static bool Replaced(List<AuthMethod> list, string id, Func<AuthMethod, AuthMethod> change)
+    {
+        var at = list.FindIndex(m => m.Id == id);
+        if (at >= 0)
+            list[at] = change(list[at]);
+        return true;
+    }
 
     static bool Added(List<AuthMethod> list, AuthMethod method)
     {

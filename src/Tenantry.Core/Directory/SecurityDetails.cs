@@ -33,7 +33,18 @@ public sealed record UserSecurity(bool MfaRegistered, bool IsAdmin, IReadOnlyLis
 /// <summary>One way a person signs in or proves it's them.</summary>
 /// <param name="Segment">The Graph collection it lives in ("phoneMethods"), for removing it.</param>
 /// <param name="Removable">The password can't be removed; everything else can.</param>
-public sealed record AuthMethod(string Id, string Segment, string Kind, string? Detail, DateTimeOffset? Added, bool Removable);
+/// <param name="Value">What can be changed in place: a phone's number or the email address.</param>
+/// <param name="PhoneType">A phone's slot: "mobile", "alternateMobile" or "office".</param>
+/// <param name="Status">A hardware token's state ("assigned" until it's activated).</param>
+public sealed record AuthMethod(string Id, string Segment, string Kind, string? Detail, DateTimeOffset? Added, bool Removable,
+    string? Value = null, string? PhoneType = null, string? Status = null, bool IsDefault = false)
+{
+    /// <summary>
+    /// The order to remove several in: Microsoft refuses to remove someone's default method while
+    /// they have others, so the default goes last.
+    /// </summary>
+    public static IEnumerable<AuthMethod> RemovalOrder(IEnumerable<AuthMethod> methods) => methods.OrderBy(m => m.IsDefault);
+}
 
 /// <summary>One sign-in from the sign-in log (Entra ID P1).</summary>
 /// <param name="ClientApp">Entra's client app ("Browser", "Mobile Apps and Desktop clients", "IMAP4"…).</param>

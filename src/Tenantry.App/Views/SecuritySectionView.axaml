@@ -6,6 +6,94 @@
              xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.SecuritySectionView"
              x:DataType="rec:SecuritySection">
+  <!-- The small forms: adding (under the buttons) and changing a method (under its row). -->
+  <UserControl.DataTemplates>
+    <!-- A phone or the password-reset email -->
+    <DataTemplate x:DataType="rec:ContactMethodForm">
+      <Border Classes="levelrow" MinWidth="440">
+        <StackPanel Spacing="8">
+          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+          <ItemsControl ItemsSource="{Binding PhoneTypes}" IsVisible="{Binding HasPhoneTypes}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="16" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="rec:PhoneTypeChoice">
+                <RadioButton GroupName="phonetype" Content="{Binding Name}" IsChecked="{Binding IsChosen}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBox Text="{Binding Value}" PlaceholderText="{Binding Placeholder}" Width="320" HorizontalAlignment="Left">
+            <TextBox.KeyBindings>
+              <KeyBinding Gesture="Enter" Command="{Binding SaveCommand}" />
+              <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+            </TextBox.KeyBindings>
+          </TextBox>
+          <TextBlock Classes="caption" Text="{Binding Hint}" IsVisible="{Binding HasHint}" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="accent" Content="{Binding SaveText}" Command="{Binding SaveCommand}"
+                    ToolTip.Tip="Goes to Pending Changes; nothing changes until you apply" ToolTip.ShowOnDisabled="True" />
+            <Button Content="Cancel" Command="{Binding CancelCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+    <!-- A hardware token: what's printed on it or in the vendor's file -->
+    <DataTemplate x:DataType="rec:HardwareTokenForm">
+      <Border Classes="levelrow" MaxWidth="620">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Add a Hardware Token" FontWeight="SemiBold" />
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="From the token and the file its vendor sends. Microsoft's preview feature: hardware tokens must be turned on in Security &amp; Compliance, Authentication Methods. After applying, activate it with the code it shows." />
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+            <TextBlock Classes="label" Text="SERIAL NUMBER" VerticalAlignment="Center" />
+            <TextBox Grid.Column="1" Text="{Binding Serial}" Width="320" HorizontalAlignment="Left" />
+            <TextBlock Grid.Row="1" Classes="label" Text="MANUFACTURER" VerticalAlignment="Center" />
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Manufacturer}" Width="320" HorizontalAlignment="Left" />
+            <TextBlock Grid.Row="2" Classes="label" Text="MODEL" VerticalAlignment="Center" />
+            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Model}" Width="320" HorizontalAlignment="Left" />
+            <TextBlock Grid.Row="3" Classes="label" Text="SECRET KEY" VerticalAlignment="Center" />
+            <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SecretKey}" Width="320" HorizontalAlignment="Left" PasswordChar="•" />
+          </Grid>
+          <CheckBox IsChecked="{Binding SixtySeconds}" Content="its code changes every 60 seconds (most change every 30)" />
+          <CheckBox IsChecked="{Binding Sha256}" Content="it uses SHA-256 (most use SHA-1; the vendor's file says)" />
+          <TextBlock Classes="caption" Text="{Binding Hint}" IsVisible="{Binding HasHint}" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="accent" Content="Add Token" Command="{Binding SaveCommand}"
+                    ToolTip.Tip="Goes to Pending Changes; the secret key is sent once and never kept" ToolTip.ShowOnDisabled="True" />
+            <Button Content="Cancel" Command="{Binding CancelCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+    <!-- Activating a token: its code is good for a minute, so this goes at once -->
+    <DataTemplate x:DataType="rec:TokenActivationForm">
+      <Border Classes="levelrow" MinWidth="440">
+        <StackPanel Spacing="8">
+          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" MaxWidth="520" HorizontalAlignment="Left"
+                     Text="Type the 6-digit code the token shows now. It changes within a minute, so this is sent straight away (logged, and refused in Test mode for anyone else) instead of waiting in Pending Changes." />
+          <TextBox Text="{Binding Code}" PlaceholderText="123456" Width="160" HorizontalAlignment="Left" MaxLength="6">
+            <TextBox.KeyBindings>
+              <KeyBinding Gesture="Enter" Command="{Binding ActivateCommand}" />
+              <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+            </TextBox.KeyBindings>
+          </TextBox>
+          <TextBlock Classes="error" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="accent" Content="Activate Now" Command="{Binding ActivateCommand}" ToolTip.ShowOnDisabled="True"
+                    ToolTip.Tip="Sends the code to Microsoft now" />
+            <Button Content="Cancel" Command="{Binding CancelCommand}" />
+            <ProgressBar Classes="working" Width="80" IsVisible="{Binding IsWorking}" VerticalAlignment="Center" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+
+  </UserControl.DataTemplates>
+
   <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
       <StackPanel Orientation="Horizontal" Spacing="10">
@@ -39,50 +127,85 @@
             <ic:FluentIcon Icon="Key" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
             <TextBlock Grid.Column="1" Classes="h3" Text="Multi-Factor Sign-In" VerticalAlignment="Center" />
           </Grid>
-          <Border Classes="banner warning" IsVisible="{Binding HasMfaWarning}">
-            <TextBlock Text="{Binding MfaText}" TextWrapping="Wrap" />
-          </Border>
-          <TextBlock Classes="value" Text="{Binding MfaText}" TextWrapping="Wrap" IsVisible="{Binding !HasMfaWarning}" />
-
-          <TextBlock Classes="label" Text="SIGN-IN METHODS" Margin="0,6,0,0" />
-          <TextBlock Classes="muted" Text="Reading their sign-in methods…" IsVisible="{Binding MethodsLoading}" />
-          <TextBlock Classes="error" Text="{Binding MethodsError}" IsVisible="{Binding HasMethodsError}" TextWrapping="Wrap" />
-          <ItemsControl ItemsSource="{Binding Methods}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="rec:MethodRow">
-                <Border Classes="valuerow">
-                  <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
-                    <StackPanel Spacing="1" VerticalAlignment="Center">
-                      <TextBlock Text="{Binding Kind}" FontWeight="SemiBold" />
-                      <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" />
+          <!-- One centred column: how they're set up, what can be added, then the list. -->
+          <c:ReadableWidth>
+          <StackPanel Spacing="10">
+            <Border Classes="banner warning" IsVisible="{Binding HasMfaWarning}">
+              <TextBlock Text="{Binding MfaText}" TextWrapping="Wrap" />
+            </Border>
+            <TextBlock Classes="value" Text="{Binding MfaText}" TextWrapping="Wrap" IsVisible="{Binding !HasMfaWarning}" />
+            <TextBlock Classes="label" Text="SIGN-IN METHODS" Margin="0,6,0,0" />
+            <!-- Adding: buttons; each opens one small form here (nothing is staged until it's saved). -->
+            <WrapPanel ItemSpacing="8" LineSpacing="8" IsVisible="{Binding !HasForm}">
+              <Button Command="{Binding SetUpAuthenticatorCommand}" IsVisible="{Binding CanAddMethod}"
+                      ToolTip.Tip="Make a Temporary Access Pass and walk them through adding the app on their phone">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <ic:FluentIcon Icon="Phone" FontSize="14" />
+                  <TextBlock Text="Set Up Authenticator" />
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding AddPhoneCommand}" IsVisible="{Binding CanAddPhone}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <ic:FluentIcon Icon="Add" FontSize="14" />
+                  <TextBlock Text="{Binding AddPhoneText}" />
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding AddEmailCommand}" IsVisible="{Binding CanAddEmail}"
+                      ToolTip.Tip="An email they can reset their own password with (not counted as multi-factor)">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <ic:FluentIcon Icon="Add" FontSize="14" />
+                  <TextBlock Text="Add Password Reset Email" />
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding AddHardwareTokenCommand}" IsVisible="{Binding CanAddMethod}"
+                      ToolTip.Tip="A key-fob that shows a code (Microsoft's preview feature)">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <ic:FluentIcon Icon="Add" FontSize="14" />
+                  <TextBlock Text="Add Hardware Token" />
+                </StackPanel>
+              </Button>
+            </WrapPanel>
+            <ContentControl x:Name="FormHost" Content="{Binding Form}" IsVisible="{Binding HasForm}" HorizontalAlignment="Left">
+            </ContentControl>
+            <TextBlock Classes="muted" Text="Reading their sign-in methods…" IsVisible="{Binding MethodsLoading}" />
+            <TextBlock Classes="error" Text="{Binding MethodsError}" IsVisible="{Binding HasMethodsError}" TextWrapping="Wrap" />
+            <!-- One row per method: what it is on the left, its buttons on the right of the same row,
+                 held to a readable width so the buttons stay near the name. -->
+            <ItemsControl ItemsSource="{Binding Methods}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="rec:MethodRow">
+                  <Border Classes="valuerow">
+                    <StackPanel Spacing="8">
+                      <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="10">
+                        <StackPanel Spacing="1" VerticalAlignment="Center">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding Kind}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <c:Badge Text="Default" Kind="Neutral" IsVisible="{Binding IsDefault}" VerticalAlignment="Center"
+                                     ToolTip.Tip="Their default way to confirm a sign-in. Removing it makes another of their methods the default." />
+                          </StackPanel>
+                          <TextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Classes="caption" Text="{Binding AddedText}" VerticalAlignment="Center" />
+                        <c:Badge Grid.Column="2" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+                        <Button Grid.Column="3" Classes="outline" Content="{Binding ChangeText}" Command="{Binding ChangeCommand}" IsVisible="{Binding CanChange}"
+                                VerticalAlignment="Center" />
+                        <Panel Grid.Column="4" VerticalAlignment="Center">
+                          <Button Classes="danger-outline quiet" Content="Remove" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}"
+                                  ToolTip.Tip="Remove this method (goes to Pending Changes)" />
+                          <Button Classes="danger-outline undo" Content="Undo" Command="{Binding UndoCommand}" IsVisible="{Binding CanUndo}"
+                                  ToolTip.Tip="Take this change out of Pending Changes" />
+                        </Panel>
+                      </Grid>
+                      <ContentControl Content="{Binding Form}" IsVisible="{Binding HasForm}" HorizontalAlignment="Left" Margin="0,0,0,4" />
                     </StackPanel>
-                    <TextBlock Grid.Column="1" Classes="caption" Text="{Binding AddedText}" VerticalAlignment="Center" />
-                    <c:Badge Grid.Column="2" Text="Removing" Kind="Info" IsVisible="{Binding IsRemoving}" VerticalAlignment="Center" />
-                    <Button Grid.Column="3" Classes="rowaction" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}"
-                            ToolTip.Tip="{Binding RemoveTip}" VerticalAlignment="Center">
-                      <Panel>
-                        <ic:FluentIcon Icon="Delete" FontSize="14" IsVisible="{Binding !IsRemoving}" />
-                        <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding IsRemoving}" />
-                      </Panel>
-                    </Button>
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-
-
-          <TextBlock Classes="label" Text="ADD A PHONE NUMBER" Margin="0,6,0,0" />
-          <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding CanEdit}">
-            <ComboBox ItemsSource="{Binding PhoneTypeNames}" SelectedItem="{Binding NewPhoneType}" MinWidth="160" />
-            <TextBox Text="{Binding NewPhoneNumber, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True"
-                     Width="240" PlaceholderText="+1 2065551234" />
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </StackPanel>
-          <TextBlock Classes="error" Text="{Binding PhoneError}" IsVisible="{Binding HasPhoneError}" TextWrapping="Wrap" />
-          <TextBlock Classes="pendingtext" Text="{Binding PhonePendingText}" IsVisible="{Binding HasPhonePending}" />
+          </c:ReadableWidth>
         </StackPanel>
       </Border>
-
       <!-- Reset sign-in: Entra's two buttons for when someone must prove who they are again. -->
       <Border Classes="card">
         <StackPanel Spacing="12">
@@ -90,9 +213,12 @@
             <ic:FluentIcon Icon="ArrowRotateCounterclockwise" FontSize="18" Foreground="{DynamicResource Accent}" />
             <TextBlock Classes="h3" Text="Reset Sign-In" VerticalAlignment="Center" />
           </StackPanel>
-          <TextBlock Classes="caption" TextWrapping="Wrap"
+          <!-- The two steps as list rows: lines between them, buttons kept near the words. -->
+          <c:ReadableWidth>
+          <StackPanel>
+          <TextBlock Classes="caption" TextWrapping="Wrap" Margin="0,0,0,6"
                      Text="When they should prove who they are again: a lost or new phone, a suspected compromise, someone leaving. Use one or both, in this order; each goes to Pending Changes, and pressing again undoes it." />
-
+          <Border Classes="valuerow">
           <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="12">
             <TextBlock Classes="h3" Text="1" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Top" />
             <StackPanel Grid.Column="1" Spacing="2">
@@ -100,10 +226,12 @@
               <TextBlock Classes="caption" TextWrapping="Wrap"
                          Text="Signs them out of every app, browser and device, so anything still signed in has to sign in again. Same as Sign out everywhere." />
             </StackPanel>
-            <Button Grid.Column="2" Classes="danger-outline" Classes.undo="{Binding IsRevokePending}" Content="{Binding RevokeText}"
+            <Button Grid.Column="2" Classes="danger-outline quiet" Classes.undo="{Binding IsRevokePending}" Content="{Binding RevokeText}"
                     Command="{Binding ToggleRevokeSessionsCommand}" IsEnabled="{Binding CanEdit}" VerticalAlignment="Center" Width="190" HorizontalContentAlignment="Center" />
           </Grid>
+          </Border>
 
+          <Border Classes="valuerow">
           <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="12">
             <TextBlock Classes="h3" Text="2" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Top" />
             <StackPanel Grid.Column="1" Spacing="2">
@@ -111,10 +239,13 @@
               <TextBlock Classes="caption" TextWrapping="Wrap"
                          Text="Removes their MFA methods (Authenticator, phones, passkeys…) but keeps the password. They set MFA up again at their next sign-in." />
             </StackPanel>
-            <Button Grid.Column="2" Classes="danger-outline" Classes.undo="{Binding IsReregisterPending}" Content="{Binding ReregisterText}"
+            <Button Grid.Column="2" Classes="danger-outline quiet" Classes.undo="{Binding IsReregisterPending}" Content="{Binding ReregisterText}"
                     Command="{Binding ToggleReregisterCommand}" IsEnabled="{Binding CanReregister}" ToolTip.Tip="{Binding ReregisterTip}"
                     ToolTip.ShowOnDisabled="True" VerticalAlignment="Center" Width="190" HorizontalContentAlignment="Center" />
           </Grid>
+          </Border>
+          </StackPanel>
+          </c:ReadableWidth>
         </StackPanel>
       </Border>
 
@@ -232,6 +363,7 @@
           </StackPanel>
           <TextBlock Classes="caption" TextWrapping="Wrap" Text="Roles assigned to them directly. Roles that come from a group they're in show on the group." />
           <TextBlock Classes="muted" Text="No admin roles." IsVisible="{Binding HasNoRoles}" />
+          <c:ReadableWidth>
           <ItemsControl ItemsSource="{Binding Roles}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="rec:RevocableRow">
@@ -242,11 +374,11 @@
                       <TextBlock Classes="caption" Text="{Binding Detail}" />
                     </StackPanel>
                     <c:Badge Grid.Column="1" Text="Removing" Kind="Info" IsVisible="{Binding IsRevoking}" VerticalAlignment="Center" />
-                    <Button Grid.Column="2" Classes="rowaction" Command="{Binding ToggleCommand}" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding Tip}"
+                    <Button Grid.Column="2" Classes="danger-outline quiet" Classes.undo="{Binding IsRevoking}" Command="{Binding ToggleCommand}" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding Tip}"
                             ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
                       <Panel>
-                        <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !IsRevoking}" />
-                        <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding IsRevoking}" />
+                        <TextBlock Text="Remove" IsVisible="{Binding !IsRevoking}" />
+                        <TextBlock Text="Undo" IsVisible="{Binding IsRevoking}" />
                       </Panel>
                     </Button>
                   </Grid>
@@ -254,8 +386,10 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          </c:ReadableWidth>
           <TextBlock Classes="label" Text="ROLES THEY CAN ACTIVATE (ELIGIBLE)" Margin="0,6,0,0" />
           <TextBlock Classes="muted" Text="{Binding EligibleText}" IsVisible="{Binding HasEligibleText}" TextWrapping="Wrap" />
+          <c:ReadableWidth>
           <ItemsControl ItemsSource="{Binding EligibleRoles}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="x:String">
@@ -263,6 +397,7 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          </c:ReadableWidth>
         </StackPanel>
       </Border>
 
@@ -275,6 +410,7 @@
           <TextBlock Classes="caption" TextWrapping="Wrap"
                      Text="Apps they agreed could act for them, with what each may do. An unfamiliar app reading mail is a common sign of a phishing consent." />
           <TextBlock Classes="muted" Text="No apps." IsVisible="{Binding HasNoConsents}" />
+          <c:ReadableWidth>
           <ItemsControl ItemsSource="{Binding Consents}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="rec:RevocableRow">
@@ -285,11 +421,11 @@
                       <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
                     </StackPanel>
                     <c:Badge Grid.Column="1" Text="Revoking" Kind="Info" IsVisible="{Binding IsRevoking}" VerticalAlignment="Center" />
-                    <Button Grid.Column="2" Classes="rowaction" Command="{Binding ToggleCommand}" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding Tip}"
+                    <Button Grid.Column="2" Classes="danger-outline quiet" Classes.undo="{Binding IsRevoking}" Command="{Binding ToggleCommand}" IsEnabled="{Binding CanEdit}" ToolTip.Tip="{Binding Tip}"
                             ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
                       <Panel>
-                        <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !IsRevoking}" />
-                        <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding IsRevoking}" />
+                        <TextBlock Text="Remove" IsVisible="{Binding !IsRevoking}" />
+                        <TextBlock Text="Undo" IsVisible="{Binding IsRevoking}" />
                       </Panel>
                     </Button>
                   </Grid>
@@ -297,6 +433,7 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          </c:ReadableWidth>
         </StackPanel>
       </Border>
     </StackPanel>

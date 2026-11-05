@@ -198,8 +198,10 @@ public sealed class GroupAccessViewModelTests
         public Task<IReadOnlyList<MailboxDelegate>> GetMailboxDelegatesAsync(string userId, string address, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<MailboxDelegate>>(
             [
-                new("zz-tenantry-test-bo", [MailboxRight.FullAccess, MailboxRight.SendAs]),
+                // Exchange names the same person by address here and by display name for Send on behalf.
+                new("zz-tenantry-test-bo@contoso.example", [MailboxRight.FullAccess, MailboxRight.SendAs]),
                 new("Someone Departed", [MailboxRight.SendOnBehalf]),
+                new("zz-tenantry-test-bo", [MailboxRight.SendOnBehalf]),
             ]);
 
         public Task<MailDetails> GetMailAsync(string userId, string address, CancellationToken cancellationToken = default) =>
@@ -260,7 +262,7 @@ public sealed class GroupAccessViewModelTests
         await tab.LoadAsync(Ct);
 
         Assert.Equal(["Someone Departed", "zz-tenantry-test-bo"], tab.Delegates.Select(d => d.Name));
-        Assert.Equal([true, true, false], tab.Delegates.Single(d => d.Name == "zz-tenantry-test-bo").Toggles.Select(t => t.IsOn));
+        Assert.Equal([true, true, true], tab.Delegates.Single(d => d.Name == "zz-tenantry-test-bo").Toggles.Select(t => t.IsOn));
         tab.Delegates.Single(d => d.Name == "zz-tenantry-test-bo").Toggles[0].IsOn = false;
         var staged = Assert.IsType<SetMailboxAccess>(pipeline.Pending.Single());
         Assert.Equal(("u1", "u2", MailboxRight.FullAccess, false), (staged.Mailbox.Id, staged.Person.Id, staged.Right, staged.New));

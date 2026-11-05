@@ -575,7 +575,7 @@ public sealed partial class DeviceGroupsSection : DeviceSection, IDisposable
     {
         _index = index;
         _openGroup = openGroup;
-        Picker = new PersonPicker("Add to a security group: type its name", Options, Join);
+        Picker = new PersonPicker("Security group name", Options, Join);
         if (page.Pipeline is { } pipeline)
         {
             pipeline.Changed += OnPendingChanged;

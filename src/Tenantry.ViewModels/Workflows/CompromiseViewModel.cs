@@ -263,7 +263,7 @@ public sealed partial class CompromiseViewModel : ObservableObject
             if (On("password") && person.Kind != UserKind.Guest)
                 changes.Add(new ResetPassword(target, On("mustchange")));
             if (On("reregister"))
-                changes.AddRange(_methods.GetValueOrDefault(person.Id, []).Select(m => new RemoveAuthMethod(target, m.Id, m.Segment, m.Kind)));
+                changes.AddRange(AuthMethod.RemovalOrder(_methods.GetValueOrDefault(person.Id, [])).Select(m => new RemoveAuthMethod(target, m.Id, m.Segment, m.Kind)));
             if (On("signout"))
                 changes.Add(new RevokeSessions(target));
         }

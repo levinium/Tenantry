@@ -5,7 +5,8 @@
              x:Class="Tenantry.App.Views.PersonPickerView"
              x:DataType="ed:PersonPicker"
              x:Name="Root">
-  <!-- Type to search; matches list below the box; choosing one stages the change and clears the box. -->
+  <!-- Type to search; matches list below the box. Choosing one hands it over and clears the box;
+       where several can be added (an Add popup), a click ticks a row instead and Shift ticks a range. -->
   <StackPanel Spacing="4">
     <TextBox Text="{Binding Query}" PlaceholderText="{Binding Placeholder}" MinWidth="280">
       <TextBox.InnerLeftContent>
@@ -13,20 +14,29 @@
       </TextBox.InnerLeftContent>
     </TextBox>
     <Border Classes="pickresults" IsVisible="{Binding HasResults}">
-      <ItemsControl ItemsSource="{Binding Results}">
+      <!-- In an Add popup the whole list shows before typing, so it scrolls. -->
+      <ScrollViewer MaxHeight="320">
+      <ItemsControl x:Name="RowList" ItemsSource="{Binding Rows}">
         <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="ed:PickOption">
-            <Button Classes="pickrow" Command="{Binding #Root.((ed:PersonPicker)DataContext).PickCommand}" CommandParameter="{Binding}"
-                    ToolTip.Tip="Add (added to Pending Changes)">
-              <StackPanel Spacing="1">
-                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
-              </StackPanel>
+          <DataTemplate x:DataType="ed:PickRow">
+            <!-- Ticking keeps the popup open (staysopen); choosing the only one closes it. -->
+            <Button Classes="pickrow" Classes.ticked="{Binding IsTicked}" Classes.staysopen="{Binding #Root.((ed:PersonPicker)DataContext).Multiple}" Click="OnRowClick">
+              <Grid ColumnDefinitions="Auto,*">
+                <!-- The tick shows the row's state; the row itself takes the click. -->
+                <CheckBox IsChecked="{Binding IsTicked}" IsHitTestVisible="False" Focusable="False" MinWidth="0" Margin="0,0,8,0" VerticalAlignment="Center"
+                          IsVisible="{Binding #Root.((ed:PersonPicker)DataContext).Multiple}" />
+                <StackPanel Grid.Column="1" Spacing="1">
+                  <TextBlock Text="{Binding Option.Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Classes="caption" Text="{Binding Option.Detail}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </Grid>
             </Button>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      </ScrollViewer>
     </Border>
-    <TextBlock Classes="caption" Text="No matches. Try part of a name or address." IsVisible="{Binding ShowNoMatch}" Margin="4,0,0,0" />
+    <TextBlock Classes="caption" Text="{Binding MoreText}" IsVisible="{Binding HasMore}" Margin="4,0,0,0" />
+    <TextBlock Classes="caption" Text="{Binding NoMatchText}" IsVisible="{Binding ShowNoMatch}" Margin="4,0,0,0" />
   </StackPanel>
 </UserControl>

@@ -83,7 +83,7 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <views:PersonPickerView DataContext="{Binding OwnerPicker}" />
+      <views:AddButton DataContext="{Binding OwnerPicker}" Text="Add an Owner" HorizontalAlignment="Left" Hint="Choose from the list, or type to narrow it." />
     </StackPanel>
 
     <!-- What still needs doing, then add -->

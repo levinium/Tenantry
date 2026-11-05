@@ -130,6 +130,41 @@ public sealed class OffboardingTests
     }
 
     [Fact]
+    public async Task Access_goes_to_each_persons_manager_or_the_stand_in_and_to_everyone_else_listed()
+    {
+        var directory = new DemoTenantDirectory();
+        var records = new DemoUserRecords(directory);
+        var users = await directory.GetUsersAsync(Ct);
+        var index = new Index(users, await directory.GetGroupsAsync(Ct));
+        var leavers = users.Where(u => u.Kind == UserKind.Member && u.Mailbox is { Type: "User" }).Take(2).ToArray();
+        var others = users.Where(u => u.Kind == UserKind.Member && leavers.All(l => l.Id != u.Id)).Take(3).ToArray();
+        var (manager, standIn, colleague) = (others[0], others[1], others[2]);
+        records.RememberManager(leavers[0].Id, manager.Id);
+        records.RememberManager(leavers[1].Id, null);
+        var pipeline = new ChangePipeline(new DemoChangeExecutor(directory, records), new ChangeLog(new MemoryEntityStore()), new MemoryTestModeStore(false), "admin");
+        var workflow = new OffboardingViewModel(leavers, index, records, pipeline, "Northgate", () => { });
+        foreach (var step in workflow.Sections.SelectMany(s => s.Steps))
+            step.IsOn = step.Key is "mailaccess" or "autoreply";
+
+        await workflow.LoadManagersAsync(Ct);
+        Assert.Equal(1, workflow.WithoutManager);
+        Assert.Equal(OffboardingViewModel.TheirManager, Assert.Single(workflow.MailAccess.Items));
+        workflow.StandInPicker.Query = standIn.UserPrincipalName;
+        workflow.StandInPicker.PickCommand.Execute(workflow.StandInPicker.Results.Single());
+        workflow.MailAccess.Picker.Query = colleague.UserPrincipalName;
+        workflow.MailAccess.Picker.PickCommand.Execute(workflow.MailAccess.Picker.Results.Single());
+
+        var plan = await workflow.PlanAsync(Ct);
+
+        string[] Given(UserSummary leaver) => plan.Changes.OfType<SetMailboxAccess>().Where(c => c.Mailbox.Id == leaver.Id).Select(c => c.Person.Id).ToArray();
+        Assert.Equal([manager.Id, colleague.Id], Given(leavers[0]));
+        Assert.Equal([standIn.Id, colleague.Id], Given(leavers[1]));
+        // The stand-in is named in the reply, and the account's manager isn't changed.
+        Assert.Contains(standIn.DisplayName, plan.Changes.OfType<SetAutoReply>().Single(c => c.Target.Id == leavers[1].Id).New.Internal);
+        Assert.DoesNotContain(plan.Changes, c => c is SetManager);
+    }
+
+    [Fact]
     public void The_reply_fills_in_each_persons_details()
     {
         var person = new UserSummary("u1", "Pat Lee", "pat@contoso.example", null, null, null, true, UserKind.Member, DateTimeOffset.UnixEpoch, null, []);

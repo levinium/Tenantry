@@ -24,32 +24,53 @@
                 <TextBlock Classes="h3" Text="{Binding Title}" />
                 <TextBlock Classes="caption" Text="{Binding Caption}" IsVisible="{Binding HasCaption}" TextWrapping="Wrap" />
               </StackPanel>
-              <ContentControl Content="{Binding Form}" IsVisible="{Binding HasForm}">
+              <!-- Above the rows: the card's form (an Add button, for lists) on the left, search on the right -->
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+              <views:ListSearchBox Grid.Column="1" Target="{Binding #CardRows}" Placeholder="Search this list" VerticalAlignment="Top" />
+              <ContentControl Content="{Binding Form}" IsVisible="{Binding HasForm}" VerticalAlignment="Top">
                 <ContentControl.DataTemplates>
                   <!-- A new client secret: what it's for and how long it lasts -->
                   <DataTemplate x:DataType="rec:AddSecretForm">
-                    <Border Classes="valuerow">
+                    <!-- Adding: a button; it opens a small form here, and nothing is staged until Add. -->
+                    <Panel>
+                    <Button Command="{Binding OpenCommand}" IsVisible="{Binding !IsOpen}" HorizontalAlignment="Left">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ic:FluentIcon Icon="Add" FontSize="14" />
+                        <TextBlock Text="Add Secret" />
+                      </StackPanel>
+                    </Button>
+                    <Border Classes="levelrow" IsVisible="{Binding IsOpen}" HorizontalAlignment="Left">
                       <StackPanel Spacing="8">
-                        <TextBlock Classes="label" Text="ADD A CLIENT SECRET" />
-                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                          <TextBox Text="{Binding Description}" PlaceholderText="What it's for, like Nightly export" />
-                          <ComboBox Grid.Column="1" ItemsSource="{x:Static rec:AddSecretForm.Lengths}" SelectedItem="{Binding Length}" MinWidth="150">
+                        <TextBlock Text="Add a Client Secret" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <TextBox Text="{Binding Description}" PlaceholderText="What it's for, like Nightly export" Width="300" c:FocusWhen.Value="{Binding IsOpen}">
+                            <TextBox.KeyBindings>
+                              <KeyBinding Gesture="Enter" Command="{Binding AddCommand}" />
+                              <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+                            </TextBox.KeyBindings>
+                          </TextBox>
+                          <ComboBox ItemsSource="{x:Static rec:AddSecretForm.Lengths}" SelectedItem="{Binding Length}" MinWidth="150">
                             <ComboBox.ItemTemplate>
                               <DataTemplate x:DataType="ed:EditorChoice">
                                 <TextBlock Text="{Binding Label}" />
                               </DataTemplate>
                             </ComboBox.ItemTemplate>
                           </ComboBox>
-                          <Button Grid.Column="2" Classes="accent" Content="Add Secret" Command="{Binding AddCommand}"
-                                  ToolTip.Tip="Added to Pending Changes; its value is shown to you once after applying" />
-                        </Grid>
+                        </StackPanel>
                         <TextBlock Classes="caption" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" Foreground="{DynamicResource BadgeWarningFg}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <Button Classes="accent" Content="Add Secret" Command="{Binding AddCommand}"
+                                  ToolTip.Tip="Added to Pending Changes; its value is shown to you once after applying" />
+                          <Button Content="Cancel" Command="{Binding CancelCommand}" />
+                        </StackPanel>
                       </StackPanel>
                     </Border>
+                    </Panel>
                   </DataTemplate>
                   <!-- A person (or group) to add, as a role when the app has several -->
                   <DataTemplate x:DataType="rec:AppPickForm">
-                    <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <views:AddButton DataContext="{Binding Picker}" Text="{Binding $parent[StackPanel].((rec:AppPickForm)DataContext).AddText}" />
                       <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasRoles}">
                         <TextBlock Classes="label" Text="AS" VerticalAlignment="Center" />
                         <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding Role}" MinWidth="220">
@@ -60,7 +81,6 @@
                           </ComboBox.ItemTemplate>
                         </ComboBox>
                       </StackPanel>
-                      <views:PersonPickerView DataContext="{Binding Picker}" MaxWidth="440" HorizontalAlignment="Left" />
                     </StackPanel>
                   </DataTemplate>
                   <!-- On/off settings, each staged as it's flipped -->
@@ -105,6 +125,7 @@
                   </DataTemplate>
                 </ContentControl.DataTemplates>
               </ContentControl>
+              </Grid>
               <ItemsControl ItemsSource="{Binding FactLines}" IsVisible="{Binding HasFacts}">
                 <ItemsControl.ItemsPanel>
                   <ItemsPanelTemplate>
@@ -121,7 +142,8 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
               <TextBlock Classes="muted" Text="{Binding EmptyText}" IsVisible="{Binding ShowEmpty}" TextWrapping="Wrap" />
-              <ItemsControl ItemsSource="{Binding RowItems}" IsVisible="{Binding HasRows}">
+              <c:ReadableWidth>
+              <ItemsControl x:Name="CardRows" ItemsSource="{Binding RowItems}" IsVisible="{Binding HasRows}">
                 <ItemsControl.ItemsPanel>
                   <ItemsPanelTemplate>
                     <StackPanel Spacing="6" />
@@ -178,6 +200,7 @@
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
+              </c:ReadableWidth>
             </StackPanel>
           </Border>
         </DataTemplate>

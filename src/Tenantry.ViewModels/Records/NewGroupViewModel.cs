@@ -93,7 +93,7 @@ public sealed partial class NewGroupViewModel : ObservableObject
             if (!SetProperty(ref _kind, value))
                 return;
             foreach (var name in new[] { nameof(IsMicrosoft365), nameof(IsSecurity), nameof(IsDistribution), nameof(IsShared), nameof(HasOwners), nameof(HasDomainChoice),
-                         nameof(HasEmail), nameof(MembersTitle), nameof(ShowMembers), nameof(AddressNote) })
+                         nameof(HasEmail), nameof(MembersTitle), nameof(MembersAddText), nameof(ShowMembers), nameof(AddressNote) })
                 OnPropertyChanged(name);
             Changed();
         }
@@ -203,6 +203,8 @@ public sealed partial class NewGroupViewModel : ObservableObject
     public IEnumerable<ChosenPerson> Members => People.Where(p => !p.IsOwner);
 
     public string MembersTitle => IsShared ? "PEOPLE WHO CAN READ AND SEND FROM IT" : "MEMBERS";
+
+    public string MembersAddText => IsShared ? "Add Someone" : "Add a Member";
 
     public bool ShowMembers => !(IsSecurity && IsDynamic);
 

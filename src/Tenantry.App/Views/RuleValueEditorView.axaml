@@ -76,9 +76,12 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <TextBox x:Name="EntryBox" Classes="bare" Text="{Binding NewEntry}" PlaceholderText="{Binding Hint}" AcceptsReturn="False" KeyDown="OnEntryKeyDown" LostFocus="OnEntryLostFocus" />
+        <TextBox x:Name="EntryBox" Classes="bare" Text="{Binding NewEntry}" PlaceholderText="{Binding Hint}" AcceptsReturn="False" KeyDown="OnEntryKeyDown" />
       </StackPanel>
     </Border>
+    <!-- Typed but not yet a chip: it already counts, and Enter makes it one. -->
+    <TextBlock Classes="caption" Text="Press Enter to add it to the list." Margin="4,0,0,0"
+               IsVisible="{Binding NewEntry, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
     <TextBox IsVisible="{Binding IsText}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" />
     <TextBox IsVisible="{Binding IsLongText}" Text="{Binding Text}" PlaceholderText="{Binding Hint}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" />

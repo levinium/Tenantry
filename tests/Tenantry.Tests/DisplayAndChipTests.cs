@@ -54,4 +54,15 @@ public class DisplayAndChipTests
         Assert.Equal("pat@partner.example", new UserRow(guest, Now).SecondaryText);
         Assert.Equal(member.UserPrincipalName, new UserRow(member, Now).SecondaryText);
     }
+
+    [Fact]
+    public void A_blocked_sign_in_shows_once_as_the_status_chip()
+    {
+        var blocked = new UserSummary("u1", "zz-tenantry-test-ada", "zz-tenantry-test-ada@contoso.example", null, "IT", null, false, UserKind.Member, Now, null, []);
+
+        var page = new UserDetailViewModel(blocked);
+
+        Assert.Equal("Sign-In Blocked", page.StatusText);
+        Assert.DoesNotContain(page.Health, c => c.Text.Contains("Blocked", StringComparison.Ordinal));
+    }
 }

@@ -37,10 +37,55 @@ public sealed partial class GraphUserRecords : ISecurityRecords
                 _ => Text(m, "displayName") ?? Text(m, "model"),
             };
             methods.Add(new AuthMethod(Text(m, "id") ?? "", segment, kind, detail, When(m, "createdDateTime"),
-                Removable: segment.Length > 0 && segment != "passwordMethods"));
+                Removable: segment.Length > 0 && segment != "passwordMethods",
+                Value: Text(m, "phoneNumber") ?? Text(m, "emailAddress"), PhoneType: Text(m, "phoneType")));
         }
+        // Hardware tokens are only in Microsoft's preview (beta) API; a tenant without them just has none.
+        try
+        {
+            await foreach (var t in graph.GetAllAsync($"https://graph.microsoft.com/beta/users/{userId}/authentication/hardwareOathMethods", cancellationToken))
+            {
+                var device = t.TryGetProperty("device", out var d) && d.ValueKind == JsonValueKind.Object ? d : t;
+                var status = Text(device, "status");
+                var name = Text(device, "displayName") ?? string.Join(" ", new[] { Text(device, "manufacturer"), Text(device, "model") }.Where(s => !string.IsNullOrEmpty(s)));
+                var serial = Text(device, "serialNumber");
+                methods.Add(new AuthMethod(Text(t, "id") ?? "", "hardwareOathMethods", "Hardware Token",
+                    string.Join(" · ", new[] { name, serial is null ? null : $"serial {serial}", status == "activated" ? null : "not activated yet" }.Where(s => !string.IsNullOrEmpty(s))),
+                    When(t, "createdDateTime"), Removable: true, Value: serial, Status: status));
+            }
+        }
+        catch (GraphException)
+        {
+        }
+        if (await DefaultMethodAsync(userId, cancellationToken) is { } isDefault && methods.FindIndex(isDefault) is var at and >= 0)
+            methods[at] = methods[at] with { IsDefault = true };
         // The password first, then the rest by name.
         return methods.OrderBy(m => m.Removable).ThenBy(m => m.Kind, StringComparer.CurrentCulture).ToArray();
+    }
+
+    /// <summary>
+    /// Which method is their default for the second step, from the preview (beta) sign-in
+    /// preferences; null when it isn't set or can't be read.
+    /// </summary>
+    async Task<Predicate<AuthMethod>?> DefaultMethodAsync(string userId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var preferences = await graph.GetAsync($"https://graph.microsoft.com/beta/users/{userId}/authentication/signInPreferences", cancellationToken);
+            return Text(preferences, "userPreferredMethodForSecondaryAuthentication") switch
+            {
+                "push" => m => m.Segment == "microsoftAuthenticatorMethods",
+                "oath" => m => m.Segment is "softwareOathMethods" or "hardwareOathMethods",
+                "sms" or "voiceMobile" => m => m.Segment == "phoneMethods" && m.PhoneType == "mobile",
+                "voiceAlternateMobile" => m => m.Segment == "phoneMethods" && m.PhoneType == "alternateMobile",
+                "voiceOffice" => m => m.Segment == "phoneMethods" && m.PhoneType == "office",
+                _ => null,
+            };
+        }
+        catch (GraphException)
+        {
+            return null;
+        }
     }
 
     /// <summary>

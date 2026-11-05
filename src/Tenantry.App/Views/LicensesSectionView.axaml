@@ -25,24 +25,42 @@
         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
           <ic:FluentIcon Icon="Apps" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
           <TextBlock Grid.Column="1" Classes="h3" Text="Licenses" VerticalAlignment="Center" />
-          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-            <ComboBox Width="360" ItemsSource="{Binding AddOptions}" SelectedItem="{Binding SelectedToAdd}"
-                      PlaceholderText="Choose a license to add" IsEnabled="{Binding CanAddLicenses}" MaxDropDownHeight="360">
-              <ComboBox.ItemTemplate>
-                <DataTemplate x:DataType="rec:LicenseOption">
-                  <StackPanel Spacing="1" Classes.unavailable="{Binding !IsAvailable}">
-                    <TextBlock Text="{Binding Sku.Name}" />
-                    <TextBlock Classes="caption" Text="{Binding Label}" />
-                  </StackPanel>
-                </DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
-            <Button Classes="accent" Command="{Binding AddLicenseCommand}" Content="Add License"
-                    ToolTip.Tip="Add this license (it goes to Pending Changes)" />
-          </StackPanel>
         </Grid>
+        <!-- Adding: a button above the list; it opens a small form, and nothing is staged until Add. -->
+        <c:ReadableWidth>
+          <Panel>
+          <Button Command="{Binding StartAddLicenseCommand}" IsEnabled="{Binding CanAddLicenses}" IsVisible="{Binding !IsAddingLicense}" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="Add" FontSize="14" />
+              <TextBlock Text="Add License" />
+            </StackPanel>
+          </Button>
+          <Border Classes="levelrow" IsVisible="{Binding IsAddingLicense}" HorizontalAlignment="Left">
+            <StackPanel Spacing="8">
+              <TextBlock Text="Add a License" FontWeight="SemiBold" />
+              <ComboBox Width="360" ItemsSource="{Binding AddOptions}" SelectedItem="{Binding SelectedToAdd}"
+                        PlaceholderText="Choose a license" MaxDropDownHeight="360" c:FocusWhen.Value="{Binding IsAddingLicense}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="rec:LicenseOption">
+                    <StackPanel Spacing="1" Classes.unavailable="{Binding !IsAvailable}">
+                      <TextBlock Text="{Binding Sku.Name}" />
+                      <TextBlock Classes="caption" Text="{Binding Label}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="accent" Command="{Binding AddLicenseCommand}" Content="Add License"
+                        ToolTip.Tip="Goes to Pending Changes; nothing changes until you apply" ToolTip.ShowOnDisabled="True" />
+                <Button Content="Cancel" Command="{Binding CancelAddLicenseCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          </Panel>
+        </c:ReadableWidth>
 
         <TextBlock Classes="muted" Text="No licenses: no mailbox, Office apps or OneDrive." IsVisible="{Binding !HasLicenses}" />
+        <c:ReadableWidth>
         <ItemsControl ItemsSource="{Binding Licenses}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
@@ -68,11 +86,11 @@
                         <ic:FluentIcon Icon="ChevronUp" FontSize="11" VerticalAlignment="Center" IsVisible="{Binding IsExpanded}" />
                       </StackPanel>
                     </Button>
-                    <Button Grid.Column="3" Classes="rowaction" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}"
+                    <Button Grid.Column="3" Classes="danger-outline quiet" Classes.undo="{Binding HasPending}" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}"
                             ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
                       <Panel>
-                        <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !HasPending}" />
-                        <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding HasPending}" />
+                        <TextBlock Text="Remove" IsVisible="{Binding !HasPending}" />
+                        <TextBlock Text="Undo" IsVisible="{Binding HasPending}" />
                       </Panel>
                     </Button>
                   </Grid>
@@ -95,6 +113,7 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
+        </c:ReadableWidth>
       </StackPanel>
     </Border>
 
@@ -106,6 +125,7 @@
           <TextBlock Classes="h3" Text="Enterprise Apps" VerticalAlignment="Center" />
         </StackPanel>
         <TextBlock Classes="muted" Text="Not assigned to any enterprise apps." IsVisible="{Binding !HasAppAssignments}" />
+        <c:ReadableWidth>
         <ItemsControl ItemsSource="{Binding AppAssignments}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="rec:AppAssignmentRow">
@@ -116,11 +136,11 @@
                     <TextBlock Classes="caption" Text="{Binding Since}" />
                   </StackPanel>
                   <c:Badge Grid.Column="1" Text="Removing" Kind="Info" IsVisible="{Binding IsPendingRemove}" VerticalAlignment="Center" />
-                  <Button Grid.Column="2" Classes="rowaction" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
+                  <Button Grid.Column="2" Classes="danger-outline quiet" Classes.undo="{Binding IsPendingRemove}" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
                           ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
                     <Panel>
-                      <ic:FluentIcon Icon="Dismiss" FontSize="14" IsVisible="{Binding !IsPendingRemove}" />
-                      <ic:FluentIcon Icon="ArrowUndo" FontSize="14" IsVisible="{Binding IsPendingRemove}" />
+                      <TextBlock Text="Remove" IsVisible="{Binding !IsPendingRemove}" />
+                      <TextBlock Text="Undo" IsVisible="{Binding IsPendingRemove}" />
                     </Panel>
                   </Button>
                 </Grid>
@@ -128,6 +148,7 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
+        </c:ReadableWidth>
       </StackPanel>
     </Border>
   </StackPanel>

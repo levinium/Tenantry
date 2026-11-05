@@ -68,9 +68,8 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
         </StackPanel>
-        <Button Grid.Column="2" Classes="ghost" Command="{Binding RemoveCommand}" ToolTip.Tip="Take this out of the rule" Padding="6" VerticalAlignment="Top">
-          <ic:FluentIcon Icon="Delete" FontSize="15" Foreground="{DynamicResource TextMuted}" />
-        </Button>
+        <!-- Takes the line out of the rule (nothing is deleted), so it's Remove, not a bin. -->
+        <Button Grid.Column="2" Classes="danger-outline quiet" Content="Remove" Command="{Binding RemoveCommand}" ToolTip.Tip="Take this out of the rule" VerticalAlignment="Top" />
       </Grid>
     </DataTemplate>
   </UserControl.Resources>

@@ -171,22 +171,12 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
             var change = batch[i];
             ApplyResult result;
             if (change.DependsOn is { } needed && notApplied.TryGetValue((change.Target.Id, needed), out var blocker))
-                result = new ApplyResult(ChangeOutcome.Failed, $"Not applied because \"{blocker.Label}\" didn't go through; it needs that first.");
-            else if (WriteGuard.Refusal(change, testMode.IsTestMode) is { } refusal)
-                result = new ApplyResult(ChangeOutcome.Refused, refusal);
-            else
             {
-                try
-                {
-                    result = await executor.ApplyAsync(change, cancellationToken);
-                }
-                // A request that timed out also surfaces as a cancellation; only the caller's own cancel stops the batch.
-                catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-                {
-                    result = new ApplyResult(ChangeOutcome.Failed, e is OperationCanceledException ? "Microsoft didn't answer in time. Check the result, then try again." : e.Message);
-                }
+                result = new ApplyResult(ChangeOutcome.Failed, $"Not applied because \"{blocker.Label}\" didn't go through; it needs that first.");
+                log.Add(new ChangeLogEntry(Guid.NewGuid().ToString("N"), _now(), account, change, result.Outcome, result.Detail));
             }
-            log.Add(new ChangeLogEntry(Guid.NewGuid().ToString("N"), _now(), account, change, result.Outcome, result.Detail));
+            else
+                result = await ApplyOneAsync(change, cancellationToken);
             if (result.Succeeded)
                 succeeded.Add(change);
             else
@@ -206,6 +196,41 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
         if (succeeded.Count > 0)
             Applied?.Invoke(this, batch.Where(succeeded.Contains).ToArray());
         return results;
+    }
+
+    /// <summary>Guard, send, log: one change, as every apply does it.</summary>
+    async Task<ApplyResult> ApplyOneAsync(ChangeOp change, CancellationToken cancellationToken)
+    {
+        ApplyResult result;
+        if (WriteGuard.Refusal(change, testMode.IsTestMode) is { } refusal)
+            result = new ApplyResult(ChangeOutcome.Refused, refusal);
+        else
+        {
+            try
+            {
+                result = await executor.ApplyAsync(change, cancellationToken);
+            }
+            // A request that timed out also surfaces as a cancellation; only the caller's own cancel stops the batch.
+            catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                result = new ApplyResult(ChangeOutcome.Failed, e is OperationCanceledException ? "Microsoft didn't answer in time. Check the result, then try again." : e.Message);
+            }
+        }
+        log.Add(new ChangeLogEntry(Guid.NewGuid().ToString("N"), _now(), account, change, result.Outcome, result.Detail));
+        return result;
+    }
+
+    /// <summary>
+    /// Applies one change at once, without it waiting in Pending Changes: for a step that can't wait
+    /// (a pass someone is about to use, a code that's good for a minute). Test mode still guards it,
+    /// and it's logged like any other. What's already pending is left alone.
+    /// </summary>
+    public async Task<ApplyResult> ApplyNowAsync(ChangeOp change, CancellationToken cancellationToken = default)
+    {
+        var result = await ApplyOneAsync(change, cancellationToken);
+        if (result.Succeeded)
+            Applied?.Invoke(this, [change]);
+        return result;
     }
 
     /// <summary>

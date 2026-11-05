@@ -89,4 +89,10 @@ public sealed record DialogViewModel(string Title, string? Subtitle, object Cont
     public const string Staged = "Changes go to Pending Changes at the bottom of the window; nothing is sent until you apply them.";
 
     public bool HasFootnote => !string.IsNullOrEmpty(Footnote);
+
+    /// <summary>As wide as the window allows (up to the popup limit), so every area of a record opens at one width.</summary>
+    public bool Wide { get; init; }
+
+    /// <summary>As tall as the window allows, so switching between its pages doesn't resize or move the popup.</summary>
+    public bool Tall { get; init; }
 }

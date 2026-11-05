@@ -17,7 +17,7 @@
             <TextBlock Text="{Binding Picked.Name, FallbackValue=''}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
             <TextBlock Classes="caption" Text="{Binding Picked.Detail, FallbackValue=''}" TextTrimming="CharacterEllipsis" />
           </StackPanel>
-          <Button Grid.Column="1" Classes="ghost" Content="Change" Command="{Binding ClearPickedCommand}" ToolTip.Tip="Choose someone or something else" />
+          <Button Grid.Column="1" Content="Change" Command="{Binding ClearPickedCommand}" ToolTip.Tip="Choose someone or something else" />
         </Grid>
       </Border>
     </StackPanel>

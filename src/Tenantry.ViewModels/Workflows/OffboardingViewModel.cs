@@ -65,8 +65,8 @@ public sealed partial class OffboardingViewModel : ObservableObject
             ]),
             new("Hand Over",
             [
-                Step("managermail", "Give Their Manager Full Access to the Mailbox", "The manager can open it in Outlook.", false),
-                Step("manageronedrive", "Give Their Manager Access to Their OneDrive", "The manager can open all of their files.", false),
+                Step("mailaccess", "Give Full Access to Their Mailbox", "The people below can open it in Outlook.", false),
+                Step("onedriveaccess", "Give Access to Their OneDrive", "The people below can open all of their files.", false),
             ]),
             new("Devices",
             [
@@ -75,6 +75,96 @@ public sealed partial class OffboardingViewModel : ObservableObject
         ];
         ForwardPicker = new PersonPicker("Forward to: type a name", () => GroupAccess.People(_index).Where(o => _people.All(p => p.Id != o.Id)),
             o => ForwardTo = o);
+        MailAccess = new ChipPicker("Add someone: type a name", "Add Someone", () => ManagerFirst(GroupAccess.People(_index)), () => { });
+        OneDriveAccess = new ChipPicker("Add someone: type a name", "Add Someone", () => ManagerFirst(GroupAccess.SitePeople(_index)), () => { });
+        MailAccess.Fill([TheirManager]);
+        OneDriveAccess.Fill([TheirManager]);
+        StandInPicker = new PersonPicker("Stand-in manager: type a name", () => GroupAccess.People(_index).Where(o => _people.All(p => p.Id != o.Id)),
+            o => StandIn = o);
+    }
+
+    // ---- Who's given access -------------------------------------------------------------------
+
+    /// <summary>The chip that means each person's own manager (or the stand-in, for anyone without one).</summary>
+    public static readonly PickOption TheirManager = new("{manager}", "Their Manager", "Each person's own manager", "manager", null, "their manager");
+
+    IEnumerable<PickOption> ManagerFirst(IEnumerable<PickOption> people) =>
+        people.Where(o => _people.All(p => p.Id != o.Id)).Prepend(TheirManager);
+
+    /// <summary>Who gets Full access to each mailbox.</summary>
+    public ChipPicker MailAccess { get; }
+
+    /// <summary>Who gets full access to each OneDrive.</summary>
+    public ChipPicker OneDriveAccess { get; }
+
+    /// <summary>Each person's manager, read when the checklist opens, so a stand-in can be asked for those without one.</summary>
+    Dictionary<string, (UserSummary? Manager, string? Name)>? _managers;
+
+    /// <summary>Reads everyone's manager; planning reads them again if this fails.</summary>
+    public async Task LoadManagersAsync(CancellationToken ct = default)
+    {
+        if (_records is null)
+            return;
+        try
+        {
+            _managers = await Throttled.ReadAllAsync(_people, ReadsAtOnce, async (p, c) =>
+            {
+                var details = await _records.GetDetailsAsync(p.Id, c);
+                return (details.ManagerId is { } id ? _index.User(id) : null, details.ManagerName);
+            }, _ => { }, ct);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return;
+        }
+        WithoutManager = _people.Count(p => _managers[p.Id].Name is null);
+    }
+
+    /// <summary>How many have no manager set (known once the managers are read).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NeedsStandIn), nameof(StandInText))]
+    public partial int WithoutManager { get; private set; }
+
+    public bool NeedsStandIn => WithoutManager > 0;
+
+    public string StandInText =>
+        (_people.Count == 1 ? "They have no manager set." : $"{WithoutManager:N0} of them have no manager set.")
+        + " Choose who stands in for this offboarding: they get the access given to \"Their Manager\" and are named in the automatic reply. Their account isn't changed.";
+
+    public PersonPicker StandInPicker { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStandIn), nameof(StandInChosenText))]
+    public partial PickOption? StandIn { get; private set; }
+
+    public bool HasStandIn => StandIn is not null;
+
+    public string StandInChosenText => StandIn is { } o ? $"Stand-in: {o.Name} ({o.Address})" : "";
+
+    [RelayCommand]
+    void ClearStandIn() => StandIn = null;
+
+    /// <summary>The manager to use for one person: their own, else the stand-in.</summary>
+    (UserSummary? Manager, string? Name) ManagerFor(Facts facts)
+    {
+        if (facts.ManagerName is not null)
+            return (facts.Manager, facts.ManagerName);
+        return StandIn is { } s ? (_index.User(s.Id), s.Name) : (null, null);
+    }
+
+    /// <summary>The people a list names for one person, "Their Manager" resolved; never the person themselves, each once.</summary>
+    List<UserSummary> Recipients(ChipPicker list, UserSummary person, Facts facts, string what, List<string> notes)
+    {
+        var found = new List<UserSummary>();
+        foreach (var item in list.Items)
+        {
+            var who = item.Id == TheirManager.Id ? ManagerFor(facts).Manager : _index.User(item.Id);
+            if (item.Id == TheirManager.Id && who is null)
+                notes.Add($"{person.DisplayName}: no manager set and no stand-in chosen, so no manager is given {what}.");
+            if (who is not null && who.Id != person.Id && found.All(f => f.Id != who.Id))
+                found.Add(who);
+        }
+        return found;
     }
 
     WorkflowStep Step(string key, string title, string detail, bool on) => new(key, title, detail, on);
@@ -107,7 +197,7 @@ public sealed partial class OffboardingViewModel : ObservableObject
     [ObservableProperty]
     public partial string ReplyText { get; set; } = DefaultReply;
 
-    public string ReplyHelp => "{name}, {first name}, {organization} and {manager} are filled in for each person; with no manager set, {manager} becomes \"us\".";
+    public string ReplyHelp => "{name}, {first name}, {organization} and {manager} are filled in for each person; with no manager set, {manager} becomes the stand-in, or \"us\" if none is chosen.";
 
     public PersonPicker ForwardPicker { get; }
 
@@ -175,14 +265,16 @@ public sealed partial class OffboardingViewModel : ObservableObject
             tasks.Add(Try("their licenses", async () => facts.Licenses = (await _records.GetLicensingAsync(person.Id, ct)).Assignments.Where(a => a.IsDirect).ToArray()));
         if (On("autoreply") && person.Mailbox is not null)
             tasks.Add(Try("their mailbox", async () => facts.Reply = (await _records.GetMailAsync(person.Id, person.Mailbox.PrimaryAddress ?? person.UserPrincipalName, ct)).AutoReply));
-        if (On("autoreply") || On("managermail") || On("manageronedrive"))
+        if (_managers?.GetValueOrDefault(person.Id) is { } known)
+            (facts.Manager, facts.ManagerName) = known;
+        else if (On("autoreply") || On("mailaccess") || On("onedriveaccess"))
             tasks.Add(Try("their manager", async () =>
             {
                 var details = await _records.GetDetailsAsync(person.Id, ct);
                 facts.ManagerName = details.ManagerName;
                 facts.Manager = details.ManagerId is { } id ? _index.User(id) : null;
             }));
-        if (On("manageronedrive") && _records is IOneDriveRecords oneDrive)
+        if (On("onedriveaccess") && _records is IOneDriveRecords oneDrive)
             tasks.Add(Try("their OneDrive", async () => facts.Drive = (await oneDrive.GetOneDriveAsync(person.Id, ct)).Value));
         if (On("retire") && _records is IDeviceRecords devices)
             tasks.Add(Try("their devices", async () => facts.Devices = (await devices.GetDevicesAsync(person.Id, ct)).Value ?? []));
@@ -228,6 +320,10 @@ public sealed partial class OffboardingViewModel : ObservableObject
             PlanPerson(person, facts[person.Id], memberships.GetValueOrDefault(person.Id) ?? [], changes, notes, ownersLeaving);
         if (On("forward") && ForwardTo is null)
             notes.Insert(0, "Forwarding is ticked but no one is chosen to forward to, so it's left out.");
+        if (On("mailaccess") && !MailAccess.HasItems)
+            notes.Insert(0, "Mailbox access is ticked but no one is chosen, so it's left out.");
+        if (On("onedriveaccess") && !OneDriveAccess.HasItems)
+            notes.Insert(0, "OneDrive access is ticked but no one is chosen, so it's left out.");
         return new WorkflowPlan(changes, notes);
     }
 
@@ -246,7 +342,7 @@ public sealed partial class OffboardingViewModel : ObservableObject
         else if (On("password"))
             changes.Add(new ResetPassword(target, false));
         if (On("methods"))
-            changes.AddRange(facts.Methods.Select(m => new RemoveAuthMethod(target, m.Id, m.Segment, m.Kind)));
+            changes.AddRange(AuthMethod.RemovalOrder(facts.Methods).Select(m => new RemoveAuthMethod(target, m.Id, m.Segment, m.Kind)));
         if (On("roles"))
             changes.AddRange(facts.Roles.Select(r => new RemoveRoleAssignment(target, r.AssignmentId, r.RoleName)));
         if (On("consents"))
@@ -282,7 +378,7 @@ public sealed partial class OffboardingViewModel : ObservableObject
         var isUserMailbox = mailbox is not null && mailbox.Type is not ("Shared" or "Room" or "Equipment");
         if (On("autoreply") && mailbox is not null && facts.Reply is { } old)
         {
-            var text = ReplyFor(person, facts.ManagerName);
+            var text = ReplyFor(person, ManagerFor(facts).Name);
             var wanted = new AutoReply(AutoReplyState.On, null, null, text, text, AutoReplyAudience.All);
             if (old != wanted)
                 changes.Add(new SetAutoReply(target, old, wanted));
@@ -295,21 +391,16 @@ public sealed partial class OffboardingViewModel : ObservableObject
         }
         if (On("hide") && mailbox is not null && !mailbox.HiddenFromAddressList)
             changes.Add(new SetHiddenFromAddressList(target, false, true));
-        if (On("managermail") && mailbox is not null)
+        if (On("mailaccess") && mailbox is not null)
+            changes.AddRange(Recipients(MailAccess, person, facts, "their mailbox", notes)
+                .Select(who => new SetMailboxAccess(target, GroupAccess.Target(who), MailboxRight.FullAccess, false, true)));
+        if (On("onedriveaccess"))
         {
-            if (facts.Manager is { } manager)
-                changes.Add(new SetMailboxAccess(target, GroupAccess.Target(manager), MailboxRight.FullAccess, false, true));
-            else
-                notes.Add($"{person.DisplayName}: no manager set, so no one is given their mailbox.");
-        }
-        if (On("manageronedrive"))
-        {
-            if (facts.Manager is not { } manager)
-                notes.Add($"{person.DisplayName}: no manager set, so no one is given their OneDrive.");
-            else if (facts.Drive is not { } drive)
+            var who = Recipients(OneDriveAccess, person, facts, "their OneDrive", notes);
+            if (who.Count > 0 && facts.Drive is not { } drive)
                 notes.Add($"{person.DisplayName}: has no OneDrive to hand over.");
-            else
-                changes.Add(new SetOneDriveAccess(target, drive.Url, drive.SiteId, GroupAccess.Target(manager), SetOneDriveAccess.LoginFor(manager.UserPrincipalName), false, true));
+            else if (facts.Drive is { } d)
+                changes.AddRange(who.Select(w => new SetOneDriveAccess(target, d.Url, d.SiteId, GroupAccess.Target(w), SetOneDriveAccess.LoginFor(w.UserPrincipalName), false, true)));
         }
 
         string? convertKey = null;

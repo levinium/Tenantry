@@ -19,7 +19,10 @@ static class Throttled
             await gate.WaitAsync(ct);
             try
             {
-                results[p.Id] = await read(p, ct);
+                var result = await read(p, ct);
+                // Reads finish on any thread.
+                lock (results)
+                    results[p.Id] = result;
             }
             finally
             {

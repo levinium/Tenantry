@@ -10,7 +10,7 @@
              x:Class="Tenantry.App.Views.AppPickerView"
              x:DataType="ed:AppPicker"
              x:Name="Root">
-  <!-- Apps chosen as chips with ×; typing a name searches Entra's apps. -->
+  <!-- Apps chosen as chips with ×, then an Add button; its popup searches Entra's apps as you type. -->
   <StackPanel Spacing="6">
     <ItemsControl ItemsSource="{Binding Items}">
       <ItemsControl.ItemsPanel>
@@ -31,20 +31,43 @@
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>
-    <TextBox Text="{Binding Query}" PlaceholderText="Find an app: type the start of its name" MinWidth="380" MaxWidth="420" HorizontalAlignment="Left" />
-    <TextBlock Classes="muted" Text="Searching…" IsVisible="{Binding IsSearching}" />
-    <ItemsControl ItemsSource="{Binding Results}" MaxWidth="420" HorizontalAlignment="Left">
+    <Button x:Name="Open" HorizontalAlignment="Left">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <ic:FluentIcon Icon="Add" FontSize="14" />
+        <TextBlock Text="{Binding AddText}" />
+      </StackPanel>
+      <Button.Flyout>
+        <Flyout Placement="BottomEdgeAlignedLeft">
+          <StackPanel Spacing="8" Width="420">
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Type the start of the app's name." />
+            <TextBox Text="{Binding Query}" PlaceholderText="App name" />
+            <TextBlock Classes="muted" Text="Searching…" IsVisible="{Binding IsSearching}" />
+    <ScrollViewer MaxHeight="320">
+    <ItemsControl x:Name="RowList" ItemsSource="{Binding Rows}">
       <ItemsControl.ItemTemplate>
-        <DataTemplate x:DataType="ed:PickOption">
-          <Button Classes="pickrow" Command="{Binding #Root.((ed:AppPicker)DataContext).PickCommand}" CommandParameter="{Binding}" HorizontalAlignment="Stretch"
-                  HorizontalContentAlignment="Left">
-            <StackPanel Spacing="1">
-              <TextBlock Text="{Binding Name}" />
-              <TextBlock Classes="caption" Text="{Binding Detail}" />
-            </StackPanel>
+        <DataTemplate x:DataType="ed:PickRow">
+          <Button Classes="pickrow staysopen" Click="OnRowClick" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+            <Grid ColumnDefinitions="Auto,*">
+              <CheckBox IsChecked="{Binding IsTicked}" IsHitTestVisible="False" Focusable="False" MinWidth="0" Margin="0,0,8,0" VerticalAlignment="Center" />
+              <StackPanel Grid.Column="1" Spacing="1">
+                <TextBlock Text="{Binding Option.Name}" />
+                <TextBlock Classes="caption" Text="{Binding Option.Detail}" />
+              </StackPanel>
+            </Grid>
           </Button>
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>
+    </ScrollViewer>
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+              <TextBlock Classes="caption" Text="{Binding TickedText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Classes="accent" Content="{Binding AddTickedText}" Command="{Binding AddTickedCommand}"
+                      ToolTip.Tip="Adds every ticked app" ToolTip.ShowOnDisabled="True" />
+              <Button Grid.Column="2" x:Name="CancelButton" Content="Cancel" />
+            </Grid>
+          </StackPanel>
+        </Flyout>
+      </Button.Flyout>
+    </Button>
   </StackPanel>
 </UserControl>

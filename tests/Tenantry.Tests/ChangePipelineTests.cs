@@ -432,9 +432,15 @@ public class ChangePipelineTests
         Assert.Equal("Kp7r-Xw3n-Bq9t-Hm4s", shown.Secret);
         Assert.DoesNotContain(log.All(), e => (e.Detail ?? "").Contains("Kp7r", StringComparison.Ordinal));
         Assert.DoesNotContain("Kp7r", System.Text.Json.JsonSerializer.Serialize(log.All()), StringComparison.Ordinal);
-        shown.DismissCommand.Execute(null);
+        // Closing before it's copied asks once more; the second click closes and the password is gone.
+        Assert.True(tray.CanClose);
+        tray.CloseCommand.Execute(null);
+        Assert.True(tray.IsConfirmingClose);
+        Assert.True(tray.HasReveals);
+        tray.CloseCommand.Execute(null);
         Assert.False(tray.HasReveals);
         Assert.Empty(tray.Reveals);
+        Assert.False(tray.IsVisible);
     }
 
     [Fact]
@@ -486,6 +492,35 @@ public class ChangePipelineTests
         Assert.Equal(0, tray.Count);
         Assert.Equal("1 change applied.", tray.Result);
         Assert.Equal(1, refreshed);
+        // Done, not pending: the tray says so, and the next edit clears it.
+        Assert.True(tray.ResultIsSuccess);
+        Assert.Equal("Changes Applied", tray.HeaderText);
+        Assert.True(tray.CanClose);
+        page.ToggleSignInCommand.Execute(null);
+        Assert.Null(tray.Result);
+        Assert.False(tray.CanClose);
+        Assert.Equal("Pending Changes (1)", tray.HeaderText);
+    }
+
+    [Fact]
+    public async Task After_applying_Close_hides_the_bar_and_a_clean_result_goes_by_itself()
+    {
+        var (pipeline, _, _) = Pipeline(testMode: true);
+        var tray = new PendingChangesViewModel(pipeline, "Contoso", showTestMode: true, () => Task.CompletedTask) { SuccessLingers = TimeSpan.FromHours(1) };
+        var page = new UserDetailViewModel(User(), pipeline: pipeline, canEdit: Availability.Yes);
+
+        page.ToggleSignInCommand.Execute(null);
+        await tray.ApplyCommand.ExecuteAsync(null);
+        await tray.ApplyCommand.ExecuteAsync(null);
+        Assert.True(tray.IsVisible);
+        tray.CloseCommand.Execute(null);
+        Assert.False(tray.IsVisible);
+
+        tray.SuccessLingers = TimeSpan.Zero;
+        page.ToggleSignInCommand.Execute(null);
+        await tray.ApplyCommand.ExecuteAsync(null);
+        await tray.ApplyCommand.ExecuteAsync(null);
+        Assert.False(tray.IsVisible);
     }
 
     [Fact]

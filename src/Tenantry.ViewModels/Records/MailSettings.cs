@@ -59,6 +59,13 @@ public sealed partial class MailSection
 
     ChangeOp? PendingFor(string key) => _pipeline?.PendingFor(_user.Id, key);
 
+    /// <summary>A draft that isn't valid right now: whatever an earlier pause staged for these slots comes back out.</summary>
+    void Unstage(params string[] keys)
+    {
+        foreach (var pending in keys.Select(PendingFor).OfType<ChangeOp>().ToArray())
+            _pipeline!.Unstage(pending);
+    }
+
     /// <summary>"Pending: label → after" for whichever of these slots have a change waiting.</summary>
     string? PendingText(params string[] keys)
     {
@@ -137,11 +144,13 @@ public sealed partial class MailSection
         if (!unlimited && (!int.TryParse(recipients, NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out count) || count is < 1 or > 1000))
         {
             LimitsError = "Recipients per message: a number from 1 to 1,000.";
+            Unstage("mbx:RecipientLimits", "mbx:MaxSendSize", "mbx:MaxReceiveSize");
             return;
         }
         if (ParseMb(MaxSendDraft) is not { } send || ParseMb(MaxReceiveDraft) is not { } receive)
         {
             LimitsError = "Message sizes: a number of MB from 1 to 150 (Exchange Online's largest).";
+            Unstage("mbx:RecipientLimits", "mbx:MaxSendSize", "mbx:MaxReceiveSize");
             return;
         }
         LimitsError = null;
@@ -279,8 +288,13 @@ public sealed partial class MailSection
     }
 
     public string ArchiveText => Settings is not { } s ? ""
-        : !s.ArchiveOn ? "Off. Turning it on gives them a second mailbox, for older mail, that doesn't count against their quota."
-        : $"On{(s.ArchiveUsedBytes is { } used ? $", holding {MailDetails.Size(used)}" : "")}{(s.AutoExpandingArchive ? " · grows automatically as it fills" : "")}";
+        // The switch below says On or Off; this line adds only what it can't.
+        : !s.ArchiveOn ? "Turning it on gives them a second mailbox, for older mail, that doesn't count against their quota."
+        : string.Join(" · ", new[]
+        {
+            s.ArchiveUsedBytes is { } used ? $"Holding {MailDetails.Size(used)}" : null,
+            s.AutoExpandingArchive ? "Grows automatically as it fills" : null,
+        }.OfType<string>());
 
     /// <summary>The archive is on and not yet auto-expanding (Microsoft offers no way back).</summary>
     public bool CanEnableAutoExpanding => CanEdit && Settings is { ArchiveOn: true, AutoExpandingArchive: false } && PendingFor("autoexpand") is null;
@@ -341,6 +355,7 @@ public sealed partial class MailSection
             if (!int.TryParse(text, NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out var parsed) || parsed is < 1 or > 36500)
             {
                 HoldError = "Days to keep items: a number from 1 to 36,500, or leave it empty to keep them indefinitely.";
+                Unstage("hold");
                 return;
             }
             days = parsed;

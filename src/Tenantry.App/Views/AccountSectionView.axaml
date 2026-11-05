@@ -32,7 +32,7 @@
       </ItemsControl.ItemsPanel>
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="rec:FieldGroup">
-          <Border Classes="card" Width="380">
+          <Border Classes="card" Width="340">
             <StackPanel Spacing="14">
               <StackPanel Orientation="Horizontal" Spacing="10">
                 <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="18" Foreground="{DynamicResource Accent}" />
@@ -56,7 +56,7 @@
       </ItemsControl.ItemTemplate>
     </ItemsControl>
 
-    <Border Classes="card" Width="380" HorizontalAlignment="Left" IsVisible="{Binding IsReady}">
+    <Border Classes="card" Width="340" HorizontalAlignment="Left" IsVisible="{Binding IsReady}">
       <StackPanel Spacing="10">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ic:FluentIcon Icon="People" FontSize="18" Foreground="{DynamicResource Accent}" />
@@ -67,16 +67,17 @@
             <TextBlock Classes="value" Text="{Binding ManagerText}" />
             <TextBlock Classes="pendingtext" Text="{Binding PendingManagerText}" IsVisible="{Binding HasPendingManager}" />
           </StackPanel>
-          <Button Grid.Column="1" Classes="rowaction" Command="{Binding ClearManagerCommand}" IsEnabled="{Binding CanClearManager}"
-                  IsVisible="{Binding !HasPendingManager}" ToolTip.Tip="{Binding ClearManagerTip}" ToolTip.ShowOnDisabled="True">
-            <ic:FluentIcon Icon="Dismiss" FontSize="14" />
-          </Button>
-          <Button Grid.Column="1" Classes="rowaction" Command="{Binding UndoManagerCommand}" IsVisible="{Binding HasPendingManager}"
-                  ToolTip.Tip="Undo: keep their current manager">
-            <ic:FluentIcon Icon="ArrowUndo" FontSize="14" />
-          </Button>
+          <!-- Said in words: a lone ✕ here read as "close this card". -->
+          <Button Grid.Column="1" Classes="danger-outline" Content="Remove Manager" Command="{Binding ClearManagerCommand}" IsEnabled="{Binding CanClearManager}"
+                  IsVisible="{Binding !HasPendingManager}" ToolTip.Tip="{Binding ClearManagerTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Classes="danger-outline undo" Content="Undo" Command="{Binding UndoManagerCommand}" IsVisible="{Binding HasPendingManager}"
+                  ToolTip.Tip="Keep their current manager" VerticalAlignment="Center" />
         </Grid>
-        <views:PersonPickerView DataContext="{Binding ManagerPicker}" IsEnabled="{Binding $parent[UserControl].((rec:AccountSection)DataContext).CanEdit}" />
+        <!-- Changing: a button; its popup lists people to choose from, and choosing stages the change. -->
+        <Panel IsEnabled="{Binding CanEdit}" HorizontalAlignment="Left">
+          <views:AddButton DataContext="{Binding ManagerPicker}" Text="Change Manager" Multiple="False"
+                           Hint="Choose their new manager, or type to narrow the list. It goes to Pending Changes." />
+        </Panel>
       </StackPanel>
     </Border>
   </StackPanel>

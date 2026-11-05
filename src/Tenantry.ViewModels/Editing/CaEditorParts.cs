@@ -40,13 +40,17 @@ public sealed partial class ChipPicker : ObservableObject
 {
     readonly Action _changed;
 
-    public ChipPicker(string placeholder, Func<IEnumerable<PickOption>> options, Action changed)
+    public ChipPicker(string placeholder, string addText, Func<IEnumerable<PickOption>> options, Action changed)
     {
         _changed = changed;
+        AddText = addText;
         Picker = new PersonPicker(placeholder, () => options().Where(o => Items.All(i => i.Id != o.Id)), Add);
     }
 
     public PersonPicker Picker { get; }
+
+    /// <summary>The Add button's words ("Add a Person"); its popup holds the search.</summary>
+    public string AddText { get; }
 
     public ObservableCollection<PickOption> Items { get; } = [];
 
@@ -88,14 +92,68 @@ public sealed partial class AppPicker : ObservableObject
     readonly Action _changed;
     CancellationTokenSource? _typing;
 
-    public AppPicker(Func<string, CancellationToken, Task<IReadOnlyList<(string AppId, string Name)>>> search, Action changed)
+    public AppPicker(string addText, Func<string, CancellationToken, Task<IReadOnlyList<(string AppId, string Name)>>> search, Action changed)
     {
+        AddText = addText;
         _search = search;
         _changed = changed;
     }
 
+    /// <summary>The Add button's words ("Add an App"); its popup holds the search.</summary>
+    public string AddText { get; }
+
+    /// <summary>An app was chosen (the Add button's popup closes).</summary>
+    public event EventHandler? Picked;
+
     public ObservableCollection<PickOption> Items { get; } = [];
     public ObservableCollection<PickOption> Results { get; } = [];
+
+    /// <summary>The results as rows with ticks: several apps can be added at once.</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<PickRow> Rows { get; private set; } = [];
+
+    public PickTicks Ticks { get; } = new();
+
+    public bool HasTicked => Ticks.Any;
+    public string AddTickedText => Ticks.AddText;
+    public string TickedText => Ticks.Text;
+
+    /// <summary>A row was clicked: it's ticked or unticked (Shift: a range).</summary>
+    public void Choose(PickRow row, bool shift = false)
+    {
+        Ticks.Click(Rows, row, shift);
+        TicksChanged();
+    }
+
+    /// <summary>Adds every ticked app, then clears the search.</summary>
+    [RelayCommand(CanExecute = nameof(HasTicked))]
+    void AddTicked()
+    {
+        foreach (var option in Ticks.Take())
+            if (Items.All(i => i.Id != option.Id))
+                Items.Add(option);
+        Results.Clear();
+        Rows = [];
+        Query = "";
+        OnPropertyChanged(nameof(HasItems));
+        TicksChanged();
+        _changed();
+        Picked?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void ClearTicks()
+    {
+        Ticks.Clear(Rows);
+        TicksChanged();
+    }
+
+    void TicksChanged()
+    {
+        OnPropertyChanged(nameof(HasTicked));
+        OnPropertyChanged(nameof(AddTickedText));
+        OnPropertyChanged(nameof(TickedText));
+        AddTickedCommand.NotifyCanExecuteChanged();
+    }
 
     public bool HasItems => Items.Count > 0;
 
@@ -125,6 +183,7 @@ public sealed partial class AppPicker : ObservableObject
             Results.Clear();
             foreach (var (appId, name) in found.Where(f => Items.All(i => i.Id != f.AppId)))
                 Results.Add(new PickOption(appId, name, appId, "app", null, name));
+            Rows = Ticks.RowsFor(Results);
         }
         catch (OperationCanceledException)
         {
@@ -147,6 +206,7 @@ public sealed partial class AppPicker : ObservableObject
         Query = "";
         OnPropertyChanged(nameof(HasItems));
         _changed();
+        Picked?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]

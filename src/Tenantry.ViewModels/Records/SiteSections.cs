@@ -306,7 +306,7 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
         if (!Page.CanEdit)
             return null;
         var taken = present.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return new PersonPicker("Add someone: type a name",
+        return new PersonPicker("Person's name or address",
             () => (sharePoint ? GroupAccess.SitePeople(Page.Index) : GroupAccess.People(Page.Index)).Where(o => o.Address is null || !taken.Contains(o.Address)),
             o =>
             {

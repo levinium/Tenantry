@@ -22,12 +22,23 @@
       <SolidColorBrush x:Key="SidebarBg" Color="#E9EBEF" />
       <SolidColorBrush x:Key="CardBg" Color="#FFFFFF" />
       <!-- Plain (secondary) buttons: the card's fill with a border, so they read as buttons, not as switched off. -->
-      <SolidColorBrush x:Key="ButtonBackground" Color="#FFFFFF" />
-      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#F1F3F6" />
-      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#E6E9EE" />
-      <SolidColorBrush x:Key="ButtonBorderBrush" Color="#C9CED6" />
-      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#AEB5BF" />
-      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#AEB5BF" />
+      <!-- Buttons: a soft blue fill with blue text and no outline, never the colour of what they sit on.
+           Disabled ones fade to grey so they can't be mistaken for working ones. -->
+      <SolidColorBrush x:Key="ButtonBackground" Color="#E3EAFD" />
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#D3DEFB" />
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#C3D2F9" />
+      <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#F0F1F3" />
+      <SolidColorBrush x:Key="ButtonForeground" Color="#2443B0" />
+      <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#1C3796" />
+      <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#1C3796" />
+      <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#A4AAB3" />
+      <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+      <!-- Calm buttons (Undo, a Remove on every row): grey until pointed at. -->
+      <SolidColorBrush x:Key="ButtonNeutralBg" Color="#ECEEF1" />
+      <SolidColorBrush x:Key="ButtonNeutralBgHover" Color="#E1E4E9" />
+      <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
+      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
+      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
       <SolidColorBrush x:Key="CardBorder" Color="#D9DDE3" />
       <SolidColorBrush x:Key="Divider" Color="#E6E8EC" />
       <SolidColorBrush x:Key="SubtleBg" Color="#F6F7F9" />
@@ -60,10 +71,21 @@
       <SolidColorBrush x:Key="BadgeWarningFg" Color="#7A4A00" />
       <SolidColorBrush x:Key="BadgeDangerBg" Color="#FDE2E1" />
       <SolidColorBrush x:Key="BadgeDangerFg" Color="#9F1C1C" />
+      <!-- A chip's hairline edge and its status dot. -->
+      <SolidColorBrush x:Key="BadgeNeutralBorder" Color="#D6DADF" />
+      <SolidColorBrush x:Key="BadgeInfoBorder" Color="#C4D4FB" />
+      <SolidColorBrush x:Key="BadgeSuccessBorder" Color="#B8E2C5" />
+      <SolidColorBrush x:Key="BadgeWarningBorder" Color="#F1D8A6" />
+      <SolidColorBrush x:Key="BadgeDangerBorder" Color="#F5C2C0" />
+      <SolidColorBrush x:Key="BadgeNeutralDot" Color="#8A929C" />
+      <SolidColorBrush x:Key="BadgeInfoDot" Color="#3B6CF0" />
+      <SolidColorBrush x:Key="BadgeSuccessDot" Color="#21A355" />
+      <SolidColorBrush x:Key="BadgeWarningDot" Color="#DE9B00" />
+      <SolidColorBrush x:Key="BadgeDangerDot" Color="#D9382A" />
 
       <SolidColorBrush x:Key="BannerErrorBg" Color="#FDE2E1" />
       <SolidColorBrush x:Key="BannerInfoBg" Color="#FFF5DB" />
-      <SolidColorBrush x:Key="DangerFill" Color="#C42B1C" />
+      <SolidColorBrush x:Key="DangerFill" Color="#8A1C2C" />
 
       <!-- Selected list rows: a soft tint, so link-coloured names stay readable on them. -->
       <SolidColorBrush x:Key="DataGridRowSelectedBackgroundBrush" Color="#DCE3FB" />
@@ -95,12 +117,23 @@
       <SolidColorBrush x:Key="SidebarBg" Color="#1F2024" />
       <SolidColorBrush x:Key="CardBg" Color="#24262B" />
       <!-- Plain (secondary) buttons: the card's fill with a border, so they read as buttons, not as switched off. -->
-      <SolidColorBrush x:Key="ButtonBackground" Color="#2B2E34" />
-      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#33363D" />
-      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3A3E46" />
-      <SolidColorBrush x:Key="ButtonBorderBrush" Color="#454952" />
-      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#5A5F6A" />
-      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#5A5F6A" />
+      <!-- Buttons: a soft blue fill with blue text and no outline, never the colour of what they sit on.
+           Disabled ones fade into the card so they can't be mistaken for working ones. -->
+      <SolidColorBrush x:Key="ButtonBackground" Color="#283A6B" />
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#31457C" />
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3A508C" />
+      <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#2A2C31" />
+      <SolidColorBrush x:Key="ButtonForeground" Color="#D3DEFF" />
+      <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#E6ECFF" />
+      <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#E6ECFF" />
+      <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#62676F" />
+      <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+      <!-- Calm buttons (Undo, a Remove on every row): grey until pointed at. -->
+      <SolidColorBrush x:Key="ButtonNeutralBg" Color="#35383F" />
+      <SolidColorBrush x:Key="ButtonNeutralBgHover" Color="#3E424A" />
+      <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
+      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
+      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
       <SolidColorBrush x:Key="CardBorder" Color="#363940" />
       <SolidColorBrush x:Key="Divider" Color="#2E3137" />
       <SolidColorBrush x:Key="SubtleBg" Color="#1D1F23" />
@@ -131,10 +164,21 @@
       <SolidColorBrush x:Key="BadgeWarningFg" Color="#F4C46E" />
       <SolidColorBrush x:Key="BadgeDangerBg" Color="#47191C" />
       <SolidColorBrush x:Key="BadgeDangerFg" Color="#FFA3A3" />
+      <!-- A chip's hairline edge and its status dot. -->
+      <SolidColorBrush x:Key="BadgeNeutralBorder" Color="#464A52" />
+      <SolidColorBrush x:Key="BadgeInfoBorder" Color="#2E4275" />
+      <SolidColorBrush x:Key="BadgeSuccessBorder" Color="#245338" />
+      <SolidColorBrush x:Key="BadgeWarningBorder" Color="#5A4519" />
+      <SolidColorBrush x:Key="BadgeDangerBorder" Color="#682629" />
+      <SolidColorBrush x:Key="BadgeNeutralDot" Color="#9AA2AD" />
+      <SolidColorBrush x:Key="BadgeInfoDot" Color="#7FA0FF" />
+      <SolidColorBrush x:Key="BadgeSuccessDot" Color="#4CCB7E" />
+      <SolidColorBrush x:Key="BadgeWarningDot" Color="#F2B544" />
+      <SolidColorBrush x:Key="BadgeDangerDot" Color="#FF6B6B" />
 
       <SolidColorBrush x:Key="BannerErrorBg" Color="#47191C" />
       <SolidColorBrush x:Key="BannerInfoBg" Color="#3A2F14" />
-      <SolidColorBrush x:Key="DangerFill" Color="#C42B1C" />
+      <SolidColorBrush x:Key="DangerFill" Color="#6A1522" />
 
       <SolidColorBrush x:Key="DataGridRowSelectedBackgroundBrush" Color="#2B3552" />
       <SolidColorBrush x:Key="DataGridRowSelectedHoveredBackgroundBrush" Color="#323D5E" />

@@ -242,23 +242,36 @@
               DataContext="{Binding Pending}" x:DataType="ed:PendingChangesViewModel"
               IsVisible="{Binding IsVisible, FallbackValue=False}">
         <DockPanel>
-          <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-            <Button Classes="ghost" Command="{Binding ToggleOpenCommand}" ToolTip.Tip="Show or hide the pending changes">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Classes="h3" Text="{Binding HeaderText}" VerticalAlignment="Center" />
-                <ic:FluentIcon Icon="ChevronUp" FontSize="12" VerticalAlignment="Center" IsVisible="{Binding !IsOpen}" />
-                <ic:FluentIcon Icon="ChevronDown" FontSize="12" VerticalAlignment="Center" IsVisible="{Binding IsOpen}" />
+          <!-- One header row: what the bar is about, how the last apply went, then its buttons.
+               Close is the only way out once nothing is waiting; a clean result also goes by itself. -->
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+            <Panel>
+              <Button Classes="ghost" Command="{Binding ToggleOpenCommand}" IsVisible="{Binding HasChanges}"
+                      ToolTip.Tip="Show or hide the list of pending changes">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Classes="h3" Text="{Binding HeaderText}" VerticalAlignment="Center" />
+                  <ic:FluentIcon Icon="ChevronUp" FontSize="12" VerticalAlignment="Center" IsVisible="{Binding !IsOpen}" />
+                  <ic:FluentIcon Icon="ChevronDown" FontSize="12" VerticalAlignment="Center" IsVisible="{Binding IsOpen}" />
+                </StackPanel>
+              </Button>
+              <!-- Nothing waiting: just a heading, lined up with the button's text -->
+              <TextBlock Classes="h3" Text="{Binding HeaderText}" VerticalAlignment="Center" Margin="12,0"
+                         IsVisible="{Binding !HasChanges}" />
+            </Panel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsVisible="{Binding HasResult}">
+              <ic:FluentIcon Icon="CheckmarkCircle" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource BadgeSuccessFg}"
+                             IsVisible="{Binding ResultIsSuccess}" />
+              <ic:FluentIcon Icon="Warning" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource BadgeWarningFg}"
+                             IsVisible="{Binding !ResultIsSuccess}" />
+              <TextBlock Text="{Binding Result}" VerticalAlignment="Center" TextWrapping="Wrap" />
+            </StackPanel>
+            <Button Grid.Column="3" Classes.danger="{Binding IsConfirmingClose}" IsVisible="{Binding CanClose}" VerticalAlignment="Center"
+                    Command="{Binding CloseCommand}" ToolTip.Tip="{Binding CloseTip}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+                <TextBlock Text="{Binding CloseText}" />
               </StackPanel>
             </Button>
-            <Border Grid.Column="1" Classes="banner neutral" Padding="10,6" VerticalAlignment="Center" HorizontalAlignment="Left"
-                    IsVisible="{Binding HasResult}">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Text="{Binding Result}" VerticalAlignment="Center" TextWrapping="Wrap" />
-                <Button Classes="rowaction" Padding="3" Command="{Binding DismissResultCommand}" ToolTip.Tip="Dismiss">
-                  <ic:FluentIcon Icon="Dismiss" FontSize="12" />
-                </Button>
-              </StackPanel>
-            </Border>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasChanges}">
               <Button Command="{Binding ShowAllPowerShellCommand}" IsVisible="{Binding CanShowPowerShell}"
                       ToolTip.Tip="Every pending change as one PowerShell script, in the order they'd be applied">
@@ -290,39 +303,34 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <!-- Temporary passwords: shown once, never stored; copy, pass on, dismiss. Several at once (a bulk reset) can be copied or saved together. -->
-          <Border DockPanel.Dock="Top" Classes="banner info" Margin="0,10,0,0" IsVisible="{Binding HasManyReveals}">
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
-              <TextBlock Text="{Binding RevealsHeader}" TextWrapping="Wrap" VerticalAlignment="Center" />
-              <Button Grid.Column="1" Command="{Binding CopyAllRevealsCommand}" VerticalAlignment="Center"
-                      ToolTip.Tip="Copy every name, sign-in name and password (pastes into a spreadsheet)">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                  <ic:FluentIcon Icon="Copy" FontSize="14" />
-                  <TextBlock Text="Copy All" IsVisible="{Binding !AllCopied}" />
-                  <TextBlock Text="Copied" IsVisible="{Binding AllCopied}" />
-                </StackPanel>
-              </Button>
-              <Button Grid.Column="2" Command="{Binding SaveRevealsCommand}" VerticalAlignment="Center" ToolTip.Tip="Save them as a CSV file. Keep it somewhere safe and delete it when done.">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                  <ic:FluentIcon Icon="Save" FontSize="14" />
-                  <TextBlock Text="Save as File…" />
-                </StackPanel>
-              </Button>
-              <Button Grid.Column="3" Content="Done with All" Command="{Binding DismissAllRevealsCommand}" VerticalAlignment="Center"
-                      ToolTip.Tip="Remove every password from the screen" />
-            </Grid>
-          </Border>
+          <!-- Temporary passwords: shown once, never stored. Copy one, copy all or save them; Close clears them. -->
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="0,10,0,0" IsVisible="{Binding HasReveals}">
+            <TextBlock Classes="muted" Text="{Binding RevealsHeader}" TextWrapping="Wrap" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Command="{Binding CopyAllRevealsCommand}" VerticalAlignment="Center" IsVisible="{Binding HasManyReveals}"
+                    ToolTip.Tip="Copy every name, sign-in name and password (pastes into a spreadsheet)">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Copy" FontSize="14" />
+                <TextBlock Text="Copy All" IsVisible="{Binding !AllCopied}" />
+                <TextBlock Text="Copied" IsVisible="{Binding AllCopied}" />
+              </StackPanel>
+            </Button>
+            <Button Grid.Column="2" Command="{Binding SaveRevealsCommand}" VerticalAlignment="Center" ToolTip.Tip="Save them as a CSV file. Keep it somewhere safe and delete it when done.">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Save" FontSize="14" />
+                <TextBlock Text="Save as File…" />
+              </StackPanel>
+            </Button>
+          </Grid>
           <ScrollViewer DockPanel.Dock="Top" MaxHeight="300" IsVisible="{Binding HasReveals}">
           <ItemsControl ItemsSource="{Binding Reveals}" Margin="0,10,0,0">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="ed:RevealRow">
                 <Border Classes="pending" Margin="0,0,0,6" Padding="12,8">
-                  <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                     <ic:FluentIcon Icon="Password" FontSize="16" VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1" Spacing="2">
                       <TextBlock Text="{Binding Label}" />
                       <SelectableTextBlock Classes="code" FontSize="16" Text="{Binding Secret}" />
-                      <TextBlock Classes="caption" Text="Shown once and never stored. Copy it now and pass it on securely." TextWrapping="Wrap" />
                     </StackPanel>
                     <Button Grid.Column="2" VerticalAlignment="Center" Command="{Binding CopyCommand}" ToolTip.Tip="Copy the password">
                       <StackPanel Orientation="Horizontal" Spacing="6">
@@ -330,10 +338,6 @@
                         <TextBlock Text="Copy" IsVisible="{Binding !Copied}" />
                         <TextBlock Text="Copied" IsVisible="{Binding Copied}" />
                       </StackPanel>
-                    </Button>
-                    <Button Grid.Column="3" Classes="rowaction" VerticalAlignment="Center" Command="{Binding DismissCommand}"
-                            ToolTip.Tip="Done: remove the password from the screen">
-                      <ic:FluentIcon Icon="Dismiss" FontSize="14" />
                     </Button>
                   </Grid>
                 </Border>
@@ -368,8 +372,9 @@
                           <TextBlock Text="PowerShell" />
                         </StackPanel>
                       </Button>
-                      <Button Grid.Column="4" Classes="rowaction" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this change; nothing is sent">
-                        <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+                      <Button Grid.Column="4" Classes="rowaction" Command="{Binding RemoveCommand}" VerticalAlignment="Center"
+                              ToolTip.Tip="Take this change out of the list; nothing is sent">
+                        <ic:FluentIcon Icon="ArrowUndo" FontSize="14" />
                       </Button>
                     </Grid>
                   </Border>
@@ -458,7 +463,8 @@
     <!-- Popups: a record area from the preview pane, Reset password, … Close with ✕, Esc or a click outside. -->
     <Panel Grid.ColumnSpan="2" ZIndex="100" IsVisible="{Binding HasDialog}">
       <Border x:Name="DialogBackdrop" Classes="backdrop" />
-      <Border Classes="palette" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24" MaxWidth="1120" MinWidth="420">
+      <Border Classes="palette dialog" Classes.wide="{Binding Dialog.Wide, FallbackValue=False}" Classes.tall="{Binding Dialog.Tall, FallbackValue=False}"
+              Margin="24" MaxWidth="1120" MinWidth="420">
         <DockPanel>
           <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="22,16,14,12">
             <StackPanel Spacing="1">

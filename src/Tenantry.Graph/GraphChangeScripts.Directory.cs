@@ -64,6 +64,34 @@ public sealed partial class GraphChangeExecutor
         RemoveAuthMethod m => PsScript.Graph(Ps.Graph("DELETE", $"users/{m.User.Id}/authentication/{m.Segment}/{m.MethodId}")),
         AddPhoneMethod p => PsScript.Graph(Ps.Graph("POST", $"users/{p.User.Id}/authentication/phoneMethods",
             new JsonObject { ["phoneNumber"] = p.Number, ["phoneType"] = p.PhoneType })),
+        UpdatePhoneMethod p => PsScript.Graph(Ps.Graph("PATCH", $"users/{p.User.Id}/authentication/phoneMethods/{p.MethodId}",
+            new JsonObject { ["phoneNumber"] = p.NewNumber, ["phoneType"] = p.PhoneType })),
+        SetEmailMethod { MethodId: { } id } e => PsScript.Graph(Ps.Graph("PATCH", $"users/{e.User.Id}/authentication/emailMethods/{id}",
+            new JsonObject { ["emailAddress"] = e.NewAddress })),
+        SetEmailMethod e => PsScript.Graph(Ps.Graph("POST", $"users/{e.User.Id}/authentication/emailMethods",
+            new JsonObject { ["emailAddress"] = e.NewAddress })),
+        // The secret and the code are never kept: the script asks for them as variables.
+        AddHardwareToken t => PsScript.Graph(Ps.Lines(
+            [
+                "$token = @{ secretKey = Read-Host 'The token''s secret key (Base32, from its vendor)' }",
+                Ps.Graph("POST", "https://graph.microsoft.com/beta/directory/authenticationMethodDevices/hardwareOathDevices", new JsonObject
+                {
+                    ["displayName"] = $"{t.Manufacturer} {t.Model} {t.Serial}",
+                    ["serialNumber"] = t.Serial,
+                    ["manufacturer"] = t.Manufacturer,
+                    ["model"] = t.Model,
+                    ["secretKey"] = Ps.Ref("token", "secretKey"),
+                    ["timeIntervalInSeconds"] = t.Seconds,
+                    ["hashFunction"] = t.Hash,
+                    ["assignTo"] = new JsonObject { ["id"] = t.User.Id },
+                }),
+            ]), "Microsoft's preview (beta) API. Hardware tokens must be turned on in the tenant's authentication methods."),
+        ActivateHardwareToken a => PsScript.Graph(Ps.Lines(
+            [
+                "$token = @{ code = Read-Host 'The code the token shows now' }",
+                Ps.Graph("POST", $"https://graph.microsoft.com/beta/users/{a.User.Id}/authentication/hardwareOathMethods/{a.MethodId}/activate",
+                    new JsonObject { ["verificationCode"] = Ps.Ref("token", "code") }),
+            ]), "Microsoft's preview (beta) API. The code changes every 30 or 60 seconds."),
         CreateTemporaryAccessPass t => PsScript.Graph(Ps.Graph("POST", $"users/{t.User.Id}/authentication/temporaryAccessPassMethods",
                 new JsonObject { ["lifetimeInMinutes"] = t.Minutes, ["isUsableOnce"] = t.OneTime }, assignTo: "pass"),
             "Microsoft makes the code and returns it once, in $pass.temporaryAccessPass."),

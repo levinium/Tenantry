@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.AddButton"
+             x:DataType="ed:PersonPicker"
+             x:Name="Root">
+  <!-- Adding is a button; its popup lists what can be added (A to Z), and typing narrows it.
+       Click names to tick them (Shift ticks a range), then Add adds them all and closes the popup.
+       With Multiple off (choosing one manager), a click chooses and closes. -->
+  <Button x:Name="Open" VerticalAlignment="Center">
+    <StackPanel Orientation="Horizontal" Spacing="6">
+      <ic:FluentIcon Icon="Add" FontSize="14" />
+      <TextBlock Text="{Binding #Root.Text}" />
+    </StackPanel>
+    <Button.Flyout>
+      <Flyout Placement="BottomEdgeAlignedLeft">
+        <StackPanel Spacing="8" Width="420">
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding #Root.Hint}" />
+          <views:PersonPickerView x:Name="Picker" />
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" IsVisible="{Binding #Root.Multiple}">
+            <TextBlock Classes="caption" Text="{Binding TickedText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Classes="accent" Content="{Binding AddTickedText}" Command="{Binding AddTickedCommand}"
+                    ToolTip.Tip="Adds everyone ticked; it goes to Pending Changes" ToolTip.ShowOnDisabled="True" />
+            <Button Grid.Column="2" x:Name="CancelButton" Content="Cancel" />
+          </Grid>
+        </StackPanel>
+      </Flyout>
+    </Button.Flyout>
+  </Button>
+</UserControl>

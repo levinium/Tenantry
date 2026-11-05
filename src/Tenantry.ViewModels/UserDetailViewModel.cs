@@ -100,8 +100,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         {
             var chips = new List<HealthChip>();
             var isPerson = UserFields.TypeOf(User) is UserFields.Member or UserFields.Guest;
-            if (!User.AccountEnabled && isPerson)
-                chips.Add(new("Sign-In Blocked", BadgeKind.Danger, "This account can't sign in."));
+            // A blocked sign-in is already the status chip beside these.
             if (User.Mailbox?.Forwarding == ForwardingKind.External)
                 chips.Add(new("Forwarding Outside", BadgeKind.Danger, $"Mail is forwarded to {User.Mailbox.ForwardingTo}, outside the organization."));
             if (isPerson && User.AccountEnabled)
@@ -165,7 +164,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         new GroupsAccessSection(User, _index, _pipeline, _canEdit, _records, _openGroup, _openUser),
         new MailSection(User, _records, _pipeline, _canEdit, _index, OpenConvertMailbox),
         new OneDriveSection(User, _records as IOneDriveRecords, _pipeline, _canEdit, _index),
-        new SecuritySection(User, _records as ISecurityRecords, _pipeline, _canEdit),
+        new SecuritySection(User, _records as ISecurityRecords, _pipeline, _canEdit, _openDialog, _closeDialog),
         new DevicesSection(User, _records as IDeviceRecords, _pipeline, _canEdit, _records as IAppActivationRecords),
         new ActivitySection(User, _records as IActivityRecords, _pipeline),
     ];
@@ -175,7 +174,13 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
     void Manage(RecordSection section)
     {
         _ = section.LoadAsync();
-        _openDialog?.Invoke(new DialogViewModel(section.Title, User.DisplayName, section));
+        // Mail says how its changes are staged at the top of every page; Activity changes nothing.
+        var footnote = section is MailSection or ActivitySection ? null : DialogViewModel.Staged;
+        _openDialog?.Invoke(new DialogViewModel(section.Title, User.DisplayName, section, footnote)
+        {
+            Wide = true,
+            Tall = section is MailSection or SecuritySection,
+        });
     }
 
     // ---- Quick actions --------------------------------------------------------------------
@@ -194,6 +199,9 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
 
     /// <summary>"Block sign-in" / "Allow sign-in", or "Undo" when a change is already staged.</summary>
     public string SignInActionText => HasPendingSignIn ? "Undo Sign-In Change" : User.AccountEnabled ? "Block Sign-In" : "Allow Sign-In";
+
+    /// <summary>The button blocks sign-in (filled red); allowing it again or undoing is a plain button.</summary>
+    public bool IsBlockAction => !HasPendingSignIn && User.AccountEnabled;
 
     public string SignInActionTip => !CanEdit ? EditReason
         : HasPendingSignIn ? "Take the sign-in change out of Pending Changes"
@@ -280,6 +288,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         OnPropertyChanged(nameof(HasPendingSignIn));
         OnPropertyChanged(nameof(PendingSignInText));
         OnPropertyChanged(nameof(SignInActionText));
+        OnPropertyChanged(nameof(IsBlockAction));
         OnPropertyChanged(nameof(SignInActionTip));
         OnPropertyChanged(nameof(HasPendingSignOut));
         OnPropertyChanged(nameof(SignOutText));
@@ -301,7 +310,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
                      nameof(User), nameof(Title), nameof(Initials), nameof(SecondaryText), nameof(StatusText), nameof(StatusKind),
                      nameof(KindText), nameof(KindKind), nameof(Email), nameof(LastSignInText), nameof(LastSignInExact), nameof(CreatedText),
                      nameof(Licenses), nameof(HasLicenses), nameof(MailboxText), nameof(ForwardingText), nameof(Health), nameof(HasHealth),
-                     nameof(SignInActionText), nameof(SignInActionTip), nameof(PendingSignInText), nameof(HasPendingSignIn),
+                     nameof(SignInActionText), nameof(IsBlockAction), nameof(SignInActionTip), nameof(PendingSignInText), nameof(HasPendingSignIn),
                      nameof(CanResetPassword), nameof(ResetPasswordTip),
                  })
             OnPropertyChanged(name);

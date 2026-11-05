@@ -90,7 +90,8 @@ public sealed class PasswordStyleTests
             tray.CopyAllRevealsCommand.Execute(null);
             Assert.Equal("zz-tenantry-test-u1\tzz-tenantry-test-u1@contoso.example\tPw-u1" + Environment.NewLine +
                          "zz-tenantry-test-u2\tzz-tenantry-test-u2@contoso.example\tPw-u2", copied);
-            tray.DismissAllRevealsCommand.Execute(null);
+            // Copied, so Close closes at once.
+            tray.CloseCommand.Execute(null);
             Assert.False(tray.HasReveals);
         }
         finally

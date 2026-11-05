@@ -52,17 +52,17 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
         _base = existing?.Node ?? Blank();
 
         void Changed() => Edited();
-        IncludePeople = new ChipPicker("Add a person: type a name", () => GroupAccess.People(index), Changed);
-        IncludeGroups = new ChipPicker("Add a group: type its name", Groups, Changed);
-        IncludeRoles = new ChipPicker("Add an admin role: type its name", () => _roleOptions, Changed);
-        ExcludePeople = new ChipPicker("Leave out a person: type a name", () => GroupAccess.People(index), Changed);
-        ExcludeGroups = new ChipPicker("Leave out a group: type its name", Groups, Changed);
-        ExcludeRoles = new ChipPicker("Leave out an admin role: type its name", () => _roleOptions, Changed);
+        IncludePeople = new ChipPicker("Add a person: type a name", "Add a Person", () => GroupAccess.People(index), Changed);
+        IncludeGroups = new ChipPicker("Add a group: type its name", "Add a Group", Groups, Changed);
+        IncludeRoles = new ChipPicker("Add an admin role: type its name", "Add an Admin Role", () => _roleOptions, Changed);
+        ExcludePeople = new ChipPicker("Leave out a person: type a name", "Leave Out a Person", () => GroupAccess.People(index), Changed);
+        ExcludeGroups = new ChipPicker("Leave out a group: type its name", "Leave Out a Group", Groups, Changed);
+        ExcludeRoles = new ChipPicker("Leave out an admin role: type its name", "Leave Out an Admin Role", () => _roleOptions, Changed);
         Search(out var search);
-        IncludeApps = new AppPicker(search, Changed);
-        ExcludeApps = new AppPicker(search, Changed);
-        IncludeLocations = new ChipPicker("Add a named location", Locations, Changed);
-        ExcludeLocations = new ChipPicker("Leave out a named location", Locations, Changed);
+        IncludeApps = new AppPicker("Add an App", search, Changed);
+        ExcludeApps = new AppPicker("Leave Out an App", search, Changed);
+        IncludeLocations = new ChipPicker("Add a named location", "Add a Location", Locations, Changed);
+        ExcludeLocations = new ChipPicker("Leave out a named location", "Leave Out a Location", Locations, Changed);
         Platforms = [.. PlatformNames.Select(p => new CheckOption(p.Value, p.Label, Changed))];
         ExcludePlatforms = [.. PlatformNames.Select(p => new CheckOption(p.Value, p.Label, Changed))];
         ClientApps = [.. ClientAppNames.Select(c => new CheckOption(c.Value, c.Label, Changed))];

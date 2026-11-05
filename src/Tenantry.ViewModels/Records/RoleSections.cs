@@ -138,9 +138,33 @@ public sealed partial class RoleAssignmentsSection : RecordSection
         _page.Pipeline!.Stage(new AddRoleAssignment(GroupAccess.Target(person), RolePrincipalType.User, _page.Role.Role.Id, _page.Role.Role.Name,
             _page.Role.Role.IsPrivileged, scope.Id, scope.Name, HasPim && Eligible ? RoleGrantKind.Eligible : RoleGrantKind.Active,
             HasPim && Until is { } day ? new DateTimeOffset(day.Date.AddDays(1).AddSeconds(-1)) : null, HasPim && Justification.Trim().Length > 0 ? Justification.Trim() : null));
+        CancelGive();
+    }
+
+    /// <summary>The Give the Role form is open (the button opens it; Add or Cancel closes it).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGiveButton))]
+    public partial bool IsGiving { get; private set; }
+
+    public bool ShowGiveButton => CanEdit && !IsGiving;
+
+    [RelayCommand]
+    void StartGive()
+    {
+        CancelGive();
+        IsGiving = true;
+    }
+
+    [RelayCommand]
+    void CancelGive()
+    {
         Picked = null;
         Until = null;
         Justification = "";
+        Eligible = false;
+        Scope = null;
+        Picker.Query = "";
+        IsGiving = false;
     }
 
     // ---- The rows -------------------------------------------------------------------------------
@@ -312,7 +336,7 @@ public sealed partial class RoleSettingsSection : LiveSection
     public RoleSettingsSection(RoleDetailViewModel page)
     {
         _page = page;
-        ApproverPicker = new PersonPicker("Add an approver: type a name",
+        ApproverPicker = new PersonPicker("Person's name or address",
             () => GroupAccess.People(_page.Index).Where(o => Approvers.All(a => a.Id != o.Id)),
             o =>
             {

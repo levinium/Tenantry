@@ -56,7 +56,7 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <views:PersonPickerView DataContext="{Binding ReviewerPicker}" MaxWidth="460" HorizontalAlignment="Left" />
+      <views:AddButton DataContext="{Binding ReviewerPicker}" Text="Add a Reviewer" HorizontalAlignment="Left" Hint="Choose from the list, or type to narrow it." />
       <TextBlock Classes="caption" TextWrapping="Wrap" Text="Reviewers decide, item by item, whether content is deleted when its period ends." />
     </StackPanel>
     <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">

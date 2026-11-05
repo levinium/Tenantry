@@ -339,6 +339,26 @@ public sealed partial class LicensesSection : RecordSection, IDisposable
         if (SelectedToAdd is not { } option)
             return;
         _pipeline!.Stage(new SetLicenseAssigned(Target, option.Sku.SkuId, option.Sku.Name, false, true));
+        SelectedToAdd = null;
+        IsAddingLicense = false;
+    }
+
+    /// <summary>The Add License form is open (the button opens it; Add or Cancel closes it).</summary>
+    [ObservableProperty]
+    public partial bool IsAddingLicense { get; private set; }
+
+    [RelayCommand]
+    void StartAddLicense()
+    {
+        SelectedToAdd = null;
+        IsAddingLicense = true;
+    }
+
+    [RelayCommand]
+    void CancelAddLicense()
+    {
+        SelectedToAdd = null;
+        IsAddingLicense = false;
     }
 
     public void Dispose()

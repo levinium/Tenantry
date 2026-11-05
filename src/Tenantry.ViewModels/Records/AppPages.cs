@@ -178,8 +178,29 @@ public sealed partial class AddSecretForm(Action<string, int> add) : ObservableO
             return;
         }
         add(Description.Trim(), int.Parse(Length.Value, System.Globalization.CultureInfo.InvariantCulture));
+        Close();
+    }
+
+    /// <summary>The form is open: the Add Secret button opens it; Add or Cancel closes it.</summary>
+    [ObservableProperty]
+    public partial bool IsOpen { get; private set; }
+
+    [RelayCommand]
+    void Open()
+    {
+        Close();
+        IsOpen = true;
+    }
+
+    [RelayCommand]
+    void Cancel() => Close();
+
+    void Close()
+    {
         _tried = false;
         Description = "";
+        Length = Lengths[1];
+        IsOpen = false;
     }
 }
 
@@ -194,6 +215,9 @@ public sealed partial class AppPickForm : ObservableObject
     }
 
     public PersonPicker Picker { get; }
+
+    /// <summary>The Add button's words ("Add Owner").</summary>
+    public string AddText { get; init; } = "Add";
 
     public IReadOnlyList<EditorChoice> Roles { get; private set; }
 
