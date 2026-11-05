@@ -89,6 +89,61 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Contacts: a list names its contacts; Add Member's Add an Outside Address opens New Contact for the typed address; the Contacts page opens a contact, whose switch and Delete stage changes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
+            main.Groups.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var partners = main.Groups.Rows.Cast<GroupSummary>().Single(g => g.Id == Tenantry.Demo.DemoTenantDirectory.PartnersListId);
+            main.OpenGroup(partners);
+            Settle();
+            var list = (GroupDetailViewModel)main.SelectedTab!;
+            Expect(list.Members.Count(m => m.TypeText == "Contact") == 5 && list.Members.All(m => m.Name != "A mail contact"), "the list's five contacts are named");
+
+            var picker = list.People.MemberPicker;
+            var add = window.GetVisualDescendants().OfType<Tenantry.App.Views.AddButton>().First(a => a.DataContext == picker && a.IsEffectivelyVisible);
+            var open = add.GetVisualDescendants().OfType<Button>().First();
+            open.BringIntoView();
+            Settle();
+            Click(window, open);
+            var flyout = (Flyout)open.Flyout!;
+            Expect(flyout.IsOpen, "Add Member opened its popup");
+            picker.Query = "zz-tenantry-test-partner@northwind.example";
+            Settle();
+            var other = Buttons(flyout).First(b => b.Command == picker.UseOtherCommand);
+            Expect(other.IsEffectivelyVisible, "the popup offers Add an Outside Address");
+            Click(TopLevel.GetTopLevel(other)!, other);
+            Expect(!flyout.IsOpen, "the popup closed");
+            var form = main.Dialog?.Content as Tenantry.ViewModels.Records.NewContactViewModel;
+            Expect(form is not null, "New Contact opened");
+            Expect(form!.Email == "zz-tenantry-test-partner@northwind.example" && form.Lists.Single().Id == partners.Id, "with the typed address, joining this list");
+            form.DisplayName = "Test Partner";
+            Settle();
+            Click(window, FindButton(window, b => b.Command == form.AddCommand && b.IsEffectivelyVisible));
+            Expect(main.Dialog is null, "Add closed the popup");
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateContact { Contact.Name: "Test Partner" } c && c.Lists.Single().Group.Id == partners.Id),
+                "the new contact is in Pending Changes, on the list");
+            Expect(list.People.Members.Any(m => m.Name == "Test Partner" && m.PendingText == "Adding"), "the list shows it being added");
+
+            main.SelectedSection = main.Sections.Single(s => s.Key == "contacts");
+            Expect(main.SelectedTab == main.Contacts, "the Contacts sidebar entry opens the Contacts list");
+            main.Contacts.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var avery = main.Contacts.Rows.Cast<ContactSummary>().Single(c => c.DisplayName == "Avery Quinn");
+            Expect(avery.Lists.Count == 1, "the Contacts list knows the lists each is on");
+            main.OpenContact(avery);
+            Settle();
+            var page = (ContactDetailViewModel)main.SelectedTab!;
+            var toggle = window.GetVisualDescendants().OfType<ToggleSwitch>().First(t => t.IsEffectivelyVisible && t.DataContext == page);
+            Click(window, toggle);
+            Expect(main.Pending.Rows.Any(r => r.Change is SetHiddenFromAddressList { User.Kind: "contact", New: true }), "the switch staged hiding it");
+            Click(window, FindButton(window, b => b.Command == page.DeleteCommand && b.IsEffectivelyVisible));
+            Expect(main.Pending.Rows.Any(r => r.Change is DeleteContact), "Delete Contact staged the delete");
+            Expect(FindButton(window, b => b.Command == page.DeleteCommand && b.IsEffectivelyVisible).Content as string == "Undo", "and offers Undo");
+            window.Close();
+        });
+
         Check("Mail tab, mobile devices: a wipe choice closes its menu and adds the change", () =>
         {
             var (window, main, page) = OpenRecord();

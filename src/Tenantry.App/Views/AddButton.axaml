@@ -19,6 +19,13 @@
         <StackPanel Spacing="8" Width="420">
           <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding #Root.Hint}" />
           <views:PersonPickerView x:Name="Picker" />
+          <!-- Not in the list: something else to do with what was typed (an outside address, say). -->
+          <Button HorizontalAlignment="Left" Command="{Binding UseOtherCommand}" IsVisible="{Binding HasOther}" ToolTip.Tip="{Binding OtherTip}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ContactCardLink" FontSize="14" />
+              <TextBlock Text="{Binding OtherText}" />
+            </StackPanel>
+          </Button>
           <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" IsVisible="{Binding #Root.Multiple}">
             <TextBlock Classes="caption" Text="{Binding TickedText}" TextWrapping="Wrap" VerticalAlignment="Center" />
             <Button Grid.Column="1" Classes="accent" Content="{Binding AddTickedText}" Command="{Binding AddTickedCommand}"

@@ -19,6 +19,14 @@ public sealed record PickOption(string Id, string Name, string Detail, string Ty
             string.Join(' ', u.DisplayName, u.UserPrincipalName, u.Mail, u.Department).ToLowerInvariant());
     }
 
+    /// <summary>A mail contact (type "orgContact", as groups list them), named by the outside address.</summary>
+    public static PickOption Of(ContactSummary c) =>
+        new(c.Id, c.DisplayName, string.Join(" · ", new[] { c.Email, c.Company, "Contact" }.Where(s => !string.IsNullOrEmpty(s))), "orgContact", c.Email,
+            string.Join(' ', c.DisplayName, c.Email, c.Company, "contact").ToLowerInvariant());
+
+    /// <summary>The change target's kind for a picked option ("contact" for an orgContact).</summary>
+    public string TargetKind => Type == "orgContact" ? "contact" : Type;
+
     public static PickOption Of(GroupSummary g) =>
         new(g.Id, g.DisplayName, g.Mail is { } mail ? $"{mail} · {GroupSummary.KindName(g.Kind)}" : GroupSummary.KindName(g.Kind),
             "group", g.Mail, string.Join(' ', g.DisplayName, g.Mail, GroupSummary.KindName(g.Kind)).ToLowerInvariant());
@@ -155,6 +163,40 @@ public sealed partial class PersonPicker : ObservableObject
         }
         Ticks.Click(Rows, row, shift);
         TicksChanged();
+    }
+
+    /// <summary>
+    /// Something the list can't offer, at the foot of an Add popup ("Add an Outside Address"): it's
+    /// handed what was typed in the search box. Null where there's nothing else to offer.
+    /// </summary>
+    public (string Text, string Tip, Action<string> Run)? Other
+    {
+        get;
+        set
+        {
+            field = value;
+            OnPropertyChanged(nameof(HasOther));
+            OnPropertyChanged(nameof(OtherText));
+            OnPropertyChanged(nameof(OtherTip));
+        }
+    }
+
+    public bool HasOther => Other is not null;
+
+    public string OtherText => Other?.Text ?? "";
+
+    public string OtherTip => Other?.Tip ?? "";
+
+    [RelayCommand]
+    void UseOther()
+    {
+        if (Other is not { } other)
+            return;
+        var typed = Query.Trim();
+        Query = "";
+        ClearTicks();
+        Picked?.Invoke(this, EventArgs.Empty);
+        other.Run(typed);
     }
 
     /// <summary>Hands over every ticked one, in the order ticked, then clears the ticks.</summary>

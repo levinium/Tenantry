@@ -9,9 +9,11 @@ namespace Tenantry.ViewModels;
 
 /// <summary>A group member as the record page shows it, with the name looked up locally.</summary>
 /// <param name="Access">For a mailbox: what this person can do ("Full access, Send as").</param>
-public sealed record MemberRow(string Name, string? Detail, string TypeText, BadgeKind TypeKind, UserSummary? User, GroupSummary? Group, string? Access = null)
+/// <param name="Contact">A mail contact on a list, which opens its contact page.</param>
+public sealed record MemberRow(string Name, string? Detail, string TypeText, BadgeKind TypeKind, UserSummary? User, GroupSummary? Group, string? Access = null,
+    ContactSummary? Contact = null)
 {
-    public bool CanOpen => User is not null || Group is not null;
+    public bool CanOpen => User is not null || Group is not null || Contact is not null;
 
     public bool HasAccess => !string.IsNullOrEmpty(Access);
 }
@@ -26,6 +28,15 @@ public interface IDirectoryIndex
 
     /// <summary>Someone by sign-in name (any case). The app's index looks it up; this default scans.</summary>
     UserSummary? UserByUpn(string upn) => AllUsers.FirstOrDefault(u => string.Equals(u.UserPrincipalName, upn, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>A device by its Entra object id (a group's device members), when devices are held locally.</summary>
+    DeviceSummary? Device(string id) => null;
+
+    /// <summary>A mail contact by its Entra object id (a list's outside members), when contacts are held locally.</summary>
+    ContactSummary? Contact(string id) => null;
+
+    /// <summary>Every mail contact held locally (for adding them to lists).</summary>
+    IEnumerable<ContactSummary> AllContacts => [];
 }
 
 /// <summary>An empty local copy, for records shown without one (tests, demos of a single page).</summary>
@@ -53,10 +64,15 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
     readonly Action<GroupSummary> _openGroup;
     readonly Action<DialogViewModel>? _openDialog;
     readonly Action? _closeDialog;
+    readonly Action<ContactSummary>? _openContact;
 
+    /// <param name="openContact">Opens a contact on the list.</param>
+    /// <param name="newContact">Opens New Contact for this list, with an address already typed or not (an outside address it then sends to).</param>
     public GroupDetailViewModel(GroupSummary group, IDirectoryIndex index, Action<UserSummary>? openUser = null, Action<GroupSummary>? openGroup = null,
-        ChangePipeline? pipeline = null, Availability? canEdit = null, Action<DialogViewModel>? openDialog = null, Action? closeDialog = null)
+        ChangePipeline? pipeline = null, Availability? canEdit = null, Action<DialogViewModel>? openDialog = null, Action? closeDialog = null,
+        Action<ContactSummary>? openContact = null, Action<GroupSummary, string?>? newContact = null)
     {
+        _openContact = openContact;
         _index = index;
         _openUser = openUser ?? (_ => { });
         _openGroup = openGroup ?? (_ => { });
@@ -67,7 +83,10 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
         // Opening someone from the popup closes it first, so their page isn't hidden behind it.
         People = new GroupPeopleEditor(group, index, pipeline, canEdit ?? Availability.No("Editing isn't available here"),
             u => { _closeDialog?.Invoke(); _openUser(u); },
-            g => { _closeDialog?.Invoke(); _openGroup(g); });
+            g => { _closeDialog?.Invoke(); _openGroup(g); },
+            openContact is null ? null : c => { _closeDialog?.Invoke(); openContact(c); });
+        if (newContact is not null && GroupAccess.TakesContacts(group))
+            People.NewContact = typed => { _closeDialog?.Invoke(); newContact(Group, typed); };
         if (pipeline is not null && openDialog is not null && closeDialog is not null)
             People.ImportMembers = () => openDialog(new DialogViewModel("Add Members from CSV", Group.DisplayName,
                 new ImportMembersViewModel(Group, pipeline, index, closeDialog)));
@@ -169,6 +188,8 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
             _openUser(user);
         else if (member.Group is { } group)
             _openGroup(group);
+        else if (member.Contact is { } contact)
+            _openContact?.Invoke(contact);
     }
 
     /// <summary>Whether this page matches Microsoft 365: checked when the page opens (see MainViewModel).</summary>

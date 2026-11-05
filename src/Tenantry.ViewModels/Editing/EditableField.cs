@@ -25,12 +25,20 @@ public sealed partial class EditableField : ObservableObject
 
     readonly Func<string, string?>? _validate;
 
+    /// <summary>The change a new value makes (old, new); a user's text property when not given.</summary>
+    readonly Func<string?, string?, ChangeOp>? _change;
+
+    /// <summary>The pending-changes slot the change fills (the property, for a user's).</summary>
+    readonly string _key;
+
     /// <param name="choices">When given, the value is picked from a list instead of typed.</param>
     /// <param name="validate">Returns a problem with the typed value, or null when it's fine.</param>
     public EditableField(string label, string property, string? current, ChangeTarget target, ChangePipeline? pipeline, Availability canEdit,
         bool required = false, string emptyText = "Not set", IReadOnlyList<FieldChoice>? choices = null, Func<string, string?>? validate = null,
-        string? hint = null)
+        string? hint = null, Func<string?, string?, ChangeOp>? change = null, string? key = null)
     {
+        _change = change;
+        _key = key ?? property;
         Label = label;
         Property = property;
         Current = current;
@@ -84,11 +92,19 @@ public sealed partial class EditableField : ObservableObject
     /// <summary>"LABEL" in the record's small-caps label style.</summary>
     public string Caption => Label.ToUpperInvariant();
 
-    SetUserText? Pending => _pipeline?.PendingFor(_target.Id, Property) as SetUserText;
+    ChangeOp? Pending => _pipeline?.PendingFor(_target.Id, _key) is { } p && NewOf(p).IsText ? p : null;
+
+    /// <summary>The value a pending change sets (the text changes this field makes).</summary>
+    static (bool IsText, string? Value) NewOf(ChangeOp change) => change switch
+    {
+        SetUserText t => (true, t.New),
+        SetContactText t => (true, t.New),
+        _ => (false, null),
+    };
 
     public bool HasPending => Pending is not null;
 
-    public string PendingText => Pending is { } p ? $"→ {(string.IsNullOrEmpty(p.New) ? "(cleared)" : Show(p.New))}" : "";
+    public string PendingText => Pending is { } p ? $"→ {(string.IsNullOrEmpty(NewOf(p).Value) ? "(cleared)" : Show(NewOf(p).Value))}" : "";
 
     /// <summary>Editing needs a tenant that can take changes and a role that allows them.</summary>
     public bool CanEdit => _pipeline is not null && _canEdit.IsAvailable;
@@ -115,7 +131,7 @@ public sealed partial class EditableField : ObservableObject
     {
         if (!CanEdit)
             return;
-        Draft = Pending is { } p ? p.New ?? "" : Current ?? "";
+        Draft = Pending is { } p ? NewOf(p).Value ?? "" : Current ?? "";
         _startDraft = Draft;
         _pendingAtStart = Pending;
         OnPropertyChanged(nameof(SelectedChoice));
@@ -124,7 +140,7 @@ public sealed partial class EditableField : ObservableObject
     }
 
     string _startDraft = "";
-    SetUserText? _pendingAtStart;
+    ChangeOp? _pendingAtStart;
 
     /// <summary>
     /// Ends the edit (Enter, leaving the box, or closing the choice list): an untouched value just
@@ -172,7 +188,8 @@ public sealed partial class EditableField : ObservableObject
             Problem = problem;
             return false;
         }
-        _pipeline!.Stage(new SetUserText(_target, Property, Label, Current, value.Length == 0 ? null : value));
+        var next = value.Length == 0 ? null : value;
+        _pipeline!.Stage(_change?.Invoke(Current, next) ?? new SetUserText(_target, Property, Label, Current, next));
         Problem = null;
         return true;
     }
@@ -187,7 +204,7 @@ public sealed partial class EditableField : ObservableObject
         Problem = null;
     }
 
-    void RestoreStart() => _pipeline?.Restore([(_target.Id, Property, _pendingAtStart)]);
+    void RestoreStart() => _pipeline?.Restore([(_target.Id, _key, _pendingAtStart)]);
 
     /// <summary>Takes the change back out; mid-edit, that ends the edit too (the value is back as it was).</summary>
     [RelayCommand]

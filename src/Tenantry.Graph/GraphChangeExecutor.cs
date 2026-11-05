@@ -59,6 +59,10 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         SetForwarding f => await SetMailboxAsync(f.User, ForwardingParameters(f),
             row => string.Equals(StripSmtp(Text(row, "ForwardingSmtpAddress")) ?? "", f.NewTo ?? "", StringComparison.OrdinalIgnoreCase)
                    && string.IsNullOrEmpty(Text(row, "ForwardingAddress")), cancellationToken),
+        CreateContact c => await CreateContactAsync(c, cancellationToken),
+        SetContactText t => await SetContactTextAsync(t, cancellationToken),
+        DeleteContact d => await DeleteContactAsync(d, cancellationToken),
+        SetHiddenFromAddressList { User.Kind: ContactChange.Kind } h => await SetContactHiddenAsync(h, cancellationToken),
         SetHiddenFromAddressList h => await SetMailboxAsync(h.User, HiddenParameters(h),
             row => row.TryGetPropertyValue("HiddenFromAddressListsEnabled", out var v) && v?.GetValueKind() == JsonValueKind.True == h.New, cancellationToken),
         SetAutoReply r => await SetAutoReplyAsync(r, cancellationToken),

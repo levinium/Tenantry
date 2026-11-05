@@ -21,6 +21,9 @@ public static class GroupAccess
     /// <summary>A person; also the target for changes to their own mailbox.</summary>
     public static ChangeTarget Target(UserSummary u) => new("user", u.Id, u.DisplayName, u.UserPrincipalName);
 
+    /// <summary>A mail contact, named by the outside address mail to it goes to (what Exchange finds it by).</summary>
+    public static ChangeTarget Target(ContactSummary c) => new("contact", c.Id, c.DisplayName, c.Email);
+
     /// <summary>"Full access, Send as" (as the directory gives a mailbox's people) → the rights.</summary>
     public static HashSet<MailboxRight> RightsOf(string? access)
     {
@@ -65,6 +68,12 @@ public static class GroupAccess
             new(u.DisplayName, u.Kind == UserKind.Guest && u.Mail is { Length: > 0 } m ? m : u.UserPrincipalName, "User", BadgeKind.Neutral, u, null),
         "group" when index.Group(member.Id) is { } g =>
             new(g.DisplayName, g.Mail ?? GroupSummary.KindName(g.Kind), "Group", BadgeKind.Info, null, g),
+        "device" when index.Device(member.Id) is { } d =>
+            new(d.Name, string.Join(" · ", new[] { string.Join(' ', new[] { d.Os, d.OsVersion }.Where(s => !string.IsNullOrEmpty(s))), d.Model }
+                .Where(s => !string.IsNullOrEmpty(s))), "Device", BadgeKind.Neutral, null, null),
+        "orgContact" when index.Contact(member.Id) is { } c =>
+            new(c.DisplayName, string.Join(" · ", new[] { c.Email, c.Company }.Where(s => !string.IsNullOrEmpty(s))), "Contact", BadgeKind.Neutral, null, null,
+                Contact: c),
         // An address or name Exchange gave that the local copy can't match (a contact, a
         // deleted account): shown as given.
         "unresolved" => new(member.Name ?? member.Id, "Not found in the directory", "Other", BadgeKind.Neutral, null, null),
@@ -75,6 +84,7 @@ public static class GroupAccess
     public static ChangeTarget PersonTarget(GroupMember member, MemberRow row) =>
         row.User is { } u ? Target(u)
         : row.Group is { } g ? Target(g)
+        : row.Contact is { } c ? Target(c)
         // Unresolved trustees are named by the address Exchange gave.
         : new ChangeTarget(member.Type == "unresolved" ? "user" : member.Type, member.Id, row.Name, member.Name);
 
@@ -118,18 +128,23 @@ public static class GroupAccess
 
     /// <summary>
     /// Who can join a group as a member: Microsoft 365 groups take people only; security groups
-    /// also take other security groups; distribution lists also take mail-enabled groups.
+    /// also take other security groups; distribution lists also take mail-enabled groups. Security
+    /// groups and lists also take mail contacts (Microsoft 365 groups can't hold them).
     /// </summary>
     public static IEnumerable<PickOption> MemberCandidates(GroupSummary group, IDirectoryIndex index)
     {
         var people = People(index);
-        if (group.Kind == GroupKind.Microsoft365)
+        if (!TakesContacts(group))
             return people;
         var groups = index.AllGroups.Where(g => g.Id != group.Id && !g.IsMailbox && !g.IsDynamic && (group.IsExchangeManaged
             ? g.Mail is not null
             : g.Kind == GroupKind.Security));
-        return people.Concat(groups.Select(PickOption.Of));
+        return people.Concat(groups.Select(PickOption.Of)).Concat(index.AllContacts.Select(PickOption.Of));
     }
+
+    /// <summary>Mail contacts can be members of security groups, mail-enabled security groups and distribution lists.</summary>
+    public static bool TakesContacts(GroupSummary group) =>
+        group.Kind is GroupKind.Security or GroupKind.MailEnabledSecurity or GroupKind.Distribution;
 
     /// <summary>The state to show (pending change first, then the directory) and whether a change is waiting.</summary>
     public static (bool Shown, bool Pending) State(ChangePipeline? pipeline, string targetId, string key, bool actual) =>
@@ -171,12 +186,19 @@ public sealed partial class ToggleRow(string name, string detail, string typeTex
 }
 
 /// <summary>A person in a group's Owners or Members list, with remove (or undo).</summary>
-public sealed partial class PersonRow(MemberRow row, string? pendingText, bool canRemove, string removeTip, Action toggle, Action? open) : ObservableObject
+public sealed partial class PersonRow(MemberRow row, string? pendingText, bool canRemove, string removeTip, Action toggle, Action? open,
+    bool showRemove = true) : ObservableObject
 {
     public string Name => row.Name;
     public string? Detail => row.Detail;
     public string TypeText => row.TypeText;
     public BadgeKind TypeKind => row.TypeKind;
+
+    /// <summary>Groups, devices, contacts and apps are labelled; people are what a list is mostly of.</summary>
+    public bool ShowType => row.TypeText != "User";
+
+    /// <summary>False where a rule (dynamic) or on-premises AD decides membership: nothing here can remove them.</summary>
+    public bool ShowRemove => showRemove;
 
     /// <summary>"Adding" or "Removing" while a change waits in Pending changes.</summary>
     public string? PendingText => pendingText;

@@ -849,6 +849,9 @@
               <DataTemplate DataType="vm:GroupDetailViewModel">
                 <views:GroupPreviewView />
               </DataTemplate>
+              <DataTemplate DataType="vm:ContactDetailViewModel">
+                <views:ContactPreviewView />
+              </DataTemplate>
             </ContentControl.DataTemplates>
           </ContentControl>
         </ScrollViewer>

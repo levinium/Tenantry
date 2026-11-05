@@ -441,6 +441,9 @@
           <DataTemplate DataType="vm:DevicesAreaViewModel">
             <views:DevicesAreaView />
           </DataTemplate>
+          <DataTemplate DataType="vm:ContactDetailViewModel">
+            <views:ContactDetailView />
+          </DataTemplate>
           <DataTemplate DataType="vm:ReportsAreaViewModel">
             <views:ReportsAreaView />
           </DataTemplate>

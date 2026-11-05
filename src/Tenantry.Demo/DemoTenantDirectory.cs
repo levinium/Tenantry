@@ -249,7 +249,10 @@ public sealed partial class DemoTenantDirectory : ITenantDirectory
             GroupKind.Security, false, false, null, created.AddDays(-300), []));
         groups.Add(new GroupSummary(Id(), "Front Desk Devices", null, "Kiosk tablets in reception.",
             GroupKind.Security, false, false, null, created.AddDays(200),
-            Enumerable.Range(0, 3).Select(_ => new GroupMember(random.Guid().ToString(), "device")).ToArray()));
+            // The reception kiosks (the random draw is kept so the rest of the demo stays the same).
+            Enumerable.Range(1, 3).Select(i => { random.Guid(); return new GroupMember($"obj-k-{i}", "device"); }).ToArray()));
+        // Outside contacts on a list (a fixed ID and no random draw, so the rest stays the same).
+        groups.Add(PartnersList(created.AddDays(320), members.FirstOrDefault(u => u.Department == "Development")));
 
         // Shared, room and equipment mailboxes, with the people who can use them. Rooms are
         // mostly booked rather than opened, so they get fewer delegates.

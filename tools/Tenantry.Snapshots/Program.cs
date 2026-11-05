@@ -133,6 +133,145 @@ if (args.Contains("--manage-popups"))
     return 0;
 }
 
+// --groups-review: the Groups area for reviewing by eye: the list, then for each kind of group its
+// preview, Manage popup and page; New Group for each kind; Add Members from CSV. Both themes.
+if (args.Contains("--groups-review"))
+{
+    foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+    {
+        Application.Current!.RequestedThemeVariant = theme;
+        var suffix = theme == ThemeVariant.Light ? "light" : "dark";
+        var demo = connector.ConnectDemo();
+        var main = new MainViewModel(demo with
+        {
+            IsDemo = false,
+            ListState = new Tenantry.Core.Lists.MemoryListStateStore(),
+            Changes = new Tenantry.Core.Changes.ChangePipeline(new NoopExecutor(), new Tenantry.Core.Changes.ChangeLog(new Tenantry.Core.Cache.MemoryEntityStore()),
+                new Tenantry.Core.Changes.MemoryTestModeStore(true), demo.Account),
+        }, () => { });
+        main.Users.LoadAsync().GetAwaiter().GetResult();
+        main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
+        main.Groups.LoadAsync().GetAwaiter().GetResult();
+        Settle();
+        Render(main, $"g00-list-{suffix}");
+        var all = main.Groups.Rows.Cast<GroupSummary>().ToArray();
+        var samples = new (string Slug, GroupSummary? Group)[]
+        {
+            ("team", all.FirstOrDefault(g => g.IsTeam)),
+            ("m365", all.FirstOrDefault(g => g.Kind == GroupKind.Microsoft365 && !g.IsTeam && !g.IsDynamic)),
+            ("security", all.FirstOrDefault(g => g.Kind == GroupKind.Security && !g.IsDynamic && !g.SyncedFromOnPremises)),
+            ("dynamic", all.FirstOrDefault(g => g.IsDynamic)),
+            ("synced", all.FirstOrDefault(g => g.SyncedFromOnPremises)),
+            ("dl", all.FirstOrDefault(g => g.Kind == GroupKind.Distribution)),
+            ("mailsec", all.FirstOrDefault(g => g.Kind == GroupKind.MailEnabledSecurity)),
+            ("shared", all.FirstOrDefault(g => g.Kind == GroupKind.SharedMailbox)),
+            ("room", all.FirstOrDefault(g => g.Kind == GroupKind.RoomMailbox)),
+        };
+        var n = 0;
+        foreach (var (slug, group) in samples)
+        {
+            n++;
+            if (group is null)
+            {
+                Console.WriteLine($"  (no {slug} group in the demo)");
+                continue;
+            }
+            main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
+            // Back to the list (the first tab): the last sample's page is still open.
+            main.SelectedTab = main.Tabs[0];
+            main.Groups.PreviewRow(group);
+            Settle();
+            Render(main, $"g{n:00}-{slug}-preview-{suffix}");
+            var preview = (GroupDetailViewModel)main.Groups.PreviewModel!;
+            preview.ManagePeopleCommand.Execute(null);
+            Settle();
+            Render(main, $"g{n:00}-{slug}-manage-{suffix}");
+            main.CloseDialog();
+            main.OpenGroup(group);
+            Settle();
+            Render(main, $"g{n:00}-{slug}-page-{suffix}", height: 1500);
+        }
+        main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
+        foreach (var kind in Tenantry.ViewModels.Records.NewGroupViewModel.Kinds)
+        {
+            main.Groups.PrimaryAction!.Run!();
+            var form = (Tenantry.ViewModels.Records.NewGroupViewModel)main.Dialog!.Content;
+            form.Kind = kind;
+            Settle();
+            Render(main, $"g20-new-{kind.Kind.ToString().ToLowerInvariant()}-{suffix}", height: 1300);
+            main.CloseDialog();
+        }
+        if (samples.First(s => s.Slug == "security").Group is { } forCsv)
+        {
+            main.OpenGroup(forCsv);
+            Settle();
+            ((GroupDetailViewModel)main.SelectedTab!).People.ImportMembers?.Invoke();
+            Settle();
+            Render(main, $"g30-import-members-{suffix}");
+            main.CloseDialog();
+        }
+
+        // Contacts: a list with outside members, the Contacts page, a contact's preview and page
+        // (with changes staged), New Contact from the list's "Add an Outside Address".
+        if (all.FirstOrDefault(g => g.Id == Tenantry.Demo.DemoTenantDirectory.PartnersListId) is { } partners)
+        {
+            main.OpenGroup(partners);
+            Settle();
+            Render(main, $"c01-list-with-contacts-{suffix}", height: 1300);
+            // Add Member, someone it can't find: the popup offers to add their address as a contact.
+            var listPage = (GroupDetailViewModel)main.SelectedTab!;
+            Render(main, $"c01b-add-member-outside-{suffix}", height: 1300, during: window =>
+            {
+                var add = window.GetVisualDescendants().OfType<Tenantry.App.Views.AddButton>().First(a => a.DataContext == listPage.People.MemberPicker);
+                var open = add.GetVisualDescendants().OfType<Button>().First();
+                open.Flyout!.ShowAt(open);
+                Settle();
+                listPage.People.MemberPicker.Query = "jamie.lee@northwind.example";
+            });
+            listPage.People.MemberPicker.Query = "jamie.lee@northwind.example";
+            listPage.People.MemberPicker.UseOtherCommand.Execute(null);
+            var form = (Tenantry.ViewModels.Records.NewContactViewModel)main.Dialog!.Content;
+            form.Company = "Northwind Traders";
+            Settle();
+            Render(main, $"c02-new-contact-{suffix}", height: 1100);
+            form.AddCommand.Execute(null);
+            Settle();
+            Render(main, $"c03-list-adding-contact-{suffix}", height: 1300);
+        }
+        main.SelectedSection = main.Sections.Single(s => s.Key == "contacts");
+        main.SelectedTab = main.Tabs[0];
+        main.Contacts.LoadAsync().GetAwaiter().GetResult();
+        Settle();
+        Render(main, $"c04-contacts-{suffix}");
+        var contacts = main.Contacts.Rows.Cast<ContactSummary>().ToArray();
+        main.Contacts.PreviewRow(contacts.First(c => c.Lists.Count > 0));
+        Settle();
+        Render(main, $"c05-contact-preview-{suffix}");
+        main.OpenContact(contacts.First(c => c.Lists.Count > 0));
+        Settle();
+        Render(main, $"c06-contact-page-{suffix}", height: 1300);
+        var contactPage = (ContactDetailViewModel)main.SelectedTab!;
+        var title = contactPage.Details.SelectMany(g => g.Fields).Single(f => f.Label == "Job Title");
+        title.EditCommand.Execute(null);
+        title.Draft = "Senior Account Manager";
+        title.StageCommand.Execute(null);
+        contactPage.ShowsInAddressList = false;
+        contactPage.Lists[0].RemoveCommand.Execute(null);
+        Settle();
+        Render(main, $"c07-contact-page-staged-{suffix}", height: 1300);
+        main.OpenContact(contacts.First(c => c.SyncedFromOnPremises));
+        Settle();
+        Render(main, $"c08-contact-synced-{suffix}", height: 1300);
+        main.SelectedSection = main.Sections.Single(s => s.Key == "contacts");
+        main.SelectedTab = main.Tabs[0];
+        main.Contacts.PrimaryAction!.Run!();
+        Settle();
+        Render(main, $"c09-new-contact-blank-{suffix}", height: 1100);
+        main.CloseDialog();
+    }
+    return 0;
+}
+
 foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
 {
     Application.Current!.RequestedThemeVariant = theme;

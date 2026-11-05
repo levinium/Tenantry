@@ -12,6 +12,7 @@ public sealed class NavIcon : IValueConverter
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
     {
         "users" => Icon.Person,
+        "contacts" => Icon.ContactCard,
         "groups" => Icon.PeopleTeam,
         "mail" => Icon.Mail,
         "sharepoint" => Icon.Cloud,

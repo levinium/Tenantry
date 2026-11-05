@@ -163,6 +163,22 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
             current => BulkActions.ForDevices(() => current().Cast<DeviceSummary>().ToArray(), now, pending: () => pipeline?.Pending ?? []),
             pipeline, canEdit);
 
+    public static SelectionPanelViewModel ForContacts(IReadOnlyList<object> rows, Action<object> uncheck, IDirectoryIndex index, ChangePipeline? pipeline,
+        Availability canEdit) =>
+        new(rows, uncheck, "contact", "contacts",
+            r => (((ContactSummary)r).DisplayName, ((ContactSummary)r).Email ?? ""),
+            all =>
+            {
+                var contacts = all.Cast<ContactSummary>().ToArray();
+                return
+                [
+                    new("Companies", Counts(contacts.Select(c => c.Company ?? "no company"), nouns: false)),
+                    new("Address List", Counts(contacts.Select(c => ContactFields.AddressListText(c).ToLowerInvariant()), nouns: false)),
+                ];
+            },
+            current => BulkActions.ForContacts(() => current().Cast<ContactSummary>().ToArray(), index),
+            pipeline, canEdit);
+
     public static SelectionPanelViewModel ForAutopilot(IReadOnlyList<object> rows, Action<object> uncheck, ChangePipeline? pipeline, Availability canEdit) =>
         new(rows, uncheck, "Autopilot device", "Autopilot devices",
             r => (((AutopilotDevice)r).Serial, ((AutopilotDevice)r).Model ?? ""),

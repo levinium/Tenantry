@@ -140,6 +140,7 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                 var groupScope = store.GetMark(GroupFieldsMark)?.Cursor == GroupSelect ? scope : SyncScope.StartOver;
                 changed += await SyncDeltaAsync(Groups, GroupsMark, $"groups/delta?$select={GroupSelect}", "groups", groupScope, GroupMapper, progress, cancellationToken);
                 store.SetMark(GroupFieldsMark, new SyncMark(GroupSelect, _now()));
+                changed += await SyncContactsAsync(notes, scope, progress, cancellationToken);
                 changed += await SyncDevicesAsync(notes, scope, progress, cancellationToken);
                 if (Due(ManagedDevices, scope))
                     changed += await SyncManagedDevicesAsync(notes, progress, cancellationToken);
@@ -221,6 +222,7 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
             [
                 new("Users", "Everyone in the directory, their licenses and status (changes only)", store.GetMark(Users)?.SyncedAt, changes),
                 new("Groups", "Groups with their members and owners (changes only)", store.GetMark(GroupsMark)?.SyncedAt, changes),
+                new("Contacts", "Outside addresses in the address list (changes only)", store.GetMark(Contacts)?.SyncedAt, changes),
                 new("Licenses", "The tenant's licenses and how many are left", store.GetMark(Skus)?.SyncedAt, changes),
                 new("Devices", "Devices registered or joined in Entra (changes only)", store.GetMark(Devices)?.SyncedAt, changes),
                 new("Intune Devices", "Compliance, encryption, primary user and check-ins of the devices Intune manages", store.GetMark(ManagedDevices)?.SyncedAt, details),
@@ -234,7 +236,8 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
             ];
             if (exchange is not null)
             {
-                areas.Add(new("Mailboxes", "Mailbox types, addresses, forwarding, address list; who can use shared mailboxes", store.GetMark(Mailboxes)?.SyncedAt, details));
+                areas.Add(new("Mailboxes", "Mailbox types, addresses, forwarding, address list; who can use shared mailboxes; contacts' address list setting",
+                    store.GetMark(Mailboxes)?.SyncedAt, details));
                 areas.Add(new("Automatic Replies", "Whether each mailbox is replying; one read per mailbox, in the background",
                     store.GetMark(RepliesMark)?.SyncedAt, Every(s.MailboxDetailsMinutes, "Off")));
                 areas.Add(new("Mailbox Sizes", "Storage used against the quota; one read per mailbox, in the background",
@@ -522,6 +525,7 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
             var rows = await exchange!.InvokeAsync(CmdletEndpoint.Exchange, "Get-Mailbox",
                 new Dictionary<string, object?> { ["ResultSize"] = "Unlimited" }, cancellationToken, MailboxSelect);
             changed += await casWork;
+            changed += await SyncMailContactsAsync(notes, cancellationToken);
             var changes = new List<EntityChange>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var shared = new List<(string Id, string Address)>();

@@ -23,10 +23,12 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
     readonly Availability _canEdit;
     readonly Action<UserSummary> _openUser;
     readonly Action<GroupSummary> _openGroup;
+    readonly Action<ContactSummary>? _openContact;
 
     public GroupPeopleEditor(GroupSummary group, IDirectoryIndex index, ChangePipeline? pipeline, Availability canEdit,
-        Action<UserSummary> openUser, Action<GroupSummary> openGroup)
+        Action<UserSummary> openUser, Action<GroupSummary> openGroup, Action<ContactSummary>? openContact = null)
     {
+        _openContact = openContact;
         _group = group;
         _index = index;
         _pipeline = pipeline;
@@ -64,6 +66,22 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
 
     [CommunityToolkit.Mvvm.Input.RelayCommand]
     void ImportMembersFromCsv() => ImportMembers?.Invoke();
+
+    /// <summary>
+    /// Opens New Contact for this list, with the address typed in Add Member's search when it is one
+    /// (set by the group's record, for lists that take contacts). Offered at the foot of Add Member.
+    /// </summary>
+    public Action<string?>? NewContact
+    {
+        get;
+        set
+        {
+            field = value;
+            MemberPicker.Other = value is null || !GroupAccess.TakesContacts(_group) ? null
+                : ("Add an Outside Address", "Not in the organization? Makes a contact for their address and puts it on this list (Pending Changes first)",
+                    typed => value(typed.Contains('@', StringComparison.Ordinal) ? typed : null));
+        }
+    }
 
     public PersonPicker OwnerPicker { get; }
 
@@ -170,7 +188,7 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
                 : locked ?? (pending is not null ? "Undo: keep them" : $"Remove this {role.ToString().ToLowerInvariant()} (added to Pending Changes)");
             rows.Add((row, new PersonRow(row, pending is not null ? "Removing" : null, CanEdit && locked is null, tip,
                 () => Toggle(pending, () => new SetGroupMembership(GroupAccess.Target(_group), target, member.Type, role, _group.IsExchangeManaged, true, false)),
-                Opener(row))));
+                Opener(row), showRemove: pending is not null || GroupAccess.LockedReason(_group, role) is null)));
         }
         foreach (var add in _pipeline?.Pending.OfType<SetGroupMembership>().Where(p => p.Group.Id == _group.Id && p.Role == role && p.New && !ids.Contains(p.Person.Id)) ?? [])
         {
@@ -178,6 +196,13 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
             if (include(row))
                 rows.Add((row, new PersonRow(row, "Adding", true, "Undo: don't add them", () => _pipeline!.Unstage(add), Opener(row))));
         }
+        if (role == GroupRole.Member)
+            foreach (var made in _pipeline?.Pending.OfType<CreateContact>().Where(c => c.Lists.Any(l => l.Group.Id == _group.Id)) ?? [])
+            {
+                var row = new MemberRow(made.Contact.Name, $"{made.Contact.Address} · New contact", "Contact", BadgeKind.Neutral, null, null);
+                if (include(row))
+                    rows.Add((row, new PersonRow(row, "Adding", true, "Undo: don't make this contact", () => _pipeline!.Unstage(made), null)));
+            }
         return rows
             .OrderBy(r => r.Row.TypeText switch { "User" => 0, "Group" => 1, _ => 2 })
             .ThenBy(r => r.Row.Name, StringComparer.CurrentCultureIgnoreCase)
@@ -234,12 +259,13 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
     {
         if (!CanEdit || (role == GroupRole.Member && HasMembersLock))
             return;
-        _pipeline!.Stage(new SetGroupMembership(GroupAccess.Target(_group), option.Target(option.Type), option.Type, role, _group.IsExchangeManaged, false, true));
+        _pipeline!.Stage(new SetGroupMembership(GroupAccess.Target(_group), option.Target(option.TargetKind), option.Type, role, _group.IsExchangeManaged, false, true));
     }
 
     Action? Opener(MemberRow row) =>
         row.User is { } u ? () => _openUser(u)
         : row.Group is { } g ? () => _openGroup(g)
+        : row.Contact is { } c && _openContact is { } open ? () => open(c)
         : null;
 
     HashSet<string> Taken(GroupRole role) =>

@@ -19,8 +19,9 @@
             <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
           </StackPanel>
           <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
-          <c:Badge Grid.Column="2" Text="{Binding TypeText}" Kind="{Binding TypeKind}" VerticalAlignment="Center" />
+          <c:Badge Grid.Column="2" Text="{Binding TypeText}" Kind="{Binding TypeKind}" VerticalAlignment="Center" IsVisible="{Binding ShowType}" />
           <Button Grid.Column="3" Classes="danger-outline quiet" Classes.undo="{Binding HasPending}" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}"
+                  IsVisible="{Binding ShowRemove}"
                   ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
             <Panel>
               <TextBlock Text="Remove" IsVisible="{Binding !HasPending}" />
@@ -52,13 +53,17 @@
       <Border Classes="banner warning" IsVisible="{Binding HasNoOwners}">
         <TextBlock TextWrapping="Wrap" Text="{Binding NoOwnersText}" />
       </Border>
-      <!-- Above each list: Add on the left, search on the right -->
+      <!-- Above each list: Add on the left, search on the right; both in one centred column with the list. -->
+      <c:ReadableWidth>
+      <StackPanel Spacing="10">
       <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
         <views:AddButton DataContext="{Binding OwnerPicker}" Text="Add Owner" VerticalAlignment="Top"
                          IsEnabled="{Binding $parent[UserControl].((rec:GroupPeopleEditor)DataContext).CanEdit}" />
         <views:ListSearchBox Grid.Column="2" Target="{Binding #OwnersList}" Placeholder="Search owners" />
       </Grid>
       <ItemsControl x:Name="OwnersList" ItemsSource="{Binding Owners}" />
+      </StackPanel>
+      </c:ReadableWidth>
     </StackPanel>
 
     <Border Classes="divider" IsVisible="{Binding IsGroup}" />
@@ -71,8 +76,11 @@
       <Border Classes="banner neutral" IsVisible="{Binding HasMembersLock}">
         <TextBlock TextWrapping="Wrap" Text="{Binding MembersLockedReason}" />
       </Border>
+      <c:ReadableWidth>
+      <StackPanel Spacing="10">
       <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+        <!-- Not where a rule or on-premises AD decides membership: the note above says so. -->
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" IsVisible="{Binding !HasMembersLock}">
           <views:AddButton DataContext="{Binding MemberPicker}" Text="Add Member"
                            IsEnabled="{Binding $parent[UserControl].((rec:GroupPeopleEditor)DataContext).CanAddMembers}" />
           <Button Command="{Binding ImportMembersFromCsvCommand}" IsVisible="{Binding CanImportMembers}"
@@ -90,6 +98,8 @@
       <ItemsControl ItemsSource="{Binding Members}" />
       <TextBlock Classes="caption" Text="{Binding MoreMembersText}"
                  IsVisible="{Binding MoreMembersText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+      </c:ReadableWidth>
     </StackPanel>
 
     <!-- Mailboxes: people with access, a checkbox per right -->
@@ -100,6 +110,8 @@
       </Grid>
       <TextBlock Classes="caption" TextWrapping="Wrap"
                  Text="Full access opens the mailbox in Outlook. Send as sends as the mailbox; Send on behalf sends marked &quot;on behalf of&quot;. New people start with Full access." />
+      <c:ReadableWidth>
+      <StackPanel Spacing="10">
       <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
         <views:AddButton DataContext="{Binding AccessPicker}" Text="Give Someone Access" VerticalAlignment="Top"
                          Hint="Choose a person. They get Full Access; change it on the row. It goes to Pending Changes."
@@ -114,6 +126,8 @@
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
       </ItemsControl>
+      </StackPanel>
+      </c:ReadableWidth>
     </StackPanel>
   </StackPanel>
 </UserControl>

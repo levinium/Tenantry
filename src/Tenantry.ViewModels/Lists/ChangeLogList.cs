@@ -30,6 +30,7 @@ public static class ChangeLogList
         "user" => "Person",
         "group" => "Group",
         "mailbox" or "recipient" => "Mailbox",
+        ContactChange.Kind => "Contact",
         "device" or "manageddevice" => "Device",
         "autopilot" => "Autopilot Device",
         "site" => "Site",

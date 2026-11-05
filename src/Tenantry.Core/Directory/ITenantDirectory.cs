@@ -21,6 +21,10 @@ public interface ITenantDirectory
     Task<IReadOnlyList<DeviceSummary>> GetDevicesAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<DeviceSummary>>([]);
 
+    /// <summary>Every mail contact (outside addresses in the address list). Empty where contacts aren't kept.</summary>
+    Task<IReadOnlyList<ContactSummary>> GetContactsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<ContactSummary>>([]);
+
     /// <summary>Every site and OneDrive. Empty where sites aren't kept.</summary>
     Task<IReadOnlyList<SiteSummary>> GetSitesAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<SiteSummary>>([]);

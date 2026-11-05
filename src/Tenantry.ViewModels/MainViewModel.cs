@@ -53,6 +53,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                 ShowDialog(new Records.DialogViewModel("New Group", TenantName,
                     new Records.NewGroupViewModel(grouping, _tenant.Records as IUserRecords, _index, CloseDialog))))
             : new ListPrimaryAction("New Group", "PeopleAdd", false, createUsers.Reason ?? "This tenant can't be edited");
+        Contacts = DataListViewModel.Create(ContactList.Definition(c => NewContactPage(c, preview: true)), LoadContactsAsync, OpenContact, tenant.ListState, _now);
+        Contacts.EmptyText = "No contacts. A contact is an outside address in the address list, so it can go on distribution lists.";
+        Contacts.PrimaryAction = tenant.Changes is not null && createUsers.IsAvailable
+            ? new ListPrimaryAction("New Contact", "PersonAdd", true, "Add an outside address to the address list, so it can go on lists", () => NewContact(null, null))
+            : new ListPrimaryAction("New Contact", "PersonAdd", false, createUsers.Reason ?? "This tenant can't be edited");
+        Contacts.SelectionPanel = (rows, uncheck) =>
+            Records.SelectionPanelViewModel.ForContacts(rows, uncheck, _index, _tenant.Changes, Evaluate(Capabilities.EditUsers));
         var manageDevices = Evaluate(Capabilities.ManageDevices);
         Devices = DataListViewModel.Create(DeviceList.Definition(d => new Records.DevicePreviewViewModel(d, _tenant.Changes, manageDevices, _now, _index, OpenUser)),
             LoadDevicesAsync, OpenDevice, tenant.ListState, _now);
@@ -117,6 +124,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         var shared = new SharedListPreferences(preferences ?? new MemoryAppPreferencesStore());
         Users.FollowSharedPreferences(shared);
         Groups.FollowSharedPreferences(shared);
+        Contacts.FollowSharedPreferences(shared);
         Devices.FollowSharedPreferences(shared);
         DevicesArea.Autopilot.FollowSharedPreferences(shared);
         SharePoint.Sites.FollowSharedPreferences(shared);
@@ -213,6 +221,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         Sections =
         [
             new NavSection("users", "Users", readUsers.Reason),
+            new NavSection("contacts", "Contacts", readUsers.Reason),
             new NavSection("groups", GroupList.AreaTitle, readUsers.Reason),
             new NavSection("mail", "Mail & Security", MailSecurity is null ? "Mail & Security needs Exchange Online" : mailSecurity.Reason),
             new NavSection("sharepoint", "SharePoint & OneDrive", readUsers.Reason),
@@ -242,6 +251,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     public DataListViewModel Users { get; }
 
     public DataListViewModel Groups { get; }
+
+    /// <summary>Mail contacts: outside addresses in the address list (its own sidebar entry, below Users).</summary>
+    public DataListViewModel Contacts { get; }
 
     public DataListViewModel Devices { get; }
 
@@ -471,19 +483,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     /// <summary>Lists in sidebar order, so each sidebar entry maps to one list tab.</summary>
     IEnumerable<(string Section, DataListViewModel List)> AreaLists =>
-        [("users", Users), ("groups", Groups), ("devices", Devices), ("sharepoint", SharePoint.Sites), ("sharepoint", SharePoint.OneDrives)];
+        [("users", Users), ("groups", Groups), ("contacts", Contacts), ("devices", Devices), ("sharepoint", SharePoint.Sites), ("sharepoint", SharePoint.OneDrives)];
 
     /// <summary>Each sidebar entry's tab: a list, or an area with pages of its own.</summary>
     IEnumerable<(string Section, TabViewModel Tab)> AreaTabs =>
     [
-        ("users", Users), ("groups", Groups), ("devices", DevicesArea), ("sharepoint", SharePoint), ("security", SecurityArea), ("reports", Reports),
+        ("users", Users), ("contacts", Contacts), ("groups", Groups), ("devices", DevicesArea), ("sharepoint", SharePoint), ("security", SecurityArea), ("reports", Reports),
         .. MailSecurity is null ? Array.Empty<(string, TabViewModel)>() : [("mail", (TabViewModel)MailSecurity)],
     ];
 
     IReadOnlyList<DeviceSummary> _devices = [];
 
-    async Task<IReadOnlyList<DeviceSummary>> LoadDevicesAsync(CancellationToken cancellationToken) =>
+    async Task<IReadOnlyList<DeviceSummary>> LoadDevicesAsync(CancellationToken cancellationToken)
+    {
         _devices = await _tenant.Directory.GetDevicesAsync(cancellationToken);
+        _index.SetDevices(_devices);
+        return _devices;
+    }
 
     /// <summary>Opens a device's record page, or switches to it if it is already open.</summary>
     public void OpenDevice(DeviceSummary device)
@@ -535,13 +551,41 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     {
         var groups = await _tenant.Directory.GetGroupsAsync(cancellationToken);
         _index.SetGroups(groups);
+        // Lists name their outside members from the contacts (with the lists each is on).
+        _index.SetContacts(WithLists(await _tenant.Directory.GetContactsAsync(cancellationToken), groups));
+        // Groups of devices name them from the local copy of devices (read here if not yet).
+        if (!_index.HasDevices && groups.Any(g => g.Members.Any(m => m.Type == "device")))
+            _index.SetDevices(await _tenant.Directory.GetDevicesAsync(cancellationToken));
         return groups;
+    }
+
+    async Task<IReadOnlyList<ContactSummary>> LoadContactsAsync(CancellationToken cancellationToken)
+    {
+        var contacts = WithLists(await _tenant.Directory.GetContactsAsync(cancellationToken), [.. _index.AllGroups]);
+        _index.SetContacts(contacts);
+        return contacts;
+    }
+
+    /// <summary>Each contact with the groups and lists it's a direct member of.</summary>
+    static IReadOnlyList<ContactSummary> WithLists(IReadOnlyList<ContactSummary> contacts, IReadOnlyList<GroupSummary> groups)
+    {
+        var lists = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var g in groups)
+            foreach (var m in g.Members)
+                if (m.Type == "orgContact")
+                {
+                    if (!lists.TryGetValue(m.Id, out var on))
+                        lists[m.Id] = on = [];
+                    on.Add(g.Id);
+                }
+        return contacts.Select(c => c with { ListIds = lists.TryGetValue(c.Id, out var on) ? on : [] }).ToArray();
     }
 
     async Task LoadListsAsync(CancellationToken cancellationToken)
     {
         await Users.LoadAsync(cancellationToken);
         await Groups.LoadAsync(cancellationToken);
+        await Contacts.LoadAsync(cancellationToken);
         await Devices.LoadAsync(cancellationToken);
         await SharePoint.Sites.LoadAsync(cancellationToken);
         await SharePoint.OneDrives.LoadAsync(cancellationToken);
@@ -551,6 +595,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     {
         await Users.ReloadAsync(cancellationToken);
         await Groups.ReloadAsync(cancellationToken);
+        await Contacts.ReloadAsync(cancellationToken);
         await Devices.ReloadAsync(cancellationToken);
         await SharePoint.Sites.ReloadAsync(cancellationToken);
         await SharePoint.OneDrives.ReloadAsync(cancellationToken);
@@ -607,7 +652,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         {
             const string first = "Downloading the directory for the first time…";
             // Every list the download fills shows the wheel, not "nothing matches", until it's done.
-            DataListViewModel[] filling = [Users, Groups, Devices, SharePoint.Sites, SharePoint.OneDrives];
+            DataListViewModel[] filling = [Users, Groups, Contacts, Devices, SharePoint.Sites, SharePoint.OneDrives];
             foreach (var list in filling)
                 list.ShowLoading(first);
             var progress = new Progress<string>(text =>
@@ -1029,6 +1074,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             if (_index.Group(page.Group.Id) is { } updated)
                 page.Update(updated);
         }
+        foreach (var page in Tabs.OfType<ContactDetailViewModel>().ToArray())
+        {
+            // A deleted contact's page closes.
+            if (_index.Contact(page.Contact.Id) is { } updated)
+                page.Update(updated);
+            else
+                CloseTab(page);
+        }
         foreach (var page in Tabs.OfType<SiteDetailViewModel>())
         {
             if (_sites.FirstOrDefault(s => s.Id == page.Site.Id) is { } updated)
@@ -1047,6 +1100,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             userPreview.Update(u);
         if (Groups.PreviewModel is GroupDetailViewModel groupPreview && _index.Group(groupPreview.Group.Id) is { } g)
             groupPreview.Update(g);
+        if (Contacts.PreviewModel is ContactDetailViewModel contactPreview && _index.Contact(contactPreview.Contact.Id) is { } c)
+            contactPreview.Update(c);
     }
 
     /// <summary>Opens a group's record page, or switches to it if it is already open.</summary>
@@ -1063,7 +1118,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     }
 
     GroupDetailViewModel NewGroupPage(GroupSummary group) =>
-        Fresh(new GroupDetailViewModel(group, _index, OpenUser, OpenGroup, _tenant.Changes, Evaluate(Capabilities.EditUsers), ShowDialog, CloseDialog));
+        Fresh(new GroupDetailViewModel(group, _index, OpenUser, OpenGroup, _tenant.Changes, Evaluate(Capabilities.EditUsers), ShowDialog, CloseDialog,
+            OpenContact, _tenant.Changes is not null && Evaluate(Capabilities.EditUsers).IsAvailable ? (g, typed) => NewContact(typed, g) : null));
+
+    /// <summary>Opens a contact's page, or switches to it if it is already open.</summary>
+    public void OpenContact(ContactSummary contact)
+    {
+        if (Dialog is not null)
+            CloseDialog();
+        OpenTab(t => t is ContactDetailViewModel p && p.Contact.Id == contact.Id, () => NewContactPage(contact, preview: false));
+    }
+
+    /// <summary>A contact's record: the preview offers its page; the page is the page.</summary>
+    ContactDetailViewModel NewContactPage(ContactSummary contact, bool preview) =>
+        new(_index.Contact(contact.Id) ?? contact, _index, _tenant.Changes, Evaluate(Capabilities.EditUsers), OpenGroup, preview ? OpenContact : null);
+
+    /// <summary>Opens New Contact: from the Contacts list, or from a list (which it then joins).</summary>
+    void NewContact(string? email, GroupSummary? list)
+    {
+        if (_tenant.Changes is { } changes)
+            ShowDialog(new Records.DialogViewModel("New Contact", list?.DisplayName ?? TenantName,
+                new Records.NewContactViewModel(changes, _index, CloseDialog, email, list)));
+    }
 
     // ---- Ctrl+K ---------------------------------------------------------------------------
 
@@ -1099,6 +1175,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             entries.Add(g.IsMailbox
                 ? new PaletteEntry("Mailbox", g.DisplayName, $"{g.Mail} · {GroupSummary.KindName(g.Kind)}", "Mail", searchText, () => OpenGroup(g))
                 : new PaletteEntry("Group", g.DisplayName, g.Mail ?? GroupSummary.KindName(g.Kind), "People", searchText, () => OpenGroup(g)));
+        }
+        foreach (var c in _index.AllContacts)
+        {
+            var searchText = string.Join(' ', c.DisplayName, c.Email, c.Company, "contact").ToLowerInvariant();
+            entries.Add(new PaletteEntry("Contact", c.DisplayName, string.Join(" · ", new[] { c.Email, c.Company }.Where(s => !string.IsNullOrEmpty(s))),
+                "ContactCard", searchText, () =>
+                {
+                    SelectedSection = Sections.First(x => x.Key == "contacts");
+                    OpenContact(c);
+                }));
         }
         foreach (var d in _devices)
         {
@@ -1147,6 +1233,30 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         Dictionary<string, UserSummary> _users = new(StringComparer.Ordinal);
         Dictionary<string, UserSummary> _byUpn = new(StringComparer.OrdinalIgnoreCase);
         Dictionary<string, GroupSummary> _groups = new(StringComparer.Ordinal);
+        Dictionary<string, DeviceSummary> _devices = new(StringComparer.Ordinal);
+
+        public bool HasDevices => _devices.Count > 0;
+
+        public void SetDevices(IReadOnlyList<DeviceSummary> devices)
+        {
+            var byId = new Dictionary<string, DeviceSummary>(devices.Count, StringComparer.Ordinal);
+            foreach (var d in devices)
+                if (d.ObjectId is { } id)
+                    byId.TryAdd(id, d);
+            _devices = byId;
+        }
+
+        public DeviceSummary? Device(string id) => _devices.GetValueOrDefault(id);
+
+        Dictionary<string, ContactSummary> _contacts = new(StringComparer.Ordinal);
+
+        public bool HasContacts => _contacts.Count > 0;
+
+        public void SetContacts(IReadOnlyList<ContactSummary> contacts) => _contacts = contacts.ToDictionary(c => c.Id, StringComparer.Ordinal);
+
+        public ContactSummary? Contact(string id) => _contacts.GetValueOrDefault(id);
+
+        public IEnumerable<ContactSummary> AllContacts => _contacts.Values;
 
         public void SetUsers(IReadOnlyList<UserSummary> users)
         {

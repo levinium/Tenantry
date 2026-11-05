@@ -1,0 +1,94 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:dir="using:Tenantry.Core.Directory"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.NewContactView"
+             x:DataType="rec:NewContactViewModel"
+             x:Name="Root">
+  <StackPanel Spacing="18" Width="640" HorizontalAlignment="Left">
+    <TextBlock Classes="muted" TextWrapping="Wrap"
+               Text="A contact puts someone from outside the organization in the address list, so they can go on distribution lists and be found in Outlook. They don't get an account." />
+
+    <!-- Address -->
+    <StackPanel Spacing="10">
+      <TextBlock Classes="label" Text="EMAIL ADDRESS" />
+      <TextBox Text="{Binding Email}" PlaceholderText="name@example.com" c:FocusWhen.Value="True" />
+    </StackPanel>
+
+    <!-- Name -->
+    <StackPanel Spacing="10">
+      <TextBlock Classes="label" Text="NAME" />
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="caption" Text="First Name (Optional)" />
+          <TextBox Text="{Binding FirstName}" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="4">
+          <TextBlock Classes="caption" Text="Last Name (Optional)" />
+          <TextBox Text="{Binding LastName}" />
+        </StackPanel>
+      </Grid>
+      <StackPanel Spacing="4">
+        <TextBlock Classes="caption" Text="Display Name" />
+        <TextBox Text="{Binding DisplayName}" PlaceholderText="How it appears in Outlook and the address list" />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <TextBlock Classes="caption" Text="Company (Optional)" />
+        <TextBox Text="{Binding Company}" />
+      </StackPanel>
+    </StackPanel>
+
+    <!-- Options -->
+    <StackPanel Spacing="8">
+      <TextBlock Classes="label" Text="OPTIONS" />
+      <CheckBox IsChecked="{Binding Hidden}" Content="Hide It from the Address List (It Can Still Be Mailed and Put on Lists)" />
+    </StackPanel>
+
+    <!-- Lists -->
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label" Text="LISTS IT JOINS" />
+      <ItemsControl ItemsSource="{Binding Lists}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="6" LineSpacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="dir:GroupSummary">
+            <Border Classes="chip">
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                <Button Classes="chipx" Command="{Binding #Root.((rec:NewContactViewModel)DataContext).RemoveListCommand}" CommandParameter="{Binding}"
+                        ToolTip.Tip="Don't add it to this list">
+                  <ic:FluentIcon Icon="Dismiss" FontSize="11" />
+                </Button>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <views:AddButton DataContext="{Binding ListPicker}" Text="Add to a List" HorizontalAlignment="Left"
+                       Hint="Distribution lists and security groups. Choose from the list, or type to narrow it." />
+    </StackPanel>
+
+    <!-- What still needs doing, then add -->
+    <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding ShowProblems}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="x:String">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+            <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="accent" Command="{Binding AddCommand}" Content="Add to Pending Changes"
+              ToolTip.Tip="Nothing is created until you apply the pending changes" />
+      <Button Command="{Binding CancelCommand}" Content="Cancel" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

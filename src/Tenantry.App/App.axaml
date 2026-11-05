@@ -31,6 +31,9 @@
     <DataTemplate DataType="rec:NewGroupViewModel">
       <views:NewGroupView />
     </DataTemplate>
+    <DataTemplate DataType="rec:NewContactViewModel">
+      <views:NewContactView />
+    </DataTemplate>
     <DataTemplate DataType="rec:NewSiteViewModel">
       <views:NewSiteView />
     </DataTemplate>

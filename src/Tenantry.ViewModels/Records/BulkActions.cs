@@ -556,6 +556,50 @@ public static partial class BulkActions
         return actions;
     }
 
+    // ---- Contacts ---------------------------------------------------------------------------
+
+    /// <param name="selected">The contacts checked right now (read each time).</param>
+    public static IReadOnlyList<BulkAction> ForContacts(Func<IReadOnlyList<ContactSummary>> selected, IDirectoryIndex index)
+    {
+        static ChangeOp Join(ContactSummary c, GroupSummary g, bool add) =>
+            new SetGroupMembership(GroupAccess.Target(g), GroupAccess.Target(c), "orgContact", GroupRole.Member, g.IsExchangeManaged, !add, add);
+        BulkPlan OnList(GroupSummary? g, bool add) => g is null
+            ? BulkPlan.Invalid("That list isn't in the local copy any more.")
+            : Plan(selected(), c => c.Lists.Contains(g.Id) == add
+                ? (null, $"{c.DisplayName}: {(add ? "already on it" : "not on it")}")
+                : (Join(c, g, add), null));
+        BulkPlan Hide(bool hide) => Plan(selected(), c =>
+            c.SyncedFromOnPremises ? (null, $"{c.DisplayName}: synced from on-premises AD")
+            : c.Hidden == hide ? (null, $"{c.DisplayName}: already {(hide ? "hidden" : "shown")}")
+            : (new SetHiddenFromAddressList(GroupAccess.Target(c), c.Hidden ?? false, hide), null));
+        return
+        [
+            new("Add to a List", "Put every selected contact on one distribution list or security group.", "PeopleAdd",
+                (a, _) => Task.FromResult(OnList(index.Group(a.Picked!.Id), true)),
+                pickPlaceholder: "Choose a list: type its name",
+                pickOptions: () => index.AllGroups.Where(g => GroupAccess.TakesContacts(g) && GroupAccess.MembersEditable(g)).Select(PickOption.Of)),
+            new("Remove from a List", "Take every selected contact off one list.", "PeopleRemove",
+                (a, _) => Task.FromResult(OnList(index.Group(a.Picked!.Id), false)),
+                pickPlaceholder: "Choose a list they're on: type its name",
+                pickOptions: () =>
+                {
+                    var on = selected().SelectMany(c => c.Lists).ToHashSet(StringComparer.Ordinal);
+                    return index.AllGroups.Where(g => on.Contains(g.Id) && GroupAccess.MembersEditable(g)).Select(PickOption.Of);
+                },
+                isCaution: true),
+            new("Hide from the Address List", "People won't find them in Outlook's address book. They can still be mailed and stay on their lists.", "EyeOff",
+                (_, _) => Task.FromResult(Hide(true))),
+            new("Show in the Address List", "People find them in Outlook's address book again.", "Eye",
+                (_, _) => Task.FromResult(Hide(false))),
+            new("Delete Contacts", "Each leaves every list it's on. Deleted contacts can't be restored.", "Delete",
+                (_, _) => Task.FromResult(Plan(selected(), c => c.SyncedFromOnPremises
+                    ? (null, $"{c.DisplayName}: synced from on-premises AD (delete it there)")
+                    : (new DeleteContact(GroupAccess.Target(c), string.Join(" · ", new[] { c.Email, c.Lists.Count == 1 ? "on 1 list" : $"on {c.Lists.Count} lists" }
+                        .Where(s => !string.IsNullOrEmpty(s)))), null))),
+                isCaution: true),
+        ];
+    }
+
     // ---- Autopilot --------------------------------------------------------------------------
 
     /// <summary>An Autopilot device as a change target, named by its serial number.</summary>

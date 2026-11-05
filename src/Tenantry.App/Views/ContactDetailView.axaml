@@ -1,0 +1,158 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:views="using:Tenantry.App.Views"
+             x:Class="Tenantry.App.Views.ContactDetailView"
+             x:DataType="vm:ContactDetailViewModel"
+             x:Name="Root">
+  <UserControl.DataTemplates>
+    <!-- A list it's on: open the list, take it off (or undo) on the right. -->
+    <DataTemplate DataType="rec:PersonRow">
+      <Border Classes="valuerow">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="12">
+          <StackPanel Spacing="1" VerticalAlignment="Center">
+            <Button Classes="namelink" IsVisible="{Binding CanOpen}" Command="{Binding OpenCommand}" ToolTip.Tip="Open the list's page">
+              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+            </Button>
+            <TextBlock Text="{Binding Name}" IsVisible="{Binding !CanOpen}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+          <c:Badge Grid.Column="2" Text="{Binding TypeText}" Kind="{Binding TypeKind}" VerticalAlignment="Center" />
+          <Button Grid.Column="3" Classes="danger-outline quiet" Classes.undo="{Binding HasPending}" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}"
+                  IsVisible="{Binding ShowRemove}"
+                  ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
+            <Panel>
+              <TextBlock Text="Remove" IsVisible="{Binding !HasPending}" />
+              <TextBlock Text="Undo" IsVisible="{Binding HasPending}" />
+            </Panel>
+          </Button>
+        </Grid>
+      </Border>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <ScrollViewer>
+    <StackPanel Margin="8,12,8,24" Spacing="16" MaxWidth="1100" HorizontalAlignment="Stretch">
+
+      <!-- Which contact -->
+      <Border Classes="card">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="20">
+          <Border Classes="avatar large" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Initials}" />
+          </Border>
+          <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+            <TextBlock Classes="h1" Text="{Binding Contact.DisplayName}" TextWrapping="Wrap" />
+            <SelectableTextBlock Classes="muted" Text="{Binding Email}" />
+            <TextBlock Classes="muted" Text="{Binding WorkText}" IsVisible="{Binding HasWorkText}" />
+            <WrapPanel ItemSpacing="8" LineSpacing="8" Margin="0,6,0,0">
+              <c:Badge Text="Contact" Kind="Neutral" />
+              <c:Badge Text="Hidden from the Address List" Kind="Warning" IsVisible="{Binding IsHidden}" />
+              <c:Badge Text="Synced from On-Premises AD" Kind="Neutral" IsVisible="{Binding IsSynced}" />
+            </WrapPanel>
+          </StackPanel>
+          <Panel Grid.Column="2" VerticalAlignment="Top">
+            <Button Classes="danger" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanEdit}" IsVisible="{Binding !HasPendingDelete}"
+                    ToolTip.Tip="{Binding DeleteTip}" ToolTip.ShowOnDisabled="True">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Delete" FontSize="14" />
+                <TextBlock Text="Delete Contact" />
+              </StackPanel>
+            </Button>
+            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasPendingDelete}">
+              <c:Badge Text="Deleting" Kind="Danger" VerticalAlignment="Center" />
+              <Button Command="{Binding DeleteCommand}" Content="Undo" ToolTip.Tip="Keep the contact" />
+            </StackPanel>
+          </Panel>
+        </Grid>
+      </Border>
+
+      <Border Classes="banner neutral" IsVisible="{Binding IsSynced}">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+          <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{x:Static vm:ContactDetailViewModel.SyncedReason}" />
+        </StackPanel>
+      </Border>
+
+      <!-- Its details, one card per kind, edited in place -->
+      <ItemsControl ItemsSource="{Binding Details}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="12" LineSpacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="rec:FieldGroup">
+            <Border Classes="card" Width="340">
+              <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="18" Foreground="{DynamicResource Accent}" />
+                  <TextBlock Classes="h3" Text="{Binding Title}" VerticalAlignment="Center" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding Fields}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <StackPanel Spacing="12" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="ed:EditableField">
+                      <views:EditableFieldView />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <!-- The address list -->
+      <Border Classes="card" Width="340" HorizontalAlignment="Left">
+        <StackPanel Spacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="BookContacts" FontSize="18" Foreground="{DynamicResource Accent}" />
+            <TextBlock Classes="h3" Text="Address List" VerticalAlignment="Center" />
+          </StackPanel>
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+            <ToggleSwitch IsChecked="{Binding ShowsInAddressList}" IsEnabled="{Binding CanEdit}" OnContent="" OffContent="" MinWidth="0"
+                          VerticalAlignment="Center" ToolTip.Tip="{Binding AddressListTip}" ToolTip.ShowOnDisabled="True" />
+            <TextBlock Grid.Column="1" Text="{Binding AddressListState}" VerticalAlignment="Center" TextWrapping="Wrap" />
+            <c:Badge Grid.Column="2" Text="Pending" Kind="Info" IsVisible="{Binding HasPendingHidden}" VerticalAlignment="Center" />
+          </Grid>
+          <TextBlock Classes="caption" Text="{Binding AddressListText}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <!-- The lists it's on -->
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <TextBlock Classes="h3" Text="{Binding ListsHeading}" />
+          <TextBlock Classes="muted" TextWrapping="Wrap"
+                     Text="Distribution lists and security groups this contact is a member of. Mail to a list reaches it at its outside address." />
+          <c:ReadableWidth>
+            <StackPanel Spacing="10">
+              <Panel IsEnabled="{Binding CanEditLists}" HorizontalAlignment="Left">
+                <views:AddButton DataContext="{Binding ListPicker}" Text="Add to a List"
+                                 Hint="Choose distribution lists or security groups. They go to Pending Changes." />
+              </Panel>
+              <TextBlock Classes="muted" Text="Not on any list." IsVisible="{Binding HasNoLists}" />
+              <ItemsControl ItemsSource="{Binding Lists}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="6" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </StackPanel>
+          </c:ReadableWidth>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

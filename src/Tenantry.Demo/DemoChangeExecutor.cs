@@ -65,6 +65,8 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
                 members, group.Owners.Select(o => new GroupMember(o.Id, "user")).ToArray()));
             return new ApplyResult(ChangeOutcome.Applied);
         }
+        if (await ApplyContactAsync(change, cancellationToken) is { } contacted)
+            return contacted;
         if (change is ConvertMailbox convert)
             return Mailbox(convert.User.Id, m => m with { Type = convert.NewShared ? "Shared" : "User" })
                    ?? new ApplyResult(ChangeOutcome.Failed, "That person has no mailbox.");
@@ -163,6 +165,46 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
         return create.Chosen is null
             ? new ApplyResult(ChangeOutcome.Applied, Reveal: PasswordStyle.Create())
             : new ApplyResult(ChangeOutcome.Applied, "Created with the password you chose (demo).");
+    }
+
+    /// <summary>Mail contacts: made, changed, hidden or deleted (leaving every list); null for other changes.</summary>
+    async Task<ApplyResult?> ApplyContactAsync(ChangeOp change, CancellationToken cancellationToken)
+    {
+        switch (change)
+        {
+            case CreateContact c:
+            {
+                var id = $"demo-c-{Guid.NewGuid():N}";
+                directory.AddContact(new ContactSummary(id, c.Contact.Name, c.Contact.Address, Empty(c.FirstName), Empty(c.LastName), Empty(c.Company), Hidden: c.Hidden));
+                foreach (var list in c.Lists)
+                    directory.UpdateGroup(list.Group.Id, g => g with { Members = Toggle(g.Members, id, "orgContact", null, true) });
+                return new ApplyResult(ChangeOutcome.Applied);
+            }
+            case SetContactText t:
+                return Done(directory.UpdateContact(t.Contact.Id, x => t.Parameter switch
+                {
+                    "DisplayName" => x with { DisplayName = Empty(t.New) ?? x.DisplayName },
+                    SetContactText.Address => x with { Email = Empty(t.New) ?? x.Email },
+                    "FirstName" => x with { FirstName = Empty(t.New) },
+                    "LastName" => x with { LastName = Empty(t.New) },
+                    "Company" => x with { Company = Empty(t.New) },
+                    "Department" => x with { Department = Empty(t.New) },
+                    "Title" => x with { JobTitle = Empty(t.New) },
+                    "Phone" => x with { Phone = Empty(t.New) },
+                    "MobilePhone" => x with { Mobile = Empty(t.New) },
+                    _ => x,
+                }));
+            case SetHiddenFromAddressList { User.Kind: ContactChange.Kind } h:
+                return Done(directory.UpdateContact(h.User.Id, x => x with { Hidden = h.New }));
+            case DeleteContact d:
+                if (!directory.UpdateContact(d.Contact.Id, _ => null))
+                    return null;
+                foreach (var g in (await directory.GetGroupsAsync(cancellationToken)).Where(g => g.Members.Any(m => m.Id == d.Contact.Id)).ToArray())
+                    directory.UpdateGroup(g.Id, x => x with { Members = Toggle(x.Members, d.Contact.Id, "orgContact", null, false) });
+                return new ApplyResult(ChangeOutcome.Applied);
+            default:
+                return null;
+        }
     }
 
     /// <summary>Changes the Mail tab's settings and, when given, the list's copy of the mailbox.</summary>

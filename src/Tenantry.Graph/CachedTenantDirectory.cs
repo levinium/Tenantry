@@ -324,6 +324,55 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             }
         }, cancellationToken);
 
+    /// <summary>Entra's contacts, with Exchange's address list setting where it has been read.</summary>
+    public Task<IReadOnlyList<ContactSummary>> GetContactsAsync(CancellationToken cancellationToken = default) =>
+        Task.Run<IReadOnlyList<ContactSummary>>(() =>
+        {
+            var exchange = new Dictionary<string, (bool Hidden, string? Address)>(StringComparer.Ordinal);
+            foreach (var json in store.All(DirectorySync.MailContacts))
+            {
+                using var m = JsonDocument.Parse(json);
+                if (Str(m.RootElement, "ExternalDirectoryObjectId") is { } id)
+                    exchange[id] = (Bool(m.RootElement, "HiddenFromAddressListsEnabled"), DirectorySync.SmtpAddress(m.RootElement, "ExternalEmailAddress"));
+            }
+            var stored = store.All(DirectorySync.Contacts);
+            var contacts = new List<ContactSummary>(stored.Count);
+            foreach (var json in stored)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var c = JsonDocument.Parse(json);
+                var contact = ToContact(c.RootElement);
+                if (exchange.TryGetValue(contact.Id, out var mail))
+                    contact = contact with { Hidden = mail.Hidden, Email = mail.Address ?? contact.Email };
+                contacts.Add(contact);
+            }
+            return contacts;
+        }, cancellationToken);
+
+    public static ContactSummary ToContact(JsonElement c)
+    {
+        string? phone = null, mobile = null;
+        if (c.TryGetProperty("phones", out var phones) && phones.ValueKind == JsonValueKind.Array)
+            foreach (var p in phones.EnumerateArray())
+            {
+                var number = Str(p, "number");
+                if (string.IsNullOrEmpty(number))
+                    continue;
+                if (Str(p, "type") == "mobile")
+                    mobile ??= number;
+                else if (Str(p, "type") == "business")
+                    phone ??= number;
+            }
+        var first = Str(c, "givenName");
+        var last = Str(c, "surname");
+        var mail = Str(c, "mail");
+        var name = Str(c, "displayName") is { Length: > 0 } n ? n
+            : string.Join(' ', new[] { first, last }.Where(s => !string.IsNullOrEmpty(s))) is { Length: > 0 } full ? full
+            : mail ?? Str(c, "id")!;
+        return new ContactSummary(Str(c, "id")!, name, mail, first, last, Str(c, "companyName"), Str(c, "department"), Str(c, "jobTitle"),
+            phone, mobile, Bool(c, "onPremisesSyncEnabled"));
+    }
+
     public Task<IReadOnlyList<SiteSummary>> GetSitesAsync(CancellationToken cancellationToken = default) =>
         Task.Run<IReadOnlyList<SiteSummary>>(() =>
         {
