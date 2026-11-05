@@ -115,6 +115,11 @@
       </Border>
     </WrapPanel>
 
+    <!-- Mail settings (Exchange), for groups with mail -->
+    <Border Classes="card" IsVisible="{Binding HasMail}">
+      <ContentControl Content="{Binding Mail}" />
+    </Border>
+
     <!-- Delete -->
     <StackPanel Orientation="Horizontal" Spacing="8">
       <Button Classes="danger" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanEdit}" IsVisible="{Binding !HasPendingDelete}"

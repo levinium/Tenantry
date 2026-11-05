@@ -16,6 +16,9 @@ public interface IGroupRecords
 
     /// <summary>Checks one person against a rule that hasn't been saved (Entra's beta evaluateDynamicMembership).</summary>
     Task<RuleTest> TestRuleAsync(string rule, string personId, string personName, CancellationToken cancellationToken = default);
+
+    /// <summary>A mail-enabled group's mail settings, from Exchange.</summary>
+    Task<GroupMail> GetGroupMailAsync(GroupSummary group, CancellationToken cancellationToken = default);
 }
 
 /// <summary>What can be changed on a group, by kind (from docs/research/group-settings-catalog.md).</summary>

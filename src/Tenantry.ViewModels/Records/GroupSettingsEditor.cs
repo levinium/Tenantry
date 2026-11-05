@@ -28,8 +28,11 @@ public sealed partial class GroupSettingsEditor : ObservableObject, IDisposable
     readonly Availability _canEdit;
     readonly IGroupRecords? _records;
 
-    public GroupSettingsEditor(GroupSummary group, IDirectoryIndex index, ChangePipeline? pipeline, Availability canEdit, IGroupRecords? records)
+    public GroupSettingsEditor(GroupSummary group, IDirectoryIndex index, ChangePipeline? pipeline, Availability canEdit, IGroupRecords? records,
+        IUserRecords? users = null)
     {
+        if (group.Kind is GroupKind.Microsoft365 or GroupKind.Distribution or GroupKind.MailEnabledSecurity)
+            Mail = new GroupMailEditor(group, index, pipeline, canEdit, records, users);
         _group = group;
         _index = index;
         _pipeline = pipeline;
@@ -51,12 +54,17 @@ public sealed partial class GroupSettingsEditor : ObservableObject, IDisposable
 
     public bool IsSynced => _group.SyncedFromOnPremises;
 
+    /// <summary>Its mail settings, read from Exchange when shown; null for a security group (no mail).</summary>
+    public GroupMailEditor? Mail { get; }
+
+    public bool HasMail => Mail is not null;
+
     // ---- Name, description, alias, privacy ---------------------------------------------
 
     [ObservableProperty]
     public partial IReadOnlyList<FieldGroup> Details { get; private set; } = [];
 
-    bool HasMail => _group.Kind is GroupKind.Microsoft365 or GroupKind.Distribution or GroupKind.MailEnabledSecurity;
+    bool MailKind => _group.Kind is GroupKind.Microsoft365 or GroupKind.Distribution or GroupKind.MailEnabledSecurity;
 
     void Build()
     {
@@ -74,7 +82,7 @@ public sealed partial class GroupSettingsEditor : ObservableObject, IDisposable
                 hint: "How it appears in Outlook, Teams and the address list."),
             Field("Description", SetGroupSetting.Description, _group.Description, hint: "What it's for, shown to people who find it."),
         ];
-        if (HasMail)
+        if (MailKind)
             about.Add(Field("Alias", SetGroupSetting.Alias, _group.MailNickname ?? _group.Mail?.Split('@')[0], required: true, validate: GroupRules.AliasProblem,
                 hint: "The name it's known by inside Microsoft 365. Its email address doesn't change with it."));
         if (_group.Kind == GroupKind.Microsoft365)
@@ -274,5 +282,6 @@ public sealed partial class GroupSettingsEditor : ObservableObject, IDisposable
     {
         if (_pipeline is not null)
             _pipeline.Changed -= OnPendingChanged;
+        Mail?.Dispose();
     }
 }

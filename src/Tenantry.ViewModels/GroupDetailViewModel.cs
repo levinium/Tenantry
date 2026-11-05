@@ -87,7 +87,8 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
             openContact is null ? null : c => { _closeDialog?.Invoke(); openContact(c); });
         // A mailbox's own settings live on its account (Users); a group's are edited here.
         if (!group.IsMailbox)
-            Settings = new GroupSettingsEditor(group, index, pipeline, canEdit ?? Availability.No("Editing isn't available here"), groupRecords);
+            Settings = new GroupSettingsEditor(group, index, pipeline, canEdit ?? Availability.No("Editing isn't available here"), groupRecords,
+                groupRecords as IUserRecords);
         if (newContact is not null && GroupAccess.TakesContacts(group))
             People.NewContact = typed => { _closeDialog?.Invoke(); newContact(Group, typed); };
         if (pipeline is not null && openDialog is not null && closeDialog is not null)

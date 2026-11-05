@@ -39,6 +39,11 @@ public sealed class GroupSettingsTests
         public List<string> Tested { get; } = [];
         public Task<IReadOnlyList<DeletedGroup>> GetDeletedGroupsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<DeletedGroup>>([]);
 
+        /// <summary>Set to a group's settings for the mail tests; empty otherwise.</summary>
+        public GroupMail Mail { get; set; } = new(null, [], false, false, [], [], false, [], [], "Always", null, [], []);
+
+        public Task<GroupMail> GetGroupMailAsync(GroupSummary group, CancellationToken cancellationToken = default) => Task.FromResult(Mail);
+
         public Task<RuleTest> TestRuleAsync(string rule, string personId, string personName, CancellationToken cancellationToken = default)
         {
             Tested.Add(rule);

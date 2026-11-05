@@ -1,0 +1,210 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.GroupMailEditorView"
+             x:DataType="rec:GroupMailEditor"
+             x:Name="Root">
+  <UserControl.DataTemplates>
+    <!-- Someone on a list: their name, then Remove (or Undo) -->
+    <DataTemplate DataType="rec:PersonRow">
+      <Border Classes="valuerow">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+          <StackPanel Spacing="1" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+          <c:Badge Grid.Column="2" Text="{Binding TypeText}" Kind="{Binding TypeKind}" IsVisible="{Binding ShowType}" VerticalAlignment="Center" />
+          <Button Grid.Column="3" Classes="danger-outline quiet" Classes.undo="{Binding HasPending}" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}"
+                  IsVisible="{Binding ShowRemove}" ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
+            <Panel>
+              <TextBlock Text="Remove" IsVisible="{Binding !HasPending}" />
+              <TextBlock Text="Undo" IsVisible="{Binding HasPending}" />
+            </Panel>
+          </Button>
+        </Grid>
+      </Border>
+    </DataTemplate>
+
+    <!-- A list of people: heading, what it does, the people, Add -->
+    <DataTemplate DataType="rec:MailPeopleList">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="label" Text="{Binding Title}" />
+        <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+        <TextBlock Classes="muted" Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}" />
+        <ItemsControl ItemsSource="{Binding Rows}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="4" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+        <Panel HorizontalAlignment="Left" IsEnabled="{Binding #Root.((rec:GroupMailEditor)DataContext).CanEdit}">
+          <views:AddButton DataContext="{Binding Picker}" Text="{Binding $parent[Panel].((rec:MailPeopleList)DataContext).AddText}"
+                           Hint="Choose people, groups or contacts. They go to Pending Changes." />
+        </Panel>
+      </StackPanel>
+    </DataTemplate>
+
+    <!-- An on/off setting -->
+    <DataTemplate DataType="rec:MailToggle">
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+        <ToggleSwitch IsChecked="{Binding IsOn}" IsEnabled="{Binding CanEdit}" OnContent="" OffContent="" MinWidth="0" VerticalAlignment="Top"
+                      ToolTip.Tip="{Binding Tip}" ToolTip.ShowOnDisabled="True" />
+        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+          <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+          <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+        </StackPanel>
+        <c:Badge Grid.Column="2" Text="Pending" Kind="Info" IsVisible="{Binding IsPending}" VerticalAlignment="Top" />
+      </Grid>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <StackPanel Spacing="12">
+    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+      <ic:FluentIcon Icon="Mail" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+      <TextBlock Grid.Column="1" Classes="h3" Text="Mail" VerticalAlignment="Center" />
+      <Button Grid.Column="2" Command="{Binding ReloadCommand}" ToolTip.Tip="Read the mail settings from Exchange again">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+          <TextBlock Text="Refresh" />
+        </StackPanel>
+      </Button>
+    </Grid>
+    <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+      <Panel Width="18" Height="18" VerticalAlignment="Center">
+        <Ellipse Classes="spintrack" />
+        <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+          <Arc.RenderTransform>
+            <RotateTransform />
+          </Arc.RenderTransform>
+        </Arc>
+      </Panel>
+      <TextBlock Classes="muted" Text="Reading the mail settings from Exchange…" VerticalAlignment="Center" />
+    </StackPanel>
+    <Border Classes="banner error" IsVisible="{Binding HasError}">
+      <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
+    </Border>
+
+    <WrapPanel ItemSpacing="12" LineSpacing="12" IsVisible="{Binding IsReady}">
+      <!-- Addresses -->
+      <Border Classes="card" Width="440">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h3" Text="Email Addresses" />
+          <ItemsControl ItemsSource="{Binding Addresses}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="4" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="rec:GroupAddressRow">
+                <Border Classes="valuerow">
+                  <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                    <SelectableTextBlock Text="{Binding Address}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    <c:Badge Grid.Column="1" Text="Primary" Kind="Success" IsVisible="{Binding IsPrimary}" VerticalAlignment="Center" />
+                    <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+                    <Button Grid.Column="2" Content="Make Primary" Command="{Binding MakePrimaryCommand}" IsVisible="{Binding CanMakePrimary}" VerticalAlignment="Center"
+                            ToolTip.Tip="Replies come from this address; the current primary stays as an extra address" />
+                    <Button Grid.Column="3" Classes="danger-outline quiet" Classes.undo="{Binding HasPending}" Command="{Binding RemoveCommand}"
+                            IsVisible="{Binding CanRemove}" VerticalAlignment="Center" ToolTip.Tip="Mail to this address stops arriving (added to Pending Changes)">
+                      <Panel>
+                        <TextBlock Text="Remove" IsVisible="{Binding !HasPending}" />
+                        <TextBlock Text="Undo" IsVisible="{Binding HasPending}" />
+                      </Panel>
+                    </Button>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Button Content="Undo New Primary" Command="{Binding UndoPrimaryCommand}" IsVisible="{Binding HasPendingPrimary}" HorizontalAlignment="Left" />
+          <Button HorizontalAlignment="Left" Command="{Binding StartAddAddressCommand}" IsVisible="{Binding !IsAddingAddress}" IsEnabled="{Binding CanEdit}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="Add" FontSize="14" />
+              <TextBlock Text="Add Address" />
+            </StackPanel>
+          </Button>
+          <StackPanel Spacing="6" IsVisible="{Binding IsAddingAddress}">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+              <TextBox Text="{Binding NewAlias}" PlaceholderText="Name before the @" c:FocusWhen.Value="{Binding IsAddingAddress}">
+                <TextBox.KeyBindings>
+                  <KeyBinding Gesture="Enter" Command="{Binding AddAddressCommand}" />
+                  <KeyBinding Gesture="Escape" Command="{Binding CancelAddAddressCommand}" />
+                </TextBox.KeyBindings>
+              </TextBox>
+              <TextBlock Grid.Column="1" Text="@" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="2" ItemsSource="{Binding Domains}" SelectedItem="{Binding NewDomain}" MinWidth="160" />
+            </Grid>
+            <TextBlock Classes="error" Text="{Binding AddressProblem}" TextWrapping="Wrap"
+                       IsVisible="{Binding AddressProblem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="accent" Content="Add" Command="{Binding AddAddressCommand}" />
+              <Button Content="Cancel" Command="{Binding CancelAddAddressCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Delivery -->
+      <Border Classes="card" Width="440">
+        <StackPanel Spacing="12">
+          <TextBlock Classes="h3" Text="Delivery" />
+          <ItemsControl ItemsSource="{Binding Delivery}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="12" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+          <ItemsControl ItemsSource="{Binding TextSettings}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ed:EditableField">
+                <views:EditableFieldView />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <!-- Who can send -->
+      <Border Classes="card" Width="440">
+        <StackPanel Spacing="14">
+          <TextBlock Classes="h3" Text="Who Can Send" />
+          <ContentControl Content="{Binding AcceptList}" />
+          <ContentControl Content="{Binding RejectList}" />
+        </StackPanel>
+      </Border>
+
+      <!-- Message approval -->
+      <Border Classes="card" Width="440">
+        <StackPanel Spacing="14">
+          <TextBlock Classes="h3" Text="Message Approval" />
+          <ContentControl Content="{Binding Moderation}" />
+          <ContentControl Content="{Binding Moderators}" />
+          <ContentControl Content="{Binding Bypass}" IsVisible="{Binding IsList}" />
+          <ContentControl Content="{Binding Notices}" IsVisible="{Binding IsList}">
+            <ContentControl.ContentTemplate>
+              <DataTemplate x:DataType="ed:EditableField">
+                <views:EditableFieldView />
+              </DataTemplate>
+            </ContentControl.ContentTemplate>
+          </ContentControl>
+        </StackPanel>
+      </Border>
+
+      <!-- Delegates -->
+      <Border Classes="card" Width="440">
+        <StackPanel Spacing="14">
+          <TextBlock Classes="h3" Text="Sending as the Group" />
+          <ContentControl Content="{Binding SendAs}" />
+          <ContentControl Content="{Binding SendOnBehalf}" />
+        </StackPanel>
+      </Border>
+    </WrapPanel>
+  </StackPanel>
+</UserControl>

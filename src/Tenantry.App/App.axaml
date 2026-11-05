@@ -37,6 +37,9 @@
     <DataTemplate DataType="rec:GroupSettingsEditor">
       <views:GroupSettingsEditorView />
     </DataTemplate>
+    <DataTemplate DataType="rec:GroupMailEditor">
+      <views:GroupMailEditorView />
+    </DataTemplate>
     <DataTemplate DataType="rec:DeletedGroupsViewModel">
       <views:DeletedGroupsView />
     </DataTemplate>

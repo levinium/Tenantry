@@ -100,6 +100,8 @@ public sealed partial class EditableField : ObservableObject
         SetUserText t => (true, t.New),
         SetContactText t => (true, t.New),
         SetGroupSetting t => (true, t.New),
+        SetGroupMailValue { Value: null } => (true, null),
+        SetGroupMailValue { Value: System.Text.Json.Nodes.JsonValue v } when v.GetValueKind() == System.Text.Json.JsonValueKind.String => (true, v.GetValue<string>()),
         _ => (false, null),
     };
 

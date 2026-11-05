@@ -51,6 +51,12 @@ public sealed partial class DemoTenantDirectory
     /// <summary>Applies a group setting change; null when it isn't one.</summary>
     public async Task<bool?> ApplyGroupAsync(ChangeOp change, CancellationToken cancellationToken = default)
     {
+        if (change is SetGroupMailValue or SetGroupAddress or SetGroupPrimaryAddress or SetGroupSendAs)
+        {
+            if (change is GroupChange g && !_groupMail.ContainsKey(g.Group.Id) && (await GetGroupsAsync(cancellationToken)).FirstOrDefault(x => x.Id == g.Group.Id) is { } group)
+                await GroupMailAsync(group, cancellationToken);
+            return ApplyGroupMail(change);
+        }
         switch (change)
         {
             case SetGroupSetting s:

@@ -78,6 +78,64 @@ public sealed record DeleteGroup(ChangeTarget Group, GroupKind Kind, string Deta
     public override ChangeOp Since(ChangeOp earlier) => this;
 }
 
+/// <summary>
+/// One Exchange mail setting on a group: Set-UnifiedGroup for a Microsoft 365 group, else
+/// Set-DistributionGroup. <see cref="Value"/> is what's sent (true, "Internal", a list of Entra IDs);
+/// the texts are how it reads. A list is sent whole (Exchange's overwrite form, the one documented
+/// for Microsoft 365 groups).
+/// </summary>
+public sealed record SetGroupMailValue(ChangeTarget Group, GroupKind Kind, string Parameter, string ParameterLabel, string Old, string New,
+    System.Text.Json.Nodes.JsonNode? Value, bool Caution = false) : GroupChange(Group, Kind)
+{
+    public override string Key => "mail:" + Parameter;
+    public override string Label => ParameterLabel;
+    public override string Before => Old;
+    public override string After => New;
+    public override bool IsCaution => Caution;
+    public override bool IsNoChange => string.Equals(Old, New, StringComparison.Ordinal);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetGroupMailValue e ? this with { Old = e.Old } : this;
+
+    /// <summary>The cmdlet for this kind of group.</summary>
+    public string Cmdlet => Kind == GroupKind.Microsoft365 ? "Set-UnifiedGroup" : "Set-DistributionGroup";
+}
+
+/// <summary>Adds or removes one of a group's extra email addresses (an alias).</summary>
+public sealed record SetGroupAddress(ChangeTarget Group, GroupKind Kind, string Address, bool Old, bool New) : GroupChange(Group, Kind)
+{
+    public override string Key => "address:" + Address.ToLowerInvariant();
+    public override string Label => $"Email Address {Address}";
+    public override string Before => Old ? "One of its addresses" : "Not one of its addresses";
+    public override string After => New ? "Added" : "Removed";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetGroupAddress e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>Makes another address the group's primary one (replies come from it); the old one stays as an alias.</summary>
+public sealed record SetGroupPrimaryAddress(ChangeTarget Group, GroupKind Kind, string Old, string New) : GroupChange(Group, Kind)
+{
+    public override string Key => "primary";
+    public override string Label => "Primary Email Address";
+    public override string Before => Old;
+    public override string After => New;
+    public override bool IsCaution => true;
+    public override bool IsNoChange => string.Equals(Old, New, StringComparison.OrdinalIgnoreCase);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetGroupPrimaryAddress e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>Lets someone send as the group (Add- or Remove-RecipientPermission), or stops them.</summary>
+public sealed record SetGroupSendAs(ChangeTarget Group, GroupKind Kind, ChangeTarget Person, bool Old, bool New) : GroupChange(Group, Kind)
+{
+    public override string Key => "sendas:" + Person.Id;
+    public override string Label => $"Send As for {Person.Name}";
+    public override string Before => Old ? "Allowed" : "Not Allowed";
+    public override string After => New ? "Allowed" : "Removed";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override IReadOnlyList<ChangeTarget> Guarded => [Group, Person];
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetGroupSendAs e ? this with { Old = e.Old } : this;
+}
+
 /// <summary>Brings back a deleted Microsoft 365 or security group with its members and owners.</summary>
 public sealed record RestoreGroup(ChangeTarget Group, GroupKind Kind, string Detail) : GroupChange(Group, Kind)
 {

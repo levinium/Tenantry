@@ -174,6 +174,43 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Group mail: the page reads the mail settings; a switch stages its setting; Add a Sender adds to who can send; Add Address opens a form and Add stages it", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
+            main.Groups.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var list = main.Groups.Rows.Cast<GroupSummary>().First(g => g.Kind == GroupKind.Distribution);
+            main.OpenGroup(list);
+            Settle();
+            var mail = ((GroupDetailViewModel)main.SelectedTab!).Settings!.Mail!;
+            Expect(mail.IsReady, "the mail settings were read when the page opened");
+
+            var outside = mail.Delivery.Single(t => t.Label == "Accept Mail from Outside");
+            var toggle = window.GetVisualDescendants().OfType<ToggleSwitch>().First(t => t.DataContext == outside && t.IsEffectivelyVisible);
+            toggle.BringIntoView();
+            Settle();
+            Click(window, toggle);
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetGroupMailValue { Parameter: "RequireSenderAuthenticationEnabled" }), "the switch staged outside senders");
+
+            var added = AddVia(window, mail.AcceptList.Picker, "");
+            Expect(mail.AcceptList.Rows.Any(r => r.Name == added && r.PendingText == "Adding"), "the sender shows as being added");
+            Expect(main.Pending.Rows.Any(r => r.Change is SetGroupMailValue { Parameter: "AcceptMessagesOnlyFromSendersOrMembers" }), "who can send is in Pending Changes");
+
+            var start = FindButton(window, b => b.Command == mail.StartAddAddressCommand && b.IsEffectivelyVisible);
+            start.BringIntoView();
+            Settle();
+            Click(window, start);
+            Expect(mail.IsAddingAddress, "Add Address opened the form");
+            window.KeyTextInput("checked-list");
+            Settle();
+            Click(window, FindButton(window, b => b.Command == mail.AddAddressCommand && b.IsEffectivelyVisible));
+            Expect(main.Pending.Rows.Any(r => r.Change is SetGroupAddress { New: true } a && a.Address.StartsWith("checked-list@", StringComparison.Ordinal)),
+                "the address is in Pending Changes");
+            Expect(!mail.IsAddingAddress, "Add closed the form");
+            window.Close();
+        });
+
         Check("Group settings: Edit stages a new name; By Rule shows the rule box, Test on Someone checks it, and Add stages it; Delete stages a typed delete; Deleted Groups opens", () =>
         {
             var (window, main, _) = OpenList();
