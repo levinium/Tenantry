@@ -36,8 +36,21 @@ public sealed record GroupSummary(
     DateTimeOffset? CreatedAt,
     IReadOnlyList<GroupMember> Members,
     IReadOnlyList<GroupMember>? Owners = null,
-    bool SyncedFromOnPremises = false)
+    bool SyncedFromOnPremises = false,
+    string? MailNickname = null,
+    string? MembershipRule = null,
+    bool RulePaused = false,
+    IReadOnlyList<string>? ProxyAddresses = null)
 {
+    /// <summary>Every address, as Entra lists them ("SMTP:primary@…", "smtp:alias@…").</summary>
+    public IReadOnlyList<string> Addresses => ProxyAddresses ?? [];
+
+    /// <summary>The extra addresses mail also reaches it at (not the primary one).</summary>
+    public IReadOnlyList<string> Aliases => Addresses
+        .Where(a => a.StartsWith("smtp:", StringComparison.Ordinal))
+        .Select(a => a[5..])
+        .ToArray();
+
     /// <summary>Who owns the group (manages it); shared mailboxes have none.</summary>
     public IReadOnlyList<GroupMember> OwnerList => Owners ?? [];
 

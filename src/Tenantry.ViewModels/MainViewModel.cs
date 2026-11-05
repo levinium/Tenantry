@@ -53,6 +53,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                 ShowDialog(new Records.DialogViewModel("New Group", TenantName,
                     new Records.NewGroupViewModel(grouping, _tenant.Records as IUserRecords, _index, CloseDialog))))
             : new ListPrimaryAction("New Group", "PeopleAdd", false, createUsers.Reason ?? "This tenant can't be edited");
+        Groups.SecondaryAction = tenant.Changes is { } restoring && tenant.Records is IGroupRecords groupRecords && createUsers.IsAvailable
+            ? new ListPrimaryAction("Deleted Groups", "ArrowUndo", true, "Microsoft 365 and security groups deleted in the last 30 days, to restore", () =>
+                ShowDialog(new Records.DialogViewModel("Deleted Groups", TenantName, new Records.DeletedGroupsViewModel(groupRecords, restoring, _now))
+                    { Wide = true }))
+            : null;
         Contacts = DataListViewModel.Create(ContactList.Definition(c => NewContactPage(c, preview: true)), LoadContactsAsync, OpenContact, tenant.ListState, _now);
         Contacts.EmptyText = "No contacts. A contact is an outside address in the address list, so it can go on distribution lists.";
         Contacts.PrimaryAction = tenant.Changes is not null && createUsers.IsAvailable
@@ -1013,8 +1018,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     public void ShowDialog(Records.DialogViewModel dialog) => Dialog = dialog;
 
     /// <summary>Settings watches the sync while open; it lets go when its popup closes.</summary>
-    partial void OnDialogChanged(Records.DialogViewModel? oldValue, Records.DialogViewModel? newValue) =>
+    partial void OnDialogChanged(Records.DialogViewModel? oldValue, Records.DialogViewModel? newValue)
+    {
         (oldValue?.Content as SettingsViewModel)?.Dispose();
+        (oldValue?.Content as Records.DeletedGroupsViewModel)?.Dispose();
+    }
 
     [RelayCommand]
     public void CloseDialog() => Dialog = null;
@@ -1069,10 +1077,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             if (_index.User(page.User.Id) is { } updated)
                 page.Update(updated);
         }
-        foreach (var page in Tabs.OfType<GroupDetailViewModel>())
+        foreach (var page in Tabs.OfType<GroupDetailViewModel>().ToArray())
         {
+            // A deleted group's page closes.
             if (_index.Group(page.Group.Id) is { } updated)
                 page.Update(updated);
+            else
+                CloseTab(page);
         }
         foreach (var page in Tabs.OfType<ContactDetailViewModel>().ToArray())
         {
@@ -1119,7 +1130,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     GroupDetailViewModel NewGroupPage(GroupSummary group) =>
         Fresh(new GroupDetailViewModel(group, _index, OpenUser, OpenGroup, _tenant.Changes, Evaluate(Capabilities.EditUsers), ShowDialog, CloseDialog,
-            OpenContact, _tenant.Changes is not null && Evaluate(Capabilities.EditUsers).IsAvailable ? (g, typed) => NewContact(typed, g) : null));
+            OpenContact, _tenant.Changes is not null && Evaluate(Capabilities.EditUsers).IsAvailable ? (g, typed) => NewContact(typed, g) : null,
+            _tenant.Records as IGroupRecords));
 
     /// <summary>Opens a contact's page, or switches to it if it is already open.</summary>
     public void OpenContact(ContactSummary contact)

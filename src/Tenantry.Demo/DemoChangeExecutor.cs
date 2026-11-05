@@ -67,6 +67,8 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
         }
         if (await ApplyContactAsync(change, cancellationToken) is { } contacted)
             return contacted;
+        if (await directory.ApplyGroupAsync(change, cancellationToken) is { } grouped)
+            return grouped ? new ApplyResult(ChangeOutcome.Applied) : new ApplyResult(ChangeOutcome.Failed, "That group isn't in the demo any more.");
         if (change is ConvertMailbox convert)
             return Mailbox(convert.User.Id, m => m with { Type = convert.NewShared ? "Shared" : "User" })
                    ?? new ApplyResult(ChangeOutcome.Failed, "That person has no mailbox.");

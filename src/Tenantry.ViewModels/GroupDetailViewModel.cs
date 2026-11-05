@@ -70,7 +70,7 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
     /// <param name="newContact">Opens New Contact for this list, with an address already typed or not (an outside address it then sends to).</param>
     public GroupDetailViewModel(GroupSummary group, IDirectoryIndex index, Action<UserSummary>? openUser = null, Action<GroupSummary>? openGroup = null,
         ChangePipeline? pipeline = null, Availability? canEdit = null, Action<DialogViewModel>? openDialog = null, Action? closeDialog = null,
-        Action<ContactSummary>? openContact = null, Action<GroupSummary, string?>? newContact = null)
+        Action<ContactSummary>? openContact = null, Action<GroupSummary, string?>? newContact = null, IGroupRecords? groupRecords = null)
     {
         _openContact = openContact;
         _index = index;
@@ -85,6 +85,9 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
             u => { _closeDialog?.Invoke(); _openUser(u); },
             g => { _closeDialog?.Invoke(); _openGroup(g); },
             openContact is null ? null : c => { _closeDialog?.Invoke(); openContact(c); });
+        // A mailbox's own settings live on its account (Users); a group's are edited here.
+        if (!group.IsMailbox)
+            Settings = new GroupSettingsEditor(group, index, pipeline, canEdit ?? Availability.No("Editing isn't available here"), groupRecords);
         if (newContact is not null && GroupAccess.TakesContacts(group))
             People.NewContact = typed => { _closeDialog?.Invoke(); newContact(Group, typed); };
         if (pipeline is not null && openDialog is not null && closeDialog is not null)
@@ -115,6 +118,19 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
 
     /// <summary>The owners, members or people with access, editable.</summary>
     public GroupPeopleEditor People { get; }
+
+    /// <summary>The group's own settings (name, description, alias, privacy, membership, delete); null for a mailbox.</summary>
+    public GroupSettingsEditor? Settings { get; }
+
+    public bool HasSettings => Settings is not null;
+
+    /// <summary>Opens the settings editor in a popup (the preview pane's Manage button).</summary>
+    [RelayCommand]
+    void ManageSettings()
+    {
+        if (Settings is not null)
+            _openDialog?.Invoke(new DialogViewModel("Group Settings", Group.DisplayName, Settings) { Wide = true });
+    }
 
     public string ManageText => Group.IsMailbox ? "Manage Access" : "Manage Owners and Members";
 
@@ -201,6 +217,7 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
         Group = group;
         Members = Rows(group);
         People.Update(group);
+        Settings?.Update(group);
         foreach (var name in new[]
                  {
                      nameof(Group), nameof(Title), nameof(Initials), nameof(TypeText), nameof(TypeKind), nameof(MembershipText), nameof(Account),
@@ -219,5 +236,9 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
 
     static string Plural(string type, int count) => count == 1 ? type.ToLowerInvariant() : type.ToLowerInvariant() + "s";
 
-    public void Dispose() => People.Dispose();
+    public void Dispose()
+    {
+        People.Dispose();
+        Settings?.Dispose();
+    }
 }

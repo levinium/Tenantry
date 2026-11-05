@@ -117,12 +117,22 @@
               <TextBlock Classes="value" Classes.mixed="{Binding IsMixed}" Text="{Binding Value}" IsVisible="{Binding !IsEditing}"
                          ToolTip.Tip="{Binding ValuesTip}" />
               <StackPanel Spacing="6" IsVisible="{Binding IsEditing}">
-                <TextBox x:Name="DetailEditor" Text="{Binding Draft}" PlaceholderText="New value for everyone"
-                         c:EditCommit.Commit="{Binding StageCommand}" c:EditCommit.Cancel="{Binding CancelCommand}"
-                         c:EditCommit.Idle="True" c:EditCommit.IdleCommit="{Binding StageDraftCommand}" />
+                <!-- ✓ and ✕ don't take focus, so the box never loses it first (leaving the box finishes). -->
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                  <TextBox x:Name="DetailEditor" Text="{Binding Draft}" PlaceholderText="New value for everyone"
+                           c:EditCommit.Commit="{Binding StageCommand}" c:EditCommit.Cancel="{Binding CancelCommand}" />
+                  <Button Grid.Column="1" Classes="accent" Padding="8,6" Focusable="False" ClickMode="Press" VerticalAlignment="Stretch"
+                          Command="{Binding StageCommand}" ToolTip.Tip="Done: set this for everyone selected (Enter)">
+                    <ic:FluentIcon Icon="Checkmark" FontSize="14" />
+                  </Button>
+                  <Button Grid.Column="2" Padding="8,6" Focusable="False" ClickMode="Press" VerticalAlignment="Stretch"
+                          Command="{Binding CancelCommand}" ToolTip.Tip="Cancel: leave it as it is (Esc)">
+                    <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+                  </Button>
+                </Grid>
                 <TextBlock Classes="caption" Text="{Binding Hint}" IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 <TextBlock Classes="caption" TextWrapping="Wrap"
-                           Text="One change per person goes to Pending Changes as you type. Enter or click away to finish; Esc undoes it." />
+                           Text="✓ or Enter adds one change per person to Pending Changes; ✕ or Esc leaves it as it is." />
               </StackPanel>
               <TextBlock Classes="caption" Text="{Binding Message}" IsVisible="{Binding HasMessage}" TextWrapping="Wrap" />
             </StackPanel>

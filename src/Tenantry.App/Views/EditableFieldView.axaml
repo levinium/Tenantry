@@ -31,15 +31,27 @@
     </Button>
 
     <StackPanel IsVisible="{Binding IsEditing}" Spacing="6" Margin="0,4,0,0">
-      <TextBox x:Name="Editor" Text="{Binding Draft}" IsVisible="{Binding IsTyped}"
-               c:EditCommit.Commit="{Binding StageCommand}" c:EditCommit.Cancel="{Binding CancelEditCommand}"
-               c:EditCommit.Idle="True" c:EditCommit.IdleCommit="{Binding StageDraftCommand}" />
+      <!-- ✓ finishes, ✕ puts it back. They don't take focus (or act on release), so the box never
+           loses focus first: leaving the box counts as finishing, which would beat ✕ to it. -->
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6" IsVisible="{Binding IsTyped}">
+        <TextBox x:Name="Editor" Text="{Binding Draft}"
+                 c:EditCommit.Commit="{Binding StageCommand}" c:EditCommit.Cancel="{Binding CancelEditCommand}" />
+        <Button Grid.Column="1" Classes="accent" Padding="8,6" Focusable="False" ClickMode="Press" VerticalAlignment="Stretch"
+                Command="{Binding StageCommand}" ToolTip.Tip="Done: keep this change (Enter)">
+          <ic:FluentIcon Icon="Checkmark" FontSize="14" />
+        </Button>
+        <Button Grid.Column="2" Padding="8,6" Focusable="False" ClickMode="Press" VerticalAlignment="Stretch"
+                Command="{Binding CancelEditCommand}" ToolTip.Tip="Cancel: put it back as it was (Esc)">
+          <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+        </Button>
+      </Grid>
       <ComboBox x:Name="ChoiceEditor" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" IsVisible="{Binding HasChoices}"
                 HorizontalAlignment="Stretch" MaxDropDownHeight="320" />
       <TextBlock Classes="caption" Text="{Binding Hint}" TextWrapping="Wrap" IsVisible="{Binding HasHint}" />
       <TextBlock Classes="error" Text="{Binding Problem}" TextWrapping="Wrap"
                  IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock Classes="caption" Text="Goes to Pending Changes as you type. Enter or click away to finish; Esc undoes it." IsVisible="{Binding IsTyped}" />
+      <TextBlock Classes="caption" Text="✓ or Enter adds it to Pending Changes; ✕ or Esc puts it back." IsVisible="{Binding IsTyped}"
+                 TextWrapping="Wrap" />
     </StackPanel>
   </StackPanel>
 </UserControl>

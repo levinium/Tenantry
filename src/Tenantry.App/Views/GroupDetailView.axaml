@@ -38,45 +38,25 @@
         </Grid>
       </Border>
 
-      <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-        <Border Classes="card">
-          <StackPanel Spacing="16">
-            <StackPanel Orientation="Horizontal" Spacing="10">
-              <ic:FluentIcon Icon="Info" FontSize="20" Foreground="{DynamicResource Accent}" />
-              <TextBlock Classes="h3" Text="About" VerticalAlignment="Center" />
-            </StackPanel>
-            <StackPanel Spacing="2" IsVisible="{Binding ShowMembership}">
-              <TextBlock Classes="label" Text="DESCRIPTION" />
-              <TextBlock Classes="value" Text="{Binding Description}" TextWrapping="Wrap" />
-            </StackPanel>
-            <StackPanel Spacing="2" IsVisible="{Binding ShowMembership}">
-              <TextBlock Classes="label" Text="VISIBILITY" />
-              <TextBlock Classes="value" Text="{Binding Visibility}" />
-            </StackPanel>
-            <StackPanel Spacing="2">
-              <TextBlock Classes="label" Text="CREATED" />
-              <TextBlock Classes="value" Text="{Binding CreatedText}" />
-            </StackPanel>
-          </StackPanel>
-        </Border>
+      <!-- The group's own settings, edited in place (a mailbox's are on its account) -->
+      <ContentControl Content="{Binding Settings}" IsVisible="{Binding HasSettings}" />
 
-        <Border Grid.Column="1" Classes="card">
-          <StackPanel Spacing="16">
-            <StackPanel Orientation="Horizontal" Spacing="10">
-              <ic:FluentIcon Icon="Key" FontSize="20" Foreground="{DynamicResource Accent}" />
-              <TextBlock Classes="h3" Text="Identifiers" VerticalAlignment="Center" />
-            </StackPanel>
-            <StackPanel Spacing="2">
-              <TextBlock Classes="label" Text="OBJECT ID" />
-              <SelectableTextBlock Classes="code" Text="{Binding Group.Id}" />
-            </StackPanel>
-            <StackPanel Spacing="2">
-              <TextBlock Classes="label" Text="EMAIL" />
-              <SelectableTextBlock Classes="code" Text="{Binding Email}" TextWrapping="Wrap" />
-            </StackPanel>
+      <Border Classes="card">
+        <WrapPanel ItemSpacing="40" LineSpacing="12">
+          <StackPanel Spacing="2">
+            <TextBlock Classes="label" Text="CREATED" />
+            <TextBlock Classes="value" Text="{Binding CreatedText}" />
           </StackPanel>
-        </Border>
-      </Grid>
+          <StackPanel Spacing="2">
+            <TextBlock Classes="label" Text="EMAIL" />
+            <SelectableTextBlock Classes="value" Text="{Binding Email}" />
+          </StackPanel>
+          <StackPanel Spacing="2">
+            <TextBlock Classes="label" Text="OBJECT ID" />
+            <SelectableTextBlock Classes="code" Text="{Binding Group.Id}" />
+          </StackPanel>
+        </WrapPanel>
+      </Border>
 
       <!-- Owners and members, or people with access: editable in place; people and groups open their pages -->
       <Border Classes="card">

@@ -530,7 +530,13 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             CreatedAt: Date(g, "createdDateTime"),
             Members: Relation(g, "members"),
             Owners: Relation(g, "owners"),
-            SyncedFromOnPremises: Bool(g, "onPremisesSyncEnabled"));
+            SyncedFromOnPremises: Bool(g, "onPremisesSyncEnabled"),
+            MailNickname: Str(g, "mailNickname"),
+            MembershipRule: Str(g, "membershipRule"),
+            RulePaused: Str(g, "membershipRuleProcessingState") == "Paused",
+            ProxyAddresses: g.TryGetProperty("proxyAddresses", out var pa) && pa.ValueKind == JsonValueKind.Array
+                ? pa.EnumerateArray().Select(x => x.GetString() ?? "").Where(x => x.Length > 0).ToArray()
+                : null);
     }
 
     /// <summary>A stored relation ({id: type}) as a list; empty when the group has none (or was synced before owners were).</summary>

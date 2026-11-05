@@ -99,6 +99,7 @@ public sealed partial class EditableField : ObservableObject
     {
         SetUserText t => (true, t.New),
         SetContactText t => (true, t.New),
+        SetGroupSetting t => (true, t.New),
         _ => (false, null),
     };
 

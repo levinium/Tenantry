@@ -41,6 +41,7 @@ public sealed partial class GraphChangeExecutor
         PeopleScript(change)
         ?? MailScript(change)
         ?? CreateScript(change)
+        ?? GroupScript(change)
         ?? SecurityScript(change)
         ?? DeviceScript(change)
         ?? RoleScript(change)

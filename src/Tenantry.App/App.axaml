@@ -34,6 +34,12 @@
     <DataTemplate DataType="rec:NewContactViewModel">
       <views:NewContactView />
     </DataTemplate>
+    <DataTemplate DataType="rec:GroupSettingsEditor">
+      <views:GroupSettingsEditorView />
+    </DataTemplate>
+    <DataTemplate DataType="rec:DeletedGroupsViewModel">
+      <views:DeletedGroupsView />
+    </DataTemplate>
     <DataTemplate DataType="rec:NewSiteViewModel">
       <views:NewSiteView />
     </DataTemplate>

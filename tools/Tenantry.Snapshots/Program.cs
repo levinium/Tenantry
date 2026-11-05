@@ -187,11 +187,39 @@ if (args.Contains("--groups-review"))
             Settle();
             Render(main, $"g{n:00}-{slug}-manage-{suffix}");
             main.CloseDialog();
+            if (preview.HasSettings)
+            {
+                preview.ManageSettingsCommand.Execute(null);
+                Settle();
+                Render(main, $"g{n:00}-{slug}-settings-{suffix}", height: 1200);
+                main.CloseDialog();
+            }
             main.OpenGroup(group);
             Settle();
             Render(main, $"g{n:00}-{slug}-page-{suffix}", height: 1500);
         }
         main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
+        main.SelectedTab = main.Tabs[0];
+        main.Groups.SecondaryAction!.Run!();
+        Settle();
+        Render(main, $"g19-deleted-groups-{suffix}");
+        main.CloseDialog();
+        // A dynamic group's rule, being changed and tested.
+        if (samples.First(s => s.Slug == "security").Group is { } toRule)
+        {
+            main.OpenGroup(toRule);
+            Settle();
+            var settings = ((GroupDetailViewModel)main.SelectedTab!).Settings!;
+            settings.IsDynamicDraft = true;
+            settings.RuleDraft = "(user.department -eq \"Finance\")";
+            foreach (var who in main.Users.Rows.Cast<UserSummary>().Where(u => u.Department is not null).Take(2))
+            {
+                settings.TestPicker.Query = who.DisplayName;
+                settings.TestPicker.PickCommand.Execute(settings.TestPicker.Results.First());
+                Settle();
+            }
+            Render(main, $"g18-rule-draft-{suffix}", height: 1400);
+        }
         foreach (var kind in Tenantry.ViewModels.Records.NewGroupViewModel.Kinds)
         {
             main.Groups.PrimaryAction!.Run!();
@@ -254,6 +282,8 @@ if (args.Contains("--groups-review"))
         var title = contactPage.Details.SelectMany(g => g.Fields).Single(f => f.Label == "Job Title");
         title.EditCommand.Execute(null);
         title.Draft = "Senior Account Manager";
+        Settle();
+        Render(main, $"c06b-field-editing-{suffix}", height: 1300);
         title.StageCommand.Execute(null);
         contactPage.ShowsInAddressList = false;
         contactPage.Lists[0].RemoveCommand.Execute(null);

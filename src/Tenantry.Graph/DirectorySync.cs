@@ -72,7 +72,8 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
     /// <summary>Licenses with counts and their apps, for the license picker and per-app switches.</summary>
     public const string SkuSelect = "skuId,skuPartNumber,prepaidUnits,consumedUnits,servicePlans,appliesTo,capabilityStatus";
 
-    const string GroupSelect = "id,displayName,mail,mailEnabled,securityEnabled,groupTypes,description,visibility,createdDateTime,onPremisesSyncEnabled,members,owners";
+    const string GroupSelect = "id,displayName,mail,mailEnabled,securityEnabled,groupTypes,description,visibility,createdDateTime,onPremisesSyncEnabled,"
+        + "mailNickname,membershipRule,membershipRuleProcessingState,proxyAddresses,members,owners";
 
     /// <summary>The group fields last read in full (as <see cref="UserFieldsMark"/> is for users).</summary>
     const string GroupFieldsMark = "groups.fields";

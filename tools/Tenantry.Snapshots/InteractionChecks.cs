@@ -144,6 +144,90 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Edit fields: the pencil opens the box with ✓ and ✕; ✕ puts it back and closes it; ✓ keeps the change and closes it", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.Groups.LoadAsync().GetAwaiter().GetResult();
+            main.Contacts.LoadAsync().GetAwaiter().GetResult();
+            main.OpenContact(main.Contacts.Rows.Cast<ContactSummary>().First(c => !c.SyncedFromOnPremises));
+            Settle();
+            var page = (ContactDetailViewModel)main.SelectedTab!;
+            var company = page.Details.SelectMany(d => d.Fields).Single(f => f.Label == "Company");
+            var before = company.Value;
+            Button Open() => FindButton(window, b => b.Command == company.EditCommand && b.IsEffectivelyVisible);
+            Button Done() => FindButton(window, b => b.Command == company.StageCommand && b.IsEffectivelyVisible);
+            Button Cancel() => FindButton(window, b => b.Command == company.CancelEditCommand && b.IsEffectivelyVisible);
+
+            Click(window, Open());
+            Expect(company.IsEditing, "the pencil opened the box");
+            window.KeyTextInput("Changed Ltd");
+            Settle();
+            Click(window, Cancel());
+            Expect(!company.IsEditing && !company.HasPending && company.Value == before, "✕ closed the box and put the value back");
+
+            Click(window, Open());
+            window.KeyTextInput("Changed Ltd");
+            Settle();
+            Click(window, Done());
+            Expect(!company.IsEditing, "✓ closed the box");
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetContactText { Parameter: "Company", New: "Changed Ltd" }), "✓ kept the change in Pending Changes");
+            window.Close();
+        });
+
+        Check("Group settings: Edit stages a new name; By Rule shows the rule box, Test on Someone checks it, and Add stages it; Delete stages a typed delete; Deleted Groups opens", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
+            main.Groups.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var group = main.Groups.Rows.Cast<GroupSummary>().First(g => g.Kind == GroupKind.Security && !g.IsDynamic);
+            main.OpenGroup(group);
+            Settle();
+            var settings = ((GroupDetailViewModel)main.SelectedTab!).Settings!;
+            var name = settings.Details.SelectMany(d => d.Fields).Single(f => f.Label == "Name");
+            Click(window, FindButton(window, b => b.Command == name.EditCommand && b.IsEffectivelyVisible));
+            Expect(name.IsEditing, "Edit opened the name box");
+            window.KeyTextInput(" (renamed)");
+            window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+            Settle();
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetGroupSetting { Setting: SetGroupSetting.DisplayName } s && s.New!.EndsWith("(renamed)", StringComparison.Ordinal)),
+                "the new name is in Pending Changes");
+
+            var byRule = window.GetVisualDescendants().OfType<RadioButton>().First(r => r.IsEffectivelyVisible && (r.Content as string ?? "").StartsWith("By Rule", StringComparison.Ordinal));
+            Click(window, byRule);
+            Expect(settings.IsDynamicDraft, "By Rule chose a rule");
+            var box = window.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(t => t.IsEffectivelyVisible && t.AcceptsReturn && t.DataContext == settings);
+            Expect(box is not null, "the rule box shows");
+            Expect(!settings.StageRuleCommand.CanExecute(null), "Add waits for a rule");
+            box!.Focus();
+            window.KeyTextInput("(user.department -eq \"Finance\")");
+            Settle();
+            Expect(settings.RuleDraft == "(user.department -eq \"Finance\")", $"the typed rule reached the draft, not '{settings.RuleDraft}'");
+            Expect(settings.StageRuleCommand.CanExecute(null), "Add is ready once a rule is typed");
+            AddVia(window, settings.TestPicker, "");
+            Settle();
+            Expect(settings.TestRows.Count == 1, "testing someone shows whether they'd be a member");
+            var stage = FindButton(window, b => b.Command == settings.StageRuleCommand && b.IsEffectivelyVisible);
+            stage.BringIntoView();
+            Settle();
+            Click(window, stage);
+            Expect(main.Pending.Rows.Any(r => r.Change is SetMembershipRule { NewDynamic: true }), "the rule is in Pending Changes");
+
+            var deleteButton = FindButton(window, b => b.Command == settings.DeleteCommand && b.IsEffectivelyVisible);
+            deleteButton.BringIntoView();
+            Settle();
+            Click(window, deleteButton);
+            var delete = main.Pending.Rows.Select(r => r.Change).OfType<DeleteGroup>().SingleOrDefault();
+            Expect(delete?.ConfirmPhrase == group.DisplayName, "Delete staged a delete that needs the name typed");
+
+            main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
+            main.SelectedTab = main.Tabs[0];
+            Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && Labelled(b, "Deleted Groups")));
+            Expect(main.Dialog?.Content is Tenantry.ViewModels.Records.DeletedGroupsViewModel, "Deleted Groups opened its popup");
+            window.Close();
+        });
+
         Check("Mail tab, mobile devices: a wipe choice closes its menu and adds the change", () =>
         {
             var (window, main, page) = OpenRecord();
@@ -289,7 +373,7 @@ static class InteractionChecks
             window.Close();
         });
 
-        Check("Account tab: while still typing in a field, one click on its pending chip undoes the change", () =>
+        Check("Account tab: typing alone stages nothing; ✓ stages it; reopened, one click on its pending chip undoes the change", () =>
         {
             var (window, main, page) = OpenRecord();
             page.SelectedSection = page.Account;
@@ -303,11 +387,18 @@ static class InteractionChecks
             Settle();
             var box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.DataContext == field && t.IsEffectivelyVisible);
             Expect(box.IsFocused, "the box has the cursor");
-            field.Draft = "+1 555 0199";
-            field.StageDraftCommand.Execute(null);
+            box.SelectAll();
+            window.KeyTextInput("+1 555 0199");
+            // Longer than the old pause-to-stage delay: typing alone no longer stages.
+            var waitUntil = DateTime.UtcNow.AddSeconds(1.5);
+            while (DateTime.UtcNow < waitUntil)
+                Settle();
+            Expect(!field.HasPending && main.Pending!.Count == 0, "nothing is pending while still typing");
+            Click(window, FindButton(window, b => b.Command == field.StageCommand && b.IsEffectivelyVisible));
+            Expect(field.HasPending && main.Pending!.Count == 1 && !field.IsEditing, "✓ staged the number and closed the box");
+            Click(window, FindButton(window, b => b.Command == field.EditCommand && b.IsEffectivelyVisible));
             Settle();
-            Expect(field.HasPending && main.Pending!.Count == 1, "the typed number is pending");
-            Expect(box.IsFocused, "the cursor is still in the box");
+            Expect(field.IsEditing, "the field is open again, with its change pending");
             var chip = FindButton(window, b => b.Command == field.UnstageCommand && b.IsEffectivelyVisible);
             Click(window, chip);
             var pending = main.Pending!;

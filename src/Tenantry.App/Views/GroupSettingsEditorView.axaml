@@ -1,0 +1,131 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.GroupSettingsEditorView"
+             x:DataType="rec:GroupSettingsEditor">
+  <!-- The group's own settings: cards that wrap to fit the page or the popup. -->
+  <StackPanel Spacing="12">
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <ic:FluentIcon Icon="LockClosed" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </StackPanel>
+    </Border>
+
+    <WrapPanel ItemSpacing="12" LineSpacing="12">
+      <!-- Name, description, alias, privacy -->
+      <ItemsControl ItemsSource="{Binding Details}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="rec:FieldGroup">
+            <Border Classes="card" Width="380">
+              <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="18" Foreground="{DynamicResource Accent}" />
+                  <TextBlock Classes="h3" Text="{Binding Title}" VerticalAlignment="Center" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding Fields}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <StackPanel Spacing="12" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="ed:EditableField">
+                      <views:EditableFieldView />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <!-- How it gets its members -->
+      <Border Classes="card" Width="520" IsVisible="{Binding HasMembership}">
+        <StackPanel Spacing="12">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+            <ic:FluentIcon Icon="PeopleSync" FontSize="18" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="h3" Text="Membership" VerticalAlignment="Center" />
+            <c:Badge Grid.Column="2" Text="Pending" Kind="Info" IsVisible="{Binding HasPendingRule}" VerticalAlignment="Center" />
+          </Grid>
+          <TextBlock Classes="muted" Text="{Binding CurrentMembershipText}" TextWrapping="Wrap" />
+          <StackPanel Spacing="6" IsEnabled="{Binding CanEdit}">
+            <RadioButton GroupName="membership" IsChecked="{Binding IsAssignedDraft}" Content="Assigned: Owners and Admins Choose the Members" />
+            <RadioButton GroupName="membership" IsChecked="{Binding IsDynamicDraft}" Content="By Rule: Entra Keeps It Up to Date (Needs Entra ID P1)" />
+          </StackPanel>
+          <StackPanel Spacing="8" IsVisible="{Binding IsDynamicDraft}" IsEnabled="{Binding CanEdit}">
+            <TextBox Text="{Binding RuleDraft}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64"
+                     PlaceholderText="(user.department -eq &quot;Finance&quot;)" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
+            <TextBlock Classes="caption" TextWrapping="Wrap"
+                       Text="Entra's rule language, as in the Entra admin center. For example (user.department -eq &quot;Finance&quot;) -and (user.accountEnabled -eq true)." />
+            <TextBlock Text="{Binding RuleProblem}" IsVisible="{Binding HasRuleProblem}" Foreground="{DynamicResource BadgeWarningFg}" TextWrapping="Wrap" />
+            <CheckBox IsChecked="{Binding PausedDraft}" Content="Pause the Rule (Members Stay as They Are Until It's Resumed)" />
+          </StackPanel>
+          <Border Classes="banner neutral" IsVisible="{Binding HasConvertNote}">
+            <TextBlock TextWrapping="Wrap" Text="{Binding ConvertNote}" />
+          </Border>
+
+          <!-- Test the rule on people before it's staged -->
+          <StackPanel Spacing="8" IsVisible="{Binding CanTest}">
+            <TextBlock Classes="label" Text="TEST THE RULE" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Choose people to see whether the rule as typed would make them members. Entra checks it." />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <views:AddButton DataContext="{Binding TestPicker}" Text="Test on Someone" Hint="Choose people to check against the rule as typed." />
+              <Panel Width="18" Height="18" VerticalAlignment="Center" IsVisible="{Binding IsTesting}">
+        <Ellipse Classes="spintrack" />
+        <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+          <Arc.RenderTransform>
+            <RotateTransform />
+          </Arc.RenderTransform>
+        </Arc>
+      </Panel>
+            </StackPanel>
+            <ItemsControl ItemsSource="{Binding TestRows}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="rec:RuleTestRow">
+                  <StackPanel Spacing="1">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                      <c:Badge Grid.Column="1" Text="{Binding Result}" Kind="{Binding Kind}" />
+                    </Grid>
+                    <TextBlock Classes="caption" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding CanEdit}">
+            <Button Classes="accent" Command="{Binding StageRuleCommand}" Content="Add to Pending Changes" ToolTip.ShowOnDisabled="True"
+                    ToolTip.Tip="Stages the membership change; nothing changes until you apply it" />
+            <Button Command="{Binding UndoRuleCommand}" Content="Undo" IsVisible="{Binding HasPendingRule}" ToolTip.Tip="Keep the membership as it is" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </WrapPanel>
+
+    <!-- Delete -->
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Classes="danger" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanEdit}" IsVisible="{Binding !HasPendingDelete}"
+              ToolTip.Tip="{Binding DeleteTip}" ToolTip.ShowOnDisabled="True">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="Delete" FontSize="14" />
+          <TextBlock Text="{Binding DeleteText}" />
+        </StackPanel>
+      </Button>
+      <c:Badge Text="Deleting" Kind="Danger" IsVisible="{Binding HasPendingDelete}" VerticalAlignment="Center" />
+      <Button Command="{Binding DeleteCommand}" Content="Undo" IsVisible="{Binding HasPendingDelete}" ToolTip.Tip="Keep the group" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

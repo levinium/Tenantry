@@ -59,6 +59,10 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         SetForwarding f => await SetMailboxAsync(f.User, ForwardingParameters(f),
             row => string.Equals(StripSmtp(Text(row, "ForwardingSmtpAddress")) ?? "", f.NewTo ?? "", StringComparison.OrdinalIgnoreCase)
                    && string.IsNullOrEmpty(Text(row, "ForwardingAddress")), cancellationToken),
+        SetGroupSetting s => await SetGroupSettingAsync(s, cancellationToken),
+        SetMembershipRule m => await SetMembershipRuleAsync(m, cancellationToken),
+        DeleteGroup d => await DeleteGroupAsync(d, cancellationToken),
+        RestoreGroup r => await RestoreGroupAsync(r, cancellationToken),
         CreateContact c => await CreateContactAsync(c, cancellationToken),
         SetContactText t => await SetContactTextAsync(t, cancellationToken),
         DeleteContact d => await DeleteContactAsync(d, cancellationToken),

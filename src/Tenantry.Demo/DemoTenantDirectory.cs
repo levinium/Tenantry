@@ -239,10 +239,12 @@ public sealed partial class DemoTenantDirectory : ITenantDirectory
             GroupKind.Distribution, false, false, null, created.AddDays(41), [new GroupMember(everyone.Id, "group")]));
         groups.Add(new GroupSummary(Id(), "IT Admins", $"itadmins@{Domain}", "Mail-enabled security group for IT administrators.",
             GroupKind.MailEnabledSecurity, false, false, null, created.AddDays(12), Of(members.Where(u => u.Department == "IT").Take(4))));
-        groups.Add(new GroupSummary(Id(), "All Guests (dynamic)", null, "Rule: user.userType -eq \"Guest\"",
-            GroupKind.Security, true, false, null, created.AddDays(90), Of(users.Where(u => u.Kind == UserKind.Guest))));
-        groups.Add(new GroupSummary(Id(), "Licensed users (dynamic)", null, "Rule: user.assignedPlans -any (assignedPlan.capabilityStatus -eq \"Enabled\")",
-            GroupKind.Security, true, false, null, created.AddDays(91), Of(members.Where(u => u.Licenses.Count > 0))));
+        groups.Add(new GroupSummary(Id(), "All Guests (dynamic)", null, "Everyone invited from outside the organization.",
+            GroupKind.Security, true, false, null, created.AddDays(90), Of(users.Where(u => u.Kind == UserKind.Guest)),
+            MembershipRule: "(user.userType -eq \"Guest\")"));
+        groups.Add(new GroupSummary(Id(), "Licensed users (dynamic)", null, "Everyone with a license.",
+            GroupKind.Security, true, false, null, created.AddDays(91), Of(members.Where(u => u.Licenses.Count > 0)),
+            MembershipRule: "(user.assignedPlans -any (assignedPlan.capabilityStatus -eq \"Enabled\"))"));
         groups.Add(new GroupSummary(Id(), "Summer Gala 2025", $"gala2025@{Domain}", "Event planning (finished).",
             GroupKind.Microsoft365, false, true, "Private", created.AddDays(700), []));
         groups.Add(new GroupSummary(Id(), "Old Printer Access", null, null,

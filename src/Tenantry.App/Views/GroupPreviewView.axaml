@@ -30,7 +30,16 @@
 
     <Border Classes="divider" />
     <StackPanel Spacing="12">
-      <TextBlock Classes="h3" Text="About" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBlock Classes="h3" Text="About" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Classes="accent" Command="{Binding ManageSettingsCommand}" IsVisible="{Binding HasSettings}"
+                ToolTip.Tip="Change its name, description, alias, privacy or membership, or delete it">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Edit" FontSize="14" VerticalAlignment="Center" />
+            <TextBlock Text="Manage" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </Grid>
       <StackPanel Spacing="2" IsVisible="{Binding ShowMembership}">
         <TextBlock Classes="label" Text="DESCRIPTION" />
         <TextBlock Classes="value" Text="{Binding Description}" TextWrapping="Wrap" />

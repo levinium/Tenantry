@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.DeletedGroupsView"
+             x:DataType="rec:DeletedGroupsViewModel">
+  <StackPanel Spacing="12" MinWidth="560">
+    <TextBlock Classes="muted" TextWrapping="Wrap"
+               Text="Microsoft 365 and security groups are kept for 30 days after they're deleted, with their members and owners. Distribution lists aren't: Exchange deletes them for good." />
+    <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+      <Panel Width="18" Height="18" VerticalAlignment="Center">
+        <Ellipse Classes="spintrack" />
+        <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+          <Arc.RenderTransform>
+            <RotateTransform />
+          </Arc.RenderTransform>
+        </Arc>
+      </Panel>
+      <TextBlock Classes="muted" Text="Reading deleted groups…" VerticalAlignment="Center" />
+    </StackPanel>
+    <Border Classes="banner error" IsVisible="{Binding HasError}">
+      <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
+    </Border>
+    <TextBlock Classes="muted" Text="No groups have been deleted in the last 30 days." IsVisible="{Binding IsEmpty}" />
+    <ItemsControl ItemsSource="{Binding Rows}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="6" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="rec:DeletedGroupRow">
+          <Border Classes="valuerow">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+              <StackPanel Spacing="1" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+              </StackPanel>
+              <c:Badge Grid.Column="1" Text="Restoring" Kind="Info" IsVisible="{Binding IsPending}" VerticalAlignment="Center" />
+              <Button Grid.Column="2" Command="{Binding RestoreCommand}" VerticalAlignment="Center"
+                      ToolTip.Tip="Bring it back with its members and owners (added to Pending Changes)">
+                <Panel>
+                  <TextBlock Text="Restore" IsVisible="{Binding !IsPending}" />
+                  <TextBlock Text="Undo" IsVisible="{Binding IsPending}" />
+                </Panel>
+              </Button>
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>
