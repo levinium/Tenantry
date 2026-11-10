@@ -15,6 +15,8 @@ public sealed partial class GraphChangeExecutor
     {
         ReleaseQuarantined r => PsScript.Exchange(Ps.Cmdlet("Release-QuarantineMessage", ReleaseParameters(r))),
         DeleteQuarantined d => PsScript.Exchange(Ps.Cmdlet("Delete-QuarantineMessage", new Dictionary<string, object?> { ["Identity"] = d.Message.Id, ["Confirm"] = false })),
+        DkimChange k => DkimCall(k) is var (cmdlet, parameters) ? PsScript.Exchange(Ps.Cmdlet(cmdlet, parameters)) : null,
+        UnblockSender u => PsScript.Exchange(Ps.Cmdlet("Remove-BlockedSenderAddress", UnblockParameters(u))),
         DenyQuarantineRelease d => PsScript.Exchange(Ps.Cmdlet("Release-QuarantineMessage", DenyParameters(d)),
             "Deny is only in the bulk form; Exchange ignores the placeholder Identity."),
         SetSenderListed s => PsScript.Exchange(Ps.Cmdlet("New-TenantAllowBlockListItems", SenderListedParameters(s))),

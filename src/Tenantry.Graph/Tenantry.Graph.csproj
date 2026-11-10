@@ -10,6 +10,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="DnsClient" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Tenantry.Tests" />
   </ItemGroup>
 

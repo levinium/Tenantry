@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.BlockedSendersView"
+             x:DataType="ms:BlockedSendersViewModel">
+  <ScrollViewer>
+    <Border Classes="card" VerticalAlignment="Top" Margin="0,0,0,24">
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h3" Text="Blocked Senders" />
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="People Microsoft stopped from sending because their account sent spam. Their mail bounces with 5.1.8. It's usually a hacked account: secure it first (Respond to Compromise on their page), then unblock it." />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read the blocked senders again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+        </Grid>
+        <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+          <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+        </Border>
+        <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+          <Panel Width="16" Height="16" VerticalAlignment="Center">
+            <Ellipse Classes="spintrack" />
+            <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+              <Arc.RenderTransform>
+                <RotateTransform />
+              </Arc.RenderTransform>
+            </Arc>
+          </Panel>
+          <TextBlock Classes="muted" Text="Reading the blocked senders…" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+        <Border Classes="banner success" IsVisible="{Binding IsEmpty}">
+          <TextBlock TextWrapping="Wrap" Text="Nobody is blocked from sending." />
+        </Border>
+        <ItemsControl ItemsSource="{Binding Senders}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="ms:BlockedSenderRow">
+              <Border Classes="valuerow">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                  <StackPanel Spacing="2">
+                    <SelectableTextBlock Text="{Binding Address}" FontWeight="SemiBold" />
+                    <TextBlock Classes="caption" Text="{Binding Reason}" TextWrapping="Wrap" />
+                    <TextBlock Classes="caption" Text="{Binding WhenText}" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Command="{Binding OpenPersonCommand}" IsVisible="{Binding CanOpenPerson}" VerticalAlignment="Center"
+                          ToolTip.Tip="Open their page, to secure the account (Respond to Compromise is in its Actions)">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <ic:FluentIcon Icon="Person" FontSize="14" />
+                      <TextBlock Text="Open Person" />
+                    </StackPanel>
+                  </Button>
+                  <Button Grid.Column="2" Classes="accent" Content="{Binding UnblockText}" Command="{Binding UnblockCommand}" VerticalAlignment="Center"
+                          IsEnabled="{Binding $parent[ItemsControl].((ms:BlockedSendersViewModel)DataContext).CanEdit}"
+                          ToolTip.Tip="Let them send again (added to Pending Changes)" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+  </ScrollViewer>
+</UserControl>

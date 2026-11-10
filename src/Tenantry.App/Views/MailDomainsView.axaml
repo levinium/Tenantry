@@ -1,0 +1,107 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.MailDomainsView"
+             x:DataType="ms:MailDomainsViewModel">
+  <ScrollViewer>
+    <StackPanel Spacing="12" Margin="0,0,0,24">
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h3" Text="Email Authentication" />
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="How receivers can tell mail from your domains is really yours: SPF (which servers may send), DKIM (a signature), DMARC (what to do when those fail) and where mail arrives (MX). Read from Exchange and DNS." />
+            <TextBlock Text="{Binding SummaryText}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,4,0,0" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read Exchange and DNS again (after publishing a record)">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Check Again" />
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+      <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </Border>
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="16" Height="16" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" Text="Reading each domain from Exchange and DNS…" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+
+      <ItemsControl ItemsSource="{Binding Domains}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ms:MailDomainRow">
+            <Border Classes="card">
+              <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="2">
+                    <SelectableTextBlock Classes="h3" Text="{Binding Name}" />
+                    <TextBlock Classes="caption" Text="{Binding Tags}" IsVisible="{Binding HasTags}" />
+                  </StackPanel>
+                  <c:Badge Grid.Column="1" Text="{Binding StateText}" Kind="{Binding StateKind}" VerticalAlignment="Top" />
+                </Grid>
+                <ItemsControl ItemsSource="{Binding Checks}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="ms:DomainCheckRow">
+                      <Border Classes="valuerow">
+                        <StackPanel Spacing="4">
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                            <c:Badge Grid.Column="1" Text="{Binding Summary}" Kind="{Binding Kind}" />
+                          </Grid>
+                          <TextBlock Classes="muted" Text="{Binding Detail}" TextWrapping="Wrap" />
+                          <StackPanel Spacing="4" IsVisible="{Binding HasRecord}" Margin="0,4,0,0">
+                            <TextBlock Classes="label" Text="{Binding RecordHeading}" TextWrapping="Wrap" />
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                              <Border Classes="valuerow">
+                                <SelectableTextBlock Classes="code" Text="{Binding Record}" TextWrapping="Wrap" />
+                              </Border>
+                              <Button Grid.Column="1" Command="{Binding CopyCommand}" VerticalAlignment="Top" ToolTip.Tip="Copy, to paste at the domain's DNS host">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                  <ic:FluentIcon Icon="Copy" FontSize="14" />
+                                  <TextBlock Text="Copy" />
+                                </StackPanel>
+                              </Button>
+                            </Grid>
+                          </StackPanel>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <!-- DKIM is the one Exchange holds: set it up, switch it, rotate its keys here -->
+                <WrapPanel ItemSpacing="8" LineSpacing="8">
+                  <Button Classes="accent" Content="{Binding CreateText}" Command="{Binding CreateKeysCommand}" IsVisible="{Binding CanCreateKeys}"
+                          ToolTip.Tip="Create this domain's DKIM keys; then publish the two CNAME records it shows (added to Pending Changes)" />
+                  <Button Classes="accent" Content="{Binding TurnOnText}" Command="{Binding TurnOnCommand}" IsVisible="{Binding ShowTurnOn}" IsEnabled="{Binding CanTurnOn}"
+                          ToolTip.Tip="{Binding TurnOnTip}" ToolTip.ShowOnDisabled="True" />
+                  <Button Content="{Binding RotateText}" Command="{Binding RotateCommand}" IsVisible="{Binding CanRotate}"
+                          ToolTip.Tip="Switch to a new key; mail is signed with it after about four days (added to Pending Changes)" />
+                  <Button Classes="danger-outline" Content="{Binding TurnOffText}" Command="{Binding TurnOffCommand}" IsVisible="{Binding ShowTurnOff}"
+                          ToolTip.Tip="Stop signing mail from this domain (added to Pending Changes)" />
+                </WrapPanel>
+                <TextBlock Classes="caption" Text="{Binding RotateNote}" IsVisible="{Binding HasRotateNote}" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

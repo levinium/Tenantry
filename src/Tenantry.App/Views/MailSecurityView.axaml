@@ -146,6 +146,14 @@
       <views:TraceReportsView DataContext="{Binding Reports}" />
     </Panel>
 
+    <!-- Blocked senders and email authentication (12c) -->
+    <Panel IsVisible="{Binding ShowBlocked}">
+      <views:BlockedSendersView DataContext="{Binding Blocked}" />
+    </Panel>
+    <Panel IsVisible="{Binding ShowDomains}">
+      <views:MailDomainsView DataContext="{Binding Domains}" />
+    </Panel>
+
     <!-- Pages still to come -->
     <Border Classes="card" IsVisible="{Binding IsPlannedPage}" VerticalAlignment="Top" HorizontalAlignment="Left" MaxWidth="640">
       <StackPanel Spacing="8">

@@ -38,6 +38,8 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         new("rules", "Mail Flow Rules", "ArrowRouting"),
         new("lists", "Block and Allow Lists", "ShieldProhibited"),
         new("reports", "Trace Reports", "DocumentTable"),
+        new("blocked", "Blocked Senders", "PersonProhibited"),
+        new("domains", "Email Authentication", "ShieldCheckmark"),
     ];
 
     readonly ChangePipeline? _pipeline;
@@ -45,7 +47,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     readonly ITabHost? _tabs;
 
     public MailSecurityViewModel(IMailSecurity? records, ChangePipeline? pipeline, Availability canEdit, IListStateStore? listState, Func<DateTimeOffset>? now = null,
-        ITabHost? tabs = null, string? account = null)
+        ITabHost? tabs = null, string? account = null, Func<string, Action?>? openPerson = null)
     {
         _records = records;
         _pipeline = pipeline;
@@ -57,9 +59,11 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             LoadQuarantineAsync, row => OpenQuarantined((QuarantinedMessage)row), listState, _now);
         var follow = new TraceActions(TraceFrom, TraceTo, FindInQuarantine);
         Trace = DataListViewModel.Create(
-            MailSecurityLists.Trace(m => new TracePreviewViewModel(m, records, follow, pipeline, canEdit, () => _entries)),
+            MailSecurityLists.Trace(m => new TracePreviewViewModel(m, records, follow, pipeline, canEdit, () => _entries, IsOwnAddress)),
             LoadTraceAsync, _ => { }, listState, _now);
         Reports = new TraceReportsViewModel(records, account, now);
+        Blocked = new BlockedSendersViewModel(records as IMailDomainRecords, pipeline, canEdit, openPerson);
+        Domains = new MailDomainsViewModel(records as IMailDomainRecords, pipeline, canEdit);
         Entries = DataListViewModel.Create(
             MailSecurityLists.Entries(e => new ListEntryPreviewViewModel(e, pipeline, canEdit)),
             LoadEntriesAsync, row => OpenEntry((ListEntry)row), listState, _now);
@@ -114,8 +118,38 @@ public sealed partial class MailSecurityViewModel : TabViewModel
 
     public TraceReportsViewModel Reports { get; }
 
+    public BlockedSendersViewModel Blocked { get; }
+
+    public MailDomainsViewModel Domains { get; }
+
+    public bool ShowBlocked => SelectedPage.Key == "blocked";
+    public bool ShowDomains => SelectedPage.Key == "domains";
+
+    /// <summary>The organization's own domains, read once (to keep block and allow for outside senders).</summary>
+    HashSet<string> _ownDomains = new(StringComparer.OrdinalIgnoreCase);
+
+    bool _ownDomainsRead;
+
+    async Task ReadOwnDomainsAsync()
+    {
+        if (_ownDomainsRead || _records is not IMailDomainRecords domains)
+            return;
+        _ownDomainsRead = true;
+        try
+        {
+            _ownDomains = new HashSet<string>(await domains.GetAcceptedDomainNamesAsync(), StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            _ownDomainsRead = false;
+        }
+    }
+
+    bool IsOwnAddress(string address) => address.LastIndexOf('@') is var at and >= 0 && _ownDomains.Contains(address[(at + 1)..]);
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(ShowRules), nameof(ShowReports), nameof(IsPlannedPage))]
+    [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(ShowRules), nameof(ShowReports), nameof(ShowBlocked), nameof(ShowDomains),
+        nameof(IsPlannedPage))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     public bool ShowReports => SelectedPage.Key == "reports";
@@ -149,6 +183,12 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         }
         if (value.Key == "reports" && !Reports.IsLoaded)
             _ = Reports.Refresh();
+        if (value.Key == "trace")
+            _ = ReadOwnDomainsAsync();
+        if (value.Key == "blocked" && !Blocked.IsLoaded)
+            _ = Blocked.Refresh();
+        if (value.Key == "domains" && !Domains.IsLoaded)
+            _ = Domains.Refresh();
     }
 
     // ---- Mail flow rules ----------------------------------------------------------------------

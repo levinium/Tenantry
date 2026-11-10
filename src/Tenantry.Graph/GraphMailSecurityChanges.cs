@@ -52,6 +52,40 @@ public sealed partial class GraphChangeExecutor
         return status.Equals("RELEASED", StringComparison.OrdinalIgnoreCase) || to.All(t => done.Contains(t, StringComparer.OrdinalIgnoreCase));
     }
 
+    // ---- Mail domains and blocked senders (12c) ------------------------------------------------
+
+    internal static (string Cmdlet, Dictionary<string, object?> Parameters) DkimCall(DkimChange change) => change switch
+    {
+        CreateDkimKeys c => ("New-DkimSigningConfig", new() { ["DomainName"] = c.Domain.Id, ["Enabled"] = false, ["KeySize"] = 2048 }),
+        SetDkimSigning s => ("Set-DkimSigningConfig", new() { ["Identity"] = s.Domain.Id, ["Enabled"] = s.New }),
+        RotateDkimKeys r => ("Rotate-DkimSigningConfig", new() { ["Identity"] = r.Domain.Id, ["KeySize"] = r.KeySize }),
+        _ => throw new NotSupportedException(change.GetType().Name),
+    };
+
+    Task<ApplyResult> DkimAsync(DkimChange change, CancellationToken cancellationToken)
+    {
+        var (cmdlet, parameters) = DkimCall(change);
+        return RunCheckedAsync(cmdlet, parameters, ct => Read("Get-DkimSigningConfig", new() { ["Identity"] = change.Domain.Id }, ct),
+            rows => change switch
+            {
+                SetDkimSigning s => rows.Count == 1 && rows[0].TryGetProperty("Enabled", out var e) && (e.ValueKind == JsonValueKind.True) == s.New,
+                _ => rows.Count == 1,
+            }, cancellationToken);
+    }
+
+    internal static Dictionary<string, object?> UnblockParameters(UnblockSender change)
+    {
+        var parameters = new Dictionary<string, object?> { ["SenderAddress"] = change.Sender.Id };
+        if (change.Reason is { Length: > 0 } reason)
+            parameters["Reason"] = reason;
+        return parameters;
+    }
+
+    Task<ApplyResult> UnblockSenderAsync(UnblockSender change, CancellationToken cancellationToken) =>
+        RunCheckedAsync("Remove-BlockedSenderAddress", UnblockParameters(change),
+            ct => Read("Get-BlockedSenderAddress", new() { ["SenderAddress"] = change.Sender.Id }, ct),
+            rows => rows.Count == 0, cancellationToken);
+
     /// <summary>Deny is only in the bulk form, which needs a placeholder Identity (Exchange ignores its value).</summary>
     internal static Dictionary<string, object?> DenyParameters(DenyQuarantineRelease change) => new()
     {

@@ -55,6 +55,8 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             return oneDrive;
         if (records is not null && records.ApplyMailSecurity(change) is { } mailSecurity)
             return mailSecurity;
+        if (records is not null && records.ApplyMailDomain(change) is { } mailDomain)
+            return mailDomain;
         if (change is CreateUser create)
             return await CreateUserAsync(create, cancellationToken);
         if (change is CreateGroup group)

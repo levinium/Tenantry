@@ -33,10 +33,12 @@ public sealed partial class TracePreviewViewModel : ObservableObject, IDisposabl
     readonly ChangePipeline? _pipeline;
     readonly Availability _canEdit;
     readonly Func<IEnumerable<ListEntry>>? _listed;
+    readonly Func<string, bool>? _isOwnAddress;
 
     public TracePreviewViewModel(TracedMessage message, IMailSecurity? records, TraceActions? actions = null, ChangePipeline? pipeline = null,
-        Availability? canEdit = null, Func<IEnumerable<ListEntry>>? listed = null)
+        Availability? canEdit = null, Func<IEnumerable<ListEntry>>? listed = null, Func<string, bool>? isOwnAddress = null)
     {
+        _isOwnAddress = isOwnAddress;
         Message = message;
         _records = records;
         _actions = actions;
@@ -141,7 +143,8 @@ public sealed partial class TracePreviewViewModel : ObservableObject, IDisposabl
 
     // ---- The sender on the block and allow lists ----------------------------------------------
 
-    public bool CanEditLists => _pipeline is not null && _canEdit.IsAvailable && Message.Sender.Length > 0;
+    /// <summary>Outside senders only: one of the organization's own people isn't blocked or allowed here.</summary>
+    public bool CanEditLists => _pipeline is not null && _canEdit.IsAvailable && Message.Sender.Length > 0 && _isOwnAddress?.Invoke(Message.Sender) != true;
 
     ChangeTarget SenderTarget => ListEntryChange.TargetFor(ListKind.Sender, Message.Sender);
 

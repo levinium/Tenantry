@@ -164,7 +164,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         var mailSecurity = Evaluate(Capabilities.ManageMailSecurity);
         if (tenant.Records is IMailSecurity mail)
         {
-            MailSecurity = new MailSecurity.MailSecurityViewModel(mail, tenant.Changes, mailSecurity, tenant.ListState, _now, this, tenant.Account);
+            MailSecurity = new MailSecurity.MailSecurityViewModel(mail, tenant.Changes, mailSecurity, tenant.ListState, _now, this, tenant.Account,
+                address => (_index.UserByUpn(address) ?? _index.AllUsers.FirstOrDefault(u => string.Equals(u.Mailbox?.PrimaryAddress, address, StringComparison.OrdinalIgnoreCase)))
+                    is { } person ? () => OpenUser(person) : null);
             // The preview pane is one choice for every list, remembered between runs.
             foreach (var list in MailSecurity.Lists)
                 list.FollowSharedPreferences(shared);

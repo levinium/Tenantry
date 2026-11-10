@@ -259,6 +259,40 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Blocked senders and email authentication: Unblock stages an unblock; Turn Signing On waits for DNS; Set Up DKIM stages the keys", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "blocked");
+            for (var i = 0; i < 30 && !mail.Blocked.IsLoaded; i++)
+                Settle();
+            Settle();
+            var test = mail.Blocked.Senders.Single(s => s.Address.StartsWith("zz-tenantry-test-", StringComparison.Ordinal));
+            var unblock = FindButton(window, b => b.Command == test.UnblockCommand && b.IsEffectivelyVisible);
+            Click(window, unblock);
+            Expect(main.Pending!.Rows.Any(r => r.Change is UnblockSender), "Unblock staged an unblock");
+            main.Pending.DiscardAllCommand.Execute(null);
+
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "domains");
+            for (var i = 0; i < 30 && !mail.Domains.IsLoaded; i++)
+                Settle();
+            Settle();
+            var half = mail.Domains.Domains.Single(d => d.Name == "northgate-events.example");
+            var on = FindButton(window, b => b.Command == half.TurnOnCommand && b.IsEffectivelyVisible);
+            Expect(!on.IsEnabled, "Turn Signing On is off until DNS shows the CNAMEs");
+            var parked = mail.Domains.Domains.Single(d => d.Name == "old-northgate.example");
+            Expect(!parked.CanCreateKeys, "a parked domain isn't offered DKIM");
+            var good = mail.Domains.Domains.Single(d => d.Name == "northgate.example");
+            var rotate = FindButton(window, b => b.Command == good.RotateCommand && b.IsEffectivelyVisible);
+            rotate.BringIntoView();
+            Settle();
+            Click(window, rotate);
+            Expect(main.Pending.Rows.Any(r => r.Change is RotateDkimKeys), "Rotate Keys staged a rotation");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("Reorder Rules: the button opens the page; ticking two (Shift for a range) and To the Top moves them and stages one new order; Put Them All Back undoes it", () =>
         {
             var (window, main, _) = OpenList();

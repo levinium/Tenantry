@@ -281,6 +281,19 @@ if (args.Contains("--mail-review"))
         Render(main, $"m15-trace-reports-{suffix}", height: 1300);
         main.SelectedTab = mail;
 
+        // Blocked senders and email authentication.
+        mail.SelectedPage = pages.Single(p => p.Key == "blocked");
+        for (var i = 0; i < 30 && !mail.Blocked.IsLoaded; i++)
+            Settle();
+        Settle();
+        Render(main, $"m16-blocked-senders-{suffix}");
+        mail.SelectedPage = pages.Single(p => p.Key == "domains");
+        for (var i = 0; i < 30 && !mail.Domains.IsLoaded; i++)
+            Settle();
+        Settle();
+        Render(main, $"m17-email-auth-{suffix}", height: 2400);
+        main.SelectedTab = mail;
+
         // Block and allow lists: the list, an entry previewed, the Add panel, an entry's page.
         mail.SelectedPage = pages[3];
         Wait(mail.Entries);
