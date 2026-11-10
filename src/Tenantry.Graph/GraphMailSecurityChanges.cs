@@ -2,7 +2,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Tenantry.Core.Changes;
 using Tenantry.Core.Directory;
+using Tenantry.Core.Exchange;
 using Tenantry.Core.MailFlow;
+using Tenantry.Core.PowerShell;
 
 namespace Tenantry.Graph;
 
@@ -127,6 +129,49 @@ public sealed partial class GraphChangeExecutor
     Task<ApplyResult> SetRulePriorityAsync(SetRulePriority change, CancellationToken cancellationToken) =>
         RunCheckedAsync("Set-TransportRule", new() { ["Identity"] = change.Rule.Id, ["Priority"] = change.New },
             ct => ReadRule(change.Rule.Id, ct), rows => RuleHas(rows, r => r.Priority == change.New), cancellationToken);
+
+    /// <summary>
+    /// A whole new rule order: the moves it needs, sent one after another (Exchange moves one rule per
+    /// call), then the order read back. A move that fails stops the rest and says how far it got.
+    /// </summary>
+    async Task<ApplyResult> ReorderRulesAsync(ReorderRules change, CancellationToken cancellationToken)
+    {
+        if (exchange is null)
+            return NoExchange;
+        var moves = change.Moves();
+        for (var i = 0; i < moves.Count; i++)
+        {
+            try
+            {
+                await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Set-TransportRule",
+                    new Dictionary<string, object?> { ["Identity"] = moves[i].Identity, ["Priority"] = moves[i].Priority }, cancellationToken);
+            }
+            catch (CmdletException e)
+            {
+                var name = change.New.FirstOrDefault(r => r.Identity == moves[i].Identity)?.Name ?? moves[i].Identity;
+                return new ApplyResult(i == 0 ? ChangeOutcome.Failed : ChangeOutcome.AppliedNotYetVisible,
+                    $"{(i == 0 ? "Nothing moved" : $"{i} of {moves.Count} moves went through")}; moving \"{name}\" failed: {e.Explanation} Refresh the rules to see where they stand.");
+            }
+        }
+        var wanted = change.New.Select(r => r.Identity).ToArray();
+        foreach (var wait in ReadBackWaits)
+        {
+            if (wait > TimeSpan.Zero)
+                await _delay(wait, cancellationToken);
+            // The rules' identities are their Guids (as GetRulesAsync reads them), so read the same field.
+            var rows = await Read("Get-TransportRule", new() { ["ResultSize"] = "Unlimited" }, cancellationToken, "Guid", "Identity", "Priority");
+            var order = rows.Select(GraphUserRecords.ToMailFlowRule).OrderBy(r => r.Priority).Select(r => r.Identity).ToArray();
+            if (order.SequenceEqual(wanted, StringComparer.OrdinalIgnoreCase))
+                return new ApplyResult(ChangeOutcome.Applied, moves.Count == 1 ? "1 move." : $"{moves.Count} moves.");
+        }
+        return new ApplyResult(ChangeOutcome.AppliedNotYetVisible, "Exchange took every move but still shows another order; refresh the rules in a minute.");
+    }
+
+    internal static PsScript ReorderScript(ReorderRules change) => change.Moves() is { Count: > 0 } moves
+        ? PsScript.Exchange(Ps.Lines([.. moves.Select(m => Ps.Cmdlet("Set-TransportRule",
+                new Dictionary<string, object?> { ["Identity"] = m.Identity, ["Priority"] = m.Priority }))]),
+            "Exchange moves one rule at a time and renumbers the others each time, so these run in this order.")
+        : PsScript.Exchange("# Nothing to move: the rules are already in this order.");
 
     Task<ApplyResult> RemoveRuleAsync(RemoveRule change, CancellationToken cancellationToken) =>
         RunCheckedAsync("Remove-TransportRule", new() { ["Identity"] = change.Rule.Id, ["Confirm"] = false },

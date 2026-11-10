@@ -92,6 +92,12 @@
             <TextBlock Text="New Rule" />
           </StackPanel>
         </Button>
+        <Button Command="{Binding ReorderRulesCommand}" ToolTip.Tip="{Binding ReorderTip}" ToolTip.ShowOnDisabled="True">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="ArrowSort" FontSize="14" />
+            <TextBlock Text="Reorder Rules" />
+          </StackPanel>
+        </Button>
         <Button Classes="ghost" Command="{Binding RefreshRulesCommand}" ToolTip.Tip="Read the rules again">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="ArrowSync" FontSize="14" />

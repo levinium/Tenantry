@@ -91,6 +91,7 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(RenewGroup), "renewGroup")]
 [JsonDerivedType(typeof(SetGroupLicense), "setGroupLicense")]
 [JsonDerivedType(typeof(UpgradeList), "upgradeList")]
+[JsonDerivedType(typeof(ReorderRules), "reorderRules")]
 [JsonDerivedType(typeof(SetSiteAdmin), "setSiteAdmin")]
 [JsonDerivedType(typeof(SetSiteGroupMember), "setSiteGroupMember")]
 [JsonDerivedType(typeof(SetSiteSetting), "setSiteSetting")]

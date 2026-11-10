@@ -193,8 +193,25 @@ public sealed partial class ListEntryPreviewViewModel : ObservableObject, IDispo
         var current = entry.Expires is not null ? ExpiryChoice.OnDate : entry.RemoveAfterDays is not null ? ExpiryChoice.AfterLastUse : ExpiryChoice.Never;
         Expiry = ExpiryOptions.FirstOrDefault(o => o.Choice == current) ?? ExpiryOptions[0];
         ExpiryDate = entry.Expires?.LocalDateTime.Date;
+        _ready = true;
         if (_pipeline is not null)
             _pipeline.Changed += OnPendingChanged;
+    }
+
+    /// <summary>Set once the entry's own values are in: from then on a change goes to Pending Changes as it's made.</summary>
+    readonly bool _ready;
+
+    // A choice of expiry (or a new date) goes to Pending Changes at once; the note on Enter or leaving the box.
+    partial void OnExpiryChanged(ExpiryOption value)
+    {
+        if (_ready && !IsOnDate)
+            SaveDetails();
+    }
+
+    partial void OnExpiryDateChanged(DateTime? value)
+    {
+        if (_ready && IsOnDate)
+            SaveDetails();
     }
 
     public ListEntry Entry { get; }
@@ -276,7 +293,10 @@ public sealed partial class ListEntryPreviewViewModel : ObservableObject, IDispo
         _ => ListExpiry.Never,
     };
 
-    /// <summary>Stages the expiry and note as edited (or takes the change back out when they match again).</summary>
+    /// <summary>
+    /// Puts the expiry and note, as edited, in Pending Changes (or takes the change back out when they
+    /// match the entry again). Runs as each is changed; there's no button for it.
+    /// </summary>
     [RelayCommand]
     void SaveDetails()
     {
@@ -284,7 +304,7 @@ public sealed partial class ListEntryPreviewViewModel : ObservableObject, IDispo
             return;
         if (IsOnDate && (ExpiryDate is not { } d || d.Date <= DateTime.Today))
         {
-            Message = "Choose an expiry date after today.";
+            Message = ExpiryDate is null ? "Choose the date it expires." : "Choose an expiry date after today.";
             return;
         }
         Message = null;
@@ -297,9 +317,9 @@ public sealed partial class ListEntryPreviewViewModel : ObservableObject, IDispo
         };
         var expiry = unchanged ? CurrentExpiry : ChosenExpiry;
         var notes = NotesDraft.Trim().Length == 0 ? null : NotesDraft.Trim();
+        if (Pending is UpdateListEntry earlier)
+            _pipeline!.Unstage(earlier);
         _pipeline!.Stage(new UpdateListEntry(Target, Entry.Kind, Entry.Identity, CurrentExpiry, expiry, Entry.Notes, notes));
-        if (Pending is null)
-            Message = "Nothing changed.";
     }
 
     void OnPendingChanged(object? sender, EventArgs e)

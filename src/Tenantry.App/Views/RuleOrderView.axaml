@@ -1,0 +1,92 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.RuleOrderView"
+             x:DataType="ms:RuleOrderViewModel">
+  <!-- Every rule in the order it runs. Drag by the handle, or tick rules (Shift-click for a range) and move them together. -->
+  <StackPanel Spacing="14">
+    <StackPanel Spacing="4">
+      <TextBlock Classes="h2" Text="Reorder Mail Flow Rules" />
+      <TextBlock Classes="muted" TextWrapping="Wrap"
+                 Text="Rules run from the top down. Arrange them here as much as you like: the new order goes to Pending Changes as one change, and nothing is sent until you apply it." />
+    </StackPanel>
+
+    <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+    </Border>
+
+    <!-- Moving the ticked rules -->
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <Button Command="{Binding MoveToTopCommand}" ToolTip.Tip="Ticked rules to the top, in their order" ToolTip.ShowOnDisabled="True">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="ArrowUpload" FontSize="14" />
+            <TextBlock Text="To the Top" />
+          </StackPanel>
+        </Button>
+        <Button Command="{Binding MoveUpCommand}" ToolTip.Tip="Ticked rules up one place" ToolTip.ShowOnDisabled="True">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="ArrowUp" FontSize="14" />
+            <TextBlock Text="Up" />
+          </StackPanel>
+        </Button>
+        <Button Command="{Binding MoveDownCommand}" ToolTip.Tip="Ticked rules down one place" ToolTip.ShowOnDisabled="True">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="ArrowDown" FontSize="14" />
+            <TextBlock Text="Down" />
+          </StackPanel>
+        </Button>
+        <Button Command="{Binding MoveToBottomCommand}" ToolTip.Tip="Ticked rules to the bottom, in their order" ToolTip.ShowOnDisabled="True">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="ArrowDownload" FontSize="14" />
+            <TextBlock Text="To the Bottom" />
+          </StackPanel>
+        </Button>
+        <Button Content="Untick All" Command="{Binding ClearTicksCommand}" IsVisible="{Binding HasTicked}" />
+      </StackPanel>
+      <TextBlock Grid.Column="1" Classes="caption" Text="{Binding TickedText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+    </Grid>
+
+    <!-- The rules -->
+    <ItemsControl x:Name="RuleList" ItemsSource="{Binding Rows}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="4" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="ms:RuleOrderRow">
+          <Border Classes="valuerow" Classes.moved="{Binding IsMoved}">
+            <Grid ColumnDefinitions="Auto,Auto,36,*,Auto,Auto,Auto" ColumnSpacing="10">
+              <Border Classes="draghandle" ToolTip.Tip="Drag to move this rule">
+                <ic:FluentIcon Icon="ReOrderDotsVertical" FontSize="16" />
+              </Border>
+              <CheckBox Grid.Column="1" x:Name="Tick" IsChecked="{Binding IsTicked, Mode=OneWay}" Tag="{Binding}" VerticalAlignment="Center"
+                        ToolTip.Tip="Tick to move with others (Shift-click ticks a range)" />
+              <TextBlock Grid.Column="2" Text="{Binding PositionText}" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Right" />
+              <TextBlock Grid.Column="3" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+              <TextBlock Grid.Column="4" Classes="caption" Text="{Binding WasText}" VerticalAlignment="Center" IsVisible="{Binding IsMoved}"
+                         Foreground="{DynamicResource Accent}" />
+              <c:Badge Grid.Column="5" Text="{Binding StateText}" Kind="{Binding StateKind}" VerticalAlignment="Center" />
+              <c:Badge Grid.Column="6" Text="{Binding ModeText}" Kind="{Binding ModeKind}" VerticalAlignment="Center" />
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <!-- What applying it will do -->
+    <Border Classes="banner" Classes.neutral="{Binding !HasMoved}" Classes.info="{Binding HasMoved}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding SummaryText}" />
+    </Border>
+    <Button Command="{Binding UndoAllCommand}" IsVisible="{Binding HasMoved}" HorizontalAlignment="Left"
+            ToolTip.Tip="Put every rule back where it runs now (and take the new order out of Pending Changes)">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <ic:FluentIcon Icon="ArrowUndo" FontSize="14" />
+        <TextBlock Text="Put Them All Back" />
+      </StackPanel>
+    </Button>
+  </StackPanel>
+</UserControl>

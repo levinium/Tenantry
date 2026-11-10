@@ -23,6 +23,7 @@ public sealed partial class GraphChangeExecutor
             new Dictionary<string, object?> { ["Identity"] = e.Rule.Id, ["Confirm"] = false })),
         SetRuleMode m => PsScript.Exchange(Ps.Cmdlet("Set-TransportRule",
             new Dictionary<string, object?> { ["Identity"] = m.Rule.Id, ["Mode"] = MailFlowRule.ExchangeMode(m.New) })),
+        ReorderRules r => ReorderScript(r),
         SetRulePriority p => PsScript.Exchange(Ps.Cmdlet("Set-TransportRule", new Dictionary<string, object?> { ["Identity"] = p.Rule.Id, ["Priority"] = p.New })),
         RemoveRule r => PsScript.Exchange(Ps.Cmdlet("Remove-TransportRule", new Dictionary<string, object?> { ["Identity"] = r.Rule.Id, ["Confirm"] = false })),
         CreateRule c => PsScript.Exchange(Ps.Cmdlet("New-TransportRule", RuleArguments(CreateRuleParameters(c)))),

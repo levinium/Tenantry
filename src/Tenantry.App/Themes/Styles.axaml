@@ -897,6 +897,10 @@
     <Setter Property="BorderBrush" Value="{DynamicResource Divider}" />
     <Setter Property="BorderThickness" Value="0,0,0,1" />
   </Style>
+  <!-- A row whose place has changed (Reorder Rules): softly tinted until applied. -->
+  <Style Selector="Border.valuerow.moved">
+    <Setter Property="Background" Value="{DynamicResource BannerInfoBg}" />
+  </Style>
   <Style Selector="Border.valuerow:pointerover">
     <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
   </Style>  <Style Selector="Border.levelrow">

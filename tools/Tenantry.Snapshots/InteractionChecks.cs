@@ -174,6 +174,39 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Reorder Rules: the button opens the page; ticking two (Shift for a range) and To the Top moves them and stages one new order; Put Them All Back undoes it", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages[2];
+            for (var i = 0; i < 50 && mail.Rules.IsLoading; i++)
+                Settle();
+            Settle();
+            Click(window, FindButton(window, b => b.Command == mail.ReorderRulesCommand && b.IsEffectivelyVisible));
+            var page = main.SelectedTab as Tenantry.ViewModels.MailSecurity.MailRecordPageViewModel;
+            var order = page?.Content as Tenantry.ViewModels.MailSecurity.RuleOrderViewModel;
+            Expect(order is not null, "Reorder Rules opened its page");
+            Settle();
+            var boxes = window.GetVisualDescendants().OfType<CheckBox>().Where(b => b.Tag is Tenantry.ViewModels.MailSecurity.RuleOrderRow && b.IsEffectivelyVisible).ToArray();
+            Expect(boxes.Length == order!.Rows.Count, "each rule has a box to tick");
+            var last = order.Rows[^1].Identity;
+            var nextToLast = order.Rows[^2].Identity;
+            Click(window, boxes.First(b => ((Tenantry.ViewModels.MailSecurity.RuleOrderRow)b.Tag!).Identity == nextToLast));
+            Click(window, boxes.First(b => ((Tenantry.ViewModels.MailSecurity.RuleOrderRow)b.Tag!).Identity == last), RawInputModifiers.Shift);
+            Expect(order.TickedCount == 2, $"two ticked (Shift ticked the range), not {order.TickedCount}");
+            Click(window, FindButton(window, b => b.Command == order.MoveToTopCommand && b.IsEffectivelyVisible));
+            Expect(order.Rows[0].Identity == nextToLast && order.Rows[1].Identity == last, "To the Top moved both, in their order");
+            var pending = main.Pending!.Rows.Select(r => r.Change).OfType<ReorderRules>().ToArray();
+            Expect(pending.Length == 1 && pending[0].New[0].Identity == nextToLast, "one new order is in Pending Changes");
+            var back = FindButton(window, b => b.Command == order.UndoAllCommand && b.IsEffectivelyVisible);
+            back.BringIntoView();
+            Settle();
+            Click(window, back);
+            Expect(!main.Pending.Rows.Any(r => r.Change is ReorderRules) && !order.HasMoved, "Put Them All Back undid it");
+            window.Close();
+        });
+
         Check("Group lifecycle: a Microsoft 365 group says when it expires and Renew Now stages it; Add a License gives a security group's members a license", () =>
         {
             var (window, main, _) = OpenList();

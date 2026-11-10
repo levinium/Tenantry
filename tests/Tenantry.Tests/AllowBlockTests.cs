@@ -136,14 +136,21 @@ public sealed class AllowBlockTests
         var entry = new ListEntry("id1", ListKind.Sender, "zz-tenantry-test.example", true, "old note", DateTimeOffset.UtcNow.AddDays(5), null, null, null, null, null, "Tenant");
         var preview = new ListEntryPreviewViewModel(entry, pipeline, Availability.Yes);
 
+        // Nothing changed: nothing staged, and nothing to say about it.
         preview.SaveDetailsCommand.Execute(null);
         Assert.Empty(pipeline.Pending);
-        Assert.Equal("Nothing changed.", preview.Message);
+        Assert.Null(preview.Message);
 
+        // The note goes when the box is finished (Enter or leaving it).
         preview.NotesDraft = "new note";
         preview.SaveDetailsCommand.Execute(null);
         var update = Assert.IsType<UpdateListEntry>(Assert.Single(pipeline.Pending));
         Assert.Equal((update.OldExpiry, "new note"), (update.NewExpiry, update.NewNotes));
+
+        // Choosing an expiry goes straight in, with the note, as one change.
+        preview.Expiry = preview.ExpiryOptions.Single(o => o.Choice == ExpiryChoice.Never);
+        var both = Assert.IsType<UpdateListEntry>(Assert.Single(pipeline.Pending));
+        Assert.Equal((ListExpiry.Never, "new note"), (both.NewExpiry, both.NewNotes));
 
         preview.RemoveCommand.Execute(null);
         Assert.IsType<RemoveListEntry>(Assert.Single(pipeline.Pending));

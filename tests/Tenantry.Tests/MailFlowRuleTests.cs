@@ -54,11 +54,16 @@ public sealed class MailFlowRuleTests
     static MailFlowRule Rule(int priority = 2, bool enabled = true, RuleMode mode = RuleMode.Enforce, string name = "zz-tenantry-test-rule") =>
         new("g1", name, priority, enabled, mode, ["Is sent to 'x'"], [], ["Set the message header 'X-Test' to 'yes'"], null, null, null, null, null);
 
+    /// <summary>Five rules, the test one third (index 2), as the Rules page holds them.</summary>
+    static IReadOnlyList<MailFlowRule> Five() =>
+        [.. Enumerable.Range(0, 5).Select(i => i == 2 ? Rule() : Rule(priority: i, name: $"zz-tenantry-test-r{i}") with { Identity = $"r{i}" })];
+
     [Fact]
     public void The_preview_stages_on_off_mode_order_and_delete_and_undoes_them()
     {
         var pipeline = Pipeline(new Nothing());
-        var preview = new RulePreviewViewModel(Rule(), 5, pipeline, Availability.Yes);
+        var all = Five();
+        var preview = new RulePreviewViewModel(Rule(), 5, pipeline, Availability.Yes, allRules: () => all);
 
         preview.ToggleEnabledCommand.Execute(null);
         Assert.False(Assert.IsType<SetRuleEnabled>(Assert.Single(pipeline.Pending)).New);
@@ -73,33 +78,132 @@ public sealed class MailFlowRuleTests
 
         preview.MoveUpCommand.Execute(null);
         preview.MoveUpCommand.Execute(null);
-        var move = Assert.IsType<SetRulePriority>(Assert.Single(pipeline.Pending));
-        Assert.Equal((2, 0), (move.Old, move.New));
+        var move = Assert.IsType<ReorderRules>(Assert.Single(pipeline.Pending));
+        Assert.Equal("g1", move.New[0].Identity);
+        Assert.Equal([("g1", 0)], move.Moves());
         Assert.False(preview.CanMoveUp);
         preview.MoveToBottomCommand.Execute(null);
-        Assert.Equal(4, Assert.IsType<SetRulePriority>(Assert.Single(pipeline.Pending)).New);
+        Assert.Equal("g1", Assert.IsType<ReorderRules>(Assert.Single(pipeline.Pending)).New[4].Identity);
 
         preview.DeleteCommand.Execute(null);
         Assert.Contains(pipeline.Pending, c => c is RemoveRule);
     }
 
     [Fact]
-    public void Rules_move_one_at_a_time()
+    public void Moves_of_several_rules_make_one_new_order()
     {
         var pipeline = Pipeline(new Nothing());
-        var first = new RulePreviewViewModel(Rule(priority: 2), 5, pipeline, Availability.Yes);
-        var other = new RulePreviewViewModel(Rule(priority: 3) with { Identity = "g2", Name = "zz-tenantry-test-other" }, 5, pipeline, Availability.Yes);
+        var all = Five();
+        var third = new RulePreviewViewModel(all[2], 5, pipeline, Availability.Yes, allRules: () => all);
+        var last = new RulePreviewViewModel(all[4], 5, pipeline, Availability.Yes, allRules: () => all);
 
-        first.MoveUpCommand.Execute(null);
+        third.MoveToTopCommand.Execute(null);
+        last.MoveUpCommand.Execute(null);
 
-        Assert.False(other.CanMoveUp);
-        Assert.False(other.CanMoveDown);
-        Assert.True(other.HasOrderNote);
-        other.MoveToTopCommand.Execute(null);
-        Assert.Single(pipeline.Pending);
-        // The rule with the pending move can still adjust it.
-        Assert.True(first.CanMoveUp);
-        Assert.False(first.HasOrderNote);
+        var order = Assert.IsType<ReorderRules>(Assert.Single(pipeline.Pending));
+        Assert.Equal(["g1", "r0", "r1", "r4", "r3"], order.New.Select(s => s.Identity));
+        // Two rules out of place: two moves (either pair of them, as long as they end in the new order).
+        Assert.Equal(2, order.Moves().Count);
+    }
+
+    [Fact]
+    public void The_moves_turn_the_old_order_into_the_new_one_with_as_few_calls_as_it_takes()
+    {
+        RuleSlot S(string id) => new(id, id);
+        var old = new[] { S("a"), S("b"), S("c"), S("d"), S("e"), S("f") };
+        var cases = new[] { "fabcde", "bcdefa", "abcdfe", "fedcba", "cabdef", "abcdef" };
+        foreach (var wanted in cases)
+        {
+            var change = new ReorderRules(ReorderRules.OrderTarget, old, [.. wanted.Select(c => S(c.ToString()))]);
+            // Playing the moves as Exchange does (each rule to its place, the rest shifting) ends in the order asked for.
+            var current = old.Select(s => s.Identity).ToList();
+            foreach (var (id, priority) in change.Moves())
+            {
+                current.Remove(id);
+                current.Insert(priority, id);
+            }
+            Assert.Equal(wanted.Select(c => c.ToString()), current);
+        }
+        Assert.Single(new ReorderRules(ReorderRules.OrderTarget, old, [.. "fabcde".Select(c => S(c.ToString()))]).Moves());
+        Assert.Single(new ReorderRules(ReorderRules.OrderTarget, old, [.. "bcdefa".Select(c => S(c.ToString()))]).Moves());
+        Assert.Empty(new ReorderRules(ReorderRules.OrderTarget, old, old).Moves());
+    }
+
+    [Fact]
+    public void Any_new_order_is_reached_and_never_with_more_moves_than_rules_out_of_place()
+    {
+        var random = new Random(20261110);
+        for (var round = 0; round < 300; round++)
+        {
+            var count = random.Next(1, 40);
+            var old = Enumerable.Range(0, count).Select(i => new RuleSlot($"r{i}", $"Rule {i}")).ToArray();
+            var wanted = old.OrderBy(_ => random.Next()).ToArray();
+            var change = new ReorderRules(ReorderRules.OrderTarget, old, wanted);
+            var current = old.Select(s => s.Identity).ToList();
+            foreach (var (id, priority) in change.Moves())
+            {
+                Assert.InRange(priority, 0, count - 1);
+                current.Remove(id);
+                current.Insert(priority, id);
+            }
+            Assert.Equal(wanted.Select(s => s.Identity), current);
+            // The fewest possible: every rule outside the longest run already in order moves once.
+            var positions = wanted.Select(s => int.Parse(s.Identity[1..], System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+            var run = new int[count];
+            for (var i = 0; i < count; i++)
+            {
+                run[i] = 1;
+                for (var j = 0; j < i; j++)
+                    if (positions[j] < positions[i])
+                        run[i] = Math.Max(run[i], run[j] + 1);
+            }
+            Assert.Equal(count - run.Max(), change.Moves().Count);
+        }
+    }
+
+    [Fact]
+    public void Reorder_Rules_moves_ticked_rules_together_drags_and_keeps_one_pending_order()
+    {
+        var pipeline = Pipeline(new Nothing());
+        var all = Five();
+        using var order = new RuleOrderViewModel(all, pipeline, Availability.Yes);
+
+        Assert.False(order.MoveUpCommand.CanExecute(null));
+        order.Tick(order.Rows[3], shift: false);
+        order.Tick(order.Rows[4], shift: true);
+        Assert.Equal(2, order.TickedCount);
+        order.MoveToTopCommand.Execute(null);
+        Assert.Equal(["r3", "r4", "r0", "r1", "g1"], order.Rows.Select(r => r.Identity));
+        // Only the two that moved say where they were; the rest just shifted down.
+        Assert.Equal(["was 4", "was 5"], order.Rows.Where(r => r.IsMoved).Select(r => r.WasText));
+
+        order.Drop(order.Rows.Single(r => r.Identity == "g1"), 0);
+        var change = Assert.IsType<ReorderRules>(Assert.Single(pipeline.Pending));
+        Assert.Equal(["g1", "r3", "r4", "r0", "r1"], change.New.Select(s => s.Identity));
+        // g1, r3 and r4 are already in order among themselves: only r0 and r1 move.
+        Assert.Contains("applying it sends 2 moves", order.SummaryText, StringComparison.Ordinal);
+
+        // Undone in the tray: the rows go back as they are.
+        pipeline.Unstage(change);
+        Assert.Equal(["r0", "r1", "g1", "r3", "r4"], order.Rows.Select(r => r.Identity));
+        Assert.False(order.HasMoved);
+    }
+
+    [Fact]
+    public async Task A_new_order_sends_its_moves_one_after_another_then_reads_the_order_back()
+    {
+        var exchange = new FakeCmdlets((cmdlet, _) => cmdlet == "Get-TransportRule"
+            // As Exchange answers: Identity is the name, Guid is the id Tenantry keeps.
+            ? "[{\"Guid\":\"c\",\"Identity\":\"C\",\"Priority\":0},{\"Guid\":\"a\",\"Identity\":\"A\",\"Priority\":1},{\"Guid\":\"b\",\"Identity\":\"B\",\"Priority\":2}]"
+            : "[]");
+        var executor = new GraphChangeExecutor(new GraphClient(new FakeHttp().Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore(), NoDelay.Instance, exchange);
+
+        var result = await executor.ApplyAsync(new ReorderRules(ReorderRules.OrderTarget,
+            [new("a", "A"), new("b", "B"), new("c", "C")], [new("c", "C"), new("a", "A"), new("b", "B")]), Ct);
+
+        Assert.Equal(ChangeOutcome.Applied, result.Outcome);
+        var sets = exchange.Calls.Where(c => c.Cmdlet == "Set-TransportRule").ToArray();
+        Assert.Contains("\"Identity\":\"c\"", Assert.Single(sets).Parameters, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -175,6 +175,9 @@
     <DataTemplate DataType="ms:ListEntryPreviewViewModel">
       <views:ListEntryPreviewView />
     </DataTemplate>
+    <DataTemplate DataType="ms:RuleOrderViewModel">
+      <views:RuleOrderView />
+    </DataTemplate>
     <DataTemplate DataType="ms:RulePreviewViewModel">
       <views:RulePreviewView />
     </DataTemplate>

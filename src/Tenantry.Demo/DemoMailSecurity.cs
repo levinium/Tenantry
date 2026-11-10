@@ -179,6 +179,20 @@ public sealed partial class DemoUserRecords : IMailSecurity
     ApplyResult? ApplyRule(ChangeOp change)
     {
         var rules = FlowRules();
+        // A new order: the same moves Exchange is sent, one after another.
+        if (change is ReorderRules order)
+        {
+            foreach (var (identity, priority) in order.Moves())
+            {
+                var from = rules.FindIndex(r => r.Draft.Identity == identity);
+                if (from < 0)
+                    continue;
+                var rule = rules[from];
+                rules.RemoveAt(from);
+                rules.Insert(Math.Clamp(priority, 0, rules.Count), rule);
+            }
+            return new ApplyResult(ChangeOutcome.Applied);
+        }
         var at = change is RuleChange rc ? rules.FindIndex(r => r.Draft.Identity == rc.Rule.Id) : -1;
         var now = DateTimeOffset.UtcNow;
         switch (change)
@@ -221,7 +235,7 @@ public sealed partial class DemoUserRecords : IMailSecurity
     /// <summary>Applies a quarantine change to the demo; null when it isn't one.</summary>
     public ApplyResult? ApplyMailSecurity(ChangeOp change)
     {
-        if (change is RuleChange)
+        if (change is RuleChange or ReorderRules)
             return ApplyRule(change);
         switch (change)
         {

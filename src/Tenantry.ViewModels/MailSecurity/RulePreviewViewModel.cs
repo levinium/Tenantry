@@ -18,9 +18,13 @@ public sealed partial class RulePreviewViewModel : ObservableObject, IDisposable
     readonly int _ruleCount;
 
     readonly Action<MailFlowRule>? _edit;
+    readonly Func<IReadOnlyList<MailFlowRule>> _all;
 
-    public RulePreviewViewModel(MailFlowRule rule, int ruleCount, ChangePipeline? pipeline, Availability canEdit, Action<MailFlowRule>? edit = null)
+    /// <param name="allRules">Every rule as last read: a move here changes the one pending order (Reorder Rules' too).</param>
+    public RulePreviewViewModel(MailFlowRule rule, int ruleCount, ChangePipeline? pipeline, Availability canEdit, Action<MailFlowRule>? edit = null,
+        Func<IReadOnlyList<MailFlowRule>>? allRules = null)
     {
+        _all = allRules ?? (() => [rule]);
         Rule = rule;
         _ruleCount = ruleCount;
         _pipeline = pipeline;
@@ -71,7 +75,9 @@ public sealed partial class RulePreviewViewModel : ObservableObject, IDisposable
         get
         {
             var parts = new[] { "enabled", "mode", "priority", "remove" }.Select(Pending).OfType<ChangeOp>()
-                .Select(c => c is RemoveRule ? "delete" : c.After.ToLowerInvariant()).ToArray();
+                .Select(c => c is RemoveRule ? "delete" : c.After.ToLowerInvariant())
+                .Concat(PlannedPriority != Rule.Priority ? [$"runs {Ordinal(PlannedPriority + 1)}"] : [])
+                .ToArray();
             return parts.Length == 0 ? null : "Pending: " + string.Join(", ", parts);
         }
     }
@@ -119,28 +125,39 @@ public sealed partial class RulePreviewViewModel : ObservableObject, IDisposable
         }
     }
 
-    int PlannedPriority => Pending("priority") is SetRulePriority p ? p.New : Rule.Priority;
+    ReorderRules? PendingOrder => _pipeline?.PendingFor(ReorderRules.OrderTarget.Id, "order") as ReorderRules;
 
-    /// <summary>
-    /// Another rule's move waiting in Pending changes. Exchange renumbers the other rules on each
-    /// move, so two moves planned from the same order wouldn't end where either showed: one at a time.
-    /// </summary>
-    bool OtherMovePending => _pipeline?.Pending.Any(c => c is SetRulePriority p && p.Rule.Id != Rule.Identity) == true;
+    IReadOnlyList<RuleSlot> OriginalOrder => [.. _all().OrderBy(r => r.Priority).Select(r => new RuleSlot(r.Identity, r.Name))];
 
-    public string? OrderNote => CanEdit && OtherMovePending
-        ? "Another rule's move is waiting in Pending Changes. Apply it first: rules move one at a time, because each move renumbers the rest."
-        : null;
+    /// <summary>The order as it will be once pending changes apply (one order for every rule's moves).</summary>
+    List<RuleSlot> PlannedOrder => [.. PendingOrder?.New ?? OriginalOrder];
 
-    public bool HasOrderNote => OrderNote is not null;
+    int PlannedPriority => PlannedOrder.FindIndex(s => s.Identity == Rule.Identity) is >= 0 and var i ? i : Rule.Priority;
 
-    public bool CanMoveUp => CanEdit && !OtherMovePending && PlannedPriority > 0;
-    public bool CanMoveDown => CanEdit && !OtherMovePending && PlannedPriority < _ruleCount - 1;
+    public string? OrderNote => null;
 
+    public bool HasOrderNote => false;
+
+    public bool CanMoveUp => CanEdit && PlannedPriority > 0;
+    public bool CanMoveDown => CanEdit && PlannedPriority < PlannedOrder.Count - 1;
+
+    /// <summary>Moves this rule within the one pending order (it and other moves apply together).</summary>
     void MoveTo(int priority)
     {
-        if (!CanEdit || OtherMovePending)
+        if (!CanEdit)
             return;
-        _pipeline!.Stage(new SetRulePriority(Target, Rule.Priority, Math.Clamp(priority, 0, _ruleCount - 1)));
+        var order = PlannedOrder;
+        var at = order.FindIndex(s => s.Identity == Rule.Identity);
+        if (at < 0)
+            return;
+        var slot = order[at];
+        order.RemoveAt(at);
+        order.Insert(Math.Clamp(priority, 0, order.Count), slot);
+        if (PendingOrder is { } pending)
+            _pipeline!.Unstage(pending);
+        var change = new ReorderRules(ReorderRules.OrderTarget, OriginalOrder, order);
+        if (!change.IsNoChange)
+            _pipeline!.Stage(change);
     }
 
     [RelayCommand]
@@ -153,7 +170,7 @@ public sealed partial class RulePreviewViewModel : ObservableObject, IDisposable
     void MoveToTop() => MoveTo(0);
 
     [RelayCommand]
-    void MoveToBottom() => MoveTo(_ruleCount - 1);
+    void MoveToBottom() => MoveTo(PlannedOrder.Count - 1);
 
     public string DeleteText => Pending("remove") is not null ? "Undo Delete" : "Delete Rule";
 

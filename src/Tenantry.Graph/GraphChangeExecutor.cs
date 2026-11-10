@@ -118,6 +118,7 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         SetRuleEnabled e => await SetRuleEnabledAsync(e, cancellationToken),
         SetRuleMode m => await SetRuleModeAsync(m, cancellationToken),
         SetRulePriority p => await SetRulePriorityAsync(p, cancellationToken),
+        ReorderRules r => await ReorderRulesAsync(r, cancellationToken),
         RemoveRule r => await RemoveRuleAsync(r, cancellationToken),
         CreateRule c => await CreateRuleAsync(c, cancellationToken),
         UpdateRule u => await UpdateRuleAsync(u, cancellationToken),

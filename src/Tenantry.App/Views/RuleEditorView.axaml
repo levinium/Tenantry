@@ -208,7 +208,7 @@
                 </StackPanel>
                 <TextBlock Classes="muted" Margin="52,0,0,0" Text="is any message (no conditions yet)" IsVisible="{Binding HasNoConditions}" />
                 <ItemsControl ItemsSource="{Binding Conditions}" ItemTemplate="{StaticResource Line}" />
-                <Button x:Name="AddCondition" Classes="link" Margin="48,0,0,0" HorizontalAlignment="Left">
+                <Button x:Name="AddCondition" Margin="48,0,0,0" HorizontalAlignment="Left">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <ic:FluentIcon Icon="Add" FontSize="14" />
                     <TextBlock Text="Add a Condition" />
@@ -231,7 +231,7 @@
                 </StackPanel>
                 <TextBlock Classes="muted" Margin="52,0,0,0" Text="no exceptions" IsVisible="{Binding HasNoExceptions}" />
                 <ItemsControl ItemsSource="{Binding Exceptions}" ItemTemplate="{StaticResource Line}" />
-                <Button x:Name="AddException" Classes="link" Margin="48,0,0,0" HorizontalAlignment="Left">
+                <Button x:Name="AddException" Margin="48,0,0,0" HorizontalAlignment="Left">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <ic:FluentIcon Icon="Add" FontSize="14" />
                     <TextBlock Text="Add an Exception" />
@@ -254,7 +254,7 @@
                 </StackPanel>
                 <TextBlock Classes="muted" Margin="52,0,0,0" Text="nothing yet: add at least one action" IsVisible="{Binding HasNoActions}" />
                 <ItemsControl ItemsSource="{Binding Actions}" ItemTemplate="{StaticResource Line}" />
-                <Button x:Name="AddAction" Classes="link" Margin="48,0,0,0" HorizontalAlignment="Left">
+                <Button x:Name="AddAction" Margin="48,0,0,0" HorizontalAlignment="Left">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <ic:FluentIcon Icon="Add" FontSize="14" />
                     <TextBlock Text="Add an Action" />

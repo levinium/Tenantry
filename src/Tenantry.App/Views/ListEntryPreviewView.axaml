@@ -32,10 +32,9 @@
       <ComboBox ItemsSource="{Binding ExpiryOptions}" SelectedItem="{Binding Expiry}" HorizontalAlignment="Stretch" />
       <CalendarDatePicker SelectedDate="{Binding ExpiryDate}" IsVisible="{Binding IsOnDate}" Width="180" HorizontalAlignment="Left" />
       <TextBlock Classes="label" Text="NOTE" Margin="0,4,0,0" />
-      <TextBox Text="{Binding NotesDraft}" PlaceholderText="Why it's on the list" />
-      <Button Content="Save Expiry and Note" Command="{Binding SaveDetailsCommand}" HorizontalAlignment="Left"
-              ToolTip.Tip="Added to Pending Changes" />
-      <TextBlock Classes="caption" Text="{Binding Message}" IsVisible="{Binding HasMessage}" />
+      <TextBox Text="{Binding NotesDraft}" PlaceholderText="Why it's on the list" c:EditCommit.Commit="{Binding SaveDetailsCommand}" />
+      <TextBlock Classes="caption" TextWrapping="Wrap" Text="A new expiry goes to Pending Changes when you choose it; the note when you press Enter or click away." />
+      <TextBlock Classes="caption" Text="{Binding Message}" IsVisible="{Binding HasMessage}" Foreground="{DynamicResource BadgeWarningFg}" />
     </StackPanel>
 
     <Button Classes="danger-outline" Content="{Binding RemoveText}" Command="{Binding RemoveCommand}" IsVisible="{Binding CanEdit}" HorizontalAlignment="Left"

@@ -133,6 +133,120 @@ if (args.Contains("--manage-popups"))
     return 0;
 }
 
+// --mail-review: Mail & Security for reviewing by eye: each page as it opens, a row previewed,
+// record pages, the rule editor (starters, new, existing), message trace searched, adding list
+// entries. Both themes.
+if (args.Contains("--mail-review"))
+{
+    foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+    {
+        Application.Current!.RequestedThemeVariant = theme;
+        var suffix = theme == ThemeVariant.Light ? "light" : "dark";
+        var demo = connector.ConnectDemo();
+        var main = new MainViewModel(demo with
+        {
+            IsDemo = false,
+            ListState = new Tenantry.Core.Lists.MemoryListStateStore(),
+            Changes = new Tenantry.Core.Changes.ChangePipeline(new NoopExecutor(), new Tenantry.Core.Changes.ChangeLog(new Tenantry.Core.Cache.MemoryEntityStore()),
+                new Tenantry.Core.Changes.MemoryTestModeStore(true), demo.Account),
+        }, () => { });
+        main.Users.LoadAsync().GetAwaiter().GetResult();
+        main.Groups.LoadAsync().GetAwaiter().GetResult();
+        var mail = main.MailSecurity!;
+        main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+        var pages = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages;
+        void Wait(Tenantry.ViewModels.Lists.DataListViewModel list)
+        {
+            for (var i = 0; i < 50 && list.IsLoading; i++)
+                Settle();
+            Settle();
+        }
+
+        // Quarantine: the list, each kind of message previewed, a message's page with the message shown.
+        mail.SelectedPage = pages[0];
+        Wait(mail.Quarantine);
+        Render(main, $"m01-quarantine-{suffix}");
+        foreach (var reason in mail.Quarantine.Rows.Cast<QuarantinedMessage>().Select(m => m.Reason).Distinct().Take(4).ToArray())
+        {
+            mail.Quarantine.PreviewRow(mail.Quarantine.Rows.Cast<QuarantinedMessage>().First(m => m.Reason == reason));
+            Settle();
+            Render(main, $"m02-quarantine-preview-{reason.ToLowerInvariant()}-{suffix}");
+        }
+        mail.OpenQuarantined(mail.Quarantine.Rows.Cast<QuarantinedMessage>().First());
+        var held = (Tenantry.ViewModels.MailSecurity.QuarantinePreviewViewModel)((Tenantry.ViewModels.MailSecurity.MailRecordPageViewModel)main.SelectedTab!).Content;
+        held.ShowMessageCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        Settle();
+        Render(main, $"m03-quarantine-page-{suffix}", height: 1200);
+        main.SelectedTab = mail;
+
+        // Message trace: before searching, then results with a failed message previewed.
+        mail.SelectedPage = pages[1];
+        Settle();
+        Render(main, $"m04-trace-empty-{suffix}");
+        mail.SearchTraceCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        Wait(mail.Trace);
+        if (mail.Trace.Rows.Cast<TracedMessage>().FirstOrDefault(m => m.Status == "Failed") is { } failed)
+            mail.Trace.PreviewRow(failed);
+        for (var i = 0; i < 20; i++)
+            Settle();
+        Render(main, $"m05-trace-results-{suffix}", height: 1000);
+
+        // Mail flow rules: the list, a rule previewed, the editor's starters, a new rule, an existing rule.
+        mail.SelectedPage = pages[2];
+        Wait(mail.Rules);
+        Render(main, $"m06-rules-{suffix}");
+        mail.Rules.PreviewRow(mail.Rules.Rows.Cast<MailFlowRule>().First());
+        Settle();
+        Render(main, $"m07-rule-preview-{suffix}");
+        mail.NewRuleCommand.Execute(null);
+        var newRule = (Tenantry.ViewModels.MailSecurity.RuleEditorViewModel)main.SelectedTab!;
+        Settle();
+        Render(main, $"m08-rule-starters-{suffix}", height: 1200);
+        newRule.StartCommand.Execute(Tenantry.ViewModels.MailSecurity.RuleStarters.All.First(s => s.Title != "Blank"));
+        Settle();
+        Render(main, $"m09-rule-new-{suffix}", height: 1500);
+        newRule.DiscardCommand.Execute(null);
+        mail.EditRule(mail.Rules.Rows.Cast<MailFlowRule>().First());
+        var existing = (Tenantry.ViewModels.MailSecurity.RuleEditorViewModel)main.SelectedTab!;
+        for (var i = 0; i < 50 && existing.IsLoading; i++)
+            Settle();
+        existing.ShowMoreSettings = true;
+        Settle();
+        Render(main, $"m10-rule-existing-{suffix}", height: 1800);
+        existing.DiscardCommand.Execute(null);
+        main.SelectedTab = mail;
+
+        // Reorder Rules: as it opens, then with two ticked rules moved to the top and one dragged.
+        mail.ReorderRulesCommand.Execute(null);
+        var order = (Tenantry.ViewModels.MailSecurity.RuleOrderViewModel)((Tenantry.ViewModels.MailSecurity.MailRecordPageViewModel)main.SelectedTab!).Content;
+        Settle();
+        Render(main, $"m10b-reorder-{suffix}", height: 1000);
+        order.Tick(order.Rows[3], shift: false);
+        order.Tick(order.Rows[4], shift: true);
+        order.MoveToTopCommand.Execute(null);
+        Settle();
+        Render(main, $"m10c-reorder-moved-{suffix}", height: 1100);
+        main.Pending!.DiscardAllCommand.Execute(null);
+        main.SelectedTab = mail;
+
+        // Block and allow lists: the list, an entry previewed, the Add panel, an entry's page.
+        mail.SelectedPage = pages[3];
+        Wait(mail.Entries);
+        Render(main, $"m11-lists-{suffix}");
+        mail.Entries.PreviewRow(mail.Entries.Rows.Cast<ListEntry>().First());
+        Settle();
+        Render(main, $"m12-list-preview-{suffix}");
+        mail.IsAddOpen = true;
+        Settle();
+        Render(main, $"m13-list-add-{suffix}", height: 1100);
+        mail.IsAddOpen = false;
+        mail.Entries.OpenRow(mail.Entries.Rows.Cast<ListEntry>().First());
+        Settle();
+        Render(main, $"m14-list-entry-page-{suffix}");
+    }
+    return 0;
+}
+
 // --groups-review: the Groups area for reviewing by eye: the list, then for each kind of group its
 // preview, Manage popup and page; New Group for each kind; Add Members from CSV. Both themes.
 if (args.Contains("--groups-review"))

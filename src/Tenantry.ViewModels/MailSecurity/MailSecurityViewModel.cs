@@ -62,14 +62,14 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             LoadEntriesAsync, row => OpenEntry((ListEntry)row), listState, _now);
         AddEntries = new AddListEntriesViewModel(pipeline, canEdit, () => _entries, _now);
         Rules = DataListViewModel.Create(
-            MailSecurityLists.Rules(r => new RulePreviewViewModel(r, _rules.Count, pipeline, canEdit, CanOpenEditor ? EditRule : null)),
+            MailSecurityLists.Rules(r => new RulePreviewViewModel(r, _rules.Count, pipeline, canEdit, CanOpenEditor ? EditRule : null, () => _rules)),
             LoadRulesAsync, row => EditRule((MailFlowRule)row), listState, _now);
         if (pipeline is not null)
             pipeline.Applied += (_, applied) =>
             {
                 if (applied.Any(c => c is ListEntryChange) && _entriesRead)
                     _ = Entries.ReloadAsync(busyText: "Reading the lists again…");
-                if (applied.Any(c => c is RuleChange) && _rulesRead)
+                if (applied.Any(c => c is RuleChange or Tenantry.Core.Changes.ReorderRules) && _rulesRead)
                     _ = Rules.ReloadAsync(busyText: "Reading the rules again…");
                 if (applied.Any(c => c is QuarantineChange) && _quarantineRead)
                     _ = Quarantine.ReloadAsync();
@@ -156,8 +156,24 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             OnPropertyChanged(nameof(CanStartRule));
             OnPropertyChanged(nameof(NewRuleTip));
         }
+        OnPropertyChanged(nameof(CanReorder));
+        ReorderRulesCommand.NotifyCanExecuteChanged();
         return _rules;
     }
+
+    /// <summary>Reorder Rules needs the rules read, two or more of them, and an admin who can change rules.</summary>
+    public bool CanReorder => _tabs is not null && _pipeline is not null && _canEdit.IsAvailable && _rulesLoaded && _rules.Count > 1;
+
+    public string ReorderTip => !(_pipeline is not null && _canEdit.IsAvailable) ? _canEdit.Reason ?? "This tenant can't be edited"
+        : !_rulesLoaded ? "Reading the rules first…"
+        : _rules.Count < 2 ? "There's only one rule."
+        : "Arrange the rules' order: drag them, or move several at once. The new order goes to Pending Changes as one change.";
+
+    /// <summary>Opens Reorder Rules as its own page (one per tenant), on the rules as last read.</summary>
+    [RelayCommand(CanExecute = nameof(CanReorder))]
+    void ReorderRules() =>
+        _tabs!.OpenTab(t => t is MailRecordPageViewModel p && p.Key == "ruleorder",
+            () => new MailRecordPageViewModel("ruleorder", "Reorder Mail Flow Rules", new RuleOrderViewModel(_rules, _pipeline, _canEdit)));
 
     [RelayCommand]
     Task RefreshRules() => Rules.ReloadAsync(busyText: "Reading the mail flow rules…");
