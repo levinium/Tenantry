@@ -111,6 +111,7 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         SetOneDriveAccess a => await SetOneDriveAccessAsync(a, cancellationToken),
         ReleaseQuarantined r => await ReleaseQuarantinedAsync(r, cancellationToken),
         DeleteQuarantined d => await DeleteQuarantinedAsync(d, cancellationToken),
+        DenyQuarantineRelease d => await DenyQuarantineReleaseAsync(d, cancellationToken),
         SetSenderListed s => await SetSenderListedAsync(s, cancellationToken),
         AddListEntry a => await AddListEntryAsync(a, cancellationToken),
         RemoveListEntry r => await RemoveListEntryAsync(r, cancellationToken),

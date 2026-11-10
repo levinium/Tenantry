@@ -17,19 +17,52 @@ public sealed partial class GraphChangeExecutor
     Task<IReadOnlyList<JsonElement>> ReadQuarantined(string identity, CancellationToken ct) =>
         Read("Get-QuarantineMessage", new() { ["Identity"] = identity }, ct);
 
-    static Dictionary<string, object?> ReleaseParameters(ReleaseQuarantined change)
+    /// <summary>
+    /// Everyone (-ReleaseToAll) or chosen recipients (-User): Exchange refuses both together.
+    /// Approving a release request is the same call.
+    /// </summary>
+    internal static Dictionary<string, object?> ReleaseParameters(ReleaseQuarantined change)
     {
-        var parameters = new Dictionary<string, object?> { ["Identity"] = change.Message.Id, ["ReleaseToAll"] = true, ["Confirm"] = false };
+        var parameters = new Dictionary<string, object?> { ["Identity"] = change.Message.Id, ["Confirm"] = false };
+        if (change.To is { Count: > 0 } to)
+            parameters["User"] = to.ToArray();
+        else
+            parameters["ReleaseToAll"] = true;
         if (change.AllowSender)
             parameters["AllowSender"] = true;
+        if (change.ReportFalsePositive)
+            parameters["ReportFalsePositive"] = true;
         return parameters;
     }
 
     Task<ApplyResult> ReleaseQuarantinedAsync(ReleaseQuarantined change, CancellationToken cancellationToken) =>
         RunCheckedAsync("Release-QuarantineMessage", ReleaseParameters(change),
             ct => ReadQuarantined(change.Message.Id, ct),
+            rows => rows.Count == 1 && Released(rows[0], change.To),
+            cancellationToken);
+
+    /// <summary>Released to everyone, or (for chosen recipients) to each of them.</summary>
+    static bool Released(JsonElement row, IReadOnlyList<string>? to)
+    {
+        var status = row.TryGetProperty("ReleaseStatus", out var s) && s.ValueKind == JsonValueKind.String ? s.GetString()! : "";
+        if (to is not { Count: > 0 })
+            return status.Equals("RELEASED", StringComparison.OrdinalIgnoreCase);
+        var done = row.TryGetProperty("ReleasedUser", out var users) && users.ValueKind == JsonValueKind.Array
+            ? users.EnumerateArray().Select(u => u.GetString() ?? "").ToArray() : [];
+        return status.Equals("RELEASED", StringComparison.OrdinalIgnoreCase) || to.All(t => done.Contains(t, StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Deny is only in the bulk form, which needs a placeholder Identity (Exchange ignores its value).</summary>
+    internal static Dictionary<string, object?> DenyParameters(DenyQuarantineRelease change) => new()
+    {
+        ["Identities"] = new[] { change.Message.Id }, ["Identity"] = "000", ["ActionType"] = "Deny", ["Confirm"] = false,
+    };
+
+    Task<ApplyResult> DenyQuarantineReleaseAsync(DenyQuarantineRelease change, CancellationToken cancellationToken) =>
+        RunCheckedAsync("Release-QuarantineMessage", DenyParameters(change),
+            ct => ReadQuarantined(change.Message.Id, ct),
             rows => rows.Count == 1 && rows[0].TryGetProperty("ReleaseStatus", out var s) && s.ValueKind == JsonValueKind.String
-                    && s.GetString()!.Equals("RELEASED", StringComparison.OrdinalIgnoreCase),
+                    && s.GetString()!.Equals("DENIED", StringComparison.OrdinalIgnoreCase),
             cancellationToken);
 
     Task<ApplyResult> DeleteQuarantinedAsync(DeleteQuarantined change, CancellationToken cancellationToken) =>

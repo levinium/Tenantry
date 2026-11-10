@@ -211,6 +211,25 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
             current => BulkActions.ForSites(() => current().Cast<SiteSummary>().ToArray(), index: index, me: me, tenantSharing: tenantSharing),
             pipeline, canEdit);
 
+    public static SelectionPanelViewModel ForQuarantine(IReadOnlyList<object> rows, Action<object> uncheck, ChangePipeline? pipeline, Availability canEdit) =>
+        new(rows, uncheck, "message", "messages",
+            r => (((QuarantinedMessage)r).Subject, $"From {((QuarantinedMessage)r).Sender}"),
+            all =>
+            {
+                var messages = all.Cast<QuarantinedMessage>().ToArray();
+                var lines = new List<SummaryLine>
+                {
+                    new("Reasons", Counts(messages.Select(m => m.ReasonText.ToLowerInvariant()), nouns: false)),
+                    new("Status", Counts(messages.Select(m => Lists.MailSecurityLists.StatusOf(m).ToLowerInvariant()), nouns: false)),
+                };
+                var risky = messages.Count(m => m.IsDangerous);
+                if (risky > 0)
+                    lines.Add(new("Take Care", $"{risky:N0} {(risky == 1 ? "is" : "are")} malware or high-confidence phishing"));
+                return lines;
+            },
+            current => BulkActions.ForQuarantine(() => current().Cast<QuarantinedMessage>().ToArray()),
+            pipeline, canEdit);
+
     public static SelectionPanelViewModel ForDeletedSites(IReadOnlyList<object> rows, Action<object> uncheck, ChangePipeline? pipeline, Availability canEdit) =>
         new(rows, uncheck, "deleted site", "deleted sites",
             r => (((DeletedSite)r).Name, ((DeletedSite)r).Url),

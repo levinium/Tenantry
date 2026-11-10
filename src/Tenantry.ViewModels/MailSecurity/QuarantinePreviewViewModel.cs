@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Tenantry.Core.Capabilities;
@@ -7,10 +8,39 @@ using Tenantry.ViewModels.Lists;
 
 namespace Tenantry.ViewModels.MailSecurity;
 
+/// <summary>A recipient a quarantined message can be released to, ticked or not.</summary>
+public sealed partial class ReleaseRecipient(string address, bool released, Action changed) : ObservableObject
+{
+    public string Address { get; } = address;
+
+    /// <summary>Already released to them: shown, not offered again.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTick))]
+    public partial bool IsReleased { get; set; } = released;
+
+    public bool CanTick => !IsReleased;
+
+    partial void OnIsReleasedChanged(bool value)
+    {
+        if (value)
+            IsTicked = false;
+    }
+
+    [ObservableProperty]
+    public partial bool IsTicked { get; set; } = !released;
+
+    partial void OnIsTickedChanged(bool value) => changed();
+}
+
+/// <summary>One sender or spam check on the message, as the preview shows it.</summary>
+public sealed record VerdictRow(string Check, string Result, string Meaning, BadgeKind Kind);
+
 /// <summary>
 /// A quarantined message in the preview pane: who, why, and its content on request (as plain text;
-/// it may be malicious). Release (optionally allowing the sender from now on), delete, or block the
-/// sender: each goes to Pending changes.
+/// it may be malicious). Release it (to everyone or chosen recipients; approving a release
+/// request is the same), deny a request, delete it or block the sender: each goes to Pending
+/// changes. Its headers explain the sender checks and Microsoft's verdict, and it can be
+/// downloaded as an .eml file.
 /// </summary>
 public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisposable
 {
@@ -29,10 +59,44 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
         _pipeline = pipeline;
         _canEdit = canEdit;
         _listed = listed;
+        var done = message.ReleasedTo ?? [];
+        ReleasedText = done.Count > 0 ? $"Already released to {string.Join(", ", done)}." : null;
+        foreach (var to in message.Recipients)
+            Recipients.Add(new ReleaseRecipient(to, done.Contains(to, StringComparer.OrdinalIgnoreCase), RestageRelease));
         if (_pipeline is not null)
         {
             _pipeline.Changed += OnPendingChanged;
             _pipeline.Applied += OnApplied;
+            // A release staged earlier (from the list) shows its choices here.
+            if (Pending is ReleaseQuarantined staged)
+            {
+                AllowSender = staged.AllowSender;
+                ReportFalsePositive = staged.ReportFalsePositive;
+                if (staged.To is { } to)
+                    foreach (var r in Recipients)
+                        r.IsTicked = !r.IsReleased && to.Contains(r.Address, StringComparer.OrdinalIgnoreCase);
+            }
+        }
+        // Who it was released to only comes with a read of the message itself.
+        if (records is not null && message.Recipients.Count > 1)
+            _ = ReadReleasedAsync(records);
+    }
+
+    async Task ReadReleasedAsync(IMailSecurity records)
+    {
+        try
+        {
+            if (await records.GetQuarantinedAsync(Message.Identity) is not { ReleasedTo: { Count: > 0 } done })
+                return;
+            foreach (var r in Recipients)
+                r.IsReleased = done.Contains(r.Address, StringComparer.OrdinalIgnoreCase);
+            ReleasedText = $"Already released to {string.Join(", ", done)}.";
+            OnPropertyChanged(nameof(CanChooseRecipients));
+            OnPropertyChanged(nameof(NoneChosen));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // Only a detail: the release itself skips anyone who has it already.
         }
     }
 
@@ -45,7 +109,9 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
         foreach (var change in applied.Where(c => c.Target.Id == Message.Identity))
             Outcome = change switch
             {
+                ReleaseQuarantined { To: { } to } => $"Released to {string.Join(", ", to)}.",
                 ReleaseQuarantined => "Released to its recipients.",
+                DenyQuarantineRelease => "Release request denied; it stays in quarantine.",
                 DeleteQuarantined => "Deleted from quarantine.",
                 _ => Outcome,
             };
@@ -53,7 +119,7 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
 
     /// <summary>What happened to it here (released, deleted), once applied.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasOutcome), nameof(CanAct), nameof(CanRelease))]
+    [NotifyPropertyChangedFor(nameof(HasOutcome), nameof(CanAct), nameof(CanRelease), nameof(CanDeny))]
     public partial string? Outcome { get; private set; }
 
     public bool HasOutcome => Outcome is not null;
@@ -66,16 +132,30 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
     public string ReasonText => Message.ReasonText;
     public BadgeKind ReasonKind => Message.IsDangerous ? BadgeKind.Danger : Message.Reason == "Phish" ? BadgeKind.Warning : BadgeKind.Neutral;
     public string StatusText => MailSecurityLists.StatusOf(Message);
+    public BadgeKind StatusKind => Message.IsRequested ? BadgeKind.Info : Message.IsReleased ? BadgeKind.Success : BadgeKind.Neutral;
     public string ReceivedText => Message.Received.ToLocalTime().ToString("d MMM yyyy h:mm tt");
     public string ExpiresText => Message.Expires is { } at ? $"Deleted automatically on {at.ToLocalTime():d MMM yyyy}" : "";
     public string? Policy => Message.Policy;
     public bool HasPolicy => !string.IsNullOrEmpty(Message.Policy);
+
+    /// <summary>"Released to amy@…" when some recipients already have it.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasReleased))]
+    public partial string? ReleasedText { get; private set; }
+
+    public bool HasReleased => ReleasedText is not null;
 
     public bool IsDangerous => Message.IsDangerous;
 
     public string DangerText => Message.Reason == "Malware" || Message.Reason == "SPOMalware"
         ? "Microsoft found malware in this message. Release it only if you're sure it's safe: the recipients can open the attachment."
         : "Microsoft is highly confident this is phishing. Release it only if you've confirmed with the sender that it's genuine.";
+
+    /// <summary>A recipient asked for it: the request is waiting for an admin.</summary>
+    public bool IsRequested => Message.IsRequested;
+
+    public string RequestText => "A recipient asked for this message to be released. Approve releases it to the recipients you choose; "
+                                 + "Deny keeps it in quarantine (Exchange denies it for every recipient).";
 
     // ---- The message itself -----------------------------------------------------------------
 
@@ -126,6 +206,106 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
         }
     }
 
+    // ---- Headers: the sender checks and Microsoft's verdict, in words --------------------------
+
+    public ObservableCollection<VerdictRow> Verdicts { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHeaders))]
+    public partial string? Headers { get; private set; }
+
+    public bool HasHeaders => Headers is not null;
+
+    [ObservableProperty]
+    public partial bool IsLoadingHeaders { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHeadersError))]
+    public partial string? HeadersError { get; private set; }
+
+    public bool HasHeadersError => HeadersError is not null;
+
+    /// <summary>The full headers, shown on request under the checks.</summary>
+    [ObservableProperty]
+    public partial bool ShowRawHeaders { get; set; }
+
+    public bool HasNoVerdicts => HasHeaders && Verdicts.Count == 0;
+
+    [RelayCommand]
+    async Task ShowHeaders()
+    {
+        if (_records is null || IsLoadingHeaders)
+            return;
+        IsLoadingHeaders = true;
+        HeadersError = null;
+        try
+        {
+            var text = await _records.GetQuarantineHeadersAsync(Message.Identity);
+            Verdicts.Clear();
+            foreach (var v in MessageHeaders.Verdicts(text))
+                Verdicts.Add(new VerdictRow(v.Check, v.Result, v.Meaning, v.Good switch { true => BadgeKind.Success, false => BadgeKind.Danger, _ => BadgeKind.Neutral }));
+            Headers = text;
+            OnPropertyChanged(nameof(HasNoVerdicts));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            HeadersError = $"Couldn't read the headers: {Friendly.Message(e)}";
+        }
+        finally
+        {
+            IsLoadingHeaders = false;
+        }
+    }
+
+    [RelayCommand]
+    void CopyHeaders()
+    {
+        if (Headers is not null)
+            Platform.CopyText(Headers);
+    }
+
+    // ---- Download --------------------------------------------------------------------------
+
+    [ObservableProperty]
+    public partial bool IsDownloading { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDownloadNote))]
+    public partial string? DownloadNote { get; private set; }
+
+    public bool HasDownloadNote => DownloadNote is not null;
+
+    /// <summary>Saves it as an .eml file (Microsoft records each download). It may be malicious: open it with care.</summary>
+    [RelayCommand]
+    async Task Download()
+    {
+        if (_records is null || IsDownloading)
+            return;
+        IsDownloading = true;
+        DownloadNote = null;
+        try
+        {
+            var bytes = await _records.ExportQuarantinedAsync(Message.Identity);
+            var saved = await Platform.SaveFile(FileName(Message.Subject) + ".eml", "Email Message", "eml", bytes);
+            DownloadNote = saved ? "Saved. It may be harmful: open it only on a computer you can afford to lose, or inspect it as text." : null;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            DownloadNote = $"Couldn't download it: {Friendly.Message(e)}";
+        }
+        finally
+        {
+            IsDownloading = false;
+        }
+    }
+
+    public static string FileName(string subject)
+    {
+        var bad = Path.GetInvalidFileNameChars().Concat(['/', '\\', ':']).ToHashSet();
+        var name = new string([.. subject.Select(c => bad.Contains(c) ? '-' : c)]).Trim(' ', '.', '-');
+        return name.Length == 0 ? "Quarantined message" : name.Length > 80 ? name[..80].Trim() : name;
+    }
+
     // ---- Actions ------------------------------------------------------------------------------
 
     public bool CanEdit => _pipeline is not null && _canEdit.IsAvailable;
@@ -135,7 +315,29 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
     /// <summary>The actions show while it can still be changed here.</summary>
     public bool CanAct => CanEdit && Outcome is null;
 
-    public bool CanRelease => CanAct && !Message.IsReleased;
+    public bool CanRelease => CanAct && !Message.IsReleased && Message.NotReleasedTo.Count > 0;
+
+    public bool CanDeny => CanAct && Message.IsRequested;
+
+    /// <summary>More than one recipient: choose who gets it.</summary>
+    public bool CanChooseRecipients => Recipients.Count(r => !r.IsReleased) > 1 || Recipients.Any(r => r.IsReleased);
+
+    public ObservableCollection<ReleaseRecipient> Recipients { get; } = [];
+
+    /// <summary>Null for everyone it hasn't reached yet; otherwise the ticked ones.</summary>
+    IReadOnlyList<string>? ChosenRecipients
+    {
+        get
+        {
+            // Everyone still waiting is "release to all" (Exchange skips those who have it already).
+            var ticked = Recipients.Where(r => r.IsTicked && !r.IsReleased).Select(r => r.Address).ToArray();
+            return ticked.Length == Recipients.Count(r => !r.IsReleased) ? null : ticked;
+        }
+    }
+
+    public bool NoneChosen => Recipients.All(r => !r.IsTicked || r.IsReleased);
+
+    public bool CanReportFalsePositive => Message.CanReportFalsePositive;
 
     ChangeTarget Target => new("quarantine", Message.Identity, Message.Subject, null);
 
@@ -145,8 +347,8 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
 
     public string PendingText => Pending switch
     {
-        ReleaseQuarantined { AllowSender: true } => "Pending: release, and allow the sender",
-        ReleaseQuarantined => "Pending: release",
+        ReleaseQuarantined r => $"Pending: {char.ToLowerInvariant(r.After[0])}{r.After[1..]}",
+        DenyQuarantineRelease => "Pending: deny the release request",
         DeleteQuarantined => "Pending: delete",
         _ => "",
     };
@@ -155,14 +357,30 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
     [ObservableProperty]
     public partial bool AllowSender { get; set; }
 
-    partial void OnAllowSenderChanged(bool value)
+    partial void OnAllowSenderChanged(bool value) => RestageRelease();
+
+    /// <summary>Tell Microsoft it was wrongly caught (spam only), to improve its filtering.</summary>
+    [ObservableProperty]
+    public partial bool ReportFalsePositive { get; set; }
+
+    partial void OnReportFalsePositiveChanged(bool value) => RestageRelease();
+
+    ReleaseQuarantined NewRelease() => new(Target, Message.Sender, Message.Recipients, AllowSender, ChosenRecipients,
+        ReportFalsePositive && Message.CanReportFalsePositive, Message.IsRequested);
+
+    /// <summary>Already releasing: restage with the new choices (nobody ticked takes it back out).</summary>
+    void RestageRelease()
     {
-        // Already releasing: restage with the new choice.
-        if (Pending is ReleaseQuarantined)
-            _pipeline!.Stage(new ReleaseQuarantined(Target, Message.Sender, Message.Recipients, value));
+        OnPropertyChanged(nameof(NoneChosen));
+        if (_pipeline is null || Pending is not ReleaseQuarantined pending)
+            return;
+        if (NoneChosen)
+            _pipeline.Unstage(pending);
+        else
+            _pipeline.Stage(NewRelease());
     }
 
-    public string ReleaseText => Pending is ReleaseQuarantined ? "Undo Release" : "Release";
+    public string ReleaseText => Pending is ReleaseQuarantined ? "Undo Release" : Message.IsRequested ? "Approve Release" : "Release";
 
     [RelayCommand]
     void Release()
@@ -171,8 +389,21 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
             return;
         if (Pending is ReleaseQuarantined pending)
             _pipeline!.Unstage(pending);
+        else if (!NoneChosen)
+            _pipeline!.Stage(NewRelease());
+    }
+
+    public string DenyText => Pending is DenyQuarantineRelease ? "Undo Deny" : "Deny the Request";
+
+    [RelayCommand]
+    void Deny()
+    {
+        if (!CanDeny)
+            return;
+        if (Pending is DenyQuarantineRelease pending)
+            _pipeline!.Unstage(pending);
         else
-            _pipeline!.Stage(new ReleaseQuarantined(Target, Message.Sender, Message.Recipients, AllowSender));
+            _pipeline!.Stage(new DenyQuarantineRelease(Target, Message.Sender, Message.Recipients));
     }
 
     public string DeleteText => Pending is DeleteQuarantined ? "Undo Delete" : "Delete";
@@ -225,8 +456,8 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
 
     void OnPendingChanged(object? sender, EventArgs e)
     {
-        foreach (var name in new[] { nameof(HasPending), nameof(PendingText), nameof(ReleaseText), nameof(DeleteText), nameof(IsBlockPending), nameof(BlockText),
-                     nameof(CanBlock), nameof(BlockNote), nameof(HasBlockNote) })
+        foreach (var name in new[] { nameof(HasPending), nameof(PendingText), nameof(ReleaseText), nameof(DenyText), nameof(DeleteText), nameof(IsBlockPending),
+                     nameof(BlockText), nameof(CanBlock), nameof(BlockNote), nameof(HasBlockNote) })
             OnPropertyChanged(name);
     }
 

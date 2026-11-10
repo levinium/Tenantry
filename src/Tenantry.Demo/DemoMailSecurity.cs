@@ -41,8 +41,10 @@ public sealed partial class DemoUserRecords : IMailSecurity
         {
             var (subject, reason, policy) = Held[random.Next(Held.Length)];
             var received = now.AddMinutes(-random.Next(30 * 24 * 60));
-            var to = people[random.Next(people.Length)].Mailbox!.PrimaryAddress ?? "";
-            return new QuarantinedMessage($"demo-q-{i}", received, Senders[random.Next(Senders.Length)], [to], subject, random.Next(8_000, 400_000),
+            // Most go to one person; some to two or three (to choose who gets a release).
+            var count = random.NextDouble() < 0.25 ? random.Next(2, 4) : 1;
+            var to = Enumerable.Range(0, count).Select(_ => people[random.Next(people.Length)].Mailbox!.PrimaryAddress ?? "").Distinct().ToArray();
+            return new QuarantinedMessage($"demo-q-{i}", received, Senders[random.Next(Senders.Length)], to, subject, random.Next(8_000, 400_000),
                 reason, policy, received.AddDays(30), random.NextDouble() < 0.1 ? "REQUESTED" : random.NextDouble() < 0.1 ? "RELEASED" : "NOTRELEASED", "Inbound");
         }).ToList();
         return _quarantine;
@@ -65,6 +67,36 @@ public sealed partial class DemoUserRecords : IMailSecurity
         };
         return new QuarantinePreview(m.Subject, m.Sender, string.Join(", ", m.Recipients), m.Received, body, true,
             m.Reason == "Malware" ? ["Scan_0423.zip"] : []);
+    }
+
+    public async Task<QuarantinedMessage?> GetQuarantinedAsync(string identity, CancellationToken cancellationToken = default) =>
+        (await QuarantineAsync(cancellationToken)).FirstOrDefault(x => x.Identity == identity);
+
+    public async Task<string> GetQuarantineHeadersAsync(string identity, CancellationToken cancellationToken = default)
+    {
+        var m = (await QuarantineAsync(cancellationToken)).First(x => x.Identity == identity);
+        var domain = m.Sender[(m.Sender.IndexOf('@') + 1)..];
+        var (spf, dkim, dmarc, comp, cat, scl, sfv) = m.Reason switch
+        {
+            "Phish" => ("softfail", "none", "fail", "fail", "PHSH", 5, "SPM"),
+            "HighConfPhish" => ("fail", "fail", "fail", "fail", "HPHSH", 9, "SPM"),
+            "Malware" => ("pass", "pass", "pass", "pass", "MALW", 1, "NSPM"),
+            "HighConfSpam" => ("pass", "none", "bestguesspass", "pass", "HSPM", 9, "SPM"),
+            "Bulk" => ("pass", "pass", "pass", "pass", "BULK", 6, "SPM"),
+            _ => ("neutral", "none", "none", "softpass", "SPM", 5, "SPM"),
+        };
+        return $"Received: from mail.{domain} (203.0.113.25) by mx.northgate.example; {m.Received:R}\r\n"
+             + $"Authentication-Results: spf={spf} (sender IP is 203.0.113.25)\r\n smtp.mailfrom={domain}; dkim={dkim} (signature was verified)\r\n"
+             + $" header.d={domain};dmarc={dmarc} action=none header.from={domain};compauth={comp} reason=100\r\n"
+             + $"From: {m.Sender}\r\nTo: {string.Join(", ", m.Recipients)}\r\nSubject: {m.Subject}\r\nDate: {m.Received:R}\r\n"
+             + $"X-Forefront-Antispam-Report: CIP:203.0.113.25;CTRY:XX;LANG:en;SCL:{scl};SRV:;IPV:NLI;SFV:{sfv};H:mail.{domain};CAT:{cat};SFTY:;SFS:;DIR:INB;\r\n";
+    }
+
+    public async Task<byte[]> ExportQuarantinedAsync(string identity, CancellationToken cancellationToken = default)
+    {
+        var preview = await PreviewQuarantinedAsync(identity, cancellationToken);
+        var headers = await GetQuarantineHeadersAsync(identity, cancellationToken);
+        return System.Text.Encoding.UTF8.GetBytes(headers + "MIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n" + preview.Body + "\r\n");
     }
 
     public async Task<IReadOnlyList<TracedMessage>> TraceAsync(TraceSearch search, CancellationToken cancellationToken = default)
@@ -242,7 +274,16 @@ public sealed partial class DemoUserRecords : IMailSecurity
             case ReleaseQuarantined r when _quarantine is not null:
                 var i = _quarantine.FindIndex(m => m.Identity == r.Message.Id);
                 if (i >= 0)
-                    _quarantine[i] = _quarantine[i] with { ReleaseStatus = "RELEASED" };
+                {
+                    var released = (_quarantine[i].ReleasedTo ?? []).Union(r.To ?? _quarantine[i].Recipients, StringComparer.OrdinalIgnoreCase).ToArray();
+                    var all = _quarantine[i].Recipients.All(x => released.Contains(x, StringComparer.OrdinalIgnoreCase));
+                    _quarantine[i] = _quarantine[i] with { ReleaseStatus = all ? "RELEASED" : _quarantine[i].ReleaseStatus, ReleasedTo = released };
+                }
+                return new ApplyResult(ChangeOutcome.Applied);
+            case DenyQuarantineRelease n when _quarantine is not null:
+                var denied = _quarantine.FindIndex(m => m.Identity == n.Message.Id);
+                if (denied >= 0)
+                    _quarantine[denied] = _quarantine[denied] with { ReleaseStatus = "DENIED" };
                 return new ApplyResult(ChangeOutcome.Applied);
             case DeleteQuarantined d when _quarantine is not null:
                 _quarantine.RemoveAll(m => m.Identity == d.Message.Id);

@@ -40,11 +40,42 @@ public sealed partial class GraphUserRecords : IMailSecurity
         List(r, "RecipientAddress").ToArray(),
         Str(r, "Subject") is { Length: > 0 } s ? s : "(no subject)",
         r.TryGetProperty("Size", out var size) && size.ValueKind == JsonValueKind.Number ? size.GetInt64() : null,
-        Str(r, "Type") ?? Str(r, "QuarantineTypes") ?? "",
+        // QuarantineTypes is the code ("HighConfPhish"); Type is wording ("High Confidence Phish"), seen live 2026-11-10.
+        Str(r, "QuarantineTypes") is { Length: > 0 } code ? code : Str(r, "Type") ?? "",
         Str(r, "PolicyName"),
         Date(r, "Expires"),
         Str(r, "ReleaseStatus") ?? "",
-        Str(r, "Direction"));
+        Str(r, "Direction"),
+        List(r, "ReleasedUser").ToArray());
+
+    /// <summary>One message read on its own: only then does Exchange say who it was released to (seen live).</summary>
+    public async Task<QuarantinedMessage?> GetQuarantinedAsync(string identity, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(identity);
+        var rows = await Run("Get-QuarantineMessage", new() { ["Identity"] = identity }, cancellationToken);
+        return rows.Count == 1 ? ToQuarantined(rows[0]) : null;
+    }
+
+    public async Task<string> GetQuarantineHeadersAsync(string identity, CancellationToken cancellationToken = default)
+    {
+        // A missing identity would read EVERY message's headers (Exchange's null-identity trap).
+        ArgumentException.ThrowIfNullOrWhiteSpace(identity);
+        var rows = await Run("Get-QuarantineMessageHeader", new() { ["Identity"] = identity }, cancellationToken);
+        return rows.Count > 0 ? Str(rows[0], "Header") ?? "" : throw new InvalidOperationException("Exchange returned no headers for it.");
+    }
+
+    public async Task<byte[]> ExportQuarantinedAsync(string identity, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(identity);
+        var rows = await Run("Export-QuarantineMessage", new() { ["Identity"] = identity }, cancellationToken);
+        var eml = rows.Count > 0 ? Str(rows[0], "Eml") : null;
+        if (string.IsNullOrEmpty(eml))
+            throw new InvalidOperationException("Exchange returned nothing to download.");
+        // Base64 as Exchange sends it; plain text when it says so.
+        return string.Equals(Str(rows[0], "BodyEncoding"), "Base64", StringComparison.OrdinalIgnoreCase) || !eml.Contains(':')
+            ? Convert.FromBase64String(eml)
+            : System.Text.Encoding.UTF8.GetBytes(eml);
+    }
 
     public async Task<QuarantinePreview> PreviewQuarantinedAsync(string identity, CancellationToken cancellationToken = default)
     {

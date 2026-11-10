@@ -202,6 +202,26 @@ if (args.Contains("--mail-review"))
         Render(main, $"m03-quarantine-page-{suffix}", height: 1200);
         main.SelectedTab = mail;
 
+        // A release request to several people: choose who gets it, the sender checks explained.
+        var allHeld = ((IMailSecurity)demo.Records!).GetQuarantineAsync(30).GetAwaiter().GetResult();
+        var asked = allHeld.First(m => m.IsRequested && m.Recipients.Count > 1 && m.CanReportFalsePositive);
+        mail.OpenQuarantined(asked);
+        var request = (Tenantry.ViewModels.MailSecurity.QuarantinePreviewViewModel)((Tenantry.ViewModels.MailSecurity.MailRecordPageViewModel)main.SelectedTab!).Content;
+        request.ShowHeadersCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        request.ReleaseCommand.Execute(null);
+        request.Recipients[^1].IsTicked = false;
+        Settle();
+        Render(main, $"m03b-quarantine-request-{suffix}", height: 1500);
+        main.Pending!.DiscardAllCommand.Execute(null);
+        main.SelectedTab = mail;
+
+        // Several ticked: the selection panel's bulk actions.
+        mail.Quarantine.SelectedRows = mail.Quarantine.Rows.Take(3).ToArray();
+        Settle();
+        Render(main, $"m03c-quarantine-bulk-{suffix}");
+        mail.Quarantine.SelectedRows = [];
+        Settle();
+
         // Message trace: before searching, then results with a failed message previewed.
         mail.SelectedPage = pages[1];
         Settle();

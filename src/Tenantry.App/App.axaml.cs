@@ -30,6 +30,7 @@ public partial class App : Application
             Platform.OpenUrl = url => _ = window.Launcher.LaunchUriAsync(new Uri(url));
             Platform.CopyText = text => _ = CopyAsync(window, text);
             Platform.SaveCsv = (name, csv) => SaveCsvAsync(window, name, csv);
+            Platform.SaveFile = (name, type, extension, bytes) => SaveFileAsync(window, name, type, extension, bytes);
             Platform.OpenCsv = () => OpenCsvAsync(window);
             Platform.PickFolder = () => PickFolderAsync(window);
             Platform.OpenFolder = path => _ = window.Launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(path));
@@ -114,6 +115,22 @@ public partial class App : Application
         // UTF-8 with a byte-order mark, so Excel reads names with accents correctly.
         await using var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         await writer.WriteAsync(csv);
+        return true;
+    }
+
+    static async Task<bool> SaveFileAsync(MainWindow window, string suggestedName, string typeName, string extension, byte[] bytes)
+    {
+        var file = await window.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+        {
+            Title = $"Save as {(typeName.Length > 0 && "AEIOU".Contains(char.ToUpperInvariant(typeName[0])) ? "an" : "a")} {typeName}",
+            SuggestedFileName = suggestedName,
+            DefaultExtension = extension,
+            FileTypeChoices = [new Avalonia.Platform.Storage.FilePickerFileType(typeName) { Patterns = [$"*.{extension}"] }],
+        });
+        if (file is null)
+            return false;
+        await using var stream = await file.OpenWriteAsync();
+        await stream.WriteAsync(bytes);
         return true;
     }
 

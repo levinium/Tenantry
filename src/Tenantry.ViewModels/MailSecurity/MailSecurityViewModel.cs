@@ -86,6 +86,8 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         Entries.HasRecordPages = _tabs is not null;
         Trace.EmptyText = "Choose what to look for above, then press Search.";
         Quarantine.EmptyText = "Nothing in quarantine matches these filters.";
+        // Several ticked: release, approve or deny requests, delete or block their senders together.
+        Quarantine.SelectionPanel = (rows, uncheck) => Records.SelectionPanelViewModel.ForQuarantine(rows, uncheck, pipeline, canEdit);
         TraceStart = _now().Date.AddDays(-1);
         SelectedPage = Pages[0];
     }

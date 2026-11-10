@@ -10,7 +10,7 @@
       <TextBlock Classes="h3" Text="{Binding Subject}" TextWrapping="Wrap" />
       <WrapPanel ItemSpacing="6" LineSpacing="4">
         <c:Badge Text="{Binding ReasonText}" Kind="{Binding ReasonKind}" />
-        <c:Badge Text="{Binding StatusText}" Kind="Neutral" />
+        <c:Badge Text="{Binding StatusText}" Kind="{Binding StatusKind}" />
       </WrapPanel>
     </StackPanel>
 
@@ -25,34 +25,103 @@
       <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Policy}" IsVisible="{Binding HasPolicy}" TextWrapping="Wrap" />
     </Grid>
     <TextBlock Classes="caption" Text="{Binding ExpiresText}" />
+    <TextBlock Classes="caption" Text="{Binding ReleasedText}" IsVisible="{Binding HasReleased}" TextWrapping="Wrap" />
 
-    <!-- The message, on request and as plain text -->
-    <StackPanel Spacing="6">
-      <Button Command="{Binding ShowMessageCommand}" IsVisible="{Binding !HasBody}" HorizontalAlignment="Left"
+    <!-- Look closer: the message as plain text, its headers explained, or the file itself -->
+    <WrapPanel ItemSpacing="8" LineSpacing="8">
+      <Button Command="{Binding ShowMessageCommand}" IsVisible="{Binding !HasBody}"
               ToolTip.Tip="Shown as plain text, so nothing in it loads or runs. Microsoft records each preview.">
         <StackPanel Orientation="Horizontal" Spacing="6">
           <ic:FluentIcon Icon="Eye" FontSize="14" />
           <TextBlock Text="Show the Message" />
         </StackPanel>
       </Button>
-      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoadingBody}">
-        <Panel Width="16" Height="16" VerticalAlignment="Center">
-          <Ellipse Classes="spintrack" />
-          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
-            <Arc.RenderTransform>
-              <RotateTransform />
-            </Arc.RenderTransform>
-          </Arc>
-        </Panel>
-        <TextBlock Classes="muted" Text="Reading the message…" VerticalAlignment="Center" />
-      </StackPanel>
-      <TextBlock Classes="error" Text="{Binding BodyError}" IsVisible="{Binding HasBodyError}" TextWrapping="Wrap" />
-      <Border Classes="valuerow" IsVisible="{Binding HasBody}" MaxHeight="320">
+      <Button Command="{Binding ShowHeadersCommand}" IsVisible="{Binding !HasHeaders}"
+              ToolTip.Tip="Whether the sender passed SPF, DKIM and DMARC, and why Microsoft held it">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="ShieldCheckmark" FontSize="14" />
+          <TextBlock Text="Check the Sender" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding DownloadCommand}"
+              ToolTip.Tip="Save it as an .eml file. It may be harmful: Microsoft records each download.">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="ArrowDownload" FontSize="14" />
+          <TextBlock Text="Download" />
+        </StackPanel>
+      </Button>
+    </WrapPanel>
+    <TextBlock Classes="caption" Text="{Binding DownloadNote}" IsVisible="{Binding HasDownloadNote}" TextWrapping="Wrap" />
+
+    <StackPanel Spacing="6" IsVisible="{Binding IsLoadingBody}" Orientation="Horizontal">
+      <Panel Width="16" Height="16" VerticalAlignment="Center">
+        <Ellipse Classes="spintrack" />
+        <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+          <Arc.RenderTransform>
+            <RotateTransform />
+          </Arc.RenderTransform>
+        </Arc>
+      </Panel>
+      <TextBlock Classes="muted" Text="Reading the message…" VerticalAlignment="Center" />
+    </StackPanel>
+    <TextBlock Classes="error" Text="{Binding BodyError}" IsVisible="{Binding HasBodyError}" TextWrapping="Wrap" />
+    <StackPanel Spacing="6" IsVisible="{Binding HasBody}">
+      <TextBlock Classes="label" Text="THE MESSAGE" />
+      <Border Classes="valuerow" MaxHeight="320">
         <ScrollViewer>
           <SelectableTextBlock Text="{Binding Body}" TextWrapping="Wrap" />
         </ScrollViewer>
       </Border>
       <TextBlock Classes="caption" Text="{Binding AttachmentsText}" IsVisible="{Binding HasAttachments}" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <StackPanel Spacing="6" IsVisible="{Binding IsLoadingHeaders}" Orientation="Horizontal">
+      <Panel Width="16" Height="16" VerticalAlignment="Center">
+        <Ellipse Classes="spintrack" />
+        <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+          <Arc.RenderTransform>
+            <RotateTransform />
+          </Arc.RenderTransform>
+        </Arc>
+      </Panel>
+      <TextBlock Classes="muted" Text="Reading the headers…" VerticalAlignment="Center" />
+    </StackPanel>
+    <TextBlock Classes="error" Text="{Binding HeadersError}" IsVisible="{Binding HasHeadersError}" TextWrapping="Wrap" />
+    <StackPanel Spacing="8" IsVisible="{Binding HasHeaders}">
+      <TextBlock Classes="label" Text="THE SENDER CHECKS" />
+      <TextBlock Classes="muted" Text="The headers don't say how the sender was checked." IsVisible="{Binding HasNoVerdicts}" TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding Verdicts}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ms:VerdictRow">
+            <Border Classes="valuerow">
+              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="2">
+                <TextBlock Text="{Binding Check}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <c:Badge Grid.Column="1" Text="{Binding Result}" Kind="{Binding Kind}" VerticalAlignment="Top" />
+                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="muted" Text="{Binding Meaning}" TextWrapping="Wrap" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <WrapPanel ItemSpacing="8" LineSpacing="8">
+        <ToggleButton IsChecked="{Binding ShowRawHeaders}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="TextDescription" FontSize="14" />
+            <TextBlock Text="Full Headers" />
+          </StackPanel>
+        </ToggleButton>
+        <Button Command="{Binding CopyHeadersCommand}" ToolTip.Tip="Copy the full headers (to paste into a header analyzer or a support ticket)">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Copy" FontSize="14" />
+            <TextBlock Text="Copy Headers" />
+          </StackPanel>
+        </Button>
+      </WrapPanel>
+      <Border Classes="valuerow" MaxHeight="320" IsVisible="{Binding ShowRawHeaders}">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto">
+          <SelectableTextBlock Classes="code" Text="{Binding Headers}" />
+        </ScrollViewer>
+      </Border>
     </StackPanel>
 
     <Border Classes="divider" />
@@ -65,21 +134,46 @@
       <TextBlock TextWrapping="Wrap" Text="{Binding Outcome}" />
     </Border>
     <StackPanel Spacing="10" IsVisible="{Binding CanAct}">
+      <Border Classes="banner info" IsVisible="{Binding IsRequested}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding RequestText}" />
+      </Border>
       <Border Classes="banner error" IsVisible="{Binding IsDangerous}">
         <TextBlock TextWrapping="Wrap" Text="{Binding DangerText}" />
       </Border>
-      <TextBlock Classes="pendingtext" Text="{Binding PendingText}" IsVisible="{Binding HasPending}" />
+      <TextBlock Classes="pendingtext" Text="{Binding PendingText}" IsVisible="{Binding HasPending}" TextWrapping="Wrap" />
       <StackPanel Spacing="6" IsVisible="{Binding CanRelease}">
+        <!-- Who gets it: everyone by default; untick to leave someone out. -->
+        <StackPanel Spacing="4" IsVisible="{Binding CanChooseRecipients}">
+          <TextBlock Classes="label" Text="RELEASE TO" />
+          <ItemsControl ItemsSource="{Binding Recipients}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ms:ReleaseRecipient">
+                <CheckBox IsChecked="{Binding IsTicked}" IsEnabled="{Binding CanTick}">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{Binding Address}" />
+                    <TextBlock Classes="muted" Text="(released already)" IsVisible="{Binding IsReleased}" />
+                  </StackPanel>
+                </CheckBox>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
         <!-- Releasing malware or high-confidence phishing is never the suggested step: a plain button, not the blue one. -->
-        <Button Classes.accent="{Binding !IsDangerous}" Content="{Binding ReleaseText}" Command="{Binding ReleaseCommand}" HorizontalAlignment="Left"
-                ToolTip.Tip="Delivers it to every recipient (added to Pending Changes)" />
+        <WrapPanel ItemSpacing="8" LineSpacing="8">
+          <Button Classes.accent="{Binding !IsDangerous}" Content="{Binding ReleaseText}" Command="{Binding ReleaseCommand}" IsEnabled="{Binding !NoneChosen}"
+                  ToolTip.Tip="Delivers it to the recipients ticked above (added to Pending Changes)" ToolTip.ShowOnDisabled="True" />
+          <Button Classes="danger-outline" Content="{Binding DenyText}" Command="{Binding DenyCommand}" IsVisible="{Binding CanDeny}"
+                  ToolTip.Tip="Turns the request down: it stays in quarantine for every recipient (added to Pending Changes)" />
+        </WrapPanel>
         <CheckBox IsChecked="{Binding AllowSender}" Content="Also Allow This Sender from Now On" />
+        <CheckBox IsChecked="{Binding ReportFalsePositive}" Content="Tell Microsoft This Isn't Spam" IsVisible="{Binding CanReportFalsePositive}"
+                  ToolTip.Tip="Sends it to Microsoft as wrongly caught, to improve its filtering" />
       </StackPanel>
       <WrapPanel ItemSpacing="8" LineSpacing="8">
         <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}"
                 ToolTip.Tip="Removes it from quarantine for good (added to Pending Changes)" />
         <Button Classes="danger-outline" Content="{Binding BlockText}" Command="{Binding BlockSenderCommand}" IsEnabled="{Binding CanBlock}"
-                ToolTip.Tip="Adds the sender to the block list: their mail goes to quarantine from now on (added to Pending Changes)" />
+                ToolTip.Tip="Adds the sender to the organization's block list: their mail goes to quarantine from now on (added to Pending Changes)" />
       </WrapPanel>
       <TextBlock Classes="caption" Text="{Binding BlockNote}" IsVisible="{Binding HasBlockNote}" TextWrapping="Wrap" />
     </StackPanel>

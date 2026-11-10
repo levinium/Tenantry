@@ -65,6 +65,7 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetOneDriveAccess), "setOneDriveAccess")]
 [JsonDerivedType(typeof(ReleaseQuarantined), "releaseQuarantined")]
 [JsonDerivedType(typeof(DeleteQuarantined), "deleteQuarantined")]
+[JsonDerivedType(typeof(DenyQuarantineRelease), "denyQuarantineRelease")]
 [JsonDerivedType(typeof(SetSenderListed), "setSenderListed")]
 [JsonDerivedType(typeof(AddListEntry), "addListEntry")]
 [JsonDerivedType(typeof(RemoveListEntry), "removeListEntry")]
@@ -1210,13 +1211,41 @@ public abstract record QuarantineChange(ChangeTarget Message, string Sender, IRe
     public override ChangeOp Since(ChangeOp earlier) => this;
 }
 
-/// <summary>Releases a quarantined message to its recipients and, when asked, allows its sender from now on.</summary>
-public sealed record ReleaseQuarantined(ChangeTarget Message, string Sender, IReadOnlyList<string> Recipients, bool AllowSender)
+/// <summary>
+/// Releases a quarantined message (approving a release request is the same step) to all its
+/// recipients, or only to <paramref name="To"/>; when asked, allows its sender from now on and
+/// reports it to Microsoft as wrongly caught (spam only).
+/// </summary>
+/// <param name="To">Only these recipients; null for everyone it was sent to.</param>
+public sealed record ReleaseQuarantined(ChangeTarget Message, string Sender, IReadOnlyList<string> Recipients, bool AllowSender,
+    IReadOnlyList<string>? To = null, bool ReportFalsePositive = false, bool WasRequested = false)
+    : QuarantineChange(Message, Sender, To ?? Recipients)
+{
+    public override string Label => $"Quarantined \"{Message.Name}\"";
+    public override string Before => WasRequested ? "Release requested" : "Held";
+
+    public override string After
+    {
+        get
+        {
+            var who = To is { } some ? $"Released to {string.Join(", ", some)}" : "Released to its recipients";
+            var extras = new List<string>();
+            if (AllowSender)
+                extras.Add($"{Sender} allowed from now on");
+            if (ReportFalsePositive)
+                extras.Add("reported to Microsoft as not spam");
+            return extras.Count == 0 ? who : $"{who}; {string.Join("; ", extras)}";
+        }
+    }
+}
+
+/// <summary>Turns down a recipient's request to release a quarantined message (Exchange denies it for every recipient).</summary>
+public sealed record DenyQuarantineRelease(ChangeTarget Message, string Sender, IReadOnlyList<string> Recipients)
     : QuarantineChange(Message, Sender, Recipients)
 {
     public override string Label => $"Quarantined \"{Message.Name}\"";
-    public override string Before => "Held";
-    public override string After => AllowSender ? $"Released, and {Sender} allowed from now on" : "Released to its recipients";
+    public override string Before => "Release requested";
+    public override string After => "Request denied; stays in quarantine";
 }
 
 /// <summary>Deletes a quarantined message for good: a caution change.</summary>

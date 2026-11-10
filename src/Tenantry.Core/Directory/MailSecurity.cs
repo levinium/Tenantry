@@ -4,6 +4,7 @@ namespace Tenantry.Core.Directory;
 /// <param name="Identity">Exchange's identity for it ("guid\guid"), for preview, release and delete.</param>
 /// <param name="Reason">Why it was held, as Exchange names it ("Spam", "HighConfPhish", "Malware", "TransportRule"…).</param>
 /// <param name="ReleaseStatus">"NOTRELEASED", "RELEASED", "REQUESTED", "DENIED"…</param>
+/// <param name="ReleasedTo">The recipients it has been released to so far (Exchange's ReleasedUser).</param>
 public sealed record QuarantinedMessage(
     string Identity,
     DateTimeOffset Received,
@@ -15,9 +16,21 @@ public sealed record QuarantinedMessage(
     string? Policy,
     DateTimeOffset? Expires,
     string ReleaseStatus,
-    string? Direction)
+    string? Direction,
+    IReadOnlyList<string>? ReleasedTo = null)
 {
     public bool IsReleased => ReleaseStatus.Equals("RELEASED", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>A recipient asked for it to be released (their quarantine policy lets them ask, not release).</summary>
+    public bool IsRequested => ReleaseStatus.Equals("REQUESTED", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Recipients it hasn't been released to yet.</summary>
+    public IReadOnlyList<string> NotReleasedTo => ReleasedTo is { Count: > 0 } done
+        ? [.. Recipients.Where(r => !done.Contains(r, StringComparer.OrdinalIgnoreCase))]
+        : Recipients;
+
+    /// <summary>Exchange takes a "wrongly caught" report to Microsoft with a release of spam only.</summary>
+    public bool CanReportFalsePositive => Reason is "Spam" or "HighConfSpam" or "Bulk";
 
     /// <summary>Exchange's reason as a person reads it.</summary>
     public string ReasonText => Reason switch
@@ -60,6 +73,15 @@ public interface IMailSecurity
     Task<IReadOnlyList<QuarantinedMessage>> GetQuarantineAsync(int days, CancellationToken cancellationToken = default);
 
     Task<QuarantinePreview> PreviewQuarantinedAsync(string identity, CancellationToken cancellationToken = default);
+
+    /// <summary>One message read fresh, with who it has been released to (the list read doesn't say).</summary>
+    Task<QuarantinedMessage?> GetQuarantinedAsync(string identity, CancellationToken cancellationToken = default);
+
+    /// <summary>A quarantined message's headers, as text.</summary>
+    Task<string> GetQuarantineHeadersAsync(string identity, CancellationToken cancellationToken = default);
+
+    /// <summary>A quarantined message as an .eml file's bytes (Microsoft records each download).</summary>
+    Task<byte[]> ExportQuarantinedAsync(string identity, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<TracedMessage>> TraceAsync(TraceSearch search, CancellationToken cancellationToken = default);
 

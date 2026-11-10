@@ -174,6 +174,48 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Quarantine request: Check the Sender explains the headers; Approve Release with one recipient unticked stages a release to the rest; Deny the Request replaces it", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages[0];
+            for (var i = 0; i < 50 && mail.Quarantine.IsLoading; i++)
+                Settle();
+            mail.Quarantine.ApplyView(mail.Quarantine.Views.Single(v => v.View.Id == "requested"));
+            Settle();
+            var asked = mail.Quarantine.Rows.Cast<QuarantinedMessage>().First(m => m.IsRequested && m.Recipients.Count > 1);
+            mail.OpenQuarantined(asked);
+            Settle();
+            var page = (Tenantry.ViewModels.MailSecurity.QuarantinePreviewViewModel)((Tenantry.ViewModels.MailSecurity.MailRecordPageViewModel)main.SelectedTab!).Content;
+            Click(window, FindButton(window, b => b.Command == page.ShowHeadersCommand && b.IsEffectivelyVisible));
+            for (var i = 0; i < 30 && !page.HasHeaders; i++)
+                Settle();
+            Expect(page.Verdicts.Count >= 4, $"the sender checks are listed ({page.Verdicts.Count})");
+            var release = FindButton(window, b => b.Command == page.ReleaseCommand && b.IsEffectivelyVisible);
+            Expect((string?)release.Content == "Approve Release", $"a request offers Approve Release, not {release.Content}");
+            release.BringIntoView();
+            Settle();
+            Click(window, release);
+            var boxes = window.GetVisualDescendants().OfType<CheckBox>().Where(b => b.DataContext is Tenantry.ViewModels.MailSecurity.ReleaseRecipient && b.IsEffectivelyVisible).ToArray();
+            Expect(boxes.Length == asked.Recipients.Count, "each recipient has a box");
+            boxes[^1].BringIntoView();
+            Settle();
+            Click(window, boxes[^1]);
+            var staged = main.Pending!.Rows.Select(r => r.Change).OfType<ReleaseQuarantined>().SingleOrDefault();
+            Expect(staged?.To?.Count == asked.Recipients.Count - 1, $"the release is for the ticked recipients only (staged {(staged is null ? "none" : staged.To?.Count.ToString() ?? "all")}; ticks {string.Join(",", page.Recipients.Select(r => r.IsTicked))}; boxes {boxes.Length})");
+            foreach (var command in new[] { page.ReleaseCommand, page.DenyCommand })
+            {
+                var button = FindButton(window, b => b.Command == command && b.IsEffectivelyVisible);
+                button.BringIntoView();
+                Settle();
+                Click(window, button);
+            }
+            Expect(main.Pending.Rows.Select(r => r.Change).OfType<DenyQuarantineRelease>().Count() == 1, "Deny the Request staged a deny");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("Reorder Rules: the button opens the page; ticking two (Shift for a range) and To the Top moves them and stages one new order; Put Them All Back undoes it", () =>
         {
             var (window, main, _) = OpenList();

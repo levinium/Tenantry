@@ -37,6 +37,19 @@ public sealed class MailSecurityTests
     }
 
     [Fact]
+    public async Task The_reason_comes_from_its_code_not_Exchanges_wording()
+    {
+        // As Exchange answers live: Type is wording, QuarantineTypes the code.
+        var exchange = new FakeCmdlets((cmdlet, _) => cmdlet == "Get-QuarantineMessage"
+            ? Held.Replace("\"Type\":\"HighConfPhish\"", "\"Type\":\"High Confidence Phish\",\"QuarantineTypes\":\"HighConfPhish\"")
+            : "[]");
+
+        var message = Assert.Single(await Records(exchange).GetQuarantineAsync(30, Ct));
+
+        Assert.Equal(("HighConfPhish", "High-Confidence Phishing", true), (message.Reason, message.ReasonText, message.IsDangerous));
+    }
+
+    [Fact]
     public async Task A_trace_search_sends_only_what_was_filled_in()
     {
         var exchange = new FakeCmdlets((_, _) => """[{"MessageTraceId":"t1","Received":"2026-10-25T10:00:00Z","SenderAddress":"a@x.example","RecipientAddress":"b@y.example","Subject":"Hi","Status":"Failed"}]""");
@@ -104,6 +117,112 @@ public sealed class MailSecurityTests
         var text = PlainText.FromHtml("<html><head><style>p{}</style></head><body><script>alert(1)</script><p>Hello&nbsp;there</p><a href=\"https://evil.example/x\">Click</a><img src=\"https://track.example/p.gif\"></body></html>");
 
         Assert.Equal("Hello there\nClick [https://evil.example/x]", text);
+    }
+
+    static readonly ChangeTarget HeldTarget = new("quarantine", "a\\1", "Verify now", null);
+    const string Bo = "zz-tenantry-test-bo@contoso.example";
+    const string Cy = "zz-tenantry-test-cy@contoso.example";
+
+    [Fact]
+    public async Task Releasing_to_chosen_recipients_sends_User_not_ReleaseToAll_and_checks_each_got_it()
+    {
+        var reads = 0;
+        var exchange = new FakeCmdlets((cmdlet, _) => cmdlet == "Get-QuarantineMessage"
+            ? (++reads == 1 ? Held : Held.Replace("\"ReleaseStatus\":\"NOTRELEASED\"", $"\"ReleaseStatus\":\"NOTRELEASED\",\"ReleasedUser\":[\"{Bo}\"]"))
+            : "[]");
+        var change = new ReleaseQuarantined(HeldTarget, "x@bad.example", [Bo, Cy], false, To: [Bo], ReportFalsePositive: true);
+
+        var result = await Executor(exchange).ApplyAsync(change, Ct);
+
+        Assert.Equal(ChangeOutcome.Applied, result.Outcome);
+        var release = exchange.Calls.First(c => c.Cmdlet == "Release-QuarantineMessage").Parameters;
+        Assert.Contains($"\"User\":[\"{Bo}\"]", release);
+        Assert.DoesNotContain("ReleaseToAll", release);
+        Assert.Contains("\"ReportFalsePositive\":true", release);
+        // Test mode judges only the chosen recipient.
+        Assert.Equal([Bo], change.Guarded.Select(g => g.Id));
+        Assert.Equal($"Released to {Bo}; reported to Microsoft as not spam", change.After);
+    }
+
+    [Fact]
+    public async Task Denying_a_release_request_uses_the_bulk_form_with_a_placeholder_identity()
+    {
+        var reads = 0;
+        var exchange = new FakeCmdlets((cmdlet, _) => cmdlet == "Get-QuarantineMessage"
+            ? (++reads == 1 ? Held.Replace("NOTRELEASED", "REQUESTED") : Held.Replace("NOTRELEASED", "DENIED"))
+            : "[]");
+
+        var result = await Executor(exchange).ApplyAsync(new DenyQuarantineRelease(HeldTarget, "x@bad.example", [Bo]), Ct);
+
+        Assert.Equal(ChangeOutcome.Applied, result.Outcome);
+        var deny = exchange.Calls.First(c => c.Cmdlet == "Release-QuarantineMessage").Parameters;
+        Assert.Contains("\"Identities\":[\"a\\\\1\"]", deny);
+        Assert.Contains("\"Identity\":\"000\"", deny);
+        Assert.Contains("\"ActionType\":\"Deny\"", deny);
+    }
+
+    [Fact]
+    public void Headers_explain_the_sender_checks_and_the_verdict_even_when_folded()
+    {
+        const string headers = "Received: from mx.example\r\nAuthentication-Results: spf=fail (sender IP is 203.0.113.9)\r\n smtp.mailfrom=bad.example; dkim=none (message not signed)\r\n"
+                               + " header.d=none;dmarc=fail action=quarantine header.from=bank.example;compauth=fail reason=000\r\n"
+                               + "X-Forefront-Antispam-Report: CIP:203.0.113.9;CTRY:XX;SCL:9;SFV:SPM;CAT:HPHSH;DIR:INB;\r\nSubject: Verify now\r\n";
+
+        var verdicts = MessageHeaders.Verdicts(headers).ToDictionary(v => v.Check);
+
+        Assert.Equal(("fail", false), (verdicts["Sender's server (SPF)"].Result, verdicts["Sender's server (SPF)"].Good));
+        Assert.Equal(("none", (bool?)null), (verdicts["Signature (DKIM)"].Result, verdicts["Signature (DKIM)"].Good));
+        Assert.Equal("fail", verdicts["Sender's domain policy (DMARC)"].Result);
+        Assert.Equal("fail", verdicts["Microsoft's sender check"].Result);
+        Assert.Equal("High-confidence phishing.", verdicts["Microsoft's verdict"].Meaning);
+        Assert.Equal("High-confidence spam.", verdicts["Spam confidence"].Meaning);
+        Assert.Equal("Verify now", MessageHeaders.Value(headers, "Subject"));
+    }
+
+    [Fact]
+    public void Unticking_a_recipient_restages_the_release_for_the_rest_and_a_request_offers_deny()
+    {
+        var pipeline = new ChangePipeline(new DemoFree(), new ChangeLog(new MemoryEntityStore()), new MemoryTestModeStore(true), "admin");
+        var message = new QuarantinedMessage("a\\1", DateTimeOffset.UnixEpoch, "x@bad.example", [Bo, Cy], "Verify now", 1, "Spam", null, null, "REQUESTED", null);
+        var preview = new QuarantinePreviewViewModel(message, null, pipeline, Availability.Yes);
+        Assert.Equal(("Approve Release", true, true, true), (preview.ReleaseText, preview.CanDeny, preview.CanChooseRecipients, preview.CanReportFalsePositive));
+
+        preview.ReleaseCommand.Execute(null);
+        Assert.Null(Assert.IsType<ReleaseQuarantined>(Assert.Single(pipeline.Pending)).To);
+        preview.Recipients[1].IsTicked = false;
+        var release = Assert.IsType<ReleaseQuarantined>(Assert.Single(pipeline.Pending));
+        Assert.Equal([Bo], release.To);
+        Assert.Equal("Release requested", release.Before);
+        // Nobody left ticked: nothing to release.
+        preview.Recipients[0].IsTicked = false;
+        Assert.Empty(pipeline.Pending);
+        Assert.True(preview.NoneChosen);
+
+        preview.DenyCommand.Execute(null);
+        Assert.IsType<DenyQuarantineRelease>(Assert.Single(pipeline.Pending));
+    }
+
+    [Fact]
+    public async Task Bulk_release_skips_what_is_out_already_and_deny_skips_what_nobody_asked_about()
+    {
+        QuarantinedMessage M(string id, string status) => new(id, DateTimeOffset.UnixEpoch, "x@bad.example", [Bo], $"Message {id}", 1, "Spam", null, null, status, null);
+        var picked = new[] { M("1", "NOTRELEASED"), M("2", "REQUESTED"), M("3", "RELEASED") };
+        var actions = Tenantry.ViewModels.Records.BulkActions.ForQuarantine(() => picked).ToDictionary(a => a.Title);
+
+        var release = await actions["Release"].PlanAsync(Ct);
+        var deny = await actions["Deny Release Requests"].PlanAsync(Ct);
+
+        Assert.Equal(["1", "2"], release.Changes.Select(c => c.Target.Id));
+        Assert.True(((ReleaseQuarantined)release.Changes[1]).WasRequested);
+        Assert.Equal("2", Assert.Single(deny.Changes).Target.Id);
+        Assert.Equal(2, deny.Skipped.Count);
+    }
+
+    [Fact]
+    public void A_downloaded_message_gets_a_safe_file_name()
+    {
+        Assert.Equal("RE- Invoice -4471- overdue", QuarantinePreviewViewModel.FileName("RE: Invoice /4471\\ overdue"));
+        Assert.Equal("Quarantined message", QuarantinePreviewViewModel.FileName("::"));
     }
 
     [Fact]
