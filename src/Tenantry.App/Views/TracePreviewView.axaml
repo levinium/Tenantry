@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.TracePreviewView"
              x:DataType="ms:TracePreviewViewModel">
   <StackPanel Spacing="14">
@@ -16,6 +17,49 @@
       <TextBlock Grid.Row="2" Classes="label" Text="RECEIVED" VerticalAlignment="Center" />
       <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ReceivedText}" />
     </Grid>
+
+    <!-- Why it didn't arrive, in words, and what to do -->
+    <Border Classes="banner" Classes.error="{Binding IsRealProblem}" Classes.info="{Binding IsOnPurpose}" IsVisible="{Binding HasProblem}">
+      <StackPanel Spacing="4">
+        <TextBlock FontWeight="SemiBold" Text="{Binding ProblemHeading}" />
+        <TextBlock TextWrapping="Wrap" Text="{Binding Problem.Meaning, FallbackValue=''}" />
+        <TextBlock TextWrapping="Wrap" Text="{Binding Problem.WhatToDo, StringFormat='What to do: {0}', FallbackValue=''}" />
+      </StackPanel>
+    </Border>
+
+    <!-- Follow it up -->
+    <WrapPanel ItemSpacing="8" LineSpacing="8" IsVisible="{Binding HasActions}">
+      <Button Command="{Binding TraceSenderCommand}" ToolTip.Tip="Search everything this sender sent over the same range">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="PersonArrowRight" FontSize="14" />
+          <TextBlock Text="Everything from This Sender" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding TraceRecipientCommand}" ToolTip.Tip="Search everything this recipient got over the same range">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="PersonArrowLeft" FontSize="14" />
+          <TextBlock Text="Everything to This Recipient" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding FindInQuarantineCommand}" IsVisible="{Binding CanFindInQuarantine}" ToolTip.Tip="Show it in Quarantine, to release or delete it">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="ShieldError" FontSize="14" />
+          <TextBlock Text="Find It in Quarantine" />
+        </StackPanel>
+      </Button>
+    </WrapPanel>
+    <StackPanel Spacing="6" IsVisible="{Binding CanEditLists}">
+      <WrapPanel ItemSpacing="8" LineSpacing="8">
+        <Button Classes="danger-outline" Content="{Binding BlockText}" Command="{Binding BlockSenderCommand}" IsEnabled="{Binding CanList}"
+                ToolTip.Tip="Add the sender to the organization's block list: their mail goes to quarantine from now on (added to Pending Changes)"
+                ToolTip.ShowOnDisabled="True" />
+        <Button Content="{Binding AllowText}" Command="{Binding AllowSenderCommand}" IsEnabled="{Binding CanList}"
+                ToolTip.Tip="Add the sender to the allow list for 45 days after their last message (added to Pending Changes)"
+                ToolTip.ShowOnDisabled="True" />
+      </WrapPanel>
+      <TextBlock Classes="caption" Text="{Binding ListedNote}" IsVisible="{Binding HasListedNote}" TextWrapping="Wrap" />
+    </StackPanel>
+
     <Border Classes="divider" />
     <StackPanel Spacing="6">
       <TextBlock Classes="label" Text="WHAT HAPPENED TO IT" />
@@ -41,6 +85,7 @@
               <StackPanel Grid.Column="1" Spacing="2">
                 <TextBlock Text="{Binding Event}" FontWeight="SemiBold" />
                 <SelectableTextBlock Classes="caption" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap" />
+                <TextBlock Classes="caption" Text="{Binding ProblemText}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" FontStyle="Italic" />
               </StackPanel>
             </Grid>
           </DataTemplate>

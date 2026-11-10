@@ -216,6 +216,49 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Message trace: a failed message explains why; Everything from This Sender searches again; a Trace Report needs a sender and then is asked for", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "trace");
+            Settle();
+            Click(window, FindButton(window, b => b.Command == mail.SearchTraceCommand && b.IsEffectivelyVisible));
+            for (var i = 0; i < 50 && mail.Trace.IsLoading; i++)
+                Settle();
+            var failed = mail.Trace.Rows.Cast<TracedMessage>().First(m => m.Status == "Failed");
+            mail.Trace.PreviewRow(failed);
+            for (var i = 0; i < 20; i++)
+                Settle();
+            var preview = (Tenantry.ViewModels.MailSecurity.TracePreviewViewModel)mail.Trace.PreviewModel!;
+            Expect(preview.HasProblem, "the failed message explains why");
+            var candidates = window.GetVisualDescendants().OfType<Button>().Where(b => b.Command == preview.TraceSenderCommand).ToArray();
+            Expect(candidates.Any(b => b.IsEffectivelyVisible), $"the sender button shows ({candidates.Length} found, visible {candidates.Count(b => b.IsEffectivelyVisible)}, previews {window.GetVisualDescendants().OfType<Tenantry.App.Views.TracePreviewView>().Count()}, open {mail.Trace.IsPreviewOpen})");
+            var everything = FindButton(window, b => b.Command == preview.TraceSenderCommand && b.IsEffectivelyVisible);
+            everything.BringIntoView();
+            Settle();
+            Click(window, everything);
+            Expect(mail.TraceSender == failed.Sender && mail.TraceRecipient.Length == 0, "the search is now everything from the sender");
+            for (var i = 0; i < 50 && mail.Trace.IsLoading; i++)
+                Settle();
+
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "reports");
+            for (var i = 0; i < 30 && !mail.Reports.IsLoaded; i++)
+                Settle();
+            Settle();
+            Settle();
+            var before = mail.Reports.Reports.Count;
+            var ask = FindButton(window, b => b.Command == mail.Reports.StartCommand && b.IsEffectivelyVisible);
+            Click(window, ask);
+            Expect(mail.Reports.HasProblems && mail.Reports.Reports.Count == before, "without a sender or recipient it says so and asks nothing");
+            mail.Reports.Senders = "billing@invoices.example";
+            Click(window, ask);
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Expect(!mail.Reports.HasProblems && mail.Reports.Reports.Count == before + 1, "with a sender the report is asked for");
+            window.Close();
+        });
+
         Check("Reorder Rules: the button opens the page; ticking two (Shift for a range) and To the Top moves them and stages one new order; Put Them All Back undoes it", () =>
         {
             var (window, main, _) = OpenList();

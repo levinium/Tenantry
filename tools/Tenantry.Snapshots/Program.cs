@@ -272,6 +272,15 @@ if (args.Contains("--mail-review"))
         main.Pending!.DiscardAllCommand.Execute(null);
         main.SelectedTab = mail;
 
+        // Trace reports: the request form (one problem shown) and the reports asked for.
+        mail.SelectedPage = pages.Single(p => p.Key == "reports");
+        for (var i = 0; i < 30 && !mail.Reports.IsLoaded; i++)
+            Settle();
+        mail.Reports.StartCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+        Settle();
+        Render(main, $"m15-trace-reports-{suffix}", height: 1300);
+        main.SelectedTab = mail;
+
         // Block and allow lists: the list, an entry previewed, the Add panel, an entry's page.
         mail.SelectedPage = pages[3];
         Wait(mail.Entries);

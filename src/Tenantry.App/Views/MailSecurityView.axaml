@@ -74,7 +74,7 @@
             </Button>
           </Grid>
           <TextBlock Classes="caption" TextWrapping="Wrap"
-                     Text="Searches every mailbox in the organization, up to 10 days at a time and as far back as 90 days. Choose a message to see each step it went through." />
+                     Text="Searches every mailbox in the organization, as far back as 90 days (Exchange looks 10 days at a time, so longer ranges take longer). Choose a message to see each step it went through. For more than 5,000 messages, ask for a Trace Report." />
           <TextBlock Classes="caption" Text="{Binding TraceNote}" IsVisible="{Binding HasTraceNote}" TextWrapping="Wrap" />
         </StackPanel>
       </Border>
@@ -140,6 +140,11 @@
         </ContentControl.DataTemplates>
       </ContentControl>
     </DockPanel>
+
+    <!-- Trace reports: bigger and older searches, built in the background -->
+    <Panel IsVisible="{Binding ShowReports}">
+      <views:TraceReportsView DataContext="{Binding Reports}" />
+    </Panel>
 
     <!-- Pages still to come -->
     <Border Classes="card" IsVisible="{Binding IsPlannedPage}" VerticalAlignment="Top" HorizontalAlignment="Left" MaxWidth="640">

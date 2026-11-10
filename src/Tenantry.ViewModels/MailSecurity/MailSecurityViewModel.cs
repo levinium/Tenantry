@@ -37,6 +37,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         new("trace", "Message Trace", "MailSearch"),
         new("rules", "Mail Flow Rules", "ArrowRouting"),
         new("lists", "Block and Allow Lists", "ShieldProhibited"),
+        new("reports", "Trace Reports", "DocumentTable"),
     ];
 
     readonly ChangePipeline? _pipeline;
@@ -44,7 +45,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     readonly ITabHost? _tabs;
 
     public MailSecurityViewModel(IMailSecurity? records, ChangePipeline? pipeline, Availability canEdit, IListStateStore? listState, Func<DateTimeOffset>? now = null,
-        ITabHost? tabs = null)
+        ITabHost? tabs = null, string? account = null)
     {
         _records = records;
         _pipeline = pipeline;
@@ -54,9 +55,11 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         Quarantine = DataListViewModel.Create(
             MailSecurityLists.Quarantine(m => new QuarantinePreviewViewModel(m, records, pipeline, canEdit, () => _entries)),
             LoadQuarantineAsync, row => OpenQuarantined((QuarantinedMessage)row), listState, _now);
+        var follow = new TraceActions(TraceFrom, TraceTo, FindInQuarantine);
         Trace = DataListViewModel.Create(
-            MailSecurityLists.Trace(m => new TracePreviewViewModel(m, records)),
+            MailSecurityLists.Trace(m => new TracePreviewViewModel(m, records, follow, pipeline, canEdit, () => _entries)),
             LoadTraceAsync, _ => { }, listState, _now);
+        Reports = new TraceReportsViewModel(records, account, now);
         Entries = DataListViewModel.Create(
             MailSecurityLists.Entries(e => new ListEntryPreviewViewModel(e, pipeline, canEdit)),
             LoadEntriesAsync, row => OpenEntry((ListEntry)row), listState, _now);
@@ -109,10 +112,13 @@ public sealed partial class MailSecurityViewModel : TabViewModel
 
     public AddListEntriesViewModel AddEntries { get; }
 
+    public TraceReportsViewModel Reports { get; }
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(ShowRules), nameof(IsPlannedPage))]
+    [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(ShowRules), nameof(ShowReports), nameof(IsPlannedPage))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
+    public bool ShowReports => SelectedPage.Key == "reports";
     public bool ShowQuarantine => SelectedPage.Key == "quarantine";
     public bool ShowTrace => SelectedPage.Key == "trace";
     public bool ShowLists => SelectedPage.Key == "lists";
@@ -141,6 +147,8 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             _entriesRead = true;
             _ = Entries.LoadAsync();
         }
+        if (value.Key == "reports" && !Reports.IsLoaded)
+            _ = Reports.Refresh();
     }
 
     // ---- Mail flow rules ----------------------------------------------------------------------
@@ -280,7 +288,14 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     // ---- Message trace ------------------------------------------------------------------------
 
     public static IReadOnlyList<TraceRange> TraceRanges { get; } =
-        [new(1, "1 Day"), new(2, "2 Days"), new(7, "7 Days"), new(TraceSearch.MaxDays, "10 Days (the Most per Search)")];
+        [new(1, "1 Day"), new(2, "2 Days"), new(7, "7 Days"), new(TraceSearch.MaxDays, "10 Days"), new(30, "30 Days"), new(TraceSearch.HistoryDays, "90 Days (Everything)")];
+
+    /// <summary>A range longer than 10 days starts that many days back, so it ends today.</summary>
+    partial void OnTraceLengthChanged(TraceRange value)
+    {
+        if (value.Days > TraceSearch.MaxDays)
+            TraceStart = _now().Date.AddDays(-value.Days);
+    }
 
     [ObservableProperty]
     public partial DateTime TraceStart { get; set; }
@@ -320,6 +335,12 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     {
         var start = new DateTimeOffset(TraceStart < EarliestTraceDay ? EarliestTraceDay : TraceStart);
         var end = start.AddDays(TraceLength.Days);
+        // The longer ranges are "the last N days": up to now, today included.
+        if (TraceLength.Days > TraceSearch.MaxDays)
+        {
+            end = _now();
+            start = end.AddDays(-TraceLength.Days);
+        }
         if (end > _now())
             end = _now();
         var status = TraceStatus == TraceStatusChoices[0] ? null
@@ -335,9 +356,37 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         _search = CurrentSearch();
         TraceNote = null;
         Trace.EmptyText = "No messages match this search.";
-        await Trace.ReloadAsync(busyText: "Searching message trace… This can take up to a minute for a busy day.");
+        var windows = TraceSearch.Windows(_search.Start, _search.End).Count();
+        await Trace.ReloadAsync(busyText: windows > 1
+            ? $"Searching message trace, {windows} stretches of 10 days (Exchange's most per search)… This can take a few minutes."
+            : "Searching message trace… This can take up to a minute for a busy day.");
         if (Trace.Total >= TraceSearch.MaxResults)
             TraceNote = $"Showing the first {TraceSearch.MaxResults:N0} messages: narrow the search (a sender, recipient or shorter range) to see the rest.";
+    }
+
+    /// <summary>From a traced message: everything from its sender over the same range.</summary>
+    public void TraceFrom(string sender) => Retrace(sender, "");
+
+    /// <summary>From a traced message: everything to its recipient over the same range.</summary>
+    public void TraceTo(string recipient) => Retrace("", recipient);
+
+    void Retrace(string sender, string recipient)
+    {
+        TraceSender = sender;
+        TraceRecipient = recipient;
+        TraceSubject = "";
+        TraceStatus = TraceStatusChoices[0];
+        SelectedPage = Pages.Single(p => p.Key == "trace");
+        _ = SearchTraceCommand.ExecuteAsync(null);
+    }
+
+    /// <summary>From a quarantined trace result: Quarantine, showing everything held with that subject.</summary>
+    public void FindInQuarantine(TracedMessage message)
+    {
+        SelectedPage = Pages[0];
+        if (Quarantine.Views.FirstOrDefault(v => v.View.Id == "all") is { } all)
+            Quarantine.ApplyView(all);
+        Quarantine.SearchText = message.Subject;
     }
 
     async Task<IReadOnlyList<TracedMessage>> LoadTraceAsync(CancellationToken cancellationToken) =>

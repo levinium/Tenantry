@@ -257,8 +257,10 @@ public sealed class MailSecurityTests
 
         var search = area.CurrentSearch();
 
-        Assert.Equal(now.Date.AddDays(-TraceSearch.HistoryDays), search.Start.Date);
-        Assert.Equal(TraceSearch.MaxDays, (search.End - search.Start).TotalDays);
+        // 90 days back at most, and a 90-day search runs to now (searched 10 days at a time).
+        Assert.Equal(now.AddDays(-TraceSearch.HistoryDays), search.Start);
+        Assert.Equal(now, search.End);
+        Assert.Equal(9, TraceSearch.Windows(search.Start, search.End).Count());
         Assert.Equal("Failed", search.Status);
     }
 

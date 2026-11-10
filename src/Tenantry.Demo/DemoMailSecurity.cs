@@ -99,6 +99,34 @@ public sealed partial class DemoUserRecords : IMailSecurity
         return System.Text.Encoding.UTF8.GetBytes(headers + "MIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n" + preview.Body + "\r\n");
     }
 
+    readonly List<TraceReport> _reports =
+    [
+        new("demo-r-1", "Invoices from a supplier", "MessageTrace", "Done", DateTimeOffset.UtcNow.AddDays(-2), DateTimeOffset.UtcNow.AddDays(-2).AddHours(1),
+            DateTimeOffset.UtcNow.AddDays(-60), DateTimeOffset.UtcNow.AddDays(-30), 1_284, "https://admin.exchange.microsoft.com/#/messagetrace", null,
+            ["billing@invoices.example"], []),
+        new("demo-r-2", "Everything to the front desk", "MessageTraceDetail", "InProgress", DateTimeOffset.UtcNow.AddMinutes(-20), null,
+            DateTimeOffset.UtcNow.AddDays(-30), DateTimeOffset.UtcNow.AddDays(-1), 0, null, null, [], ["frontdesk@northgate.example"]),
+    ];
+
+    public Task<IReadOnlyList<TraceReport>> GetTraceReportsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<TraceReport>>([.. _reports.OrderByDescending(r => r.Submitted)]);
+
+    public Task<TraceReport> StartTraceReportAsync(TraceReportRequest request, CancellationToken cancellationToken = default)
+    {
+        var report = new TraceReport($"demo-r-{Guid.NewGuid():N}", request.Title, request.Type, "NotStarted", DateTimeOffset.UtcNow, null,
+            request.Start, request.End, 0, null, null, request.Senders, request.Recipients);
+        _reports.Add(report);
+        return Task.FromResult(report);
+    }
+
+    public Task CancelTraceReportAsync(string jobId, CancellationToken cancellationToken = default)
+    {
+        var i = _reports.FindIndex(r => r.JobId == jobId);
+        if (i >= 0)
+            _reports[i] = _reports[i] with { Status = "Cancelled" };
+        return Task.CompletedTask;
+    }
+
     public async Task<IReadOnlyList<TracedMessage>> TraceAsync(TraceSearch search, CancellationToken cancellationToken = default)
     {
         var people = (await directory.GetUsersAsync(cancellationToken)).Where(u => u.Mailbox is not null).Take(60).ToArray();

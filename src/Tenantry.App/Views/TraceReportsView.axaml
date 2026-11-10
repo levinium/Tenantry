@@ -1,0 +1,130 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.TraceReportsView"
+             x:DataType="ms:TraceReportsViewModel">
+  <ScrollViewer>
+    <StackPanel Spacing="12" Margin="0,0,0,24">
+      <!-- Ask for a report -->
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h3" Text="Ask for a Trace Report" />
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="For more than a search shows: up to 90 days and 100,000 messages, built by Exchange in the background (usually within a few hours) as a spreadsheet to download." />
+          </StackPanel>
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="16" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="label" Text="KIND" />
+              <ComboBox ItemsSource="{x:Static ms:TraceReportsViewModel.Kinds}" SelectedItem="{Binding Kind}" HorizontalAlignment="Stretch" />
+              <TextBlock Classes="caption" Text="{Binding KindDescription}" TextWrapping="Wrap" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="4">
+              <TextBlock Classes="label" Text="NAME (OPTIONAL)" />
+              <TextBox Text="{Binding Title}" PlaceholderText="Named from its kind and dates when left blank" />
+            </StackPanel>
+            <StackPanel Grid.Row="1" Spacing="4">
+              <TextBlock Classes="label" Text="FROM" />
+              <CalendarDatePicker SelectedDate="{Binding StartDay}" DisplayDateStart="{Binding EarliestDay}" DisplayDateEnd="{Binding LatestDay}" HorizontalAlignment="Stretch" />
+            </StackPanel>
+            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+              <TextBlock Classes="label" Text="TO (INCLUDED)" />
+              <CalendarDatePicker SelectedDate="{Binding EndDay}" DisplayDateStart="{Binding EarliestDay}" DisplayDateEnd="{Binding LatestDay}" HorizontalAlignment="Stretch" />
+            </StackPanel>
+            <StackPanel Grid.Row="2" Spacing="4">
+              <TextBlock Classes="label" Text="SENDERS" />
+              <TextBox Text="{Binding Senders}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" PlaceholderText="One or more addresses, one per line" />
+            </StackPanel>
+            <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4">
+              <TextBlock Classes="label" Text="RECIPIENTS" />
+              <TextBox Text="{Binding Recipients}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" PlaceholderText="One or more addresses, one per line" />
+            </StackPanel>
+            <StackPanel Grid.Row="3" Spacing="4">
+              <TextBlock Classes="label" Text="EMAIL WHEN READY" />
+              <TextBox Text="{Binding NotifyAddress}" PlaceholderText="Nobody (it shows as Ready here)" />
+              <TextBlock Classes="caption" Text="An address in your organization." />
+            </StackPanel>
+          </Grid>
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Exchange needs at least one sender or recipient. Use people's own addresses: a list's address can miss messages." />
+          <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Classes="error" Text="{Binding}" TextWrapping="Wrap" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Button Classes="accent" Command="{Binding StartCommand}" IsEnabled="{Binding !IsStarting}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="DocumentAdd" FontSize="14" />
+                <TextBlock Text="Ask for the Report" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+          <TextBlock Classes="caption" Text="{Binding StartNote}" IsVisible="{Binding HasStartNote}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <!-- The reports asked for in the last 10 days -->
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="h3" Text="Reports" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" ToolTip.Tip="Read the reports again">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+                <TextBlock Text="Refresh" />
+              </StackPanel>
+            </Button>
+          </Grid>
+          <TextBlock Classes="caption" Text="{Binding UsedToday}" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+            <Panel Width="16" Height="16" VerticalAlignment="Center">
+              <Ellipse Classes="spintrack" />
+              <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                <Arc.RenderTransform>
+                  <RotateTransform />
+                </Arc.RenderTransform>
+              </Arc>
+            </Panel>
+            <TextBlock Classes="muted" Text="Reading the reports…" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Classes="error" Text="{Binding LoadError}" IsVisible="{Binding HasLoadError}" TextWrapping="Wrap" />
+          <TextBlock Classes="muted" IsVisible="{Binding IsEmpty}" TextWrapping="Wrap"
+                     Text="No reports in the last 10 days. Ask for one above when a search isn't enough." />
+          <ItemsControl ItemsSource="{Binding Reports}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ms:TraceReportRow">
+                <Border Classes="valuerow">
+                  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                    <StackPanel Spacing="2">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <c:Badge Text="{Binding StatusText}" Kind="{Binding StatusKind}" />
+                      </StackPanel>
+                      <TextBlock Classes="caption" Text="{Binding Kind}" />
+                      <TextBlock Classes="caption" Text="{Binding Covers}" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding SubmittedText}" />
+                      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="accent" Command="{Binding OpenCommand}" IsVisible="{Binding CanOpen}" VerticalAlignment="Center"
+                            ToolTip.Tip="Download the spreadsheet in your browser (sign in as an admin if asked)">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ic:FluentIcon Icon="ArrowDownload" FontSize="14" />
+                        <TextBlock Text="Download" />
+                      </StackPanel>
+                    </Button>
+                    <Button Grid.Column="2" Classes="danger-outline" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" VerticalAlignment="Center"
+                            ToolTip.Tip="Stop building it (it still counts toward today's 250)" Content="Cancel" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

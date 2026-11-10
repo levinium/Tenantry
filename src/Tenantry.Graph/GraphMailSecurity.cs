@@ -144,13 +144,30 @@ public sealed partial class GraphUserRecords : IMailSecurity
             Str(r, "LastModifiedBy") is { Length: > 0 } by ? by : null);
     }
 
+    /// <summary>
+    /// Exchange searches 10 days per query, so a longer range (up to 90 days) is searched in
+    /// 10-day windows, newest first, until the range is covered or the result limit is reached.
+    /// </summary>
     public async Task<IReadOnlyList<TracedMessage>> TraceAsync(TraceSearch search, CancellationToken cancellationToken = default)
+    {
+        var found = new List<TracedMessage>();
+        foreach (var (start, end) in TraceSearch.Windows(search.Start, search.End))
+        {
+            var left = TraceSearch.MaxResults - found.Count;
+            if (left <= 0)
+                break;
+            found.AddRange(await TraceWindowAsync(search, start, end, left, cancellationToken));
+        }
+        return found.OrderByDescending(m => m.Received).ToArray();
+    }
+
+    async Task<IReadOnlyList<TracedMessage>> TraceWindowAsync(TraceSearch search, DateTimeOffset from, DateTimeOffset to, int limit, CancellationToken cancellationToken)
     {
         var parameters = new Dictionary<string, object?>
         {
-            ["StartDate"] = search.Start.UtcDateTime.ToString("o", CultureInfo.InvariantCulture),
-            ["EndDate"] = search.End.UtcDateTime.ToString("o", CultureInfo.InvariantCulture),
-            ["ResultSize"] = TraceSearch.MaxResults,
+            ["StartDate"] = from.UtcDateTime.ToString("o", CultureInfo.InvariantCulture),
+            ["EndDate"] = to.UtcDateTime.ToString("o", CultureInfo.InvariantCulture),
+            ["ResultSize"] = limit,
         };
         if (!string.IsNullOrWhiteSpace(search.Sender))
             parameters["SenderAddress"] = search.Sender.Trim();
@@ -172,7 +189,48 @@ public sealed partial class GraphUserRecords : IMailSecurity
                 Str(r, "Subject") is { Length: > 0 } s ? s : "(no subject)",
                 Str(r, "Status") ?? "",
                 r.TryGetProperty("Size", out var size) && size.ValueKind == JsonValueKind.Number ? size.GetInt64() : null))
-            .OrderByDescending(m => m.Received)
             .ToArray();
     }
+
+    // ---- Trace reports (historical searches) ---------------------------------------------------
+
+    public async Task<IReadOnlyList<TraceReport>> GetTraceReportsAsync(CancellationToken cancellationToken = default) =>
+        [.. (await Run("Get-HistoricalSearch", new(), cancellationToken)).Select(ToTraceReport).OrderByDescending(r => r.Submitted)];
+
+    static TraceReport ToTraceReport(JsonElement r) => new(
+        Str(r, "JobId") ?? Str(r, "Identity") ?? "",
+        Str(r, "ReportTitle") ?? "",
+        Str(r, "ReportType") ?? "",
+        Str(r, "Status") ?? "",
+        Date(r, "SubmitDate"), Date(r, "CompletionDate"), Date(r, "StartDate"), Date(r, "EndDate"),
+        r.TryGetProperty("Rows", out var rows) && rows.ValueKind == JsonValueKind.Number ? rows.GetInt64() : 0,
+        Str(r, "FileUrl") is { Length: > 0 } url ? url : null,
+        Str(r, "ErrorDescription") is { Length: > 0 } error ? error : null,
+        List(r, "SenderAddress").ToArray(), List(r, "RecipientAddress").ToArray());
+
+    internal static Dictionary<string, object?> TraceReportParameters(TraceReportRequest request)
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            ["ReportTitle"] = request.Title.Trim(), ["ReportType"] = request.Type,
+            ["StartDate"] = request.Start.UtcDateTime.ToString("o", CultureInfo.InvariantCulture),
+            ["EndDate"] = request.End.UtcDateTime.ToString("o", CultureInfo.InvariantCulture),
+        };
+        if (request.Senders.Count > 0)
+            parameters["SenderAddress"] = request.Senders.ToArray();
+        if (request.Recipients.Count > 0)
+            parameters["RecipientAddress"] = request.Recipients.ToArray();
+        if (!string.IsNullOrWhiteSpace(request.NotifyAddress))
+            parameters["NotifyAddress"] = new[] { request.NotifyAddress.Trim() };
+        return parameters;
+    }
+
+    public async Task<TraceReport> StartTraceReportAsync(TraceReportRequest request, CancellationToken cancellationToken = default)
+    {
+        var rows = await Run("Start-HistoricalSearch", TraceReportParameters(request), cancellationToken);
+        return rows.Count > 0 ? ToTraceReport(rows[0]) : throw new InvalidOperationException("Exchange didn't say it had started the report.");
+    }
+
+    public Task CancelTraceReportAsync(string jobId, CancellationToken cancellationToken = default) =>
+        Run("Stop-HistoricalSearch", new() { ["JobId"] = jobId }, cancellationToken);
 }

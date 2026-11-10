@@ -64,6 +64,72 @@ public sealed record TraceSearch(DateTimeOffset Start, DateTimeOffset End, strin
     public const int MaxDays = 10;
     public const int HistoryDays = 90;
     public const int MaxResults = 5000;
+
+    /// <summary>The range cut into the 10-day windows Exchange searches, newest first.</summary>
+    public static IEnumerable<(DateTimeOffset Start, DateTimeOffset End)> Windows(DateTimeOffset start, DateTimeOffset end)
+    {
+        for (var to = end; to > start; to = to.AddDays(-MaxDays))
+        {
+            var from = to.AddDays(-MaxDays);
+            yield return (from < start ? start : from, to);
+        }
+    }
+}
+
+/// <summary>The kinds of trace report Exchange builds in the background (Start-HistoricalSearch's report types).</summary>
+public sealed record TraceReportKind(string Type, string Label, string Description)
+{
+    public override string ToString() => Label;
+
+    public static IReadOnlyList<TraceReportKind> All { get; } =
+    [
+        new("MessageTrace", "Message Trace Summary", "Every message: who sent it, who it went to, when, and what happened."),
+        new("MessageTraceDetail", "Message Trace with Every Step", "The summary plus each step a message went through, for working out where one went."),
+        new("SPAM", "Spam", "Messages Microsoft filtered as spam."),
+        new("Spoof", "Spoofed Senders", "Messages whose sender looked forged."),
+        new("TransportRule", "Mail Flow Rules", "Messages your mail flow rules acted on."),
+    ];
+}
+
+/// <summary>A trace report to ask for: a range up to 90 days and at least one sender or recipient.</summary>
+/// <param name="NotifyAddress">An address in the organization to email when it's ready; null for none.</param>
+public sealed record TraceReportRequest(string Title, string Type, DateTimeOffset Start, DateTimeOffset End,
+    IReadOnlyList<string> Senders, IReadOnlyList<string> Recipients, string? NotifyAddress)
+{
+    /// <summary>What's wrong with it, as Exchange would refuse it; empty when it can go.</summary>
+    public IReadOnlyList<string> Problems(DateTimeOffset now)
+    {
+        var problems = new List<string>();
+        if (string.IsNullOrWhiteSpace(Title))
+            problems.Add("Give the report a name.");
+        if (Senders.Count == 0 && Recipients.Count == 0)
+            problems.Add("Add at least one sender or recipient: Exchange needs one of them.");
+        if (Senders.Count > MaxAddresses || Recipients.Count > MaxAddresses)
+            problems.Add($"Up to {MaxAddresses} senders and {MaxAddresses} recipients.");
+        if (End <= Start)
+            problems.Add("The range has to end after it starts.");
+        if (Start < now.AddDays(-TraceSearch.HistoryDays))
+            problems.Add($"Reports go back {TraceSearch.HistoryDays} days at most.");
+        return problems;
+    }
+
+    public const int MaxAddresses = 100;
+}
+
+/// <summary>A trace report Exchange is building or has built (Get-HistoricalSearch, kept 10 days).</summary>
+/// <param name="Status">"NotStarted", "InProgress", "Done", "Failed", "Cancelled"…</param>
+/// <param name="FileUrl">Where the finished CSV is, for a browser signed in as an admin.</param>
+public sealed record TraceReport(string JobId, string Title, string Type, string Status, DateTimeOffset? Submitted, DateTimeOffset? Completed,
+    DateTimeOffset? Start, DateTimeOffset? End, long Rows, string? FileUrl, string? Error, IReadOnlyList<string> Senders, IReadOnlyList<string> Recipients)
+{
+    public bool IsDone => Status.Equals("Done", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsWaiting => Status is "NotStarted" or "InProgress" or "Queued";
+
+    public string KindLabel => TraceReportKind.All.FirstOrDefault(k => k.Type.Equals(Type, StringComparison.OrdinalIgnoreCase))?.Label ?? Type;
+
+    /// <summary>Exchange allows this many report requests a day (cancelled ones count).</summary>
+    public const int DailyLimit = 250;
 }
 
 /// <summary>Quarantine and message trace across the organization (Exchange).</summary>
@@ -86,6 +152,13 @@ public interface IMailSecurity
     Task<IReadOnlyList<TracedMessage>> TraceAsync(TraceSearch search, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<TraceEvent>> TraceDetailAsync(TracedMessage message, CancellationToken cancellationToken = default);
+
+    /// <summary>The trace reports asked for in the last 10 days, newest first.</summary>
+    Task<IReadOnlyList<TraceReport>> GetTraceReportsAsync(CancellationToken cancellationToken = default);
+
+    Task<TraceReport> StartTraceReportAsync(TraceReportRequest request, CancellationToken cancellationToken = default);
+
+    Task CancelTraceReportAsync(string jobId, CancellationToken cancellationToken = default);
 
     /// <summary>Every entry on the Tenant Allow/Block List: senders, links, files, IPs and spoofed senders.</summary>
     Task<IReadOnlyList<ListEntry>> GetListEntriesAsync(CancellationToken cancellationToken = default);
