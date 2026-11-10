@@ -45,6 +45,40 @@ public sealed record RotateDkimKeys(ChangeTarget Domain, int KeySize = 2048) : D
 }
 
 /// <summary>
+/// Where Outlook's Report button sends reports (12d): the organization-wide report settings. Its
+/// target is the organization's setting, so Test mode refuses it.
+/// </summary>
+public sealed record SetReportRouting(ChangeTarget Settings, Directory.ReportRouting Old, Directory.ReportRouting New) : ChangeOp
+{
+    public static ChangeTarget TargetFor() => new("reportsettings", "reportsubmission", "Where Reports Go", null);
+
+    public override ChangeTarget Target => Settings;
+    public override string Key => "routing";
+    public override string Label => "Reported Messages Go To";
+    public override string Before => Old.Describe();
+    public override string After => New.Describe();
+    public override bool IsNoChange => Old with { PolicyExists = false, RuleExists = false } == New with { PolicyExists = false, RuleExists = false };
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetReportRouting e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>
+/// An admin's answer to a person's report (Graph review): marks it and, when the report settings
+/// say so, emails the person the result. The target is the reporter, so Test mode allows only
+/// test people.
+/// </summary>
+/// <param name="Verdict">"notSpam", "junk", "phishing" or "malware".</param>
+public sealed record ReviewSubmission(ChangeTarget Reporter, string SubmissionId, string Subject, string Verdict) : ChangeOp
+{
+    public override ChangeTarget Target => Reporter;
+    public override string Key => "review:" + SubmissionId;
+    public override string Label => $"Report of \"{Subject}\"";
+    public override string Before => "Not reviewed";
+    public override string After => "Reviewed: " + Verdict switch { "notSpam" => "no threat found", "junk" => "spam", _ => Verdict };
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
 /// Lets a sender Microsoft blocked for sending spam send again (Remove-BlockedSenderAddress). The
 /// target is the person's address, so Test mode allows only test people.
 /// </summary>

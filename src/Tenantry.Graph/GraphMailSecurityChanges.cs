@@ -86,6 +86,90 @@ public sealed partial class GraphChangeExecutor
             ct => Read("Get-BlockedSenderAddress", new() { ["SenderAddress"] = change.Sender.Id }, ct),
             rows => rows.Count == 0, cancellationToken);
 
+    // ---- Where reports go, and answering a report (12d) ---------------------------------------
+
+    internal const string ReportPolicy = "DefaultReportSubmissionPolicy";
+    internal const string ReportRule = "DefaultReportSubmissionRule";
+
+    /// <summary>
+    /// The policy's settings for a mode, as Microsoft's portal writes them: Microsoft on or off, the
+    /// three report kinds to the mailbox or not (with its address), and the pop-ups. "Mailbox
+    /// only" needs reporters notified; "off" needs both pop-ups on (Microsoft's rules).
+    /// </summary>
+    internal static Dictionary<string, object?> RoutingParameters(ReportRouting r)
+    {
+        var toMailbox = r.UsesMailbox;
+        var addresses = toMailbox && r.Mailbox is { } m ? new[] { m.Trim() } : null;
+        return new Dictionary<string, object?>
+        {
+            ["Identity"] = ReportPolicy,
+            ["EnableReportToMicrosoft"] = r.Mode is ReportMode.MicrosoftAndMailbox or ReportMode.MicrosoftOnly,
+            ["ReportJunkToCustomizedAddress"] = toMailbox, ["ReportNotJunkToCustomizedAddress"] = toMailbox, ["ReportPhishToCustomizedAddress"] = toMailbox,
+            ["ReportJunkAddresses"] = addresses, ["ReportNotJunkAddresses"] = addresses, ["ReportPhishAddresses"] = addresses,
+            ["EnableThirdPartyAddress"] = false,
+            ["EnableUserEmailNotification"] = r.NotifyReporters || r.Mode == ReportMode.MailboxOnly,
+            ["PreSubmitMessageEnabled"] = r.AskFirst || r.Mode == ReportMode.Off,
+            ["PostSubmitMessageEnabled"] = r.ThankAfter || r.Mode == ReportMode.Off,
+        };
+    }
+
+    /// <summary>Every call the new settings take, in order: the policy (made first if missing), then the rule that names the mailbox.</summary>
+    internal static IReadOnlyList<(string Cmdlet, Dictionary<string, object?> Parameters)> RoutingCalls(SetReportRouting change, bool policyExists, bool ruleExists)
+    {
+        var calls = new List<(string, Dictionary<string, object?>)>();
+        if (!policyExists)
+            calls.Add(("New-ReportSubmissionPolicy", new()));
+        calls.Add(("Set-ReportSubmissionPolicy", RoutingParameters(change.New)));
+        if (change.New.UsesMailbox && change.New.Mailbox is { } mailbox)
+            calls.Add(ruleExists
+                ? ("Set-ReportSubmissionRule", new() { ["Identity"] = ReportRule, ["SentTo"] = new[] { mailbox.Trim() } })
+                : ("New-ReportSubmissionRule", new() { ["Name"] = ReportRule, ["ReportSubmissionPolicy"] = ReportPolicy, ["SentTo"] = new[] { mailbox.Trim() } }));
+        else if (ruleExists)
+            calls.Add(("Remove-ReportSubmissionRule", new() { ["Identity"] = ReportRule, ["Confirm"] = false }));
+        return calls;
+    }
+
+    async Task<ApplyResult> SetReportRoutingAsync(SetReportRouting change, CancellationToken cancellationToken)
+    {
+        if (exchange is null)
+            return NoExchange;
+        if (change.New.Problem is { } problem)
+            return new ApplyResult(ChangeOutcome.Failed, problem);
+        // Read what's there now: the policy and rule may not exist yet, or may have changed since.
+        var policyExists = (await Read("Get-ReportSubmissionPolicy", new(), cancellationToken)).Count > 0;
+        var ruleExists = (await Read("Get-ReportSubmissionRule", new(), cancellationToken)).Count > 0;
+        foreach (var (cmdlet, parameters) in RoutingCalls(change, policyExists, ruleExists))
+        {
+            try
+            {
+                await exchange.InvokeAsync(CmdletEndpoint.Exchange, cmdlet, parameters, cancellationToken);
+            }
+            catch (CmdletException e)
+            {
+                return new ApplyResult(ChangeOutcome.Failed, $"{cmdlet} failed: {e.Explanation}");
+            }
+        }
+        var after = GraphUserRecords.ToRouting((await Read("Get-ReportSubmissionPolicy", new(), cancellationToken)).FirstOrDefault(),
+            (await Read("Get-ReportSubmissionRule", new(), cancellationToken)).FirstOrDefault());
+        return after.Mode == change.New.Mode && (!change.New.UsesMailbox || string.Equals(after.Mailbox, change.New.Mailbox?.Trim(), StringComparison.OrdinalIgnoreCase))
+            ? new ApplyResult(ChangeOutcome.Applied)
+            : new ApplyResult(ChangeOutcome.AppliedNotYetVisible, "Exchange took the settings but still shows the old ones; check again in a minute.");
+    }
+
+    async Task<ApplyResult> ReviewSubmissionAsync(ReviewSubmission change, CancellationToken cancellationToken)
+    {
+        await graph.PostAsync($"{GraphUserRecords.Submissions}emailThreats/{change.SubmissionId}/review", new JsonObject { ["category"] = change.Verdict }, cancellationToken);
+        foreach (var wait in ReadBackWaits)
+        {
+            if (wait > TimeSpan.Zero)
+                await _delay(wait, cancellationToken);
+            var row = await graph.GetAsync($"{GraphUserRecords.Submissions}emailThreats/{change.SubmissionId}", cancellationToken);
+            if (row.TryGetProperty("adminReview", out var review) && review.ValueKind == JsonValueKind.Object)
+                return new ApplyResult(ChangeOutcome.Applied);
+        }
+        return new ApplyResult(ChangeOutcome.AppliedNotYetVisible, "Microsoft took the review but doesn't show it yet.");
+    }
+
     /// <summary>Deny is only in the bulk form, which needs a placeholder Identity (Exchange ignores its value).</summary>
     internal static Dictionary<string, object?> DenyParameters(DenyQuarantineRelease change) => new()
     {

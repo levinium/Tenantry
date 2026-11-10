@@ -293,6 +293,31 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Reported messages: It's Phishing stages a review; changing where reports go stages one change", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "reported");
+            for (var i = 0; i < 40 && (!mail.Reported.Routing.IsLoaded || mail.Reported.Submissions.IsLoading); i++)
+                Settle();
+            var report = mail.Reported.Submissions.Rows.Cast<ThreatSubmission>().First(s => s.CanReview && !s.IsReviewed && s.CreatedBy!.StartsWith("zz-tenantry-test-", StringComparison.Ordinal));
+            mail.Reported.Submissions.PreviewRow(report);
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var preview = (Tenantry.ViewModels.MailSecurity.SubmissionPreviewViewModel)mail.Reported.Submissions.PreviewModel!;
+            var phishing = FindButton(window, b => b.Command == preview.ReviewCommand && (string?)b.CommandParameter == "phishing" && b.IsEffectivelyVisible);
+            phishing.BringIntoView();
+            Settle();
+            Click(window, phishing);
+            Expect(main.Pending!.Rows.Any(r => r.Change is ReviewSubmission { Verdict: "phishing" }), "It's Phishing staged a review");
+            main.Pending.DiscardAllCommand.Execute(null);
+            mail.Reported.Routing.ThankAfter = !mail.Reported.Routing.ThankAfter;
+            Expect(main.Pending.Rows.Count(r => r.Change is SetReportRouting) == 1, "the settings staged one change");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("Reorder Rules: the button opens the page; ticking two (Shift for a range) and To the Top moves them and stages one new order; Put Them All Back undoes it", () =>
         {
             var (window, main, _) = OpenList();
@@ -796,6 +821,8 @@ static class InteractionChecks
             var area = main.MailSecurity!;
             main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
             Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.SecurityPageGroup { Key: "rules" }));
+            Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "lists" }));
             for (var i = 0; i < 50 && area.Entries.IsLoading; i++)
                 Settle();
@@ -818,6 +845,8 @@ static class InteractionChecks
             var area = main.MailSecurity!;
             main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
             Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.SecurityPageGroup { Key: "rules" }));
+            Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "rules" }));
             for (var i = 0; i < 50 && area.Rules.IsLoading; i++)
                 Settle();
@@ -838,6 +867,8 @@ static class InteractionChecks
             var (window, main, _) = OpenList();
             var area = main.MailSecurity!;
             main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.SecurityPageGroup { Key: "rules" }));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "rules" }));
             for (var i = 0; i < 50 && area.Rules.IsLoading; i++)
@@ -998,6 +1029,8 @@ static class InteractionChecks
 
             main.SelectedTab = area;
             Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.SecurityPageGroup { Key: "rules" }));
+            Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "lists" }));
             for (var i = 0; i < 50 && area.Entries.IsLoading; i++)
                 Settle();
@@ -1028,6 +1061,8 @@ static class InteractionChecks
             var area = main.MailSecurity!;
             main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
             Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.SecurityPageGroup { Key: "rules" }));
+            Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "rules" }));
             for (var i = 0; i < 50 && area.Rules.IsLoading; i++)
                 Settle();
@@ -1043,6 +1078,8 @@ static class InteractionChecks
             var (window, main, _) = OpenList();
             var area = main.MailSecurity!;
             main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.SecurityPageGroup { Key: "rules" }));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "rules" }));
             for (var i = 0; i < 50 && area.Rules.IsLoading; i++)

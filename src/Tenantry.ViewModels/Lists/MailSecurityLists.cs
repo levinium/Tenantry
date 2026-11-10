@@ -267,6 +267,106 @@ public static class MailSecurityLists
         ],
     };
 
+    // ---- Reported messages and submissions (12d) --------------------------------------------
+
+    public static class S
+    {
+        public const string Created = "created";
+        public const string Subject = "subject";
+        public const string Source = "source";
+        public const string Category = "category";
+        public const string Result = "result";
+        public const string Reporter = "reporter";
+        public const string Recipient = "recipient";
+        public const string Sender = "sender";
+        public const string Kind = "kind";
+        public const string Review = "review";
+
+        public const string ByPeople = "Reported by People";
+        public const string ByAdmins = "Sent by Admins";
+        public const string Reviewed = "Reviewed";
+        public const string NotReviewed = "Not Reviewed";
+        public const string CantReview = "Not Applicable";
+    }
+
+    static string SourceOf(ThreatSubmission s) => s.ByUser ? S.ByPeople : S.ByAdmins;
+
+    public static string ReviewOf(ThreatSubmission s) => !s.CanReview ? S.CantReview : s.IsReviewed ? S.Reviewed : S.NotReviewed;
+
+    static string KindOf(ThreatSubmission s) => s.Kind switch { "url" => "Link", "file" => "File", _ => "Email" };
+
+    /// <summary>Microsoft's verdict as the list shows it (still running: "Being Analyzed").</summary>
+    public static string ResultOf(ThreatSubmission s) => s.Status is "running" or "notStarted" ? "Being Analyzed" : ThreatSubmission.CategoryText(s.ResultCategory);
+
+    public static IReadOnlyList<Field<ThreatSubmission>> SubmissionFields { get; } =
+    [
+        new() { Key = S.Created, Label = "Reported", Kind = FieldKind.Date, Aliases = ["date", "when"], Date = s => s.Created },
+        new() { Key = S.Subject, Label = "Subject", Kind = FieldKind.Text, Searchable = true, Text = s => s.Subject },
+        new() { Key = S.Source, Label = "Who Sent It", Kind = FieldKind.Choice, ChoiceOrder = [S.ByPeople, S.ByAdmins], Text = SourceOf },
+        new() { Key = S.Category, Label = "Reported As", Kind = FieldKind.Choice, Aliases = ["as"], ChoiceOrder = ["Phishing", "Spam", "Malware", "Not Junk"],
+            Text = s => ThreatSubmission.CategoryText(s.Category) },
+        new() { Key = S.Result, Label = "Microsoft Says", Kind = FieldKind.Choice, Aliases = ["verdict"], Text = ResultOf },
+        new() { Key = S.Review, Label = "Review", Kind = FieldKind.Choice, ChoiceOrder = [S.NotReviewed, S.Reviewed, S.CantReview], Text = ReviewOf },
+        new() { Key = S.Reporter, Label = "Reported By", Kind = FieldKind.Text, Searchable = true, Aliases = ["by"], Text = s => s.CreatedBy },
+        new() { Key = S.Sender, Label = "Sender", Kind = FieldKind.Text, Searchable = true, Aliases = ["from"], Text = s => s.Sender },
+        new() { Key = S.Recipient, Label = "Recipient", Kind = FieldKind.Text, Searchable = true, Aliases = ["to"], Text = s => s.Recipient },
+        new() { Key = S.Kind, Label = "Kind", Kind = FieldKind.Choice, ChoiceOrder = ["Email", "Link", "File"], Text = KindOf },
+    ];
+
+    static readonly ListQuery SubmissionsNewest = ListQuery.Empty with { Sort = [new SortLevel(S.Created, Descending: true)] };
+
+    static SavedView SubmissionView(string id, string name, bool pinned, params Condition[] where) =>
+        new(id, name, SubmissionsNewest with { Where = ConditionGroup.All(where) }, BuiltIn: true, Pinned: pinned);
+
+    public static IReadOnlyList<SavedView> SubmissionViews { get; } =
+    [
+        SubmissionView("people", S.ByPeople, true, new ChoiceCondition(S.Source, [S.ByPeople], [])),
+        SubmissionView("toreview", "To Review", true, new ChoiceCondition(S.Review, [S.NotReviewed], [])),
+        SubmissionView("phishing", "Reported as Phishing", true, new ChoiceCondition(S.Category, ["Phishing"], [])),
+        SubmissionView("admins", S.ByAdmins, true, new ChoiceCondition(S.Source, [S.ByAdmins], [])),
+        SubmissionView("all", "All", false),
+    ];
+
+    static (string, BadgeKind) CategoryBadge(ThreatSubmission s) => ThreatSubmission.CategoryText(s.Category) switch
+    {
+        "Phishing" or "Malware" => (ThreatSubmission.CategoryText(s.Category), BadgeKind.Danger),
+        "Spam" => (ThreatSubmission.CategoryText(s.Category), BadgeKind.Warning),
+        var text => (text, BadgeKind.Neutral),
+    };
+
+    static (string, BadgeKind) ResultBadge(ThreatSubmission s) => ResultOf(s) switch
+    {
+        "Being Analyzed" or "No Result Yet" => (ResultOf(s), BadgeKind.Info),
+        "Phishing" or "Malware" or "Threats Found" or "Impersonation" or "Spoofing" => (ResultOf(s), BadgeKind.Danger),
+        "Spam" or "Bulk" => (ResultOf(s), BadgeKind.Warning),
+        "Not Junk" or "No Threats Found" => (ResultOf(s), BadgeKind.Success),
+        var text => (text, BadgeKind.Neutral),
+    };
+
+    public static ListDefinition<ThreatSubmission> Submissions(Func<ThreatSubmission, object> preview) => new()
+    {
+        Key = "submissions",
+        Title = "Reported Messages",
+        Noun = "reports",
+        Fields = SubmissionFields,
+        Id = s => s.Id,
+        Views = SubmissionViews,
+        SearchHint = "Search subjects, senders, who reported… or try as:phishing review:\"not reviewed\"",
+        Preview = preview,
+        Columns =
+        [
+            new() { Key = S.Subject, Header = "Reported", Cell = CellKind.Primary, MinWidth = 260, DefaultWidth = 360,
+                Text = s => s.Subject, Subtitle = s => s.Sender is { } from ? $"From {from}" : KindOf(s), Initials = s => Display.Initials(s.Sender ?? s.Subject) },
+            new() { Key = S.Category, Header = "Reported As", Cell = CellKind.Badge, MinWidth = 120, DefaultWidth = 140, Badge = CategoryBadge },
+            new() { Key = S.Result, Header = "Microsoft Says", Cell = CellKind.Badge, MinWidth = 140, DefaultWidth = 170, Badge = ResultBadge },
+            new() { Key = S.Reporter, Header = "Reported By", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 220, Text = s => s.CreatedBy },
+            new() { Key = S.Review, Header = "Review", Cell = CellKind.Text, MinWidth = 110, DefaultWidth = 130, Text = ReviewOf },
+            new() { Key = S.Created, Header = "When", Cell = CellKind.Date, MinWidth = 120, DefaultWidth = 140, Date = s => s.Created },
+            new() { Key = S.Recipient, Header = "Recipient", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 220, DefaultVisible = false, Text = s => s.Recipient },
+            new() { Key = S.Kind, Header = "Kind", Cell = CellKind.Text, MinWidth = 80, DefaultWidth = 90, DefaultVisible = false, Text = KindOf },
+        ],
+    };
+
     // ---- Message trace ----------------------------------------------------------------------
 
     public static class T

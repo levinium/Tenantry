@@ -264,6 +264,49 @@ public sealed partial class QuarantinePreviewViewModel : ObservableObject, IDisp
             Platform.CopyText(Headers);
     }
 
+    // ---- Send to Microsoft -----------------------------------------------------------------
+
+    /// <summary>Sending it to Microsoft needs Graph's submissions (and a recipient to say it was for).</summary>
+    public bool CanSubmit => _records is ISubmissionRecords && Message.Recipients.Count > 0;
+
+    public static IReadOnlyList<SubmitChoice> SubmitCategories { get; } = [.. ThreatSubmission.SubmitAs.Select(c => new SubmitChoice(c.Value, c.Label))];
+
+    /// <summary>Held wrongly: "not junk" is the likely report; otherwise what Microsoft thought it was.</summary>
+    [ObservableProperty]
+    public partial SubmitChoice SubmitAs { get; set; } = SubmitCategories[0];
+
+    [ObservableProperty]
+    public partial bool IsSubmitting { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSubmitNote))]
+    public partial string? SubmitNote { get; private set; }
+
+    public bool HasSubmitNote => SubmitNote is not null;
+
+    /// <summary>Sends the message to Microsoft for a verdict (it reads the message; nothing in the tenant changes).</summary>
+    [RelayCommand]
+    async Task Submit()
+    {
+        if (_records is not ISubmissionRecords submissions || IsSubmitting || !CanSubmit)
+            return;
+        IsSubmitting = true;
+        SubmitNote = null;
+        try
+        {
+            await submissions.SubmitQuarantinedAsync(Message.Identity, Message.Recipients[0], SubmitAs.Value);
+            SubmitNote = $"Sent to Microsoft as {SubmitAs.Label.Split(' ')[0].ToLowerInvariant()}. Its verdict shows in Reported Messages when it's ready.";
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            SubmitNote = $"Microsoft didn't take it: {Friendly.Message(e)}";
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
     // ---- Download --------------------------------------------------------------------------
 
     [ObservableProperty]

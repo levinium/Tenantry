@@ -114,6 +114,8 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         DenyQuarantineRelease d => await DenyQuarantineReleaseAsync(d, cancellationToken),
         DkimChange k => await DkimAsync(k, cancellationToken),
         UnblockSender u => await UnblockSenderAsync(u, cancellationToken),
+        SetReportRouting r => await SetReportRoutingAsync(r, cancellationToken),
+        ReviewSubmission r => await ReviewSubmissionAsync(r, cancellationToken),
         SetSenderListed s => await SetSenderListedAsync(s, cancellationToken),
         AddListEntry a => await AddListEntryAsync(a, cancellationToken),
         RemoveListEntry r => await RemoveListEntryAsync(r, cancellationToken),

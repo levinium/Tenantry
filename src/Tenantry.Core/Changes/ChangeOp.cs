@@ -70,6 +70,8 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetDkimSigning), "setDkimSigning")]
 [JsonDerivedType(typeof(RotateDkimKeys), "rotateDkimKeys")]
 [JsonDerivedType(typeof(UnblockSender), "unblockSender")]
+[JsonDerivedType(typeof(SetReportRouting), "setReportRouting")]
+[JsonDerivedType(typeof(ReviewSubmission), "reviewSubmission")]
 [JsonDerivedType(typeof(SetSenderListed), "setSenderListed")]
 [JsonDerivedType(typeof(AddListEntry), "addListEntry")]
 [JsonDerivedType(typeof(RemoveListEntry), "removeListEntry")]

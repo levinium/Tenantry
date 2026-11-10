@@ -101,6 +101,9 @@ public static class TenantryPermissions
         "Policy.ReadWrite.SecurityDefaults",
         "IdentityRiskEvent.Read.All",
         "IdentityRiskyServicePrincipal.ReadWrite.All",
+        // Reported messages (Phase 12d, 2026-11-10): the submissions list and sending a message,
+        // link or file to Microsoft (security/threatSubmission answered 401 without it, seen live).
+        "ThreatSubmission.ReadWrite.All",
     ]);
 
     public static readonly ApiPermissions Exchange = new(ExchangeAppId, "Office 365 Exchange Online", "https://outlook.office365.com",
@@ -148,6 +151,7 @@ public static class TenantryPermissions
         "Policy.ReadWrite.AuthenticationMethod" => "changing which sign-in methods people can use",
         "Policy.ReadWrite.SecurityDefaults" => "turning security defaults on or off",
         "IdentityRiskEvent.Read.All" => "showing risk detections",
+        "ThreatSubmission.ReadWrite.All" => "showing reported messages and sending messages to Microsoft for review",
         "IdentityRiskyServicePrincipal.ReadWrite.All" => "showing and dismissing risky apps",
         "eDiscovery.Download.Read" => "downloading eDiscovery exports",
         _ => null,

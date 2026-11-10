@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:vm="using:Tenantry.ViewModels"
              xmlns:conv="using:Tenantry.App.Converters"
              xmlns:listviews="using:Tenantry.App.Lists"
              xmlns:views="using:Tenantry.App.Views"
@@ -8,22 +9,41 @@
              x:Class="Tenantry.App.Views.MailSecurityView"
              x:DataType="ms:MailSecurityViewModel">
   <DockPanel>
-    <!-- The area's pages -->
-    <TabStrip DockPanel.Dock="Top" Classes="pagetabs" Margin="8,8,8,10" ItemsSource="{x:Static ms:MailSecurityViewModel.Pages}" SelectedItem="{Binding SelectedPage}">
-      <TabStrip.ItemsPanel>
-        <ItemsPanelTemplate>
-          <WrapPanel />
-        </ItemsPanelTemplate>
-      </TabStrip.ItemsPanel>
-      <TabStrip.ItemTemplate>
-        <DataTemplate x:DataType="ms:MailSecurityPage">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="15" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
-          </StackPanel>
-        </DataTemplate>
-      </TabStrip.ItemTemplate>
-    </TabStrip>
+    <!-- The area's pages, in sections: the sections on one row, the chosen section's pages under it. -->
+    <StackPanel DockPanel.Dock="Top" Margin="8,8,8,10" Spacing="6">
+      <TabStrip Classes="pagetabs" ItemsSource="{x:Static ms:MailSecurityViewModel.Sections}" SelectedItem="{Binding SelectedSection}">
+        <TabStrip.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel />
+          </ItemsPanelTemplate>
+        </TabStrip.ItemsPanel>
+        <TabStrip.ItemTemplate>
+          <DataTemplate x:DataType="vm:SecurityPageGroup">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="15" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontWeight="SemiBold" />
+            </StackPanel>
+          </DataTemplate>
+        </TabStrip.ItemTemplate>
+      </TabStrip>
+      <Border Background="{DynamicResource SubtleBg}" CornerRadius="8" Padding="6,2">
+        <TabStrip Classes="pagetabs" ItemsSource="{Binding SelectedSection.Pages}" SelectedItem="{Binding SelectedPage}">
+          <TabStrip.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </TabStrip.ItemsPanel>
+          <TabStrip.ItemTemplate>
+            <DataTemplate x:DataType="ms:MailSecurityPage">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="14" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="13" />
+              </StackPanel>
+            </DataTemplate>
+          </TabStrip.ItemTemplate>
+        </TabStrip>
+      </Border>
+    </StackPanel>
     <!-- One page shows at a time, filling the width. (As separate DockPanel children each page
          was docked left at its content's width, leaving a blank strip on wide windows.) -->
     <Grid>
@@ -152,6 +172,9 @@
     </Panel>
     <Panel IsVisible="{Binding ShowDomains}">
       <views:MailDomainsView DataContext="{Binding Domains}" />
+    </Panel>
+    <Panel IsVisible="{Binding ShowReported}">
+      <views:ReportedMessagesView DataContext="{Binding Reported}" />
     </Panel>
 
     <!-- Pages still to come -->

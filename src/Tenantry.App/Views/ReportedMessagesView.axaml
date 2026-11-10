@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:listviews="using:Tenantry.App.Lists"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.ReportedMessagesView"
+             x:DataType="ms:ReportedMessagesViewModel">
+  <DockPanel>
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,0,0,8">
+      <!-- Where Outlook's Report button sends reports: a line, opened to change it -->
+      <Expander DataContext="{Binding Routing}" x:DataType="ms:ReportRoutingEditor" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+        <Expander.Header>
+          <StackPanel Spacing="2">
+            <TextBlock Text="Where Reports Go" FontWeight="SemiBold" />
+            <TextBlock Classes="caption" Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+        </Expander.Header>
+        <StackPanel Spacing="8">
+          <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+          <StackPanel Spacing="8" IsEnabled="{Binding CanEdit}">
+            <ComboBox ItemsSource="{x:Static ms:ReportRoutingEditor.Modes}" SelectedItem="{Binding SelectedMode}" HorizontalAlignment="Stretch" />
+            <TextBlock Classes="caption" Text="{Binding ModeDescription}" TextWrapping="Wrap" />
+            <StackPanel Spacing="4" IsVisible="{Binding UsesMailbox}">
+              <TextBlock Classes="label" Text="REPORTING MAILBOX" />
+              <TextBox Text="{Binding MailboxDraft}" PlaceholderText="An Exchange Online mailbox, such as reports@…" c:EditCommit.Commit="{Binding CommitMailboxCommand}" />
+            </StackPanel>
+            <TextBlock Classes="error" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
+            <StackPanel Spacing="2" IsVisible="{Binding IsOn}">
+              <CheckBox IsChecked="{Binding AskFirst}" Content="Ask &quot;Report this message?&quot; first" />
+              <CheckBox IsChecked="{Binding ThankAfter}" Content="Thank them after reporting" />
+              <CheckBox IsChecked="{Binding NotifyReporters}" Content="Email them when an admin has reviewed it" />
+            </StackPanel>
+          </StackPanel>
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Changes go to Pending Changes. The mailbox takes effect when you press Enter or click away." />
+        </StackPanel>
+      </Expander>
+
+      <!-- Send a link or a file to Microsoft -->
+      <Expander Grid.Column="1" DataContext="{Binding Send}" x:DataType="ms:SendToMicrosoftViewModel" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+        <Expander.Header>
+          <StackPanel Spacing="2">
+            <TextBlock Text="Send a Link or File to Microsoft" FontWeight="SemiBold" />
+            <TextBlock Classes="caption" Text="For a verdict, or to say one was judged wrongly" />
+          </StackPanel>
+        </Expander.Header>
+        <StackPanel Spacing="8">
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="Ask Microsoft for a verdict on a link or file, or tell it one was judged wrongly. To send a quarantined message, use Send to Microsoft on it in Quarantine." />
+          <TextBlock Classes="label" Text="IT IS" />
+          <ComboBox ItemsSource="{x:Static ms:SendToMicrosoftViewModel.Categories}" SelectedItem="{Binding Category}" HorizontalAlignment="Stretch" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox Text="{Binding Url}" PlaceholderText="A link, such as https://example.com/page" />
+            <Button Grid.Column="1" Classes="accent" Command="{Binding SendUrlCommand}" IsEnabled="{Binding !IsSending}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Link" FontSize="14" />
+                <TextBlock Text="Send the Link" />
+              </StackPanel>
+            </Button>
+          </Grid>
+          <Button Command="{Binding SendFileCommand}" IsEnabled="{Binding !IsSending}" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="DocumentArrowUp" FontSize="14" />
+              <TextBlock Text="Choose a File to Send…" />
+            </StackPanel>
+          </Button>
+          <TextBlock Classes="caption" Text="{Binding Note}" IsVisible="{Binding HasNote}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Expander>
+    </Grid>
+
+    <!-- What people reported and admins sent, with Microsoft's verdicts -->
+    <ContentControl Content="{Binding Submissions}">
+      <ContentControl.DataTemplates>
+        <listviews:ListViewCache />
+      </ContentControl.DataTemplates>
+    </ContentControl>
+  </DockPanel>
+</UserControl>

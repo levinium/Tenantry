@@ -294,6 +294,16 @@ if (args.Contains("--mail-review"))
         Render(main, $"m17-email-auth-{suffix}", height: 2400);
         main.SelectedTab = mail;
 
+        // Reported messages: the settings, Send to Microsoft, the list with a person's report previewed.
+        mail.SelectedPage = pages.Single(p => p.Key == "reported");
+        for (var i = 0; i < 40 && (!mail.Reported.Routing.IsLoaded || mail.Reported.Submissions.IsLoading); i++)
+            Settle();
+        var reported = mail.Reported.Submissions.Rows.Cast<ThreatSubmission>().First(s => s.CanReview && !s.IsReviewed && s.ResultCategory == "notJunk");
+        mail.Reported.Submissions.PreviewRow(reported);
+        Settle();
+        Render(main, $"m18-reported-{suffix}", height: 1100);
+        main.SelectedTab = mail;
+
         // Block and allow lists: the list, an entry previewed, the Add panel, an entry's page.
         mail.SelectedPage = pages[3];
         Wait(mail.Entries);

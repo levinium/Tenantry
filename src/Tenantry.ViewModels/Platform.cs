@@ -18,6 +18,9 @@ public static class Platform
     /// <summary>Asks where to save a file (suggested name, type name, extension) and writes the bytes; false when cancelled.</summary>
     public static Func<string, string, string, byte[], Task<bool>> SaveFile { get; set; } = (_, _, _, _) => Task.FromResult(false);
 
+    /// <summary>Asks for any file (with the picker's title) and reads it: its name and bytes, or null when cancelled.</summary>
+    public static Func<string, Task<(string Name, byte[] Bytes)?>> OpenFile { get; set; } = _ => Task.FromResult<(string, byte[])?>(null);
+
     /// <summary>Asks for a CSV file and reads it: its name and text, or null when cancelled.</summary>
     public static Func<Task<(string Name, string Text)?>> OpenCsv { get; set; } = () => Task.FromResult<(string, string)?>(null);
 

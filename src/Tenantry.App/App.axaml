@@ -172,6 +172,9 @@
     <DataTemplate DataType="ms:TracePreviewViewModel">
       <views:TracePreviewView />
     </DataTemplate>
+    <DataTemplate DataType="ms:SubmissionPreviewViewModel">
+      <views:SubmissionPreviewView />
+    </DataTemplate>
     <DataTemplate DataType="ms:ListEntryPreviewViewModel">
       <views:ListEntryPreviewView />
     </DataTemplate>

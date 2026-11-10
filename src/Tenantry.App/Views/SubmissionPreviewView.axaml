@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.SubmissionPreviewView"
+             x:DataType="ms:SubmissionPreviewViewModel">
+  <StackPanel Spacing="14">
+    <StackPanel Spacing="6">
+      <TextBlock Classes="h3" Text="{Binding Subject}" TextWrapping="Wrap" />
+      <TextBlock Classes="caption" Text="{Binding ReportedBy}" TextWrapping="Wrap" />
+    </StackPanel>
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6">
+      <TextBlock Classes="label" Text="KIND" VerticalAlignment="Center" />
+      <TextBlock Grid.Column="1" Text="{Binding KindText}" />
+      <TextBlock Grid.Row="1" Classes="label" Text="FROM" VerticalAlignment="Center" IsVisible="{Binding HasSender}" />
+      <SelectableTextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Sender}" IsVisible="{Binding HasSender}" TextWrapping="Wrap" />
+      <TextBlock Grid.Row="2" Classes="label" Text="TO" VerticalAlignment="Center" IsVisible="{Binding HasRecipient}" />
+      <SelectableTextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Recipient}" IsVisible="{Binding HasRecipient}" TextWrapping="Wrap" />
+      <TextBlock Grid.Row="3" Classes="label" Text="REPORTED AS" VerticalAlignment="Center" />
+      <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ReportedAs}" />
+    </Grid>
+
+    <Border Classes="valuerow">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="label" Text="MICROSOFT SAYS" />
+        <TextBlock Text="{Binding Verdict}" FontWeight="SemiBold" />
+        <TextBlock Classes="muted" Text="{Binding VerdictDetail}" IsVisible="{Binding HasVerdictDetail}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+    <Border Classes="banner info" IsVisible="{Binding Disagrees}">
+      <TextBlock TextWrapping="Wrap" Text="Microsoft's verdict differs from what was reported: worth a look before you answer." />
+    </Border>
+    <Border Classes="banner success" IsVisible="{Binding HasReviewed}">
+      <TextBlock TextWrapping="Wrap" Text="{Binding ReviewedText}" />
+    </Border>
+
+    <!-- Answering a person's report -->
+    <StackPanel Spacing="8" IsVisible="{Binding CanReview}">
+      <Border Classes="divider" />
+      <TextBlock Classes="label" Text="ANSWER THE REPORT" />
+      <TextBlock Classes="muted" Text="{Binding ReviewNote}" TextWrapping="Wrap" />
+      <TextBlock Classes="pendingtext" Text="{Binding PendingText}" IsVisible="{Binding HasPending}" TextWrapping="Wrap" />
+      <WrapPanel ItemSpacing="8" LineSpacing="8">
+        <Button Classes="danger-outline" Content="It's Phishing" Command="{Binding ReviewCommand}" CommandParameter="phishing"
+                ToolTip.Tip="Mark it as phishing (added to Pending Changes)" />
+        <Button Content="It's Spam" Command="{Binding ReviewCommand}" CommandParameter="junk"
+                ToolTip.Tip="Mark it as spam (added to Pending Changes)" />
+        <Button Content="No Threat Found" Command="{Binding ReviewCommand}" CommandParameter="notSpam"
+                ToolTip.Tip="Mark it as safe (added to Pending Changes)" />
+      </WrapPanel>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

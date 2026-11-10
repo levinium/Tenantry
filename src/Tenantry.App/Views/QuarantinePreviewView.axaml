@@ -53,6 +53,21 @@
     </WrapPanel>
     <TextBlock Classes="caption" Text="{Binding DownloadNote}" IsVisible="{Binding HasDownloadNote}" TextWrapping="Wrap" />
 
+    <!-- Ask Microsoft for a verdict, or tell it it got this one wrong -->
+    <StackPanel Spacing="6" IsVisible="{Binding CanSubmit}">
+      <WrapPanel ItemSpacing="8" LineSpacing="8">
+        <ComboBox ItemsSource="{x:Static ms:QuarantinePreviewViewModel.SubmitCategories}" SelectedItem="{Binding SubmitAs}" MinWidth="220" VerticalAlignment="Center" />
+        <Button Command="{Binding SubmitCommand}" IsEnabled="{Binding !IsSubmitting}" VerticalAlignment="Center"
+                ToolTip.Tip="Send it to Microsoft as what you chose, for a verdict (shown in Reported Messages)">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Flag" FontSize="14" />
+            <TextBlock Text="Send to Microsoft" />
+          </StackPanel>
+        </Button>
+      </WrapPanel>
+      <TextBlock Classes="caption" Text="{Binding SubmitNote}" IsVisible="{Binding HasSubmitNote}" TextWrapping="Wrap" />
+    </StackPanel>
+
     <StackPanel Spacing="6" IsVisible="{Binding IsLoadingBody}" Orientation="Horizontal">
       <Panel Width="16" Height="16" VerticalAlignment="Center">
         <Ellipse Classes="spintrack" />

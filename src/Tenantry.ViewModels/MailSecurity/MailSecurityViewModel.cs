@@ -40,7 +40,55 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         new("reports", "Trace Reports", "DocumentTable"),
         new("blocked", "Blocked Senders", "PersonProhibited"),
         new("domains", "Email Authentication", "ShieldCheckmark"),
+        new("reported", "Reported Messages", "Flag"),
     ];
+
+    /// <summary>The pages in sections: the sections on one row, the chosen section's pages under it.</summary>
+    public static IReadOnlyList<SecurityPageGroup> Sections { get; } =
+    [
+        new("messages", "Messages", "Mail", Of("quarantine", "trace", "reports", "reported")),
+        new("rules", "Rules & Lists", "ArrowRouting", Of("rules", "lists", "blocked")),
+        new("domains", "Domains", "Globe", Of("domains")),
+    ];
+
+    static IReadOnlyList<MailSecurityPage> Of(params string[] keys) => [.. keys.Select(k => Pages.Single(p => p.Key == k))];
+
+    public static SecurityPageGroup SectionOf(MailSecurityPage page) => Sections.First(s => s.Pages.Contains(page));
+
+    [ObservableProperty]
+    public partial SecurityPageGroup SelectedSection { get; set; } = Sections[0];
+
+    partial void OnSelectedSectionChanged(SecurityPageGroup value)
+    {
+        if (!value.Pages.Contains(SelectedPage))
+            SelectedPage = value.Pages[0];
+    }
+
+    bool _movingSection;
+
+    /// <summary>A page chosen from anywhere (a follow-up link, a check) brings its section along.</summary>
+    partial void OnSelectedPageChanged(MailSecurityPage oldValue, MailSecurityPage newValue)
+    {
+        // The page row clears its choice while it swaps to another section's pages; keep the page asked for.
+        if (newValue is null)
+        {
+            SelectedPage = oldValue ?? SelectedSection.Pages[0];
+            return;
+        }
+        if (_movingSection || SectionOf(newValue) == SelectedSection)
+            return;
+        _movingSection = true;
+        try
+        {
+            SelectedSection = SectionOf(newValue);
+        }
+        finally
+        {
+            _movingSection = false;
+        }
+        if (SelectedPage != newValue)
+            SelectedPage = newValue;
+    }
 
     readonly ChangePipeline? _pipeline;
     readonly Availability _canEdit;
@@ -64,6 +112,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         Reports = new TraceReportsViewModel(records, account, now);
         Blocked = new BlockedSendersViewModel(records as IMailDomainRecords, pipeline, canEdit, openPerson);
         Domains = new MailDomainsViewModel(records as IMailDomainRecords, pipeline, canEdit);
+        Reported = new ReportedMessagesViewModel(records as ISubmissionRecords, pipeline, canEdit, listState, _now);
         Entries = DataListViewModel.Create(
             MailSecurityLists.Entries(e => new ListEntryPreviewViewModel(e, pipeline, canEdit)),
             LoadEntriesAsync, row => OpenEntry((ListEntry)row), listState, _now);
@@ -112,7 +161,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     public DataListViewModel Rules { get; }
 
     /// <summary>Every list in the area, for preferences shared across lists.</summary>
-    public IEnumerable<DataListViewModel> Lists => [Quarantine, Trace, Entries, Rules];
+    public IEnumerable<DataListViewModel> Lists => [Quarantine, Trace, Entries, Rules, Reported.Submissions];
 
     public AddListEntriesViewModel AddEntries { get; }
 
@@ -121,6 +170,10 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     public BlockedSendersViewModel Blocked { get; }
 
     public MailDomainsViewModel Domains { get; }
+
+    public ReportedMessagesViewModel Reported { get; }
+
+    public bool ShowReported => SelectedPage.Key == "reported";
 
     public bool ShowBlocked => SelectedPage.Key == "blocked";
     public bool ShowDomains => SelectedPage.Key == "domains";
@@ -148,7 +201,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     bool IsOwnAddress(string address) => address.LastIndexOf('@') is var at and >= 0 && _ownDomains.Contains(address[(at + 1)..]);
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(ShowRules), nameof(ShowReports), nameof(ShowBlocked), nameof(ShowDomains),
+    [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(ShowRules), nameof(ShowReports), nameof(ShowBlocked), nameof(ShowDomains), nameof(ShowReported),
         nameof(IsPlannedPage))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
@@ -165,6 +218,8 @@ public sealed partial class MailSecurityViewModel : TabViewModel
 
     partial void OnSelectedPageChanged(MailSecurityPage value)
     {
+        if (value is null)
+            return;
         // Quarantine and the lists read when first shown; trace waits for a search.
         if (value.Key == "quarantine" && !_quarantineRead)
         {
@@ -189,6 +244,8 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             _ = Blocked.Refresh();
         if (value.Key == "domains" && !Domains.IsLoaded)
             _ = Domains.Refresh();
+        if (value.Key == "reported")
+            _ = Reported.LoadAsync();
     }
 
     // ---- Mail flow rules ----------------------------------------------------------------------

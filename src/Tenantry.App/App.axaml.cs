@@ -32,6 +32,7 @@ public partial class App : Application
             Platform.SaveCsv = (name, csv) => SaveCsvAsync(window, name, csv);
             Platform.SaveFile = (name, type, extension, bytes) => SaveFileAsync(window, name, type, extension, bytes);
             Platform.OpenCsv = () => OpenCsvAsync(window);
+            Platform.OpenFile = title => OpenFileAsync(window, title);
             Platform.PickFolder = () => PickFolderAsync(window);
             Platform.OpenFolder = path => _ = window.Launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(path));
             desktop.MainWindow = window;
@@ -116,6 +117,17 @@ public partial class App : Application
         await using var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         await writer.WriteAsync(csv);
         return true;
+    }
+
+    static async Task<(string Name, byte[] Bytes)?> OpenFileAsync(MainWindow window, string title)
+    {
+        var files = await window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions { Title = title, AllowMultiple = false });
+        if (files.Count == 0)
+            return null;
+        await using var stream = await files[0].OpenReadAsync();
+        using var memory = new MemoryStream();
+        await stream.CopyToAsync(memory);
+        return (files[0].Name, memory.ToArray());
     }
 
     static async Task<bool> SaveFileAsync(MainWindow window, string suggestedName, string typeName, string extension, byte[] bytes)

@@ -17,6 +17,12 @@ public static class Friendly
             return "Tenantry hasn't been granted consent in this tenant. Run the setup again, or grant admin consent in the portal.";
         if (text.Contains("AADSTS90002", StringComparison.Ordinal) || text.Contains("AADSTS900023", StringComparison.Ordinal))
             return "That tenant ID wasn't recognised.";
+        // Some Microsoft services answer a missing permission with a web page instead of an error
+        // (threat submissions did, seen live): say what it means rather than show the page.
+        if (text.Contains("<html", StringComparison.OrdinalIgnoreCase) || text.Contains("<!DOCTYPE", StringComparison.OrdinalIgnoreCase))
+            return text.Contains("401", StringComparison.Ordinal) || text.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase)
+                ? "Microsoft refused: Tenantry hasn't been given the permission this needs. The banner at the top offers to grant the missing permissions (a Global or Cloud Application Administrator approves)."
+                : "Microsoft answered with a web page instead of data. Try again in a minute.";
         return text.Length > 400 ? text[..400] + "…" : text;
     }
 }

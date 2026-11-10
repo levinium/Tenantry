@@ -262,3 +262,243 @@ Ranked by value to a small or medium org admin:
 - Removing a policy in PowerShell leaves its rule behind, and the reverse. Always remove both.
 - Connection filter has no IPv6 and a 1,273-entry cap. Blocked-IP mail doesn't show in trace.
 - Alert policy cmdlets are Security & Compliance PowerShell, not Exchange Online, so they may not work over the current REST endpoint.
+
+---
+
+## Part D: reported messages and submissions
+
+Read 2026-11-10 from Learn. This section replaces the **(unverified)** marks on row 6 of Part C. Link keys used below:
+
+| Key | URL |
+| --- | --- |
+| [ts] | https://learn.microsoft.com/graph/api/resources/security-threatsubmission?view=graph-rest-beta |
+| [ets] | https://learn.microsoft.com/graph/api/resources/security-emailthreatsubmission?view=graph-rest-beta |
+| [ets-list] | https://learn.microsoft.com/graph/api/security-emailthreatsubmission-list?view=graph-rest-beta |
+| [ets-post] | https://learn.microsoft.com/graph/api/security-emailthreatsubmission-post-emailthreats?view=graph-rest-beta |
+| [ets-review] | https://learn.microsoft.com/graph/api/security-emailthreatsubmission-review?view=graph-rest-beta |
+| [result] | https://learn.microsoft.com/graph/api/resources/security-submissionresult?view=graph-rest-beta |
+| [adminreview] | https://learn.microsoft.com/graph/api/resources/security-submissionadminreview?view=graph-rest-beta |
+| [url-post] | https://learn.microsoft.com/graph/api/security-urlthreatsubmission-post-urlthreats?view=graph-rest-beta |
+| [file-post] | https://learn.microsoft.com/graph/api/security-filethreatsubmission-post-filethreats?view=graph-rest-beta |
+| [policy] | https://learn.microsoft.com/graph/api/resources/security-emailthreatsubmissionpolicy?view=graph-rest-beta |
+| [policy-update] | https://learn.microsoft.com/graph/api/security-emailthreatsubmissionpolicy-update?view=graph-rest-beta |
+| [sec-overview] | https://learn.microsoft.com/graph/api/resources/security-api-overview?view=graph-rest-beta |
+| [perms] | https://learn.microsoft.com/graph/permissions-reference |
+| [mdo-admin] | https://learn.microsoft.com/defender-office-365/submissions-admin |
+| [mdo-usersettings] | https://learn.microsoft.com/defender-office-365/submissions-user-reported-messages-custom-mailbox |
+| [mdo-review] | https://learn.microsoft.com/defender-office-365/submissions-admin-review-user-reported-messages |
+| [mdo-report] | https://learn.microsoft.com/defender-office-365/submissions-report-messages-files-to-microsoft |
+| [rsp] | https://learn.microsoft.com/powershell/module/exchangepowershell/set-reportsubmissionpolicy |
+| [rsr] | https://learn.microsoft.com/powershell/module/exchangepowershell/new-reportsubmissionrule |
+| [alertpol] | https://learn.microsoft.com/defender-xdr/alert-policies |
+| [alerts] | https://learn.microsoft.com/graph/api/security-list-alerts_v2?view=graph-rest-1.0 |
+
+### D1. Graph threat submission API: status and listing
+
+| Fact | Detail | Source |
+| --- | --- | --- |
+| Version | **Beta only.** Every threatSubmission page has only the `graph-rest-beta` moniker; asking for `view=graph-rest-1.0` serves the beta page. The .NET v1.0 SDK has no types for it; use the beta SDK or raw HTTP. | [ts], [ets-list] |
+| Clouds | Global service only (not GCC High, DoD, 21Vianet). | [ets-list] |
+| List email submissions | `GET /beta/security/threatSubmission/emailThreats`. Supports `$filter`, `$top`, `$skipToken`, `$count`. | [ets-list] |
+| Get one | `GET /beta/security/threatSubmission/emailThreats/{id}` | [sec-overview] |
+| URL and file lists | `GET .../threatSubmission/urlThreats`, `GET .../threatSubmission/fileThreats` | [sec-overview] |
+| User-reported messages included? | **Yes.** The overview says the API "adds unified result support, **user submission query support**, tenant-allow block list support, admin review support and app-only mode support". The `review` action exists only for submissions "submitted by end users". | [sec-overview], [ets-review] |
+| Telling them apart | `source`: `administrator`, `user`, `unknownFutureValue`. Supports `$filter=source eq 'user'`. | [ts] |
+| Filterable properties | `category`, `createdBy/email`, `createdDateTime` (ge/lt), `source`, `status` | [ts] |
+
+Learn does not say that every row on the portal's **User reported** tab appears in Graph (for example, reports sent to the reporting mailbox only, or from a non-Microsoft add-in). Test this in a tenant before relying on it.
+
+### D2. emailThreatSubmission properties
+
+Base properties come from threatSubmission [ts]; email properties from emailThreatSubmission [ets].
+
+| Property | Type | Values / notes | Source |
+| --- | --- | --- | --- |
+| id | String | Submission ID | [ts] |
+| tenantId | String | Taken from the token on POST | [ts] |
+| createdDateTime | DateTimeOffset | Filterable | [ts] |
+| contentType | submissionContentType | `email`, `url`, `file`, `app` | [ts] |
+| category | submissionCategory | What the submitter reported it as: `notJunk`, `spam`, `phishing`, `malware` | [ts] |
+| source | submissionSource | `administrator`, `user` | [ts] |
+| clientSource | submissionClientSource | `microsoft`, `other` | [ts] |
+| createdBy | submissionUserIdentity | `createdBy.user.{identity, displayName, email}` (example JSON) | [ts], [ets-list] |
+| status | longRunningOperationStatus | `notStarted`, `running`, `succeeded`, `failed`, `skipped` | [ts] |
+| result | submissionResult | See D3 | [result] |
+| adminReview | submissionAdminReview | `reviewBy` (String), `reviewDateTime`, `reviewResult` (submissionResultCategory). `null` until an admin reviews. | [adminreview] |
+| recipientEmailAddress | String | Recipient, SMTP format | [ets] |
+| internetMessageId | String | From the header | [ets] |
+| subject | String | Example responses use `emailSubject` instead; handle both | [ets], [ets-list] |
+| sender | String | Sender address | [ets] |
+| senderIP | String | | [ets] |
+| receivedDateTime | DateTimeOffset | | [ets] |
+| originalCategory | submissionCategory | Original category | [ets] |
+| attackSimulationInfo | attackSimulationInfo | Non-null if the mail was a phishing simulation | [ets] |
+| tenantAllowOrBlockListAction | tenantAllowOrBlockListAction | `action` (allow/block), `expirationDateTime`, `note`, `results[]` (one per TABL entry: `identity`, `value`, `entryType`, `status`) | [ets], [ets-list] |
+| messageUrl | String | emailUrlThreatSubmission only | [ets-post] |
+| fileContent | String | emailContentThreatSubmission only (base64 .eml in the example) | [ets-post] |
+
+Example list item, from [ets-list] with placeholders swapped:
+
+```json
+{
+  "@odata.type": "#microsoft.graph.security.emailThreatSubmission",
+  "id": "49c5ef5b-1f65-444a-e6b9-08d772ea2059",
+  "createdDateTime": "2021-10-10T03:30:18.6890937Z",
+  "contentType": "email",
+  "category": "spam",
+  "source": "administrator",
+  "status": "succeeded",
+  "createdBy": { "user": { "identity": "<object-id>", "displayName": "Admin", "email": "admin@contoso.example" } },
+  "recipientEmailAddress": "user@contoso.example",
+  "emailSubject": "This is a spam",
+  "sender": "test@contoso.example",
+  "senderIP": "127.0.0.1",
+  "receivedDateTime": "2021-10-09T03:30:18.6890937Z",
+  "internetMessageId": "some-id@contoso.example",
+  "originalCategory": "notSpam",
+  "result": {
+    "category": "notSpam",
+    "detail": "allowedByTenant",
+    "userMailboxSetting": "isFromDomainInDomainSafeList,isJunkMailRuleEnabled",
+    "detectedUrls": ["contoso.example"],
+    "detectedFiles": [{ "fileName": "test.ps1", "fileHash": "<hash>" }]
+  },
+  "adminReview": null,
+  "attackSimulationInfo": null,
+  "tenantAllowOrBlockListAction": null
+}
+```
+
+### D3. submissionResult
+
+| Field | Notes | Source |
+| --- | --- | --- |
+| category | Long enum: `notJunk`, `spam`, `phishing`, `malware`, `allowedByPolicy`, `blockedByPolicy`, `spoof`, `unknown`, `noResultAvailable`, then newer values (`beingAnalyzed`, `notSubmittedToMicrosoft`, `phishingSimulation`, `allowedDueToOrganizationOverride`, `blockedDueToOrganizationOverride`, `allowedDueToUserOverride`, `blockedDueToUserOverride`, `itemNotfound`, `threatsFound`, `noThreatsFound`, `domainImpersonation`, `userImpersonation`, `brandImpersonation`, `authenticationFailure`, `spoofedBlocked`, `spoofedAllowed`, `bulk`, `reasonLostInTransit`). **The newer values only come back with the header `Prefer: include-unknown-enum-members`.** | [result] |
+| detail | About 70 values, each with a fixed admin-facing sentence on Learn. Useful ones: `underInvestigation`, `willNotifyOnceDone`, `checkUserReportedSettings` (reports aren't going to Microsoft), `messageNotFound`/`itemDeleted`, `allowedByTenantAllowBlockList`, `blockedByExchangeTransportRule`, `allowedByUserSetting`, `itemFoundClean`, `itemFoundMalicious`, `itemFoundSpam`, `itemFoundBulk`, `unableToMakeDecision`, `simulatedThreat`. Map these to UI text from the Learn table. | [result] |
+| userMailboxSetting | Comma-separated flags, e.g. `isFromAddressInAddressSafeList`, `isJunkMailRuleEnabled`, `junkMailDeletion`, `customRule` | [result] |
+| detectedUrls | String[] | [result] |
+| detectedFiles | `{fileName, fileHash}`[] | [result] |
+
+### D4. Creating admin submissions
+
+| Kind | Endpoint | `@odata.type` | Required body | Source |
+| --- | --- | --- | --- | --- |
+| Email by mailbox link | `POST /beta/security/threatSubmission/emailThreats` | `#microsoft.graph.security.emailUrlThreatSubmission` | `category`, `recipientEmailAddress`, `messageUrl` (Graph message URL, e.g. `https://graph.microsoft.com/beta/users/{userId}/messages/{messageId}`) | [ets-post] |
+| Email by content | same | `#microsoft.graph.security.emailContentThreatSubmission` | `category`, `recipientEmailAddress`, `fileContent` (base64 of the .eml) | [ets-post] |
+| Optional on email | | | `tenantAllowOrBlockListAction: {action, expirationDateTime, note}` adds TABL entries for the message's URLs, files or sender | [ets-post] |
+| URL | `POST /beta/security/threatSubmission/urlThreats` | `#microsoft.graph.urlThreatSubmission` (as written on Learn; the response uses `#microsoft.graph.security.urlThreatSubmission`) | `category`, `webUrl` | [url-post] |
+| File | `POST /beta/security/threatSubmission/fileThreats` | `#microsoft.graph.security.fileContentThreatSubmission` | `category`, `fileName`, `fileContent` (base64) | [file-post] |
+| File by URL | | `fileUrlThreatSubmission` | "reserved and not supported as of today" | [file-post] |
+
+| Behaviour | Detail | Source |
+| --- | --- | --- |
+| `category` on POST | `notJunk`, `spam`, `phishing`, `malware`. False positives use `notJunk`. | [ts], [url-post] |
+| Response | `201 Created` with the submission. URL and file examples return `"status": "running"` and `"result": {"detail": "underInvestigation"}`; poll `GET .../{id}` until `status` is `succeeded` or `failed`. | [url-post], [file-post] |
+| What's stored | "the threat submission service just stores some metadata about the email. The email content is not stored." | [ets-post] |
+| How long results take | **Learn gives no time.** Analysis includes human graders. Treat it as asynchronous; `willNotifyOnceDone` is one possible detail. | [mdo-admin], [result] |
+| Age limit | Admins can submit email up to 30 days old if it's still in the mailbox. On-premises mailboxes: under 7 days. | [mdo-admin] |
+| Throttling (portal) | 150 submissions per 15 minutes; the same item at most once per 15 minutes and three times per 24 hours. Learn states this for the portal; assume Graph shares it. | [mdo-admin] |
+| Allow/block expiry (portal) | Block entry default 30 days; allow entry default "45 days after last used date"; maximum specific date 30 days out. | [mdo-admin] |
+
+Fit with Tenantry's existing data:
+
+| Starting point | Approach | Notes |
+| --- | --- | --- |
+| Quarantined message | `Export-QuarantineMessage` (Part A3) gives the .eml; post it as `emailContentThreatSubmission`. | A quarantined message isn't in the mailbox, so `messageUrl` doesn't fit. The portal accepts a network message ID instead; Graph has no network-message-ID property. |
+| Message trace row (delivered) | Find the message in the recipient's mailbox by `internetMessageId`, then post its Graph URL as `emailUrlThreatSubmission`. | Learn doesn't say which mail permission the submission service needs to fetch `messageUrl` from another user's mailbox. **Test it.** |
+
+### D5. Permissions, roles, licences
+
+| Permission (delegated) | What it allows | Source |
+| --- | --- | --- |
+| ThreatSubmission.Read | Read the submissions and policies **owned by the signed-in user** | [perms] |
+| ThreatSubmission.ReadWrite | Same, plus create submissions | [perms] |
+| ThreatSubmission.Read.All | Read **all the organization's** submissions and policies | [perms] |
+| ThreatSubmission.ReadWrite.All | Read all, create. **Least privileged for `review`** (no lower scope works) | [perms], [ets-review] |
+| ThreatSubmissionPolicy.ReadWrite.All | Read and update the user-reported settings policy (D7) | [perms], [policy-update] |
+
+All five need admin consent [perms]. **Add `ThreatSubmission.ReadWrite.All`** (delegated) so an admin sees user reports from everyone, can submit and can review. Add `ThreatSubmissionPolicy.ReadWrite.All` only if the settings card writes through Graph instead of EXO.
+
+| Role / licence | Detail | Source |
+| --- | --- | --- |
+| Graph role check | The threatSubmission pages don't list required Entra roles. Portal equivalents: Security Administrator or Security Reader (Entra or Email & collaboration role group). Submitting by network message ID in the portal also needs "Email & collaboration metadata (read)" under unified RBAC. | [mdo-admin] |
+| Review / notify (portal) | Organization Management or Security Administrator role group; Entra Global Administrator, Security Administrator or Global Reader | [mdo-review] |
+| Licence | The Submissions page and user reporting need Exchange Online mailboxes. EOP is enough for email; Teams reports need MDO Plan 1 or 2. AIR auto-investigation and auto-notify need MDO Plan 2. | [mdo-admin], [mdo-usersettings] |
+| GCC/GCC High/DoD | Only "My reporting mailbox only" is allowed; admin submissions get authentication and policy checks only | [mdo-usersettings], [mdo-admin] |
+
+### D6. Marking a user report reviewed and telling the reporter
+
+| Question | Answer | Source |
+| --- | --- | --- |
+| Graph action | `POST /beta/security/threatSubmission/emailThreats/{id}/review` with `{"category": "phishing"}`. Values: notSpam, junk, phishing, malware (case-insensitive). Returns `204`. Works only for email submissions from end users (`source eq 'user'`). | [ets-review] |
+| Result after review | `adminReview.{reviewBy, reviewDateTime, reviewResult}` is filled in | [adminreview] |
+| Does it email the reporter? | **Learn doesn't say so for the Graph action.** The policy has `isReviewEmailNotificationEnabled`: "whether an email notification is sent to the end user who reported the email when it has been reviewed by the admin". Assume the review action plus that flag behaves like the portal's **Mark as and notify**. Test it. | [policy] |
+| Portal equivalent | **Mark as and notify** with verdicts No threats found, Phishing, Spam. Marks the message and "automatically" emails the reporter. Doesn't change the message's filtering verdict. | [mdo-review] |
+| Order | Learn's portal flow: submit to Microsoft first (when reports go to the mailbox only), then Mark as and notify. Only false-positive or false-negative reports can be marked. | [mdo-admin], [mdo-review] |
+| Submitting a user report to Microsoft | Portal: **Submit to Microsoft for analysis** on the User reported tab sets "Converted to admin submission" to Yes and creates a row on the Emails tab. Learn shows no Graph "convert" action. Re-post the message as a new admin submission instead. | [mdo-admin] |
+
+### D7. Where user reports go: EXO cmdlets and Graph policy
+
+| Element | Role | Source |
+| --- | --- | --- |
+| `DefaultReportSubmissionPolicy` | The only policy (name can't change). Turns Outlook reporting on/off, Microsoft on/off, mailbox on/off, pop-ups, notifications. **It doesn't exist until someone opens the portal settings page or runs `New-ReportSubmissionPolicy`**, so `Get-` can return nothing. | [mdo-usersettings] |
+| `DefaultReportSubmissionRule` | Holds `-SentTo` (the reporting mailbox). Needed **only** when reports go to a mailbox. The portal creates it the first time a mailbox is saved. You can name it anything, but Learn says use `DefaultReportSubmissionRule`. | [mdo-usersettings], [rsr] |
+| Sync gotcha | The portal writes the address to both rule and policy. `Set-ReportSubmissionRule -SentTo` does **not** update the policy's address fields; set both. Removing the policy leaves the rule, and the reverse. | [mdo-usersettings], [rsr] |
+| Default mailbox | Blank means the Global Admin's mailbox, and it isn't shown anywhere until the first user reports a message | [mdo-usersettings] |
+| Mailbox limits | Must be an Exchange Online mailbox. "Distribution groups and routing to an external or on-premises mailbox aren't allowed." Make it a SecOps mailbox in the advanced delivery policy, and exclude it from DLP. | [mdo-usersettings] |
+
+Mode mapping (built-in Report button, `-EnableThirdPartyAddress $false`):
+
+| Portal "Send reported items to" | EnableReportToMicrosoft | Report{Junk,NotJunk,Phish}ToCustomizedAddress | Report{Junk,NotJunk,Phish}Addresses | Rule | EnableUserEmailNotification | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| Microsoft and my reporting mailbox (default) | `$true` | `$true` (all three) | mailbox (all three, same value) | `-SentTo` mailbox | (default) | [mdo-usersettings] |
+| My reporting mailbox only | `$false` | `$true` | mailbox | `-SentTo` mailbox | `$true` **required** | [mdo-usersettings], [rsp] |
+| Microsoft only | `$true` | `$false` | `$null` | remove: `Get-ReportSubmissionRule \| Remove-ReportSubmissionRule` | `$true` in Learn's example | [mdo-usersettings] |
+| Reporting turned off | `$false` | `$false` | `$null` | remove | n/a; also `-PreSubmitMessageEnabled $true -PostSubmitMessageEnabled $true` (Learn says this combination is needed) | [mdo-usersettings] |
+
+Non-Microsoft add-in (`-EnableThirdPartyAddress $true`, `-ThirdPartyReportAddresses <mbx>`, rule `-SentTo <mbx>`): only "mailbox only" (`EnableReportToMicrosoft $false`) or "Microsoft and mailbox" (`$true`). "Microsoft only" isn't available. Learn's text differs on whether the three `*ToCustomizedAddress` flags should be `$true` or `$false` in this mode. [mdo-usersettings], [rsp]
+
+Learn's example for Microsoft and mailbox (address swapped):
+
+```powershell
+$usersub = "reportedmessages@contoso.example"
+Set-ReportSubmissionPolicy -Identity DefaultReportSubmissionPolicy -EnableReportToMicrosoft $true -EnableThirdPartyAddress $false -ThirdPartyReportAddresses $null -ReportJunkToCustomizedAddress $true -ReportJunkAddresses $usersub -ReportNotJunkToCustomizedAddress $true -ReportNotJunkAddresses $usersub -ReportPhishToCustomizedAddress $true -ReportPhishAddresses $usersub -PreSubmitMessageEnabled $false -PostSubmitMessageEnabled $false
+Set-ReportSubmissionRule -Identity DefaultReportSubmissionRule -SentTo $usersub   # or New-ReportSubmissionRule -Name DefaultReportSubmissionRule -ReportSubmissionPolicy DefaultReportSubmissionPolicy -SentTo $usersub
+```
+
+Other policy parameters for the card ([rsp] unless noted):
+
+| Parameter | Meaning |
+| --- | --- |
+| ReportJunkAddresses / ReportNotJunkAddresses / ReportPhishAddresses | Must be set together, to the same value. Set `$null` when the matching `*ToCustomizedAddress` is `$false`. |
+| Report*ToCustomizedAddress | Must be set together in the same command |
+| PreSubmitMessageEnabled | "Ask the user to confirm before reporting". **The portal creates the policy with `$false`; `New-ReportSubmissionPolicy` defaults to `$true`.** [mdo-usersettings] |
+| PostSubmitMessageEnabled | Success pop-up after reporting. Same default mismatch. |
+| MultiLanguagePre/PostSubmitMessage* + MultiLanguageSetting | Custom pop-up text for up to 7 languages. Arrays must line up, and unused parameters need blank placeholders. [mdo-usersettings] |
+| EnableUserEmailNotification | Send result emails after an admin reviews. Required `$true` for "mailbox only". |
+| JunkReviewResultMessage / NotJunkReviewResultMessage / PhishingReviewResultMessage | Custom body per verdict |
+| NotificationFooterMessage | Footer for all verdicts |
+| EnableCustomNotificationSender + NotificationSenderAddress | Custom From address, which must be in Exchange Online. Default sender `submissions@messaging.microsoft.com`. [mdo-usersettings] |
+| EnableOrganizationBranding | Use the org logo from the M365 theme |
+| DisableQuarantineReportingOption | `$true` stops users reporting from quarantine (default `$false`) |
+| ReportChatMessageEnabled / ReportChatMessageToCustomizedAddressEnabled / ReportChatMessageAddresses | Teams reporting; doesn't use the rule |
+| EnableCustomizedMsg, DisableUserSubmissionOptions, UserSubmissionOptions, OnlyShowPhishingDisclaimer, NotificationsForSubmissionAirInvestigationsEnabled | "Reserved for internal Microsoft use"; leave alone |
+
+Graph alternative (beta): `GET/PATCH /beta/security/threatSubmission/emailThreatSubmissionPolicies/DefaultReportSubmissionPolicy` [policy], [policy-update]. Fields: `isReportToMicrosoftEnabled`, `isReportToCustomizedEmailAddressEnabled`, `customizedReportRecipientEmailAddress`, `isAskMeEnabledForUsers`, `isAlwaysReportEnabledForUsers`, `isNeverReportEnabledForUsers`, `isCustomizedMessageEnabled`, `isCustomizedMessageEnabledForPhishing`, `isReviewEmailNotificationEnabled`, `isCustomizedNotificationSenderEnabled`, `customizedNotificationSenderEmailAddress`, `isOrganizationBrandingEnabled`, `isReportFromQuarantineEnabled`. It has no third-party, Teams or per-language fields, and Learn doesn't say whether PATCH also creates or updates the rule. **Use EXO for writes.**
+
+### D8. Other places user reports show up
+
+| Source | API? | Notes | Source |
+| --- | --- | --- | --- |
+| Graph `security/alerts_v2` | Yes (v1.0, `SecurityAlert.Read.All`; roles Security Reader, Global Reader, Security Operator, Security Administrator) | Default alert policies **Email reported by user as malware or phish** (E3/Business Premium/MDO P1 and up; triggers AIR in P2), **...as junk** and **...as not junk** (E1/E3/E5). One alert per report, with no verdict fields. Good as a fallback signal. | [alerts], [alertpol] |
+| User-reported messages report, Threat Explorer (P2), AIR results (P2) | Portal | Learn lists them as other views of user reports. Learn shows no API for them. | [mdo-report] |
+| Reporting mailbox | Graph mail on that mailbox | Raw copies, with subject prefixes `1|`/`Junk:`, `2|`/`Not junk:`, `3|`/`Phishing:` for third-party tools. Last resort. | [mdo-usersettings] |
+
+### D9. Build summary
+
+| Feature | Use | Gotchas |
+| --- | --- | --- |
+| Submissions list (incl. user reported) | `GET /beta/security/threatSubmission/emailThreats?$filter=source eq 'user'` (and `'administrator'`), plus urlThreats and fileThreats; send the `Prefer: include-unknown-enum-members` header | Beta only. Check that mailbox-only reports appear. Map `result.detail` to the Learn text. |
+| Submit to Microsoft | Quarantine: export .eml, then `emailContentThreatSubmission`. Trace: `emailUrlThreatSubmission` with a Graph message URL. URL: `urlThreats`. Attachment: `fileThreats`. | Asynchronous, so poll `status`. 30-day limit. Throttled. |
+| Review + notify | `POST .../emailThreats/{id}/review` | Needs `ThreatSubmission.ReadWrite.All`. Whether the reporter gets an email depends on `isReviewEmailNotificationEnabled` / `EnableUserEmailNotification`: test it. |
+| Report destination card | `Get/Set-ReportSubmissionPolicy` and `Get/New/Set/Remove-ReportSubmissionRule` over EXO | The policy or rule may not exist yet. Keep policy and rule addresses in sync. The mailbox must be an EXO mailbox, not a group. Watch the Pre/PostSubmit default mismatch. |
