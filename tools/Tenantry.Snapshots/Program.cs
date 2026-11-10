@@ -136,6 +136,29 @@ if (args.Contains("--manage-popups"))
 // --mail-review: Mail & Security for reviewing by eye: each page as it opens, a row previewed,
 // record pages, the rule editor (starters, new, existing), message trace searched, adding list
 // entries. Both themes.
+if (args.Contains("--wide-check"))
+{
+    // Every area at a very wide window: the content should use the width, not leave a blank strip.
+    Application.Current!.RequestedThemeVariant = ThemeVariant.Light;
+    var wideMain = new MainViewModel(connector.ConnectDemo(), () => { });
+    foreach (var section in wideMain.Sections.ToArray())
+    {
+        wideMain.SelectedSection = section;
+        for (var i = 0; i < 60; i++)
+            Settle();
+        Render(wideMain, $"w-{section.Key}", width: 2600, height: 900);
+    }
+    wideMain.SelectedSection = wideMain.Sections.Single(s => s.Key == "mail");
+    foreach (var page in Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages)
+    {
+        wideMain.MailSecurity!.SelectedPage = page;
+        for (var i = 0; i < 60; i++)
+            Settle();
+        Render(wideMain, $"w-mail-{Array.IndexOf(Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.ToArray(), page)}", width: 2600, height: 900);
+    }
+    return 0;
+}
+
 if (args.Contains("--mail-review"))
 {
     foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })

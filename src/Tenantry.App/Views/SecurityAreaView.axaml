@@ -47,6 +47,9 @@
         </TabStrip>
       </Border>
     </StackPanel>
+    <!-- One page shows at a time, filling the width. (As separate DockPanel children each page
+         was docked left at its content's width, leaving a blank strip on wide windows.) -->
+    <Grid>
 
     <!-- Conditional Access: read live, with Refresh -->
     <DockPanel IsVisible="{Binding ShowPolicies}">
@@ -790,5 +793,6 @@
       </StackPanel>
     </ScrollViewer>
     </Panel>
+    </Grid>
   </DockPanel>
 </UserControl>

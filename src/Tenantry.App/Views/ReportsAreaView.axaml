@@ -25,6 +25,9 @@
         </DataTemplate>
       </TabStrip.ItemTemplate>
     </TabStrip>
+    <!-- One page shows at a time, filling the width. (As separate DockPanel children each page
+         was docked left at its content's width, leaving a blank strip on wide windows.) -->
+    <Grid>
 
     <DockPanel IsVisible="{Binding ShowReports}">
       <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
@@ -69,5 +72,6 @@
         </ContentControl.DataTemplates>
       </ContentControl>
     </DockPanel>
+    </Grid>
   </DockPanel>
 </UserControl>

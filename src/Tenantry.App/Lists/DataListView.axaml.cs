@@ -79,7 +79,12 @@ public partial class DataListView : UserControl
         // Freezing the name column only helps when there's room to scroll beside it. In a narrow
         // table it would eat most of the width and leave the scrollbar a stub, so only the row
         // actions stay frozen then.
-        Grid.SizeChanged += (_, e) => Grid.FrozenColumnCount = e.NewSize.Width < 720 ? 2 : 3;
+        Grid.SizeChanged += (_, e) =>
+        {
+            Grid.FrozenColumnCount = e.NewSize.Width < 720 ? 2 : 3;
+            if (Math.Abs(e.NewSize.Width - e.PreviousSize.Width) > 0.5)
+                FitColumns();
+        };
         // The preview pane takes about a third of the space, so the list is never squeezed out;
         // panels take at most about half the height, so the table keeps some room and a
         // panel's buttons never fall off the bottom.
@@ -346,6 +351,7 @@ public partial class DataListView : UserControl
         for (var i = Grid.Columns.Count - 1; i >= 0; i--)
             Grid.Columns.RemoveAt(i);
         _columnKeys.Clear();
+        _baseWidths.Clear();
         Grid.Columns.Add(CheckColumn());
         Grid.Columns.Add(ActionsColumn());
         foreach (var c in _vm.Columns.Where(c => c.IsVisible))
@@ -361,11 +367,54 @@ public partial class DataListView : UserControl
             };
             column.PropertyChanged += (_, e) =>
             {
-                if (e.Property == DataGridColumn.WidthProperty && e.NewValue is DataGridLength { IsAbsolute: true } width)
-                    _vm?.ColumnResized(c.Key, Math.Round(width.Value));
+                // Widths set by fitting aren't the admin's choice; a drag is, kept at its unstretched
+                // size so it reads the same in a narrower window.
+                if (_fitting || e.Property != DataGridColumn.WidthProperty || e.NewValue is not DataGridLength { IsAbsolute: true } width)
+                    return;
+                var unstretched = Math.Max(c.MinWidth, width.Value / _scale);
+                _baseWidths[column] = unstretched;
+                _vm?.ColumnResized(c.Key, Math.Round(unstretched));
             };
             _columnKeys[column] = c.Key;
+            _baseWidths[column] = column.Width.Value;
             Grid.Columns.Add(column);
+        }
+        _scale = 1;
+        FitColumns();
+    }
+
+    // ---- Filling a wide window --------------------------------------------------------------
+    // The columns have set widths. In a window wider than them they stretch in proportion to fill
+    // the table, rather than leaving an empty strip on the right; narrower, they keep their widths
+    // and the table scrolls sideways.
+
+    readonly Dictionary<DataGridColumn, double> _baseWidths = [];
+    double _scale = 1;
+    bool _fitting;
+
+    /// <summary>Room the vertical scrollbar and borders need, so fitting never adds a sideways scroll.</summary>
+    const double FitSlack = 22;
+
+    void FitColumns()
+    {
+        if (_baseWidths.Count == 0 || Grid.Bounds.Width <= 0)
+            return;
+        var fixedWidth = Grid.Columns.Where(c => c.IsVisible && !_baseWidths.ContainsKey(c)).Sum(c => c.ActualWidth > 0 ? c.ActualWidth : c.Width.Value);
+        var wanted = _baseWidths.Where(b => b.Key.IsVisible).Sum(b => b.Value);
+        var room = Grid.Bounds.Width - fixedWidth - FitSlack;
+        var scale = wanted > 0 && room > wanted ? room / wanted : 1;
+        if (Math.Abs(scale - _scale) < 0.001 && scale == 1)
+            return;
+        _scale = scale;
+        _fitting = true;
+        try
+        {
+            foreach (var (column, width) in _baseWidths)
+                column.Width = new DataGridLength(Math.Floor(width * scale));
+        }
+        finally
+        {
+            _fitting = false;
         }
     }
 

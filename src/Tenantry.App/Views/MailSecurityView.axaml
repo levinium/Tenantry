@@ -24,6 +24,9 @@
         </DataTemplate>
       </TabStrip.ItemTemplate>
     </TabStrip>
+    <!-- One page shows at a time, filling the width. (As separate DockPanel children each page
+         was docked left at its content's width, leaving a blank strip on wide windows.) -->
+    <Grid>
 
     <!-- Quarantine: how far back, then the list -->
     <DockPanel IsVisible="{Binding ShowQuarantine}">
@@ -146,5 +149,6 @@
         <TextBlock Classes="caption" Text="Coming in the next Mail &amp; security update." />
       </StackPanel>
     </Border>
+    </Grid>
   </DockPanel>
 </UserControl>
