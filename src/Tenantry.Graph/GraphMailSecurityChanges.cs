@@ -141,6 +141,10 @@ public sealed partial class GraphChangeExecutor
         var moves = change.Moves();
         for (var i = 0; i < moves.Count; i++)
         {
+            // Exchange takes about half a minute for each move (seen live), so say which one is going.
+            ApplyProgress.Report(moves.Count == 1
+                ? $"Moving \"{Name(moves[i].Identity)}\" (Exchange takes about half a minute)"
+                : $"Moving rule {i + 1} of {moves.Count}: \"{Name(moves[i].Identity)}\" (about half a minute each)");
             try
             {
                 await exchange.InvokeAsync(CmdletEndpoint.Exchange, "Set-TransportRule",
@@ -148,11 +152,12 @@ public sealed partial class GraphChangeExecutor
             }
             catch (CmdletException e)
             {
-                var name = change.New.FirstOrDefault(r => r.Identity == moves[i].Identity)?.Name ?? moves[i].Identity;
                 return new ApplyResult(i == 0 ? ChangeOutcome.Failed : ChangeOutcome.AppliedNotYetVisible,
-                    $"{(i == 0 ? "Nothing moved" : $"{i} of {moves.Count} moves went through")}; moving \"{name}\" failed: {e.Explanation} Refresh the rules to see where they stand.");
+                    $"{(i == 0 ? "Nothing moved" : $"{i} of {moves.Count} moves went through")}; moving \"{Name(moves[i].Identity)}\" failed: {e.Explanation} Refresh the rules to see where they stand.");
             }
         }
+        string Name(string identity) => change.New.FirstOrDefault(r => r.Identity == identity)?.Name ?? identity;
+        ApplyProgress.Report("Checking the new order");
         var wanted = change.New.Select(r => r.Identity).ToArray();
         foreach (var wait in ReadBackWaits)
         {

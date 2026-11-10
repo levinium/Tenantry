@@ -146,6 +146,9 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
     /// <summary>Something was logged outside Apply (<see cref="Record"/>), so the change log can show it.</summary>
     public event EventHandler? Recorded;
 
+    /// <summary>A change that is applying says how far it has got (<see cref="ApplyProgress.Report"/>).</summary>
+    public event EventHandler<(ChangeOp Change, string Text)>? Progress;
+
     /// <summary>The tenant itself as a change target (for Test mode, console commands).</summary>
     public static ChangeTarget TenantTarget(string tenantName) => new("tenant", "tenant", tenantName, null);
 
@@ -208,7 +211,8 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
         {
             try
             {
-                result = await executor.ApplyAsync(change, cancellationToken);
+                using (ApplyProgress.Listen(text => Progress?.Invoke(this, (change, text))))
+                    result = await executor.ApplyAsync(change, cancellationToken);
             }
             // A request that timed out also surfaces as a cancellation; only the caller's own cancel stops the batch.
             catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)

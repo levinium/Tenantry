@@ -207,6 +207,31 @@ public sealed class MailFlowRuleTests
     }
 
     [Fact]
+    public async Task Pending_changes_shows_which_move_is_going_while_a_new_order_applies()
+    {
+        var exchange = new FakeCmdlets((cmdlet, _) => cmdlet == "Get-TransportRule"
+            ? "[{\"Guid\":\"c\",\"Priority\":0},{\"Guid\":\"b\",\"Priority\":1},{\"Guid\":\"a\",\"Priority\":2}]"
+            : "[]");
+        var executor = new GraphChangeExecutor(new GraphClient(new FakeHttp().Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore(), NoDelay.Instance, exchange);
+        var pipeline = new ChangePipeline(executor, new ChangeLog(new MemoryEntityStore()), new MemoryTestModeStore(true), "admin");
+        var tray = new Tenantry.ViewModels.Editing.PendingChangesViewModel(pipeline, "Contoso", true, () => Task.CompletedTask);
+        RuleSlot Slot(string id) => new(id, $"zz-tenantry-test-{id}");
+        pipeline.Stage(new ReorderRules(ReorderRules.OrderTarget, [Slot("a"), Slot("b"), Slot("c")], [Slot("c"), Slot("b"), Slot("a")]));
+        var row = Assert.Single(tray.Rows);
+        var seen = new List<string>();
+        row.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(row.Progress) && row.Progress is { } text) seen.Add(text); };
+
+        await tray.ApplyCommand.ExecuteAsync(null);
+
+        Assert.Equal(3, seen.Count);
+        Assert.StartsWith("Moving rule 1 of 2: \"zz-tenantry-test-", seen[0], StringComparison.Ordinal);
+        Assert.StartsWith("Moving rule 2 of 2: \"zz-tenantry-test-", seen[1], StringComparison.Ordinal);
+        Assert.Equal("Checking the new order", seen[2]);
+        // With no one listening (outside an apply), a report does nothing.
+        ApplyProgress.Report("ignored");
+    }
+
+    [Fact]
     public async Task Each_change_sends_its_cmdlet_and_reads_the_rule_back()
     {
         var reads = new Queue<string>(["""[{"Guid":"g1","Name":"zz-tenantry-test-rule","Priority":0,"State":"Disabled","Mode":"Audit"}]""", "[]"]);

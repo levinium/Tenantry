@@ -33,6 +33,13 @@ public sealed partial class PendingRow(ChangeOp change, Action<ChangeOp> remove,
 
     public bool HasProblem => Problem is not null;
 
+    /// <summary>While it applies, how far it has got ("Moving rule 2 of 5: …").</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProgress))]
+    public partial string? Progress { get; set; }
+
+    public bool HasProgress => Progress is not null;
+
     [RelayCommand]
     void Remove() => remove(Change);
 }
@@ -114,6 +121,20 @@ public sealed partial class PendingChangesViewModel : ObservableObject
             if (!IsApplying && ResultIsSuccess)
                 Result = null;
             Rebuild();
+        };
+        // Reports can come from a background thread; the rows belong to the UI's.
+        var ui = SynchronizationContext.Current;
+        _pipeline.Progress += (_, report) =>
+        {
+            void Show()
+            {
+                foreach (var row in Rows.Where(r => ReferenceEquals(r.Change, report.Change)))
+                    row.Progress = report.Text;
+            }
+            if (ui is null || SynchronizationContext.Current == ui)
+                Show();
+            else
+                ui.Post(_ => Show(), null);
         };
         Rebuild();
     }

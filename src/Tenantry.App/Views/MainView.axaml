@@ -364,6 +364,11 @@
                           <TextBlock Text="{Binding After}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding After}" />
                         </DockPanel>
                         <TextBlock Classes="error" Text="{Binding Problem}" TextWrapping="Wrap" IsVisible="{Binding HasProblem}" />
+                        <!-- A long change (a rule reorder) says how far it has got while it applies. -->
+                        <StackPanel Spacing="4" IsVisible="{Binding HasProgress}">
+                          <TextBlock Classes="muted" Text="{Binding Progress}" TextWrapping="Wrap" />
+                          <ProgressBar Classes="working" MaxWidth="320" HorizontalAlignment="Left" />
+                        </StackPanel>
                       </StackPanel>
                       <Button Grid.Column="3" Padding="10,3" Command="{Binding ShowPowerShellCommand}" IsVisible="{Binding CanShowPowerShell}" VerticalAlignment="Center"
                               ToolTip.Tip="The PowerShell that makes this change, to copy or run in the console">
