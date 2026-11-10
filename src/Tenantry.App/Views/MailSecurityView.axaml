@@ -177,6 +177,32 @@
       <views:ReportedMessagesView DataContext="{Binding Reported}" />
     </Panel>
 
+    <!-- Domains, connectors, spoofing and the organization's settings (12e) -->
+    <Panel IsVisible="{Binding ShowMailSettings}">
+      <views:MailSettingsView DataContext="{Binding MailSettings}" />
+    </Panel>
+    <Panel IsVisible="{Binding ShowRemote}">
+      <views:RemoteDomainsView DataContext="{Binding RemoteDomains}" />
+    </Panel>
+    <Panel IsVisible="{Binding ShowConnectors}">
+      <views:ConnectorsView DataContext="{Binding Connectors}" />
+    </Panel>
+    <Panel IsVisible="{Binding ShowAccepted}">
+      <views:AcceptedDomainsView DataContext="{Binding AcceptedDomains}" />
+    </Panel>
+    <Panel IsVisible="{Binding ShowJournal}">
+      <views:JournalRulesView DataContext="{Binding Journal}" />
+    </Panel>
+    <DockPanel IsVisible="{Binding ShowSpoofed}">
+      <TextBlock DockPanel.Dock="Top" Classes="caption" TextWrapping="Wrap" Margin="0,0,0,8"
+                 Text="Senders Microsoft's spoof intelligence has seen sending as another domain (or yours) from a server that domain doesn't list. Allow the ones you trust, such as services sending for you; block forgeries." />
+      <ContentControl Content="{Binding Spoofed}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+
     <!-- Pages still to come -->
     <Border Classes="card" IsVisible="{Binding IsPlannedPage}" VerticalAlignment="Top" HorizontalAlignment="Left" MaxWidth="640">
       <StackPanel Spacing="8">

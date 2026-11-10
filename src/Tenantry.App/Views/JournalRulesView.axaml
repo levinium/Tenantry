@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.JournalRulesView"
+             x:DataType="ms:JournalRulesViewModel">
+  <ScrollViewer>
+    <StackPanel Spacing="12" Margin="0,0,0,24">
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h3" Text="Journal Rules" />
+            <TextBlock Classes="muted" TextWrapping="Wrap" Text="Copies of mail sent to an outside archive (a records or e-discovery service). Most organizations use retention policies instead; journaling is for archives that need their own copy." />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+      <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </Border>
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="16" Height="16" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" Text="Reading from Exchange…" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+      <Border Classes="banner neutral" IsVisible="{Binding IsEmpty}">
+        <TextBlock TextWrapping="Wrap" Text="No journal rules: no mail is copied to an outside archive." />
+      </Border>
+      <Border Classes="card" IsVisible="{Binding !IsEmpty}">
+        <ItemsControl ItemsSource="{Binding Rules}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="ms:JournalRuleRow">
+              <Border Classes="valuerow">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                    <TextBlock Classes="muted" Text="{Binding What}" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <c:Badge Grid.Column="1" Text="{Binding StateText}" Kind="{Binding StateKind}" VerticalAlignment="Center" />
+                  <Button Grid.Column="2" Content="{Binding SwitchText}" Command="{Binding SwitchCommand}" IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
+                          ToolTip.Tip="Turn copying on or off (added to Pending Changes)" />
+                  <Button Grid.Column="3" Classes="danger-outline" Content="{Binding RemoveText}" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
+                          VerticalAlignment="Center" ToolTip.Tip="Stop copying and remove the rule (added to Pending Changes)" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
+      <Border Classes="card" IsEnabled="{Binding CanEdit}">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="NEW JOURNAL RULE" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="8">
+            <TextBox Text="{Binding NewName}" PlaceholderText="Name" />
+            <ComboBox Grid.Column="1" ItemsSource="{x:Static ms:JournalRulesViewModel.Scopes}" SelectedItem="{Binding NewScope}" HorizontalAlignment="Stretch" />
+            <TextBox Grid.Row="1" Text="{Binding NewRecipient}" PlaceholderText="Only for this person or list (optional)" />
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NewAddress}" PlaceholderText="Archive address (outside Exchange Online)" />
+          </Grid>
+          <TextBlock Classes="error" Text="{Binding AddProblem}" IsVisible="{Binding HasAddProblem}" TextWrapping="Wrap" />
+          <Button Classes="accent" Content="Add the Rule" Command="{Binding AddCommand}" HorizontalAlignment="Left"
+                  ToolTip.Tip="Start copying matching mail to the archive (added to Pending Changes)" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

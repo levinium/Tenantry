@@ -86,6 +86,68 @@ public sealed partial class GraphChangeExecutor
             ct => Read("Get-BlockedSenderAddress", new() { ["SenderAddress"] = change.Sender.Id }, ct),
             rows => rows.Count == 0, cancellationToken);
 
+    // ---- Exchange settings, remote domains, journal rules (12e) ----------------------------------
+
+    internal static Dictionary<string, object?> SettingParameters(SetExchangeSetting change)
+    {
+        var parameters = new Dictionary<string, object?> { [change.Parameter] = change.ExchangeValue?.DeepClone() };
+        if (change.Identity is { } identity)
+            parameters["Identity"] = identity;
+        // Set-OrganizationConfig and friends take no Identity and ask nothing; the rest need confirming off.
+        if (change.SetCmdlet is "Set-RemoteDomain" or "Set-InboundConnector" or "Set-OutboundConnector" or "Set-AcceptedDomain")
+            parameters["Confirm"] = false;
+        return parameters;
+    }
+
+    Task<ApplyResult> SetExchangeSettingAsync(SetExchangeSetting change, CancellationToken cancellationToken) =>
+        RunCheckedAsync(change.SetCmdlet, SettingParameters(change),
+            ct => Read(change.GetCmdlet, change.Identity is { } id ? new() { ["Identity"] = id } : new(), ct),
+            rows => rows.Count >= 1 && rows[0].TryGetProperty(change.Parameter, out var v) && SameValue(v, change.ExchangeValue),
+            cancellationToken);
+
+    static bool SameValue(JsonElement read, JsonNode? sent) => sent switch
+    {
+        null => read.ValueKind == JsonValueKind.Null,
+        JsonValue value when value.TryGetValue<bool>(out var b) => read.ValueKind == (b ? JsonValueKind.True : JsonValueKind.False),
+        JsonValue value when value.TryGetValue<int>(out var n) => read.ValueKind == JsonValueKind.Number && read.GetInt32() == n,
+        JsonValue value when value.TryGetValue<string>(out var s) => read.ValueKind == JsonValueKind.String && string.Equals(read.GetString(), s, StringComparison.OrdinalIgnoreCase),
+        _ => true,
+    };
+
+    Task<ApplyResult> CreateRemoteDomainAsync(CreateRemoteDomain change, CancellationToken cancellationToken) =>
+        RunCheckedAsync("New-RemoteDomain", new() { ["Name"] = change.Domain.Name, ["DomainName"] = change.DomainName },
+            ct => Read("Get-RemoteDomain", new() { ["Identity"] = change.Domain.Name }, ct), rows => rows.Count == 1, cancellationToken);
+
+    Task<ApplyResult> RemoveRemoteDomainAsync(RemoveRemoteDomain change, CancellationToken cancellationToken) =>
+        RunCheckedAsync("Remove-RemoteDomain", new() { ["Identity"] = change.Domain.Name, ["Confirm"] = false },
+            ct => Read("Get-RemoteDomain", new(), ct), rows => !rows.Any(r => string.Equals(GraphUserRecords.StrOf(r, "Name"), change.Domain.Name, StringComparison.OrdinalIgnoreCase)),
+            cancellationToken);
+
+    Task<ApplyResult> SetJournalRuleEnabledAsync(SetJournalRuleEnabled change, CancellationToken cancellationToken) =>
+        RunCheckedAsync(change.New ? "Enable-JournalRule" : "Disable-JournalRule", new() { ["Identity"] = change.Rule.Name, ["Confirm"] = false },
+            ct => Read("Get-JournalRule", new() { ["Identity"] = change.Rule.Name }, ct),
+            rows => rows.Count == 1 && rows[0].TryGetProperty("Enabled", out var e) && (e.ValueKind == JsonValueKind.True) == change.New, cancellationToken);
+
+    internal static Dictionary<string, object?> JournalParameters(CreateJournalRule change)
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            ["Name"] = change.Rule.Name, ["JournalEmailAddress"] = change.JournalAddress, ["Scope"] = change.Scope, ["Enabled"] = true,
+        };
+        if (change.Recipient is { Length: > 0 } who)
+            parameters["Recipient"] = who;
+        return parameters;
+    }
+
+    Task<ApplyResult> CreateJournalRuleAsync(CreateJournalRule change, CancellationToken cancellationToken) =>
+        RunCheckedAsync("New-JournalRule", JournalParameters(change),
+            ct => Read("Get-JournalRule", new() { ["Identity"] = change.Rule.Name }, ct), rows => rows.Count == 1, cancellationToken);
+
+    Task<ApplyResult> RemoveJournalRuleAsync(RemoveJournalRule change, CancellationToken cancellationToken) =>
+        RunCheckedAsync("Remove-JournalRule", new() { ["Identity"] = change.Rule.Name, ["Confirm"] = false },
+            ct => Read("Get-JournalRule", new(), ct), rows => !rows.Any(r => string.Equals(GraphUserRecords.StrOf(r, "Name"), change.Rule.Name, StringComparison.OrdinalIgnoreCase)),
+            cancellationToken);
+
     // ---- Where reports go, and answering a report (12d) ---------------------------------------
 
     internal const string ReportPolicy = "DefaultReportSubmissionPolicy";

@@ -367,6 +367,68 @@ public static class MailSecurityLists
         ],
     };
 
+    // ---- Spoofed senders (12e) --------------------------------------------------------------
+
+    public static class P
+    {
+        public const string Spoofed = "spoofed";
+        public const string Infrastructure = "infrastructure";
+        public const string Messages = "messages";
+        public const string LastSeen = "lastseen";
+        public const string Type = "type";
+        public const string Verdict = "verdict";
+
+        public const string Own = "Your Own Domain";
+        public const string Other = "Another Domain";
+        public const string Allowed = "Allowed";
+        public const string Blocked = "Treated as Spoofing";
+    }
+
+    public static IReadOnlyList<Field<SpoofedSender>> SpoofFields { get; } =
+    [
+        new() { Key = P.Spoofed, Label = "Sending As", Kind = FieldKind.Text, Searchable = true, Aliases = ["as", "domain"], Text = s => s.SpoofedUser },
+        new() { Key = P.Infrastructure, Label = "Sent From", Kind = FieldKind.Text, Searchable = true, Aliases = ["from"], Text = s => s.Infrastructure },
+        new() { Key = P.Messages, Label = "Messages", Kind = FieldKind.Number, Number = s => s.Messages },
+        new() { Key = P.LastSeen, Label = "Last Seen", Kind = FieldKind.Date, Date = s => s.LastSeen },
+        new() { Key = P.Type, Label = "Whose Domain", Kind = FieldKind.Choice, ChoiceOrder = [P.Own, P.Other], Text = s => s.IsInternal ? P.Own : P.Other },
+        new() { Key = P.Verdict, Label = "Microsoft's Verdict", Kind = FieldKind.Choice, ChoiceOrder = [P.Allowed, P.Blocked], Text = s => s.IsAllowed ? P.Allowed : P.Blocked },
+    ];
+
+    static readonly ListQuery SpoofLatest = ListQuery.Empty with { Sort = [new SortLevel(P.LastSeen, Descending: true)] };
+
+    static SavedView SpoofView(string id, string name, bool pinned, params Condition[] where) =>
+        new(id, name, SpoofLatest with { Where = ConditionGroup.All(where) }, BuiltIn: true, Pinned: pinned);
+
+    public static IReadOnlyList<SavedView> SpoofViews { get; } =
+    [
+        SpoofView("own", "Sending as You", true, new ChoiceCondition(P.Type, [P.Own], [])),
+        SpoofView("blocked", P.Blocked, true, new ChoiceCondition(P.Verdict, [P.Blocked], [])),
+        SpoofView("other", "Sending as Others", true, new ChoiceCondition(P.Type, [P.Other], [])),
+        SpoofView("all", "All", false),
+    ];
+
+    public static ListDefinition<SpoofedSender> Spoofed(Func<SpoofedSender, object> preview) => new()
+    {
+        Key = "spoofed",
+        Title = "Spoofed Senders",
+        Noun = "senders",
+        Fields = SpoofFields,
+        Id = s => $"{s.SpoofedUser}|{s.Infrastructure}|{s.SpoofType}",
+        Views = SpoofViews,
+        SearchHint = "Search domains and the servers sending as them… or try verdict:allowed",
+        Preview = preview,
+        Columns =
+        [
+            new() { Key = P.Spoofed, Header = "Sending As", Cell = CellKind.Primary, MinWidth = 220, DefaultWidth = 280,
+                Text = s => s.SpoofedUser, Subtitle = s => $"From {s.Infrastructure}", Initials = s => Display.Initials(s.SpoofedUser) },
+            new() { Key = P.Type, Header = "Whose Domain", Cell = CellKind.Text, MinWidth = 130, DefaultWidth = 150, Text = s => s.IsInternal ? P.Own : P.Other },
+            new() { Key = P.Verdict, Header = "Microsoft's Verdict", Cell = CellKind.Badge, MinWidth = 150, DefaultWidth = 180,
+                Badge = s => s.IsAllowed ? (P.Allowed, BadgeKind.Success) : (P.Blocked, BadgeKind.Warning) },
+            new() { Key = P.Messages, Header = "Messages", Cell = CellKind.Number, MinWidth = 90, DefaultWidth = 110, Number = s => s.Messages },
+            new() { Key = P.LastSeen, Header = "Last Seen", Cell = CellKind.Date, MinWidth = 120, DefaultWidth = 140, Date = s => s.LastSeen },
+        ],
+    };
+
     // ---- Message trace ----------------------------------------------------------------------
 
     public static class T

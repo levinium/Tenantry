@@ -304,6 +304,21 @@ if (args.Contains("--mail-review"))
         Render(main, $"m18-reported-{suffix}", height: 1100);
         main.SelectedTab = mail;
 
+        // Organization settings, domains, connectors, spoofed senders and journal rules.
+        foreach (var (key, height) in new[] { ("mailsettings", 2200), ("remote", 2000), ("connectors", 1100), ("accepted", 1000), ("journal", 1000), ("spoofed", 900) })
+        {
+            mail.SelectedPage = pages.Single(p => p.Key == key);
+            for (var i = 0; i < 40; i++)
+                Settle();
+            if (key == "spoofed" && mail.Spoofed.Rows.Count > 0)
+            {
+                mail.Spoofed.PreviewRow(mail.Spoofed.Rows[0]);
+                Settle();
+            }
+            Render(main, $"m19-{key}-{suffix}", height: height);
+        }
+        main.SelectedTab = mail;
+
         // Block and allow lists: the list, an entry previewed, the Add panel, an entry's page.
         mail.SelectedPage = pages[3];
         Wait(mail.Entries);

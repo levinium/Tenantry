@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             x:Class="Tenantry.App.Views.SpoofPreviewView"
+             x:DataType="ms:SpoofPreviewViewModel">
+  <StackPanel Spacing="14">
+    <StackPanel Spacing="4">
+      <TextBlock Classes="h3" Text="{Binding Title}" TextWrapping="Wrap" />
+      <TextBlock Classes="caption" Text="{Binding CountText}" />
+    </StackPanel>
+    <TextBlock Text="{Binding Meaning}" TextWrapping="Wrap" />
+    <Border Classes="valuerow">
+      <StackPanel Spacing="2">
+        <TextBlock Classes="label" Text="MICROSOFT'S VERDICT" />
+        <TextBlock Text="{Binding VerdictText}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+    <StackPanel Spacing="6" IsVisible="{Binding CanEdit}">
+      <TextBlock Classes="muted" TextWrapping="Wrap"
+                 Text="Decide for yourself: an entry on the Tenant Allow/Block List overrides Microsoft's verdict for this pair (added to Pending Changes)." />
+      <WrapPanel ItemSpacing="8" LineSpacing="8">
+        <Button Classes="accent" Content="{Binding AllowText}" Command="{Binding AllowCommand}" ToolTip.Tip="Let this server send as this domain from now on" />
+        <Button Classes="danger-outline" Content="{Binding BlockText}" Command="{Binding BlockCommand}" ToolTip.Tip="Treat its mail as spoofing from now on" />
+      </WrapPanel>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

@@ -59,6 +59,8 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             return mailDomain;
         if (records is not null && records.ApplySubmission(change) is { } submission)
             return submission;
+        if (records is not null && records.ApplyExchangeOrg(change) is { } exchangeOrg)
+            return exchangeOrg;
         if (change is CreateUser create)
             return await CreateUserAsync(create, cancellationToken);
         if (change is CreateGroup group)

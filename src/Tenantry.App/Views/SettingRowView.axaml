@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:c="using:Tenantry.App.Controls"
+             x:Class="Tenantry.App.Views.SettingRowView"
+             x:DataType="ms:SettingRow">
+  <!-- One Exchange setting: what it's called and does, and its control on the right. -->
+  <Border Classes="valuerow">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+      <StackPanel Spacing="2" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Label}" FontWeight="SemiBold" TextWrapping="Wrap" />
+        <TextBlock Classes="muted" Text="{Binding Help}" TextWrapping="Wrap" />
+        <TextBlock Classes="caption" Text="{Binding UnsetText}" IsVisible="{Binding IsUnset}" />
+        <TextBlock Classes="error" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
+      </StackPanel>
+      <Panel Grid.Column="1" VerticalAlignment="Center" IsEnabled="{Binding CanEdit}">
+        <ToggleSwitch IsChecked="{Binding IsOn}" IsVisible="{Binding IsOnOff}" OnContent="On" OffContent="Off" />
+        <TextBox Text="{Binding NumberText}" IsVisible="{Binding IsNumber}" Width="110" c:EditCommit.Commit="{Binding CommitNumberCommand}" />
+        <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Choice}" IsVisible="{Binding IsChoice}" MinWidth="260" />
+      </Panel>
+    </Grid>
+  </Border>
+</UserControl>

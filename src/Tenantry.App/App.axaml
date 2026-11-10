@@ -175,6 +175,9 @@
     <DataTemplate DataType="ms:SubmissionPreviewViewModel">
       <views:SubmissionPreviewView />
     </DataTemplate>
+    <DataTemplate DataType="ms:SpoofPreviewViewModel">
+      <views:SpoofPreviewView />
+    </DataTemplate>
     <DataTemplate DataType="ms:ListEntryPreviewViewModel">
       <views:ListEntryPreviewView />
     </DataTemplate>

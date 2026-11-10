@@ -41,14 +41,21 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         new("blocked", "Blocked Senders", "PersonProhibited"),
         new("domains", "Email Authentication", "ShieldCheckmark"),
         new("reported", "Reported Messages", "Flag"),
+        new("accepted", "Accepted Domains", "GlobeShield"),
+        new("remote", "Remote Domains", "GlobeArrowForward"),
+        new("connectors", "Connectors", "PlugConnected"),
+        new("spoofed", "Spoofed Senders", "PersonWarning"),
+        new("mailsettings", "Mail Settings", "Settings"),
+        new("journal", "Journal Rules", "Archive"),
     ];
 
     /// <summary>The pages in sections: the sections on one row, the chosen section's pages under it.</summary>
     public static IReadOnlyList<SecurityPageGroup> Sections { get; } =
     [
         new("messages", "Messages", "Mail", Of("quarantine", "trace", "reports", "reported")),
-        new("rules", "Rules & Lists", "ArrowRouting", Of("rules", "lists", "blocked")),
-        new("domains", "Domains", "Globe", Of("domains")),
+        new("rules", "Rules & Lists", "ArrowRouting", Of("rules", "lists", "blocked", "spoofed")),
+        new("domains", "Domains", "Globe", Of("domains", "accepted", "remote", "connectors")),
+        new("organization", "Organization", "Building", Of("mailsettings", "journal")),
     ];
 
     static IReadOnlyList<MailSecurityPage> Of(params string[] keys) => [.. keys.Select(k => Pages.Single(p => p.Key == k))];
@@ -113,6 +120,17 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         Blocked = new BlockedSendersViewModel(records as IMailDomainRecords, pipeline, canEdit, openPerson);
         Domains = new MailDomainsViewModel(records as IMailDomainRecords, pipeline, canEdit);
         Reported = new ReportedMessagesViewModel(records as ISubmissionRecords, pipeline, canEdit, listState, _now);
+        var org = records as IExchangeOrgRecords;
+        MailSettings = new OrgMailSettingsViewModel(org, pipeline, canEdit);
+        RemoteDomains = new RemoteDomainsViewModel(org, pipeline, canEdit);
+        Connectors = new ConnectorsViewModel(org, pipeline, canEdit);
+        AcceptedDomains = new AcceptedDomainsViewModel(org, pipeline, canEdit);
+        Journal = new JournalRulesViewModel(org, pipeline, canEdit);
+        Spoofed = DataListViewModel.Create(MailSecurityLists.Spoofed(s => new SpoofPreviewViewModel(s, pipeline, canEdit)),
+            async ct => org is null ? [] : await org.GetSpoofedSendersAsync(ct), _ => { }, listState, _now);
+        Spoofed.PrimaryAction = null;
+        Spoofed.HasRecordPages = false;
+        Spoofed.EmptyText = "Microsoft hasn't seen anyone sending as another domain.";
         Entries = DataListViewModel.Create(
             MailSecurityLists.Entries(e => new ListEntryPreviewViewModel(e, pipeline, canEdit)),
             LoadEntriesAsync, row => OpenEntry((ListEntry)row), listState, _now);
@@ -161,7 +179,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     public DataListViewModel Rules { get; }
 
     /// <summary>Every list in the area, for preferences shared across lists.</summary>
-    public IEnumerable<DataListViewModel> Lists => [Quarantine, Trace, Entries, Rules, Reported.Submissions];
+    public IEnumerable<DataListViewModel> Lists => [Quarantine, Trace, Entries, Rules, Reported.Submissions, Spoofed];
 
     public AddListEntriesViewModel AddEntries { get; }
 
@@ -172,6 +190,22 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     public MailDomainsViewModel Domains { get; }
 
     public ReportedMessagesViewModel Reported { get; }
+
+    public OrgMailSettingsViewModel MailSettings { get; }
+    public RemoteDomainsViewModel RemoteDomains { get; }
+    public ConnectorsViewModel Connectors { get; }
+    public AcceptedDomainsViewModel AcceptedDomains { get; }
+    public JournalRulesViewModel Journal { get; }
+    public DataListViewModel Spoofed { get; }
+
+    public bool ShowMailSettings => SelectedPage.Key == "mailsettings";
+    public bool ShowRemote => SelectedPage.Key == "remote";
+    public bool ShowConnectors => SelectedPage.Key == "connectors";
+    public bool ShowAccepted => SelectedPage.Key == "accepted";
+    public bool ShowJournal => SelectedPage.Key == "journal";
+    public bool ShowSpoofed => SelectedPage.Key == "spoofed";
+
+    bool _spoofedRead;
 
     public bool ShowReported => SelectedPage.Key == "reported";
 
@@ -201,7 +235,8 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     bool IsOwnAddress(string address) => address.LastIndexOf('@') is var at and >= 0 && _ownDomains.Contains(address[(at + 1)..]);
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(ShowRules), nameof(ShowReports), nameof(ShowBlocked), nameof(ShowDomains), nameof(ShowReported),
+    [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(ShowRules), nameof(ShowReports), nameof(ShowBlocked), nameof(ShowDomains), nameof(ShowReported), nameof(ShowMailSettings), nameof(ShowRemote), nameof(ShowConnectors),
+        nameof(ShowAccepted), nameof(ShowJournal), nameof(ShowSpoofed),
         nameof(IsPlannedPage))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
@@ -246,6 +281,17 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             _ = Domains.Refresh();
         if (value.Key == "reported")
             _ = Reported.LoadAsync();
+        LivePage? live = value.Key switch
+        {
+            "mailsettings" => MailSettings, "remote" => RemoteDomains, "connectors" => Connectors, "accepted" => AcceptedDomains, "journal" => Journal, _ => null,
+        };
+        if (live is { IsLoaded: false })
+            _ = live.Refresh();
+        if (value.Key == "spoofed" && !_spoofedRead)
+        {
+            _spoofedRead = true;
+            _ = Spoofed.LoadAsync();
+        }
     }
 
     // ---- Mail flow rules ----------------------------------------------------------------------

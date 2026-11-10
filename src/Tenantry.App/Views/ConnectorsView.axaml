@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.ConnectorsView"
+             x:DataType="ms:ConnectorsViewModel">
+  <ScrollViewer>
+    <StackPanel Spacing="12" Margin="0,0,0,24">
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h3" Text="Connectors" />
+            <TextBlock Classes="muted" TextWrapping="Wrap" Text="How mail moves between Microsoft 365 and your own mail servers, partners or a filtering service in front of Microsoft 365. Most organizations need none." />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+      <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </Border>
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="16" Height="16" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" Text="Reading from Exchange…" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+      <Border Classes="banner success" IsVisible="{Binding IsEmpty}">
+        <TextBlock TextWrapping="Wrap" Text="No connectors: mail goes straight to and from the internet, which suits most organizations." />
+      </Border>
+      <ItemsControl ItemsSource="{Binding Connectors}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ms:ConnectorRow">
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="2">
+                    <SelectableTextBlock Classes="h3" Text="{Binding Name}" />
+                    <TextBlock Classes="caption" Text="{Binding Direction}" />
+                  </StackPanel>
+                  <c:Badge Grid.Column="1" Text="{Binding StateText}" Kind="{Binding StateKind}" VerticalAlignment="Top" />
+                </Grid>
+                <TextBlock Classes="muted" Text="{Binding Comment}" IsVisible="{Binding HasComment}" TextWrapping="Wrap" FontStyle="Italic" />
+                <ItemsControl ItemsSource="{Binding Facts}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                      <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
+                        <ic:FluentIcon Icon="ChevronRight" FontSize="12" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <views:SettingRowView DataContext="{Binding Enabled}" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

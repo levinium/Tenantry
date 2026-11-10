@@ -318,6 +318,35 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Mail settings: flipping the outside-mail tag stages one setting; a remote domain's forwarding switch stages its own", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "mailsettings");
+            for (var i = 0; i < 40 && !mail.MailSettings.IsLoaded; i++)
+                Settle();
+            Settle();
+            var tag = mail.MailSettings.Groups.SelectMany(g => g.Rows).Single(r => r.Def.Key == "externaltag");
+            var toggle = window.GetVisualDescendants().OfType<ToggleSwitch>().First(t => t.DataContext == tag && t.IsEffectivelyVisible);
+            Click(window, toggle);
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetExchangeSetting { Parameter: "Enabled", SetCmdlet: "Set-ExternalInOutlook" }), "the tag setting is staged");
+            main.Pending.DiscardAllCommand.Execute(null);
+
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "remote");
+            for (var i = 0; i < 40 && !mail.RemoteDomains.IsLoaded; i++)
+                Settle();
+            Settle();
+            var forward = mail.RemoteDomains.Domains.First(d => !d.Domain.IsDefault).Groups.SelectMany(g => g.Rows).Single(r => r.Def.Key == "autoforward");
+            var fwdToggle = window.GetVisualDescendants().OfType<ToggleSwitch>().First(t => t.DataContext == forward && t.IsEffectivelyVisible);
+            fwdToggle.BringIntoView();
+            Settle();
+            Click(window, fwdToggle);
+            Expect(main.Pending.Rows.Any(r => r.Change is SetExchangeSetting { SetCmdlet: "Set-RemoteDomain", Identity: "Partner" }), "the remote domain's setting is staged");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("Reorder Rules: the button opens the page; ticking two (Shift for a range) and To the Top moves them and stages one new order; Put Them All Back undoes it", () =>
         {
             var (window, main, _) = OpenList();
