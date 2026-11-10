@@ -1,0 +1,122 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rec="using:Tenantry.ViewModels.Records"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.GroupLifecycleEditorView"
+             x:DataType="rec:GroupLifecycleEditor">
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="rec:PersonRow">
+      <Border Classes="valuerow">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+          <StackPanel Spacing="1" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
+          <Button Grid.Column="2" Classes="danger-outline quiet" Classes.undo="{Binding HasPending}" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanRemove}"
+                  IsVisible="{Binding ShowRemove}" ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center">
+            <Panel>
+              <TextBlock Text="Remove" IsVisible="{Binding !HasPending}" />
+              <TextBlock Text="Undo" IsVisible="{Binding HasPending}" />
+            </Panel>
+          </Button>
+        </Grid>
+      </Border>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <StackPanel Spacing="12">
+    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+      <ic:FluentIcon Icon="CalendarClock" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
+      <TextBlock Grid.Column="1" Classes="h3" Text="Lifecycle and Licenses" VerticalAlignment="Center" />
+      <Button Grid.Column="2" Command="{Binding ReloadCommand}" ToolTip.Tip="Read these again">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+          <TextBlock Text="Refresh" />
+        </StackPanel>
+      </Button>
+    </Grid>
+    <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+      <Panel Width="18" Height="18" VerticalAlignment="Center">
+        <Ellipse Classes="spintrack" />
+        <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+          <Arc.RenderTransform>
+            <RotateTransform />
+          </Arc.RenderTransform>
+        </Arc>
+      </Panel>
+      <TextBlock Classes="muted" Text="Reading…" VerticalAlignment="Center" />
+    </StackPanel>
+    <Border Classes="banner error" IsVisible="{Binding HasError}">
+      <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
+    </Border>
+
+    <WrapPanel ItemSpacing="12" LineSpacing="12" IsVisible="{Binding IsReady}">
+      <!-- Expiration and label (Microsoft 365 groups) -->
+      <Border Classes="card" Width="440" IsVisible="{Binding IsUnified}">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h3" Text="Expiration" />
+          <TextBlock Text="{Binding ExpiryText}" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Command="{Binding RenewCommand}" IsEnabled="{Binding CanRenew}" IsVisible="{Binding !HasPendingRenew}"
+                    ToolTip.Tip="Start its lifetime again from today (added to Pending Changes)" ToolTip.ShowOnDisabled="True">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="ArrowClockwise" FontSize="14" />
+                <TextBlock Text="Renew Now" />
+              </StackPanel>
+            </Button>
+            <c:Badge Text="Renewing" Kind="Info" IsVisible="{Binding HasPendingRenew}" VerticalAlignment="Center" />
+            <Button Content="Undo" Command="{Binding RenewCommand}" IsVisible="{Binding HasPendingRenew}" />
+          </StackPanel>
+          <StackPanel Spacing="2" Margin="0,6,0,0">
+            <TextBlock Classes="label" Text="SENSITIVITY LABEL" />
+            <TextBlock Classes="value" Text="{Binding LabelText}" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Labels are made and published in Microsoft Purview." />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Licenses given to members -->
+      <Border Classes="card" Width="440" IsVisible="{Binding HasLicenses}">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h3" Text="Licenses for Members" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Every direct member gets these licenses while they're in the group (people in nested groups don't)." />
+          <TextBlock Classes="muted" Text="None." IsVisible="{Binding HasNoLicenses}" />
+          <ItemsControl ItemsSource="{Binding Licenses}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="4" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+          <TextBlock Classes="caption" Text="{Binding LicenseStateText}" TextWrapping="Wrap"
+                     IsVisible="{Binding LicenseStateText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <Panel HorizontalAlignment="Left" IsEnabled="{Binding CanEdit}">
+            <views:AddButton DataContext="{Binding LicensePicker}" Text="Add a License" Hint="Choose licenses to give every member. They go to Pending Changes." />
+          </Panel>
+        </StackPanel>
+      </Border>
+
+      <!-- Upgrade (distribution lists) -->
+      <Border Classes="card" Width="440" IsVisible="{Binding IsList}">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h3" Text="Upgrade to a Microsoft 365 Group" />
+          <TextBlock Text="{Binding UpgradeText}" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="accent" Command="{Binding UpgradeCommand}" IsEnabled="{Binding CanUpgrade}" IsVisible="{Binding !HasPendingUpgrade}"
+                    ToolTip.Tip="You type the list's name to confirm; it can't be undone" ToolTip.ShowOnDisabled="True">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="ArrowUp" FontSize="14" />
+                <TextBlock Text="Upgrade" />
+              </StackPanel>
+            </Button>
+            <c:Badge Text="Upgrading" Kind="Info" IsVisible="{Binding HasPendingUpgrade}" VerticalAlignment="Center" />
+            <Button Content="Undo" Command="{Binding UpgradeCommand}" IsVisible="{Binding HasPendingUpgrade}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </WrapPanel>
+  </StackPanel>
+</UserControl>

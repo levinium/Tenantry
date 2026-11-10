@@ -67,6 +67,8 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
         }
         if (await ApplyContactAsync(change, cancellationToken) is { } contacted)
             return contacted;
+        if (records is not null && await records.ApplyLifecycleAsync(change, cancellationToken) is { } lifecycle)
+            return lifecycle;
         if (await directory.ApplyGroupAsync(change, cancellationToken) is { } grouped)
             return grouped ? new ApplyResult(ChangeOutcome.Applied) : new ApplyResult(ChangeOutcome.Failed, "That group isn't in the demo any more.");
         if (change is ConvertMailbox convert)

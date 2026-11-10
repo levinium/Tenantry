@@ -136,6 +136,48 @@ public sealed record SetGroupSendAs(ChangeTarget Group, GroupKind Kind, ChangeTa
     public override ChangeOp Since(ChangeOp earlier) => earlier is SetGroupSendAs e ? this with { Old = e.Old } : this;
 }
 
+/// <summary>Renews a Microsoft 365 group under the expiration policy: its lifetime starts again from today.</summary>
+public sealed record RenewGroup(ChangeTarget Group, GroupKind Kind, string Was) : GroupChange(Group, Kind)
+{
+    public override string Key => "renew";
+    public override string Label => "Expiration";
+    public override string Before => Was;
+    public override string After => "Renewed from today";
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
+/// Gives a license to a group, or takes it away (group-based licensing): every direct member gets it,
+/// or loses it unless they have it some other way. Taking one away is a caution change.
+/// </summary>
+public sealed record SetGroupLicense(ChangeTarget Group, GroupKind Kind, string SkuId, string SkuName, bool Old, bool New) : GroupChange(Group, Kind)
+{
+    public override string Key => "license:" + SkuId;
+    public override string Label => SkuName;
+    public override string Before => Old ? "Given to members" : "Not given";
+    public override string After => New ? "Given to members" : "Removed from members";
+    public override bool IsCaution => Old && !New;
+    public override bool IsNoChange => Old == New;
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetGroupLicense e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>
+/// Upgrades a distribution list to a Microsoft 365 group (Upgrade-DistributionGroup): same address and
+/// members, plus a shared mailbox, calendar and files. It can't be undone, so the list's name is typed.
+/// </summary>
+public sealed record UpgradeList(ChangeTarget Group, GroupKind Kind) : GroupChange(Group, Kind)
+{
+    public override string Key => "upgrade";
+    public override string Label => "Upgrade to Microsoft 365 Group";
+    public override string Before => "Distribution list";
+    public override string After => "Microsoft 365 group (same address and members; can't be undone)";
+    public override bool IsCaution => true;
+    public override string? ConfirmPhrase => Group.Name;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
 /// <summary>Brings back a deleted Microsoft 365 or security group with its members and owners.</summary>
 public sealed record RestoreGroup(ChangeTarget Group, GroupKind Kind, string Detail) : GroupChange(Group, Kind)
 {

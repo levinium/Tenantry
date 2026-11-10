@@ -40,6 +40,9 @@
     <DataTemplate DataType="rec:GroupMailEditor">
       <views:GroupMailEditorView />
     </DataTemplate>
+    <DataTemplate DataType="rec:GroupLifecycleEditor">
+      <views:GroupLifecycleEditorView />
+    </DataTemplate>
     <DataTemplate DataType="rec:DeletedGroupsViewModel">
       <views:DeletedGroupsView />
     </DataTemplate>

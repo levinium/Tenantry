@@ -139,7 +139,7 @@ public sealed partial class GraphUserRecords
         var unified = group.Kind == GroupKind.Microsoft365;
         var who = new Dictionary<string, object?> { ["Identity"] = group.Id };
         var settingsRead = exchange.InvokeAsync(CmdletEndpoint.Exchange, unified ? "Get-UnifiedGroup" : "Get-DistributionGroup", who, cancellationToken,
-            unified ? [.. GroupMailSelect, .. UnifiedSelect] : GroupMailSelect);
+            unified ? [.. GroupMailSelect, .. UnifiedSelect] : [.. GroupMailSelect, "MemberJoinRestriction", "MemberDepartRestriction"]);
         var sendAsRead = exchange.InvokeAsync(CmdletEndpoint.Exchange, "Get-RecipientPermission", who, cancellationToken, ["Trustee", "AccessRights"]);
         var rows = await settingsRead;
         if (rows.Count == 0)
@@ -180,6 +180,8 @@ public sealed partial class GraphUserRecords
             Maybe("HiddenFromExchangeClientsEnabled"),
             Maybe("AutoSubscribeNewMembers"),
             Maybe("AlwaysSubscribeMembersToCalendarEvents"),
-            Maybe("WelcomeMessageEnabled"));
+            Maybe("WelcomeMessageEnabled"),
+            unified ? null : r.TryGetProperty("MemberJoinRestriction", out var join) ? join.GetString() : null,
+            unified ? null : r.TryGetProperty("MemberDepartRestriction", out var depart) ? depart.GetString() : null);
     }
 }

@@ -236,6 +236,14 @@ public sealed partial class GroupMailEditor : ObservableObject, IDisposable
     [ObservableProperty]
     public partial EditableField? Notices { get; private set; }
 
+    /// <summary>Distribution lists only: whether people can join or leave by themselves (mail-enabled security groups are always closed).</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<EditableField> Membership { get; private set; } = [];
+
+    public bool HasMembership => Membership.Count > 0;
+
+    partial void OnMembershipChanged(IReadOnlyList<EditableField> value) => OnPropertyChanged(nameof(HasMembership));
+
     public MailPeopleList AcceptList { get; }
     public MailPeopleList RejectList { get; }
     public MailPeopleList Moderators { get; }
@@ -292,7 +300,7 @@ public sealed partial class GroupMailEditor : ObservableObject, IDisposable
         FillList(Bypass, BypassParameter, m.BypassModeration);
         FillList(SendOnBehalf, OnBehalfParameter, m.SendOnBehalf);
         FillSendAs(m.SendAs);
-        foreach (var field in TextSettings.Append(Notices).OfType<EditableField>())
+        foreach (var field in TextSettings.Append(Notices).Concat(Membership).OfType<EditableField>())
             field.Refresh();
         OnPropertyChanged(nameof(CanEdit));
     }
@@ -319,6 +327,23 @@ public sealed partial class GroupMailEditor : ObservableObject, IDisposable
                     next ?? "Always", JsonValue.Create(next ?? "Always")),
                 key: "mail:SendModerationNotifications")
             : null;
+        EditableField Restriction(string label, string parameter, string? current, IReadOnlyList<FieldChoice> choices, string hint) =>
+            new(label, parameter, current ?? "Closed", target, _pipeline, editable, choices: choices, hint: hint,
+                change: (old, next) => new SetGroupMailValue(target, _group.Kind, parameter, label, old ?? "Closed", next ?? "Closed", JsonValue.Create(next ?? "Closed"),
+                    Caution: next == "Open"),
+                key: "mail:" + parameter);
+        Membership = _group.Kind == GroupKind.Distribution
+            ?
+            [
+                Restriction("Joining", "MemberJoinRestriction", m.JoinRestriction,
+                    [new FieldChoice("Closed", "Closed: only owners add people"), new FieldChoice("ApprovalRequired", "Owners approve requests to join"),
+                        new FieldChoice("Open", "Open: anyone in the organization can join")],
+                    "How people get on the list, from Outlook."),
+                Restriction("Leaving", "MemberDepartRestriction", m.DepartRestriction,
+                    [new FieldChoice("Open", "Open: members can leave by themselves"), new FieldChoice("Closed", "Closed: only owners take people off")],
+                    "Whether members can take themselves off, from Outlook."),
+            ]
+            : [];
     }
 
     /// <summary>A list or mail-enabled security group falls back to its owners as moderators (a distribution list does; EAC says owners approve).</summary>

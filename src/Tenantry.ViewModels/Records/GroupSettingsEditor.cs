@@ -33,6 +33,8 @@ public sealed partial class GroupSettingsEditor : ObservableObject, IDisposable
     {
         if (group.Kind is GroupKind.Microsoft365 or GroupKind.Distribution or GroupKind.MailEnabledSecurity)
             Mail = new GroupMailEditor(group, index, pipeline, canEdit, records, users);
+        if (GroupLifecycleEditor.Applies(group))
+            Lifecycle = new GroupLifecycleEditor(group, pipeline, canEdit, records as IGroupLifecycleRecords);
         _group = group;
         _index = index;
         _pipeline = pipeline;
@@ -58,6 +60,11 @@ public sealed partial class GroupSettingsEditor : ObservableObject, IDisposable
     public GroupMailEditor? Mail { get; }
 
     public bool HasMail => Mail is not null;
+
+    /// <summary>Expiry, label, licenses for members, upgrading a list (read when shown); null for kinds without any.</summary>
+    public GroupLifecycleEditor? Lifecycle { get; }
+
+    public bool HasLifecycle => Lifecycle is not null;
 
     // ---- Name, description, alias, privacy ---------------------------------------------
 
@@ -283,5 +290,6 @@ public sealed partial class GroupSettingsEditor : ObservableObject, IDisposable
         if (_pipeline is not null)
             _pipeline.Changed -= OnPendingChanged;
         Mail?.Dispose();
+        Lifecycle?.Dispose();
     }
 }

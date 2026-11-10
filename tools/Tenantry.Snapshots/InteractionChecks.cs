@@ -174,6 +174,32 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Group lifecycle: a Microsoft 365 group says when it expires and Renew Now stages it; Add a License gives a security group's members a license", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
+            main.Groups.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var groups = main.Groups.Rows.Cast<GroupSummary>().ToArray();
+            main.OpenGroup(groups.First(g => g.Kind == GroupKind.Microsoft365));
+            Settle();
+            var team = ((GroupDetailViewModel)main.SelectedTab!).Settings!.Lifecycle!;
+            Expect(team.IsReady && team.ExpiryText.StartsWith("Expires", StringComparison.Ordinal), "the page read when it expires");
+            var renew = FindButton(window, b => b.Command == team.RenewCommand && b.IsEffectivelyVisible);
+            renew.BringIntoView();
+            Settle();
+            Click(window, renew);
+            Expect(main.Pending!.Rows.Any(r => r.Change is RenewGroup), "Renew Now staged the renewal");
+
+            main.OpenGroup(groups.First(g => g.Kind == GroupKind.Security && !g.IsDynamic));
+            Settle();
+            var security = ((GroupDetailViewModel)main.SelectedTab!).Settings!.Lifecycle!;
+            var added = AddVia(window, security.LicensePicker, "");
+            Expect(security.Licenses.Any(l => l.Name == added && l.PendingText == "Adding"), "the license shows as being added");
+            Expect(main.Pending.Rows.Any(r => r.Change is SetGroupLicense { New: true }), "the license is in Pending Changes");
+            window.Close();
+        });
+
         Check("Group mail: the page reads the mail settings; a switch stages its setting; Add a Sender adds to who can send; Add Address opens a form and Add stages it", () =>
         {
             var (window, main, _) = OpenList();

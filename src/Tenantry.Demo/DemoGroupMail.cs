@@ -34,7 +34,9 @@ public sealed partial class DemoTenantDirectory
             HiddenFromOutlook: unified ? false : null,
             AutoSubscribe: unified ? false : null,
             CalendarEvents: unified ? true : null,
-            WelcomeMessage: unified ? true : null);
+            WelcomeMessage: unified ? true : null,
+            JoinRestriction: group.Kind == GroupKind.Distribution ? "Closed" : null,
+            DepartRestriction: group.Kind == GroupKind.Distribution ? "Open" : null);
     }
 
     /// <summary>Applies a group mail change; false when it isn't one.</summary>
@@ -62,6 +64,8 @@ public sealed partial class DemoTenantDirectory
                 "AutoSubscribeNewMembers" => mail with { AutoSubscribe = On(v.Value) },
                 "AlwaysSubscribeMembersToCalendarEvents" => mail with { CalendarEvents = On(v.Value) },
                 "UnifiedGroupWelcomeMessageEnabled" => mail with { WelcomeMessage = On(v.Value) },
+                "MemberJoinRestriction" => mail with { JoinRestriction = v.Value?.GetValue<string>() },
+                "MemberDepartRestriction" => mail with { DepartRestriction = v.Value?.GetValue<string>() },
                 _ => mail,
             },
             SetGroupAddress a => mail with

@@ -11,6 +11,8 @@ namespace Tenantry.Core.Directory;
 /// <param name="ModerationNotices">Always, Internal or Never (lists only).</param>
 /// <param name="SendAs">Trustees with Send As, as Exchange names them (a sign-in name or address).</param>
 /// <param name="HiddenFromOutlook">Microsoft 365 groups only (null for lists), as are the subscription settings.</param>
+/// <param name="JoinRestriction">Lists only: Open, Closed or ApprovalRequired (whether people can join by themselves).</param>
+/// <param name="DepartRestriction">Lists only: Open or Closed (whether people can leave by themselves).</param>
 public sealed record GroupMail(
     string? PrimaryAddress,
     IReadOnlyList<string> Addresses,
@@ -28,7 +30,9 @@ public sealed record GroupMail(
     bool? HiddenFromOutlook = null,
     bool? AutoSubscribe = null,
     bool? CalendarEvents = null,
-    bool? WelcomeMessage = null)
+    bool? WelcomeMessage = null,
+    string? JoinRestriction = null,
+    string? DepartRestriction = null)
 {
     /// <summary>The extra SMTP addresses (not the primary, not SharePoint's SPO: entries).</summary>
     public IReadOnlyList<string> Aliases => Addresses

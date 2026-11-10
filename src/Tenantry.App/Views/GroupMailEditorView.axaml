@@ -197,6 +197,25 @@
         </StackPanel>
       </Border>
 
+      <!-- Joining and leaving (distribution lists) -->
+      <Border Classes="card" Width="440" IsVisible="{Binding HasMembership}">
+        <StackPanel Spacing="12">
+          <TextBlock Classes="h3" Text="Joining and Leaving" />
+          <ItemsControl ItemsSource="{Binding Membership}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="12" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ed:EditableField">
+                <views:EditableFieldView />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
       <!-- Delegates -->
       <Border Classes="card" Width="440">
         <StackPanel Spacing="14">
