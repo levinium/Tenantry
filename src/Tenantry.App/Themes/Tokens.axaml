@@ -71,6 +71,14 @@
       <SolidColorBrush x:Key="BadgeWarningFg" Color="#7A4A00" />
       <SolidColorBrush x:Key="BadgeDangerBg" Color="#FDE2E1" />
       <SolidColorBrush x:Key="BadgeDangerFg" Color="#9F1C1C" />
+      <!-- Chart colours (mail flow reports): one per kind of mail, told apart by hue and lightness. -->
+      <SolidColorBrush x:Key="ChartGoodMail" Color="#4263EB" />
+      <SolidColorBrush x:Key="ChartSpamDetections" Color="#F0A202" />
+      <SolidColorBrush x:Key="ChartEmailPhish" Color="#E8590C" />
+      <SolidColorBrush x:Key="ChartEmailMalware" Color="#C2255C" />
+      <SolidColorBrush x:Key="ChartEdgeBlockSpam" Color="#868E96" />
+      <SolidColorBrush x:Key="ChartOther" Color="#7950F2" />
+      <SolidColorBrush x:Key="ChartTrack" Color="#EEF0F3" />
       <!-- A chip's hairline edge and its status dot. -->
       <SolidColorBrush x:Key="BadgeNeutralBorder" Color="#D6DADF" />
       <SolidColorBrush x:Key="BadgeInfoBorder" Color="#C4D4FB" />
@@ -164,6 +172,14 @@
       <SolidColorBrush x:Key="BadgeWarningFg" Color="#F4C46E" />
       <SolidColorBrush x:Key="BadgeDangerBg" Color="#47191C" />
       <SolidColorBrush x:Key="BadgeDangerFg" Color="#FFA3A3" />
+      <!-- Chart colours (mail flow reports): one per kind of mail, told apart by hue and lightness. -->
+      <SolidColorBrush x:Key="ChartGoodMail" Color="#748FFC" />
+      <SolidColorBrush x:Key="ChartSpamDetections" Color="#FFC94D" />
+      <SolidColorBrush x:Key="ChartEmailPhish" Color="#FF8C42" />
+      <SolidColorBrush x:Key="ChartEmailMalware" Color="#F06595" />
+      <SolidColorBrush x:Key="ChartEdgeBlockSpam" Color="#8D96A0" />
+      <SolidColorBrush x:Key="ChartOther" Color="#B197FC" />
+      <SolidColorBrush x:Key="ChartTrack" Color="#2C3038" />
       <!-- A chip's hairline edge and its status dot. -->
       <SolidColorBrush x:Key="BadgeNeutralBorder" Color="#464A52" />
       <SolidColorBrush x:Key="BadgeInfoBorder" Color="#2E4275" />

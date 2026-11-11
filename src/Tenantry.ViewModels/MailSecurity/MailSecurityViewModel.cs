@@ -56,12 +56,13 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         new("quarantinepolicies", "Quarantine Policies", "ShieldKeyhole"),
         new("connectionfilter", "Connection Filter", "PlugDisconnected"),
         new("alerts", "Alerts", "Alert"),
+        new("flowreports", "Mail Flow Reports", "DataBarVertical"),
     ];
 
     /// <summary>The pages in sections: the sections on one row, the chosen section's pages under it.</summary>
     public static IReadOnlyList<SecurityPageGroup> Sections { get; } =
     [
-        new("messages", "Messages", "Mail", Of("quarantine", "trace", "reports", "reported")),
+        new("messages", "Messages", "Mail", Of("quarantine", "trace", "reports", "reported", "flowreports")),
         new("rules", "Rules & Lists", "ArrowRouting", Of("rules", "lists", "blocked", "spoofed")),
         new("domains", "Domains", "Globe", Of("domains", "accepted", "remote", "connectors")),
         new("policies", "Threat Policies", "ShieldTask", Of("tp-antispam", "tp-outbound", "tp-antiphish", "tp-antimalware", "tp-safelinks", "tp-safeattach",
@@ -142,6 +143,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         QuarantinePolicies = new QuarantinePoliciesViewModel(threats, pipeline, canEdit);
         ConnectionFilter = new ConnectionFilterViewModel(threats, pipeline, canEdit);
         AlertsPage = new AlertsViewModel(records as IAlertRecords, pipeline, canEdit);
+        FlowReports = new MailFlowReportsViewModel(records as IMailFlowReports, TraceFrom, TraceTo, _now);
         Spoofed = DataListViewModel.Create(MailSecurityLists.Spoofed(s => new SpoofPreviewViewModel(s, pipeline, canEdit)),
             async ct => org is null ? [] : await org.GetSpoofedSendersAsync(ct), _ => { }, listState, _now);
         Spoofed.PrimaryAction = null;
@@ -229,6 +231,10 @@ public sealed partial class MailSecurityViewModel : TabViewModel
 
     public bool ShowAlerts => SelectedPage.Key == "alerts";
 
+    public MailFlowReportsViewModel FlowReports { get; }
+
+    public bool ShowFlowReports => SelectedPage.Key == "flowreports";
+
     public bool ShowQuarantinePolicies => SelectedPage.Key == "quarantinepolicies";
 
     public bool ShowConnectionFilter => SelectedPage.Key == "connectionfilter";
@@ -273,7 +279,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(ShowRules), nameof(ShowReports), nameof(ShowBlocked), nameof(ShowDomains), nameof(ShowReported), nameof(ShowMailSettings), nameof(ShowRemote), nameof(ShowConnectors),
         nameof(ShowAccepted), nameof(ShowJournal), nameof(ShowSpoofed), nameof(CurrentThreat), nameof(ShowThreat), nameof(ShowQuarantinePolicies), nameof(ShowConnectionFilter), nameof(ShowAlerts),
-        nameof(IsPlannedPage))]
+        nameof(ShowFlowReports), nameof(IsPlannedPage))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     public bool ShowReports => SelectedPage.Key == "reports";
@@ -320,7 +326,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         LivePage? live = value.Key switch
         {
             "mailsettings" => MailSettings, "remote" => RemoteDomains, "connectors" => Connectors, "accepted" => AcceptedDomains, "journal" => Journal,
-            "quarantinepolicies" => QuarantinePolicies, "connectionfilter" => ConnectionFilter, "alerts" => AlertsPage, _ => ThreatPages.GetValueOrDefault(value.Key),
+            "quarantinepolicies" => QuarantinePolicies, "connectionfilter" => ConnectionFilter, "alerts" => AlertsPage, "flowreports" => FlowReports, _ => ThreatPages.GetValueOrDefault(value.Key),
         };
         if (live is { IsLoaded: false })
             _ = live.Refresh();

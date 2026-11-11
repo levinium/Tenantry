@@ -1,0 +1,193 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.MailFlowReportsView"
+             x:DataType="ms:MailFlowReportsViewModel">
+  <ScrollViewer>
+    <StackPanel Spacing="12" Margin="0,0,0,24">
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h3" Text="Mail Flow Reports" />
+            <TextBlock Classes="muted" TextWrapping="Wrap" Text="How much mail came and went, how much of it was spam, phishing or malware, who sends and receives the most, and how often your mail flow rules act. Exchange keeps 90 days." />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Top">
+            <ComboBox ItemsSource="{x:Static ms:MailFlowReportsViewModel.Ranges}" SelectedItem="{Binding Range}" MinWidth="150" />
+            <Button Classes="ghost" Command="{Binding RefreshCommand}" ToolTip.Tip="Read the reports from Exchange again">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+                <TextBlock Text="Refresh" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="16" Height="16" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" Text="Reading the reports from Exchange…" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+
+      <!-- Totals -->
+      <StackPanel Spacing="8" IsVisible="{Binding IsLoaded}">
+        <TextBlock Text="{Binding Summary}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="4,0,0,0" />
+        <ItemsControl ItemsSource="{Binding Tiles}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemSpacing="10" LineSpacing="10" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="ms:MailFlowTile">
+              <Border Classes="card" MinWidth="150" ToolTip.Tip="{Binding Explanation}">
+                <StackPanel Spacing="2">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <c:SegmentBar Width="10" Height="10" Fraction="1" Kind="{Binding Kind}" IsVisible="{Binding Kind, Converter={x:Static ObjectConverters.IsNotNull}}" VerticalAlignment="Center" />
+                    <TextBlock Classes="label" Text="{Binding Title}" />
+                  </StackPanel>
+                  <TextBlock Text="{Binding CountText}" FontSize="22" FontWeight="SemiBold" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <!-- A bar per day (or week) -->
+      <Border Classes="card" IsVisible="{Binding IsLoaded}">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="h3" Text="{Binding BarsHeading}" />
+          <ItemsControl ItemsSource="{x:Static ms:MailFlowReportsViewModel.Legend}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel ItemSpacing="16" LineSpacing="4" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ms:MailFlowLegend">
+                <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Explanation}">
+                  <c:SegmentBar Width="10" Height="10" Fraction="1" Kind="{Binding Kind}" VerticalAlignment="Center" />
+                  <TextBlock Classes="caption" Text="{Binding Title}" VerticalAlignment="Center" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <ItemsControl ItemsSource="{Binding Bars}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ms:MailFlowBar">
+                <Grid ColumnDefinitions="130,*,80" ColumnSpacing="10" Margin="0,2" Background="Transparent" ToolTip.Tip="{Binding Tip}">
+                  <TextBlock Classes="caption" Text="{Binding Label}" VerticalAlignment="Center" />
+                  <c:SegmentBar Grid.Column="1" Height="14" Segments="{Binding Segments}" Maximum="{Binding Maximum}" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Classes="caption" Text="{Binding TotalText}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <!-- How Defender caught threats (slow, read after the rest) -->
+      <Border Classes="card" IsVisible="{Binding IsLoaded}">
+        <StackPanel Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="h3" Text="{Binding ThreatsHeading}" />
+              <TextBlock Classes="caption" TextWrapping="Wrap" Text="Which of Microsoft's filters stopped each kind of threat. This report is slow, so it always covers the last week." />
+            </StackPanel>
+            <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshThreatsCommand}" VerticalAlignment="Top" ToolTip.Tip="Read Defender's breakdown again">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+            </Button>
+          </Grid>
+          <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding ThreatsLoading}">
+            <Panel Width="16" Height="16" VerticalAlignment="Center">
+              <Ellipse Classes="spintrack" />
+              <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                <Arc.RenderTransform>
+                  <RotateTransform />
+                </Arc.RenderTransform>
+              </Arc>
+            </Panel>
+            <TextBlock Classes="muted" Text="Reading Defender's breakdown (this takes a few seconds)…" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Classes="muted" Text="{Binding ThreatsNote}" IsVisible="{Binding HasThreatsNote}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding Threats}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="10" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ms:ThreatCatchGroup">
+                <StackPanel Spacing="4">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                    <TextBlock Classes="caption" Text="{Binding TotalText}" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <ItemsControl ItemsSource="{Binding Rows}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="ms:ThreatCatchRow">
+                        <Grid ColumnDefinitions="220,*,80" ColumnSpacing="10" Margin="0,1">
+                          <TextBlock Classes="caption" Text="{Binding Technology}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                          <c:SegmentBar Grid.Column="1" Height="8" Fraction="{Binding Fraction}" Kind="Other" VerticalAlignment="Center" />
+                          <TextBlock Grid.Column="2" Classes="caption" Text="{Binding CountText}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <!-- Top lists -->
+      <ItemsControl ItemsSource="{Binding TopLists}" IsVisible="{Binding IsLoaded}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Columns="2" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ms:MailFlowTopList">
+            <Border Classes="card" Margin="0,0,12,12" VerticalAlignment="Top">
+              <StackPanel Spacing="6">
+                <TextBlock Classes="h3" Text="{Binding Title}" />
+                <TextBlock Classes="caption" Text="{Binding Explanation}" TextWrapping="Wrap" />
+                <TextBlock Classes="muted" Text="{Binding Note}" IsVisible="{Binding HasNote}" TextWrapping="Wrap" />
+                <ItemsControl ItemsSource="{Binding Rows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="ms:MailFlowTopRow">
+                      <Grid ColumnDefinitions="*,90,64,Auto" ColumnSpacing="8" Margin="0,1">
+                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}" />
+                        <c:SegmentBar Grid.Column="1" Height="8" Fraction="{Binding Fraction}" Kind="GoodMail" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2" Classes="caption" Text="{Binding CountText}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        <Button Grid.Column="3" Padding="8,2" FontSize="12" Command="{Binding TraceCommand}" IsVisible="{Binding CanTrace}"
+                                ToolTip.Tip="{Binding $parent[ItemsControl].((ms:MailFlowTopList)DataContext).TraceTip}">
+                          <StackPanel Orientation="Horizontal" Spacing="4">
+                            <ic:FluentIcon Icon="Search" FontSize="12" />
+                            <TextBlock Text="Trace" />
+                          </StackPanel>
+                        </Button>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ToggleButton Padding="10,2" FontSize="12" IsChecked="{Binding ShowAll}" IsVisible="{Binding HasMore}" Content="{Binding ShowAllText}" HorizontalAlignment="Left" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -380,6 +380,31 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Mail Flow Reports: Trace on a top sender opens Message Trace for that sender; Show All lists the rest", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "flowreports");
+            for (var i = 0; i < 40 && !mail.FlowReports.IsLoaded; i++)
+                Settle();
+            Settle();
+            Expect(mail.FlowReports.Bars.Count == 7, "a bar for each of the last 7 days");
+            var senders = mail.FlowReports.TopLists.Single(t => t.Title == "Top Senders");
+            var more = window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.ToggleButton>().First(t => t.DataContext == senders && t.IsEffectivelyVisible);
+            more.BringIntoView();
+            Settle();
+            Click(window, more);
+            Expect(senders.Rows.Count > Tenantry.ViewModels.MailSecurity.MailFlowTopList.Shown, "Show All lists every sender");
+            var first = senders.Rows[0];
+            var trace = FindButton(window, b => b.Command == first.TraceCommand && b.IsEffectivelyVisible);
+            trace.BringIntoView();
+            Settle();
+            Click(window, trace);
+            Expect(mail.SelectedPage.Key == "trace" && mail.TraceSender == first.Name, "Message Trace opens on that sender");
+            window.Close();
+        });
+
         Check("Alerts: Resolve: False Alarm stages a resolution; a test alert policy's switch stages turning it off", () =>
         {
             var (window, main, _) = OpenList();
