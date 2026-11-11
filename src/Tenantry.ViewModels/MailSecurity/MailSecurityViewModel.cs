@@ -47,6 +47,14 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         new("spoofed", "Spoofed Senders", "PersonWarning"),
         new("mailsettings", "Mail Settings", "Settings"),
         new("journal", "Journal Rules", "Archive"),
+        new("tp-antispam", "Anti-Spam", "MailWarning"),
+        new("tp-outbound", "Outbound Spam", "MailArrowUp"),
+        new("tp-antiphish", "Anti-Phishing", "PersonAlert"),
+        new("tp-antimalware", "Anti-Malware", "Bug"),
+        new("tp-safelinks", "Safe Links", "LinkSquare"),
+        new("tp-safeattach", "Safe Attachments", "Attach"),
+        new("quarantinepolicies", "Quarantine Policies", "ShieldKeyhole"),
+        new("connectionfilter", "Connection Filter", "PlugDisconnected"),
     ];
 
     /// <summary>The pages in sections: the sections on one row, the chosen section's pages under it.</summary>
@@ -55,6 +63,8 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         new("messages", "Messages", "Mail", Of("quarantine", "trace", "reports", "reported")),
         new("rules", "Rules & Lists", "ArrowRouting", Of("rules", "lists", "blocked", "spoofed")),
         new("domains", "Domains", "Globe", Of("domains", "accepted", "remote", "connectors")),
+        new("policies", "Threat Policies", "ShieldTask", Of("tp-antispam", "tp-outbound", "tp-antiphish", "tp-antimalware", "tp-safelinks", "tp-safeattach",
+            "quarantinepolicies", "connectionfilter")),
         new("organization", "Organization", "Building", Of("mailsettings", "journal")),
     ];
 
@@ -126,6 +136,10 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         Connectors = new ConnectorsViewModel(org, pipeline, canEdit);
         AcceptedDomains = new AcceptedDomainsViewModel(org, pipeline, canEdit);
         Journal = new JournalRulesViewModel(org, pipeline, canEdit);
+        var threats = records as IThreatPolicyRecords;
+        ThreatPages = ThreatPolicyCatalog.Kinds.ToDictionary(k => "tp-" + k.Key, k => new ThreatPoliciesViewModel(k, threats, pipeline, canEdit));
+        QuarantinePolicies = new QuarantinePoliciesViewModel(threats, pipeline, canEdit);
+        ConnectionFilter = new ConnectionFilterViewModel(threats, pipeline, canEdit);
         Spoofed = DataListViewModel.Create(MailSecurityLists.Spoofed(s => new SpoofPreviewViewModel(s, pipeline, canEdit)),
             async ct => org is null ? [] : await org.GetSpoofedSendersAsync(ct), _ => { }, listState, _now);
         Spoofed.PrimaryAction = null;
@@ -196,6 +210,22 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     public ConnectorsViewModel Connectors { get; }
     public AcceptedDomainsViewModel AcceptedDomains { get; }
     public JournalRulesViewModel Journal { get; }
+
+    /// <summary>A page per kind of threat policy, by page key ("tp-antispam"…).</summary>
+    public IReadOnlyDictionary<string, ThreatPoliciesViewModel> ThreatPages { get; }
+
+    /// <summary>The threat policy page showing, if one is.</summary>
+    public ThreatPoliciesViewModel? CurrentThreat => ThreatPages.GetValueOrDefault(SelectedPage.Key);
+
+    public bool ShowThreat => CurrentThreat is not null;
+
+    public QuarantinePoliciesViewModel QuarantinePolicies { get; }
+
+    public ConnectionFilterViewModel ConnectionFilter { get; }
+
+    public bool ShowQuarantinePolicies => SelectedPage.Key == "quarantinepolicies";
+
+    public bool ShowConnectionFilter => SelectedPage.Key == "connectionfilter";
     public DataListViewModel Spoofed { get; }
 
     public bool ShowMailSettings => SelectedPage.Key == "mailsettings";
@@ -236,7 +266,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowQuarantine), nameof(ShowTrace), nameof(ShowLists), nameof(ShowRules), nameof(ShowReports), nameof(ShowBlocked), nameof(ShowDomains), nameof(ShowReported), nameof(ShowMailSettings), nameof(ShowRemote), nameof(ShowConnectors),
-        nameof(ShowAccepted), nameof(ShowJournal), nameof(ShowSpoofed),
+        nameof(ShowAccepted), nameof(ShowJournal), nameof(ShowSpoofed), nameof(CurrentThreat), nameof(ShowThreat), nameof(ShowQuarantinePolicies), nameof(ShowConnectionFilter),
         nameof(IsPlannedPage))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
@@ -283,7 +313,8 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             _ = Reported.LoadAsync();
         LivePage? live = value.Key switch
         {
-            "mailsettings" => MailSettings, "remote" => RemoteDomains, "connectors" => Connectors, "accepted" => AcceptedDomains, "journal" => Journal, _ => null,
+            "mailsettings" => MailSettings, "remote" => RemoteDomains, "connectors" => Connectors, "accepted" => AcceptedDomains, "journal" => Journal,
+            "quarantinepolicies" => QuarantinePolicies, "connectionfilter" => ConnectionFilter, _ => ThreatPages.GetValueOrDefault(value.Key),
         };
         if (live is { IsLoaded: false })
             _ = live.Refresh();

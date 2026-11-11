@@ -11,6 +11,9 @@
         <TextBlock Text="{Binding Label}" FontWeight="SemiBold" TextWrapping="Wrap" />
         <TextBlock Classes="muted" Text="{Binding Help}" TextWrapping="Wrap" />
         <TextBlock Classes="caption" Text="{Binding UnsetText}" IsVisible="{Binding IsUnset}" />
+        <TextBlock Classes="caption" Text="{Binding RecommendedNote}" IsVisible="{Binding HasRecommendedNote}" Foreground="{DynamicResource BadgeWarningFg}" TextWrapping="Wrap" />
+        <TextBox Text="{Binding ListText}" IsVisible="{Binding IsList}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" MaxHeight="160" Margin="0,4,0,0"
+                 PlaceholderText="None. One per line." c:EditCommit.Commit="{Binding CommitListCommand}" IsEnabled="{Binding CanEdit}" />
         <TextBlock Classes="error" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
       </StackPanel>
       <Panel Grid.Column="1" VerticalAlignment="Center" IsEnabled="{Binding CanEdit}">

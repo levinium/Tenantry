@@ -347,6 +347,39 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Threat policies: a default's bulk threshold stages on Enter; a test policy turns off; a new policy needs who it covers", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            var spam = mail.ThreatPages["tp-antispam"];
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "tp-antispam");
+            for (var i = 0; i < 40 && !spam.IsLoaded; i++)
+                Settle();
+            var test = spam.Cards.Single(c => c.Policy.Name.StartsWith("zz-tenantry-test-", StringComparison.Ordinal));
+            test.IsExpanded = true;
+            Settle();
+            Settle();
+            var off = FindButton(window, b => b.Command == test.SwitchCommand && b.IsEffectivelyVisible);
+            off.BringIntoView();
+            Settle();
+            Click(window, off);
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetThreatRuleEnabled), "the test policy's switch is staged");
+            main.Pending.DiscardAllCommand.Execute(null);
+
+            var add = FindButton(window, b => b.Command == spam.AddCommand && b.IsEffectivelyVisible);
+            add.BringIntoView();
+            Settle();
+            spam.NewName = "zz-tenantry-test-new";
+            Click(window, add);
+            Expect(spam.HasAddProblem && !main.Pending.Rows.Any(), "without who it covers, it says so");
+            spam.NewDomains = "northgate.example";
+            Click(window, add);
+            Expect(main.Pending.Rows.Any(r => r.Change is CreateThreatPolicy), "with a domain, the new policy is staged");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("Reorder Rules: the button opens the page; ticking two (Shift for a range) and To the Top moves them and stages one new order; Put Them All Back undoes it", () =>
         {
             var (window, main, _) = OpenList();

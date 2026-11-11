@@ -178,6 +178,16 @@
     </Panel>
 
     <!-- Domains, connectors, spoofing and the organization's settings (12e) -->
+    <!-- Threat policies (12f) -->
+    <Panel IsVisible="{Binding ShowThreat}">
+      <views:ThreatPoliciesView DataContext="{Binding CurrentThreat}" />
+    </Panel>
+    <Panel IsVisible="{Binding ShowQuarantinePolicies}">
+      <views:QuarantinePoliciesView DataContext="{Binding QuarantinePolicies}" />
+    </Panel>
+    <Panel IsVisible="{Binding ShowConnectionFilter}">
+      <views:ConnectionFilterView DataContext="{Binding ConnectionFilter}" />
+    </Panel>
     <Panel IsVisible="{Binding ShowMailSettings}">
       <views:MailSettingsView DataContext="{Binding MailSettings}" />
     </Panel>

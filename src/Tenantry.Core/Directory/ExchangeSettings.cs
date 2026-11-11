@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 namespace Tenantry.Core.Directory;
 
 /// <summary>How a setting is edited.</summary>
-public enum SettingKind { OnOff, Number, Choice }
+public enum SettingKind { OnOff, Number, Choice, List }
 
 /// <summary>
 /// One Exchange setting the app can show and change: where it's read and written (a Get-/Set- pair,
@@ -17,8 +17,14 @@ public enum SettingKind { OnOff, Number, Choice }
 /// <param name="Caution">Turning it this way takes something away: the change asks to confirm.</param>
 public sealed record SettingDef(string Group, string Key, string Label, string Help, string GetCmdlet, string SetCmdlet, string Parameter,
     SettingKind Kind = SettingKind.OnOff, bool Inverted = false, IReadOnlyList<(string Value, string Label)>? Choices = null,
-    bool? CautionWhen = null, int Min = 0, int Max = int.MaxValue, string? Unit = null, bool? DefaultOn = null)
+    bool? CautionWhen = null, int Min = 0, int Max = int.MaxValue, string? Unit = null, bool? DefaultOn = null, JsonNode? Recommended = null)
 {
+    /// <summary>Microsoft's recommendation in words, when there is one ("Microsoft's Standard: Quarantine").</summary>
+    public string? RecommendedText => Recommended is null ? null : Words(Recommended);
+
+    /// <summary>The value differs from Microsoft's recommendation.</summary>
+    public bool Differs(JsonNode? value) => Recommended is not null && value is not null && !JsonNode.DeepEquals(value, Recommended);
+
     /// <summary>The setting's value as the app shows it, from Exchange's row; null when Exchange leaves it unset.</summary>
     public JsonNode? Read(JsonElement row)
     {
@@ -28,7 +34,10 @@ public sealed record SettingDef(string Group, string Key, string Label, string H
         {
             SettingKind.OnOff => v.ValueKind is JsonValueKind.True or JsonValueKind.False ? JsonValue.Create((v.ValueKind == JsonValueKind.True) != Inverted) : null,
             SettingKind.Number => v.ValueKind == JsonValueKind.Number ? JsonValue.Create(v.GetInt32()) : null,
-            _ => v.ValueKind == JsonValueKind.String ? JsonValue.Create(v.GetString()) : null,
+            SettingKind.List => v.ValueKind == JsonValueKind.Array
+                ? new JsonArray([.. v.EnumerateArray().Select(i => i.ValueKind == JsonValueKind.String ? i.GetString() : i.ToString()).Where(i => !string.IsNullOrWhiteSpace(i)).Select(i => (JsonNode?)JsonValue.Create(i))])
+                : v.ValueKind == JsonValueKind.Null ? new JsonArray() : null,
+            _ => v.ValueKind == JsonValueKind.String ? JsonValue.Create(v.GetString()) : v.ValueKind == JsonValueKind.Number ? JsonValue.Create(v.ToString()) : null,
         };
     }
 
@@ -37,6 +46,7 @@ public sealed record SettingDef(string Group, string Key, string Label, string H
     {
         SettingKind.OnOff => value?.GetValue<bool>() is { } on ? on != Inverted : null,
         SettingKind.Number => value?.GetValue<int>(),
+        SettingKind.List => value is JsonArray items ? items.Select(i => i!.GetValue<string>()).ToArray() : Array.Empty<string>(),
         _ => value?.GetValue<string>(),
     };
 
@@ -46,6 +56,9 @@ public sealed record SettingDef(string Group, string Key, string Label, string H
     {
         SettingKind.OnOff => value.GetValue<bool>() ? "On" : "Off",
         SettingKind.Number => $"{value.GetValue<int>():N0}{(Unit is null ? "" : " " + Unit)}",
+        SettingKind.List => value is JsonArray { Count: > 0 } items
+            ? items.Count <= 3 ? string.Join(", ", items.Select(i => i!.GetValue<string>())) : $"{items.Count:N0} entries"
+            : "None",
         _ => Choices?.FirstOrDefault(c => c.Value.Equals(value.GetValue<string>(), StringComparison.OrdinalIgnoreCase)).Label ?? value.GetValue<string>(),
     };
 

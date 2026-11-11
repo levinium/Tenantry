@@ -47,8 +47,28 @@ public sealed partial class SettingRow : ObservableObject
         if (def.Kind == SettingKind.Choice && read?.GetValue<string>() is { } value)
             Choice = Choices.FirstOrDefault(c => c.Value.Equals(value, StringComparison.OrdinalIgnoreCase));
         NumberText = def.Kind == SettingKind.Number && read is not null ? read.GetValue<int>().ToString(CultureInfo.CurrentCulture) : "";
+        ListText = read is JsonArray items ? string.Join(Environment.NewLine, items.Select(i => i!.GetValue<string>())) : "";
         _loading = false;
     }
+
+    /// <summary>A list, one entry per line (commas and semicolons also separate); it takes effect on leaving the box.</summary>
+    [ObservableProperty]
+    public partial string ListText { get; set; }
+
+    public bool IsList => Def.Kind == SettingKind.List;
+
+    [RelayCommand]
+    void CommitList()
+    {
+        var items = ListText.Split(['\n', '\r', ',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        Restage(new JsonArray([.. items.Select(i => (JsonNode?)JsonValue.Create(i))]));
+    }
+
+    /// <summary>"Microsoft's Standard: Quarantine", when this differs from Microsoft's recommendation.</summary>
+    public string? RecommendedNote => Def.Differs(_read ?? (Def.Kind == SettingKind.OnOff && Def.DefaultOn is { } d ? JsonValue.Create(d) : null))
+        ? $"Microsoft's recommendation: {Def.RecommendedText}" : null;
+
+    public bool HasRecommendedNote => RecommendedNote is not null;
 
     public SettingDef Def { get; }
 
@@ -111,7 +131,11 @@ public sealed partial class SettingRow : ObservableObject
         if (JsonNode.DeepEquals(value, _read))
             return;
         pipeline.Stage(new SetExchangeSetting(_owner, Def.SetCmdlet, Def.GetCmdlet, _identity, Def.Parameter, Def.Label,
-            Def.ToExchange(value) switch { bool b => JsonValue.Create(b), int n => JsonValue.Create(n), string s => JsonValue.Create(s), _ => null },
+            Def.ToExchange(value) switch
+            {
+                bool b => JsonValue.Create(b), int n => JsonValue.Create(n), string s => JsonValue.Create(s),
+                string[] list => new JsonArray([.. list.Select(i => (JsonNode?)JsonValue.Create(i))]), _ => null,
+            },
             Def.Words(_read), Def.Words(value), Def.IsCaution(value)));
     }
 }

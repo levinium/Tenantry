@@ -1,0 +1,147 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.ThreatPoliciesView"
+             x:DataType="ms:ThreatPoliciesViewModel">
+  <ScrollViewer>
+    <StackPanel Spacing="12" Margin="0,0,0,24">
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h3" Text="{Binding Title}" />
+            <TextBlock Classes="muted" TextWrapping="Wrap" Text="{Binding About}" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+      <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </Border>
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="16" Height="16" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" Text="Reading from Exchange…" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+      <Border Classes="banner neutral" IsVisible="{Binding NotLicensed}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding NotLicensedText}" />
+      </Border>
+      <ItemsControl ItemsSource="{Binding Cards}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ms:ThreatPolicyCard">
+            <Border Classes="card">
+              <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch">
+                <Expander.Header>
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding AppliesTo}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                      <TextBlock Classes="caption" Text="{Binding OrderText}" VerticalAlignment="Center" />
+                      <c:Badge Text="{Binding StateText}" Kind="{Binding StateKind}" />
+                      <c:Badge Text="{Binding SummaryText}" Kind="{Binding SummaryKind}" />
+                    </StackPanel>
+                  </Grid>
+                </Expander.Header>
+                <StackPanel Spacing="10">
+                  <Border Classes="banner neutral" IsVisible="{Binding IsReadOnly}">
+                    <TextBlock TextWrapping="Wrap" Text="{Binding ReadOnlyText}" />
+                  </Border>
+                  <WrapPanel ItemSpacing="8" LineSpacing="8">
+                    <Button Content="{Binding SwitchText}" Command="{Binding SwitchCommand}" IsVisible="{Binding CanSwitch}"
+                            ToolTip.Tip="Turn the policy on or off (added to Pending Changes)" />
+                    <Button Classes="danger-outline" Content="{Binding RemoveText}" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}"
+                            ToolTip.Tip="Remove the policy and its rule; its people fall to the next policy or the default (added to Pending Changes)" />
+                  </WrapPanel>
+                  <StackPanel IsVisible="{Binding HasRule}" Spacing="6">
+                    <ItemsControl ItemsSource="{Binding Rule}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Spacing="8" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="ms:SettingGroup">
+                          <Border>
+                            <StackPanel Spacing="6">
+                              <TextBlock Classes="label" Text="{Binding Title}" />
+                              <ItemsControl ItemsSource="{Binding Rows}">
+                                <ItemsControl.ItemTemplate>
+                                  <DataTemplate x:DataType="ms:SettingRow">
+                                    <views:SettingRowView />
+                                  </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                              </ItemsControl>
+                            </StackPanel>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                  <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Spacing="8" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="ms:SettingGroup">
+                        <Border>
+                          <StackPanel Spacing="6">
+                            <TextBlock Classes="label" Text="{Binding Title}" />
+                            <ItemsControl ItemsSource="{Binding Rows}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="ms:SettingRow">
+                                  <views:SettingRowView />
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Expander>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Border Classes="card" IsEnabled="{Binding CanEdit}" IsVisible="{Binding !NotLicensed}">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="NEW POLICY" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="It starts with Microsoft&apos;s default settings and runs after the policies above; open it to change its settings once it&apos;s made." />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="8">
+            <TextBox Text="{Binding NewName}" PlaceholderText="Name" />
+            <TextBox Grid.Column="1" Text="{Binding NewDomains}" PlaceholderText="Domains it covers (optional)" />
+            <TextBox Grid.Row="1" Text="{Binding NewPeople}" PlaceholderText="People it covers, by address (optional)" />
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NewGroups}" PlaceholderText="Groups it covers (optional)" />
+          </Grid>
+          <TextBlock Classes="error" Text="{Binding AddProblem}" IsVisible="{Binding HasAddProblem}" TextWrapping="Wrap" />
+          <Button Classes="accent" Content="Add the Policy" Command="{Binding AddCommand}" HorizontalAlignment="Left"
+                  ToolTip.Tip="Make the policy and its rule (added to Pending Changes)" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

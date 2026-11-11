@@ -59,6 +59,9 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             return mailDomain;
         if (records is not null && records.ApplySubmission(change) is { } submission)
             return submission;
+        // Threat policies first: their settings are SetExchangeSetting too, with their own nouns.
+        if (records is not null && records.ApplyThreatPolicy(change) is { } threat)
+            return threat;
         if (records is not null && records.ApplyExchangeOrg(change) is { } exchangeOrg)
             return exchangeOrg;
         if (change is CreateUser create)

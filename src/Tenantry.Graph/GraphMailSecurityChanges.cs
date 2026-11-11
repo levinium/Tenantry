@@ -148,6 +148,92 @@ public sealed partial class GraphChangeExecutor
             ct => Read("Get-JournalRule", new(), ct), rows => !rows.Any(r => string.Equals(GraphUserRecords.StrOf(r, "Name"), change.Rule.Name, StringComparison.OrdinalIgnoreCase)),
             cancellationToken);
 
+    // ---- Threat policies (12f) ---------------------------------------------------------------------
+
+    /// <summary>The policy, then the rule naming it and who it covers (as the portal makes both).</summary>
+    internal static IReadOnlyList<(string Cmdlet, Dictionary<string, object?> Parameters)> CreatePolicyCalls(CreateThreatPolicy change)
+    {
+        var rule = new Dictionary<string, object?> { ["Name"] = change.Policy.Name, [change.PolicyNoun] = change.Policy.Name };
+        foreach (var (parameter, values) in change.WhoParameters.Zip(new[] { change.People, change.Groups, change.Domains }))
+            if (values.Count > 0)
+                rule[parameter] = values.ToArray();
+        return [("New-" + change.PolicyNoun, new() { ["Name"] = change.Policy.Name }), ("New-" + change.RuleNoun, rule)];
+    }
+
+    async Task<ApplyResult> CreateThreatPolicyAsync(CreateThreatPolicy change, CancellationToken cancellationToken)
+    {
+        if (exchange is null)
+            return NoExchange;
+        var calls = CreatePolicyCalls(change);
+        for (var i = 0; i < calls.Count; i++)
+        {
+            try
+            {
+                await exchange.InvokeAsync(CmdletEndpoint.Exchange, calls[i].Cmdlet, calls[i].Parameters, cancellationToken);
+            }
+            catch (CmdletException e)
+            {
+                return new ApplyResult(i == 0 ? ChangeOutcome.Failed : ChangeOutcome.AppliedNotYetVisible,
+                    i == 0 ? $"{e.Explanation}" : $"The policy was made but its rule wasn't: {e.Explanation} Remove the policy, or add who it covers, and try again.");
+            }
+        }
+        foreach (var wait in ReadBackWaits)
+        {
+            if (wait > TimeSpan.Zero)
+                await _delay(wait, cancellationToken);
+            try
+            {
+                if ((await Read("Get-" + change.RuleNoun, new() { ["Identity"] = change.Policy.Name }, cancellationToken)).Count == 1)
+                    return new ApplyResult(ChangeOutcome.Applied);
+            }
+            catch (CmdletException)
+            {
+                // Not listed yet: Exchange answers "couldn't be found" until it is.
+            }
+        }
+        return new ApplyResult(ChangeOutcome.AppliedNotYetVisible, "Exchange made it but doesn't list it yet; check again in a minute.");
+    }
+
+    /// <summary>The rule first, then the policy: Exchange keeps either if only the other goes.</summary>
+    internal static IReadOnlyList<(string Cmdlet, Dictionary<string, object?> Parameters)> RemovePolicyCalls(RemoveThreatPolicy change) =>
+    [
+        .. change.HasRule ? new[] { ("Remove-" + change.RuleNoun, new Dictionary<string, object?> { ["Identity"] = change.Policy.Name, ["Confirm"] = false }) } : [],
+        ("Remove-" + change.PolicyNoun, new Dictionary<string, object?> { ["Identity"] = change.Policy.Name, ["Confirm"] = false }),
+    ];
+
+    async Task<ApplyResult> RemoveThreatPolicyAsync(RemoveThreatPolicy change, CancellationToken cancellationToken)
+    {
+        if (exchange is null)
+            return NoExchange;
+        foreach (var (cmdlet, parameters) in RemovePolicyCalls(change))
+        {
+            try
+            {
+                await exchange.InvokeAsync(CmdletEndpoint.Exchange, cmdlet, parameters, cancellationToken);
+            }
+            catch (CmdletException e)
+            {
+                return new ApplyResult(ChangeOutcome.Failed, $"{cmdlet} failed: {e.Explanation}");
+            }
+        }
+        var left = await Read("Get-" + change.PolicyNoun, new(), cancellationToken);
+        return left.Any(r => string.Equals(GraphUserRecords.StrOf(r, "Name"), change.Policy.Name, StringComparison.OrdinalIgnoreCase))
+            ? new ApplyResult(ChangeOutcome.AppliedNotYetVisible, "Exchange took it but still lists the policy; check again in a minute.")
+            : new ApplyResult(ChangeOutcome.Applied);
+    }
+
+    Task<ApplyResult> SetThreatRuleEnabledAsync(SetThreatRuleEnabled change, CancellationToken cancellationToken) =>
+        RunCheckedAsync((change.New ? "Enable-" : "Disable-") + change.RuleNoun, new() { ["Identity"] = change.Policy.Name, ["Confirm"] = false },
+            ct => Read("Get-" + change.RuleNoun, new() { ["Identity"] = change.Policy.Name }, ct),
+            rows => rows.Count == 1 && string.Equals(GraphUserRecords.StrOf(rows[0], "State"), change.New ? "Enabled" : "Disabled", StringComparison.OrdinalIgnoreCase),
+            cancellationToken);
+
+    Task<ApplyResult> SetQuarantinePermissionsAsync(SetQuarantinePermissions change, CancellationToken cancellationToken) =>
+        RunCheckedAsync("Set-QuarantinePolicy", new() { ["Identity"] = change.QuarantinePolicy.Name, ["EndUserQuarantinePermissionsValue"] = change.New },
+            ct => Read("Get-QuarantinePolicy", new() { ["Identity"] = change.QuarantinePolicy.Name }, ct),
+            rows => rows.Count == 1 && QuarantinePermissions.Value(QuarantinePermissions.Parse(GraphUserRecords.StrOf(rows[0], "EndUserQuarantinePermissions") ?? "")) == change.New,
+            cancellationToken);
+
     // ---- Where reports go, and answering a report (12d) ---------------------------------------
 
     internal const string ReportPolicy = "DefaultReportSubmissionPolicy";
