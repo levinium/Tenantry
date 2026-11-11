@@ -167,6 +167,9 @@ public interface IAppRecords
     Task<IReadOnlyList<NamedPermission>> GetApiPermissionsAsync(string resourceAppId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<NamedPermission>>([]);
 
+    /// <summary>An enterprise app's SAML single sign-on; null when it can't be read.</summary>
+    Task<SamlSetup?> GetSamlAsync(EnterpriseApp app, CancellationToken cancellationToken = default) => Task.FromResult<SamlSetup?>(null);
+
     /// <summary>App registrations deleted in the last 30 days, which can be restored.</summary>
     Task<IReadOnlyList<DeletedApp>> GetDeletedAppsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<DeletedApp>>([]);
 }

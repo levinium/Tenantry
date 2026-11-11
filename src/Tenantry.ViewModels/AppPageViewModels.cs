@@ -540,6 +540,7 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
             new AppSection("overview", "Overview", "Home", _ => Task.FromResult(OverviewCards())),
             new AppSection("assignments", "Users & Groups", "PeopleCheckmark", AssignmentCardsAsync, "Reading who has access…"),
             new AppSection("permissions", "Permissions", "ShieldKeyhole", PermissionCardsAsync, "Reading what it's been allowed to do…"),
+            new AppSection("sso", "Single Sign-On", "PersonKey", SsoCardsAsync, "Reading its single sign-on…"),
             new AppSection("owners", "Owners", "People", async ct =>
             {
                 _owners = (await DetailAsync(ct))?.Owners ?? [];
@@ -598,6 +599,9 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
         App = app;
         _directory = directory;
         _detail = null;
+        _saml = null;
+        _shownSaml = null;
+        _settingUp = false;
         Refresh(nameof(App));
         return true;
     }

@@ -67,7 +67,7 @@ public sealed partial class DemoUserRecords : IAppRecords
                 [Secret("k-scanner-1", "Scanner", -60, 670)], Asks("p-mail-send"), [("Mobile and Desktop", "https://login.microsoftonline.com/common/oauth2/nativeclient")], [Owner(3)]),
         ];
         EnterpriseApp Ours(AppRegistration r, bool enabled = true, bool required = false) =>
-            new($"sp-{r.Id[4..]}", r.AppId, r.Name, "Northgate", false, AppSource.ThisOrganization, "Application", enabled, required, true, true, r.Created);
+            new($"sp-{r.Id[4..]}", r.AppId, r.Name, "Northgate", false, AppSource.ThisOrganization, "Application", enabled, required, true, true, r.Created, r.Id == "app-reports" ? "saml" : null);
         _enterprise =
         [
             .. _registrations.Select(r => Ours(r, enabled: r.Id != "app-reports", required: r.Id == "app-payroll")),
@@ -176,6 +176,15 @@ public sealed partial class DemoUserRecords : IAppRecords
             case AddAppSecret s:
                 Edit(id, a => a with { Credentials = [.. a.Credentials, new AppCredential($"k-{Guid.NewGuid():N}", true, s.Description, "Dmo", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMonths(s.Months))] });
                 return new ApplyResult(ChangeOutcome.Applied, "Copy it now (demo).", Reveal: "Dmo8Q~" + Guid.NewGuid().ToString("N")[..28]);
+            case CreateSamlApp n:
+                var samlApp = new AppRegistration($"app-{Guid.NewGuid():N}", Guid.NewGuid().ToString(), n.App.Name, "AzureADMyOrg", DateTimeOffset.UtcNow, [], [], [], []);
+                _registrations.Add(samlApp);
+                _enterprise!.Add(new EnterpriseApp($"sp-{Guid.NewGuid():N}", samlApp.AppId, samlApp.Name, "Northgate", false, AppSource.ThisOrganization, "Application", true, false, true, true,
+                    DateTimeOffset.UtcNow));
+                return new ApplyResult(ChangeOutcome.Applied, $"Application (client) ID {samlApp.AppId}. Set up SAML on its Single Sign-On tab.");
+            case SetSaml or AddSamlCertificate or SetSamlActiveCertificate or StopSaml:
+                ApplySaml(app);
+                break;
             case SetAppProperty p:
                 Edit(id, a => p.Property == "displayName" ? a with { Name = p.New } : a with { Notes = p.New.Length == 0 ? null : p.New });
                 break;

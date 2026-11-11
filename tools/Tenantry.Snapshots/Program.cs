@@ -1483,6 +1483,12 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         for (var i = 0; i < 10; i++)
             Settle();
         Render(premium, "app-enterprise-overview-light", height: 1100);
+        premium.OpenEnterpriseApp(premium.SecurityArea.Apps.EnterpriseApps.First(e => e.Name == "Old Reporting Tool"));
+        var samlPage = (EnterpriseAppPageViewModel)premium.SelectedTab!;
+        samlPage.SelectedSection = samlPage.Sections.Single(s => s.Key == "sso");
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "app-enterprise-sso-light", height: 1500);
         enterprisePage.SelectedSection = enterprisePage.Sections.Single(s => s.Key == "permissions");
         for (var i = 0; i < 10; i++)
             Settle();

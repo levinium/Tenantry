@@ -34,6 +34,7 @@ public sealed partial class GraphChangeExecutor
         CreateAppRegistration c => CreateAppRegistrationAsync(c, cancellationToken),
         SetAppRisk r => AppStepAsync(ct => graph.PostAsync(AppRiskPath(r), AppRiskBody(r), ct), cancellationToken),
         SetAppProperty or SetRedirectUris or SetApiPermission or AddAppCertificate => AppEditAsync(change, cancellationToken),
+        SetSaml or AddSamlCertificate or SetSamlActiveCertificate or StopSaml or CreateSamlApp => SamlAsync(change, cancellationToken),
         _ => Task.FromResult(new ApplyResult(ChangeOutcome.Failed, "Tenantry can't apply this kind of change yet.")),
     };
 

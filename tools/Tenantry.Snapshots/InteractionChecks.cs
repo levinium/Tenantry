@@ -1917,6 +1917,36 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Single Sign-On tab: Set Up SAML shows the settings; filling identifier and reply URL stages SAML and a first certificate", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            main.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
+            for (var i = 0; i < 50 && main.SecurityArea.Registrations.Total == 0; i++)
+                Settle();
+            main.OpenEnterpriseApp(main.SecurityArea.Apps!.EnterpriseApps.Single(e => e.Name == "Help Desk Bot"));
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<TabItem>().First(t => t.DataContext is AppSection { Key: "sso" }));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Expect(!window.GetVisualDescendants().OfType<TextBox>().Any(t => t.IsEffectivelyVisible && t.DataContext is AppField), "no settings until Set Up SAML");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is AppButtonForm { Text: "Set Up SAML" }));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var boxes = window.GetVisualDescendants().OfType<TextBox>().Where(t => t.IsEffectivelyVisible && t.DataContext is AppField).ToArray();
+            Expect(boxes.Length == 5, "five SAML settings to fill");
+            boxes[0].Focus();
+            boxes[0].Text = "urn:northgate:helpdesk";
+            boxes[1].Focus();
+            boxes[1].Text = "https://helpdesk.northgate.example/saml/acs";
+            boxes[2].Focus();
+            Settle();
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetSaml) && main.Pending.Rows.Any(r => r.Change is AddSamlCertificate { MakeActive: true }),
+                "SAML and a first signing certificate are in Pending Changes");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("New App Registration: the list's button opens the form; Add stages it and closes; an enterprise app's switch stages a setting", () =>
         {
             var (window, main, _) = OpenList();

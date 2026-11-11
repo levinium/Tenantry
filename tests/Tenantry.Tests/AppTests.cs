@@ -125,7 +125,7 @@ public sealed class AppTests
         IReadOnlyList<EnterpriseApp> View(string id) =>
             enterprise.Run(enterprise.Prepare(area.Apps.EnterpriseApps), AppList.EnterpriseViews.Single(v => v.Id == id).Query, DateTimeOffset.UtcNow);
         Assert.Equal(4, View("thirdparty").Count);
-        Assert.Equal(["Acme Scheduling"], View("sso").Select(a => a.Name));
+        Assert.Equal(["Acme Scheduling", "Old Reporting Tool"], View("sso").Select(a => a.Name).Order());
         Assert.Equal(2, View("disabled").Count);
     }
 

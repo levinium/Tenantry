@@ -13,6 +13,18 @@ namespace Tenantry.ViewModels.Records;
 /// </summary>
 public sealed partial class NewAppViewModel(ChangePipeline pipeline, Action close) : ObservableObject
 {
+    public static IReadOnlyList<EditorChoice> Kinds { get; } =
+    [
+        new("registration", "An App Registration", "For an app your organization writes or runs: it signs people in with OpenID Connect, or calls Microsoft 365 itself."),
+        new("saml", "Single Sign-On to Another Service (SAML)", "For a service that signs people in with SAML, as Entra's \"Create your own application\" does. You'll add its SAML details next."),
+    ];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRegistration))]
+    public partial EditorChoice Kind { get; set; } = Kinds[0];
+
+    public bool IsRegistration => Kind.Value == "registration";
+
     public static IReadOnlyList<EditorChoice> Audiences { get; } =
     [
         new("AzureADMyOrg", "This Organization Only", "People with accounts here. Right for most internal tools."),
@@ -68,9 +80,15 @@ public sealed partial class NewAppViewModel(ChangePipeline pipeline, Action clos
     [RelayCommand]
     void Add()
     {
-        Problems = Check(Name, Platform.Value, RedirectUri);
+        Problems = Check(Name, IsRegistration ? Platform.Value : "", RedirectUri);
         if (Problems.Count > 0)
             return;
+        if (!IsRegistration)
+        {
+            pipeline.Stage(new CreateSamlApp(new ChangeTarget(AppChange.Enterprise, Name.Trim(), Name.Trim(), null)));
+            close();
+            return;
+        }
         var uri = HasPlatform && RedirectUri.Trim().Length > 0 ? RedirectUri.Trim() : null;
         pipeline.Stage(new CreateAppRegistration(new ChangeTarget(AppChange.Registration, Name.Trim(), Name.Trim(), null), Audience.Value, uri is null ? null : Platform.Value, uri));
         close();
