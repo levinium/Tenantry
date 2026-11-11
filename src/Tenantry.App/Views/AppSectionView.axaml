@@ -116,6 +116,142 @@
                               HorizontalAlignment="Left" ToolTip.Tip="Nothing changes until you apply" />
                     </StackPanel>
                   </DataTemplate>
+                  <!-- Text fields that go to Pending Changes when left (an app's name and notes) -->
+                  <DataTemplate x:DataType="rec:AppFieldsForm">
+                    <ItemsControl ItemsSource="{Binding Fields}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Spacing="10" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="rec:AppField">
+                          <StackPanel Spacing="4" MaxWidth="640" HorizontalAlignment="Left">
+                            <TextBlock Classes="label" Text="{Binding Label}" />
+                            <TextBox Text="{Binding Text}" PlaceholderText="{Binding Placeholder}" AcceptsReturn="{Binding Multiline}" TextWrapping="Wrap"
+                                     MinWidth="420" IsReadOnly="{Binding !CanEdit}" c:EditCommit.Commit="{Binding CommitCommand}" />
+                            <TextBlock Classes="caption" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" Foreground="{DynamicResource BadgeWarningFg}" />
+                          </StackPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </DataTemplate>
+                  <!-- Add a line (a redirect URI): a button that opens a small form -->
+                  <DataTemplate x:DataType="rec:AddEntryForm">
+                    <Panel>
+                      <Button Command="{Binding OpenCommand}" IsVisible="{Binding !IsOpen}" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <ic:FluentIcon Icon="Add" FontSize="14" />
+                          <TextBlock Text="{Binding AddText}" />
+                        </StackPanel>
+                      </Button>
+                      <Border Classes="levelrow" IsVisible="{Binding IsOpen}" HorizontalAlignment="Left">
+                        <StackPanel Spacing="8">
+                          <TextBlock Text="{Binding FormTitle}" FontWeight="SemiBold" />
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Choice}" MinWidth="180" IsVisible="{Binding HasChoices}">
+                              <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="ed:EditorChoice">
+                                  <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                              </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBox Text="{Binding Text}" PlaceholderText="{Binding Placeholder}" Width="380" c:FocusWhen.Value="{Binding IsOpen}">
+                              <TextBox.KeyBindings>
+                                <KeyBinding Gesture="Enter" Command="{Binding AddCommand}" />
+                                <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+                              </TextBox.KeyBindings>
+                            </TextBox>
+                          </StackPanel>
+                          <TextBlock Classes="caption" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" Foreground="{DynamicResource BadgeWarningFg}" TextWrapping="Wrap" />
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="accent" Content="Add" Command="{Binding AddCommand}" ToolTip.Tip="Added to Pending Changes" />
+                            <Button Content="Cancel" Command="{Binding CancelCommand}" />
+                          </StackPanel>
+                        </StackPanel>
+                      </Border>
+                    </Panel>
+                  </DataTemplate>
+                  <!-- Ask for a permission: choose an API, search what it offers, add one -->
+                  <DataTemplate x:DataType="rec:AddPermissionForm">
+                    <Panel>
+                      <Button Command="{Binding OpenCommand}" IsVisible="{Binding !IsOpen}" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <ic:FluentIcon Icon="Add" FontSize="14" />
+                          <TextBlock Text="Add Permission" />
+                        </StackPanel>
+                      </Button>
+                      <Border Classes="levelrow" IsVisible="{Binding IsOpen}">
+                        <StackPanel Spacing="8">
+                          <WrapPanel ItemSpacing="8" LineSpacing="8">
+                            <ComboBox ItemsSource="{Binding Apis}" SelectedItem="{Binding Api}" MinWidth="240">
+                              <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="ed:EditorChoice">
+                                  <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                              </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <ComboBox ItemsSource="{x:Static rec:AddPermissionForm.Kinds}" SelectedItem="{Binding Kind}" MinWidth="200">
+                              <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="ed:EditorChoice">
+                                  <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                              </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBox Text="{Binding Search}" PlaceholderText="Search, like Mail.Read or calendars" Width="300" c:FocusWhen.Value="{Binding IsOpen}">
+                              <TextBox.KeyBindings>
+                                <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+                              </TextBox.KeyBindings>
+                            </TextBox>
+                            <Button Content="Done" Command="{Binding CloseCommand}" />
+                          </WrapPanel>
+                          <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsReading}">
+                            <Panel Width="16" Height="16" VerticalAlignment="Center">
+                              <Ellipse Classes="spintrack" />
+                              <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                                <Arc.RenderTransform>
+                                  <RotateTransform />
+                                </Arc.RenderTransform>
+                              </Arc>
+                            </Panel>
+                            <TextBlock Classes="muted" Text="Reading what it offers…" VerticalAlignment="Center" />
+                          </StackPanel>
+                          <TextBlock Classes="caption" Text="{Binding Note}" IsVisible="{Binding HasNote}" TextWrapping="Wrap" />
+                          <ScrollViewer MaxHeight="360">
+                            <ItemsControl ItemsSource="{Binding Matches}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="rec:ApiPermissionChoice">
+                                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,3">
+                                    <StackPanel Spacing="1">
+                                      <WrapPanel ItemSpacing="8">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <c:Badge Text="{Binding Kind.Text}" Kind="{Binding Kind.Kind}" ToolTip.Tip="{Binding Kind.Tip}" />
+                                      </WrapPanel>
+                                      <TextBlock Classes="caption" Text="{Binding Description}" IsVisible="{Binding HasDescription}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Add" Command="{Binding AddCommand}" VerticalAlignment="Center"
+                                            ToolTip.Tip="Ask for it (added to Pending Changes; consent comes after)" />
+                                  </Grid>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </ScrollViewer>
+                        </StackPanel>
+                      </Border>
+                    </Panel>
+                  </DataTemplate>
+                  <!-- Upload a certificate file (the public part) -->
+                  <DataTemplate x:DataType="rec:CertificateForm">
+                    <StackPanel Spacing="6">
+                      <Button Command="{Binding UploadCommand}" HorizontalAlignment="Left" ToolTip.Tip="Choose a .cer, .crt or .pem file; it goes to Pending Changes">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <ic:FluentIcon Icon="ArrowUpload" FontSize="14" />
+                          <TextBlock Text="Upload Certificate" />
+                        </StackPanel>
+                      </Button>
+                      <TextBlock Classes="caption" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" Foreground="{DynamicResource BadgeWarningFg}" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </DataTemplate>
                   <!-- One action for the whole card (Grant Admin Consent) -->
                   <DataTemplate x:DataType="rec:AppButtonForm">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">

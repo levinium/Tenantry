@@ -192,6 +192,11 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
     readonly Action<EnterpriseApp>? _openEnterprise;
     readonly AddSecretForm _secretForm;
     readonly AppPickForm _ownerForm;
+    readonly AppField _nameField;
+    readonly AppField _notesField;
+    readonly AddEntryForm _redirectForm;
+    readonly AddPermissionForm _permissionForm;
+    readonly CertificateForm _certificateForm;
     AppDirectory _directory;
     Task<AppRegistrationDetail>? _detail;
 
@@ -204,6 +209,17 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
         _openEnterprise = openEnterprise;
         _secretForm = new AddSecretForm((description, months) => Pipeline?.Stage(new AddAppSecret(Target, description, months)));
         _ownerForm = OwnerPicker(() => App.Owners.Select(o => o.Id));
+        _nameField = new AppField("Name", "The app's name", false, CanEdit, v => StageProperty("displayName", v));
+        _notesField = new AppField("Notes", "What it's for and who looks after it", true, CanEdit, v => StageProperty("notes", v));
+        _redirectForm = new AddEntryForm("Add Redirect URI", "Add a Redirect URI", [.. Platforms.Select(p => new EditorChoice(p, p))], "https://app.contoso.example/signin",
+            (platform, uri) => Effective(platform).Contains(uri, StringComparer.Ordinal) ? "It's there already." : SetRedirectUris.Problem(platform, uri),
+            (platform, uri) => StageRedirects(platform, [.. Effective(platform), uri]));
+        _permissionForm = new AddPermissionForm([.. WellKnownApis.All.Select(a => new EditorChoice(a.AppId, a.Name))],
+            (api, ct) => Records?.GetApiPermissionsAsync(api, ct) ?? Task.FromResult<IReadOnlyList<NamedPermission>>([]),
+            (id, isApp) => App.Requested.Any(r => r.PermissionId == id && r.IsApplication == isApp) || Pending.OfType<SetApiPermission>().Any(a => a.Add && a.PermissionId == id && a.IsApplication == isApp),
+            (apiId, apiName, permission) => AddToPending(new SetApiPermission(Target, apiId, apiName, permission.Id, permission.Name, permission.IsApplication, true)));
+        _certificateForm = new CertificateForm(now, c => AddToPending(new AddAppCertificate(Target, c.Subject, c.Thumbprint, c.Base64, c.NotBefore, c.NotAfter)));
+        ShowFields();
         Sections =
         [
             new AppSection("overview", "Overview", "Home", _ => Task.FromResult(OverviewCards())),
@@ -265,8 +281,86 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
         App = app;
         _directory = directory;
         _detail = null;
+        _shownName = _shownNotes = null;
+        ShowFields();
         Refresh(nameof(App));
         return true;
+    }
+
+    // ---- Editing: name and notes, redirect URIs, permissions, certificates ----------------------
+
+    /// <summary>The platforms redirect URIs belong to, as the admin center names them.</summary>
+    public static IReadOnlyList<string> Platforms { get; } = ["Web", "Single-Page App", "Mobile and Desktop"];
+
+    string? _shownName;
+    string? _shownNotes;
+
+    /// <summary>The name and notes as they'll be (pending or as read); a field is set only when that changes, so typing isn't lost.</summary>
+    void ShowFields()
+    {
+        var name = Pending.OfType<SetAppProperty>().FirstOrDefault(p => p.Property == "displayName")?.New ?? App.Name;
+        var notes = Pending.OfType<SetAppProperty>().FirstOrDefault(p => p.Property == "notes")?.New ?? App.Notes ?? "";
+        if (name != _shownName)
+            _nameField.Text = _shownName = name;
+        if (notes != _shownNotes)
+            _notesField.Text = _shownNotes = notes;
+    }
+
+    void StageProperty(string property, string value)
+    {
+        var field = property == "displayName" ? _nameField : _notesField;
+        field.Problem = property == "displayName" && value.Length == 0 ? "An app needs a name."
+            : property == "displayName" && value.Length > 256 ? "Entra allows up to 256 characters." : null;
+        if (field.Problem is not null || Pipeline is null)
+            return;
+        var old = property == "displayName" ? App.Name : App.Notes ?? "";
+        if (Pending.OfType<SetAppProperty>().FirstOrDefault(p => p.Property == property) is { } pending)
+            Pipeline.Unstage(pending);
+        if (value != old)
+            AddToPending(new SetAppProperty(Target, property, old, value));
+    }
+
+    IReadOnlyList<string> Current(string platform) => [.. App.RedirectUris.Where(r => r.Platform == platform).Select(r => r.Uri)];
+
+    IReadOnlyList<string> Effective(string platform) => Pending.OfType<SetRedirectUris>().FirstOrDefault(r => r.Platform == platform)?.New ?? Current(platform);
+
+    void StageRedirects(string platform, IReadOnlyList<string> uris)
+    {
+        if (Pipeline is null)
+            return;
+        if (Pending.OfType<SetRedirectUris>().FirstOrDefault(r => r.Platform == platform) is { } pending)
+            Pipeline.Unstage(pending);
+        var current = Current(platform);
+        if (!uris.SequenceEqual(current, StringComparer.Ordinal))
+            AddToPending(new SetRedirectUris(Target, platform, current, uris));
+    }
+
+    IReadOnlyList<AppRow> RedirectRows()
+    {
+        var rows = new List<AppRow>();
+        foreach (var platform in Platforms)
+        {
+            var current = Current(platform);
+            var effective = Effective(platform);
+            foreach (var uri in current.Concat(effective.Except(current, StringComparer.Ordinal)))
+            {
+                var row = new AppRow { Title = platform, Code = uri };
+                var kept = effective.Contains(uri, StringComparer.Ordinal);
+                var isNew = !current.Contains(uri, StringComparer.Ordinal);
+                rows.Add(!CanEdit ? row
+                    : isNew ? row.With("Adding", "Undo", "Don't add it (takes it out of Pending Changes)", () => StageRedirects(platform, [.. effective.Where(u => u != uri)]))
+                    : !kept ? row.With("Removing", "Undo", "Keep it (takes the removal out of Pending Changes)", () => StageRedirects(platform, [.. effective, uri]))
+                    : row.With(null, "Remove", "Sign-ins that come back to this address stop working (added to Pending Changes)",
+                        () => StageRedirects(platform, [.. effective.Where(u => u != uri)])));
+            }
+        }
+        return rows;
+    }
+
+    protected override void PendingChanged()
+    {
+        ShowFields();
+        _permissionForm.Fill();
     }
 
     IReadOnlyList<AppCard> OverviewCards()
@@ -284,9 +378,9 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
         return
         [
             new AppCard("Details", Facts: facts),
-            new AppCard("Redirect URIs", "Where Entra sends people back to after they sign in.",
-                Rows: [.. App.RedirectUris.GroupBy(r => r.Platform).Select(g => new AppRow { Title = g.Key, Code = string.Join(Environment.NewLine, g.Select(r => r.Uri)) })],
-                EmptyText: "None: the app doesn't sign people in through a browser."),
+            new AppCard("Name and Notes", CanEdit ? "Changes go to Pending Changes when you leave the box." : null, Form: new AppFieldsForm([_nameField, _notesField])),
+            new AppCard("Redirect URIs", "Where Entra sends people back to after they sign in.", Rows: RedirectRows(),
+                EmptyText: "None: the app doesn't sign people in through a browser.", Form: CanEdit ? _redirectForm : null),
         ];
     }
 
@@ -321,19 +415,28 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
         }
         var secrets = App.Credentials.Where(c => c.IsSecret).OrderBy(c => c.End).Select(Row).ToList();
         secrets.AddRange(pending.OfType<AddAppSecret>().Select(a => Adding(a.Description, $"Expires in {a.Months} months; shown to you once after applying", a)));
-        var certificates = App.Credentials.Where(c => !c.IsSecret).OrderBy(c => c.End).Select(Row).ToArray();
+        var certificates = App.Credentials.Where(c => !c.IsSecret).OrderBy(c => c.End).Select(Row).ToList();
+        certificates.AddRange(pending.OfType<AddAppCertificate>().Select(c => Adding(c.Subject, $"Thumbprint {c.Thumbprint} · expires {Day(c.NotAfter)}", c)));
         return
         [
             new AppCard("Client Secrets", "Passwords the app signs in with. Entra shows a secret's value only once, when it's made.", Rows: secrets,
                 EmptyText: "No client secrets.", Form: CanEdit ? _secretForm : null),
-            new AppCard("Certificates", "Safer than secrets: the app proves who it is with a private key only it holds.", Rows: certificates, EmptyText: "No certificates."),
+            new AppCard("Certificates", "Safer than secrets: the app proves who it is with a private key only it holds. Upload only the certificate (.cer, .crt or .pem), never the private key.",
+                Rows: certificates, EmptyText: "No certificates.", Form: CanEdit ? _certificateForm : null),
         ];
     }
+
+    AppCard AddPermissionCard() => new("Ask for a Permission",
+        "Adding one only asks for it: an admin still grants consent before the app can use it.", Form: _permissionForm);
+
+    /// <summary>Permissions waiting in Pending Changes to be added, by API.</summary>
+    IEnumerable<AppCard> AddingCards() => Pending.OfType<SetApiPermission>().Where(a => a.Add).GroupBy(a => a.Resource).Select(g => new AppCard($"{g.Key}: Adding",
+        Rows: [.. g.Select(a => Adding(a.PermissionName, a.IsApplication ? "Application" : "Delegated", a))]));
 
     async Task<IReadOnlyList<AppCard>> PermissionCardsAsync(CancellationToken cancellationToken)
     {
         if (App.Requested.Count == 0)
-            return [new AppCard("API Permissions", EmptyText: "It doesn't ask for any permissions.")];
+            return [.. CanEdit ? [AddPermissionCard()] : Array.Empty<AppCard>(), .. AddingCards(), new AppCard("API Permissions", EmptyText: "It doesn't ask for any permissions.")];
         if (Records is null)
             return [new AppCard("API Permissions", EmptyText: "Permissions can't be read for this tenant.")];
         var read = _detail ??= Records.GetRegistrationDetailAsync(App, cancellationToken);
@@ -360,8 +463,13 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
                     "Approve them for everyone (added to Pending Changes as a caution change)",
                     () => Pipeline!.Stage(new GrantAdminConsent(Target, App.AppId,
                         [.. missing.Select(p => new ConsentItem(p.ResourceId, p.Resource, p.Id, p.Name, p.IsApplication))])))));
+        if (CanEdit)
+            cards.Add(AddPermissionCard());
+        cards.AddRange(AddingCards());
+        var removing = Pending.OfType<SetApiPermission>().Where(a => !a.Add).ToArray();
+        string ApiOf(NamedPermission p) => App.Requested.FirstOrDefault(r => r.PermissionId == p.Id && r.IsApplication == p.IsApplication)?.ResourceAppId ?? p.ResourceId;
         cards.AddRange(detail.Permissions.GroupBy(p => p.Resource).OrderBy(g => g.Key, StringComparer.CurrentCulture).Select(g => new AppCard(g.Key,
-            Rows: [.. g.OrderBy(p => p.IsApplication).ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase).Select(p => new AppRow
+            Rows: [.. g.OrderBy(p => p.IsApplication).ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase).Select(p => Removable(new AppRow
             {
                 Title = p.Name,
                 Detail = p.Description,
@@ -376,7 +484,9 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
                         null => new HealthChip("Consent Unknown", BadgeKind.Neutral, "Couldn't check"),
                     },
                 ],
-            })])));
+            }, removing.FirstOrDefault(r => r.PermissionId == p.Id && r.IsApplication == p.IsApplication),
+                () => new SetApiPermission(Target, ApiOf(p), p.Resource, p.Id, p.Name, p.IsApplication, false),
+                tip: "Stop asking for it (consent already given stays until revoked on the enterprise app; added to Pending Changes)"))])));
         return cards;
     }
 }

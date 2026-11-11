@@ -33,6 +33,7 @@ public sealed partial class GraphChangeExecutor
         PurgeApp p => AppStepAsync(ct => DeleteIfThereAsync($"directory/deletedItems/{p.App.Id}", ct), cancellationToken),
         CreateAppRegistration c => CreateAppRegistrationAsync(c, cancellationToken),
         SetAppRisk r => AppStepAsync(ct => graph.PostAsync(AppRiskPath(r), AppRiskBody(r), ct), cancellationToken),
+        SetAppProperty or SetRedirectUris or SetApiPermission or AddAppCertificate => AppEditAsync(change, cancellationToken),
         _ => Task.FromResult(new ApplyResult(ChangeOutcome.Failed, "Tenantry can't apply this kind of change yet.")),
     };
 

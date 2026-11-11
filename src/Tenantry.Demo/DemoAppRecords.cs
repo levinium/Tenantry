@@ -24,6 +24,9 @@ public sealed partial class DemoUserRecords : IAppRecords
         ["p-sites-all"] = ("Sites.Read.All", true, "Read items in all site collections"),
         ["p-mail-all"] = ("Mail.Read", true, "Read mail in all mailboxes"),
         ["p-cal-all"] = ("Calendars.ReadWrite", true, "Read and write calendars in all mailboxes"),
+        ["p-cal-read"] = ("Calendars.Read", false, "Read user calendars"),
+        ["p-groups-all"] = ("Group.Read.All", true, "Read all groups"),
+        ["p-profile"] = ("profile", false, "View users' basic profile"),
     };
 
     List<AppRegistration>? _registrations;
@@ -130,6 +133,10 @@ public sealed partial class DemoUserRecords : IAppRecords
     public Task<DateTimeOffset?> GetLastSignInAsync(EnterpriseApp app, CancellationToken cancellationToken = default) =>
         Task.FromResult<DateTimeOffset?>(app.IsEnabled && app.Source != AppSource.Microsoft ? DateTimeOffset.UtcNow.AddHours(-(app.Name.Length * 7 % 90)) : null);
 
+    public Task<IReadOnlyList<NamedPermission>> GetApiPermissionsAsync(string resourceAppId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<NamedPermission>>(resourceAppId != GraphApi ? []
+            : [.. GraphPermissions.Select(p => new NamedPermission(GraphSp, "Microsoft Graph", p.Key, p.Value.Name, p.Value.App, p.Value.Description)).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)]);
+
     readonly List<DeletedApp> _deletedApps = [];
 
     public async Task<IReadOnlyList<DeletedApp>> GetDeletedAppsAsync(CancellationToken cancellationToken = default)
@@ -169,6 +176,21 @@ public sealed partial class DemoUserRecords : IAppRecords
             case AddAppSecret s:
                 Edit(id, a => a with { Credentials = [.. a.Credentials, new AppCredential($"k-{Guid.NewGuid():N}", true, s.Description, "Dmo", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMonths(s.Months))] });
                 return new ApplyResult(ChangeOutcome.Applied, "Copy it now (demo).", Reveal: "Dmo8Q~" + Guid.NewGuid().ToString("N")[..28]);
+            case SetAppProperty p:
+                Edit(id, a => p.Property == "displayName" ? a with { Name = p.New } : a with { Notes = p.New.Length == 0 ? null : p.New });
+                break;
+            case SetRedirectUris r:
+                Edit(id, a => a with { RedirectUris = [.. a.RedirectUris.Where(u => u.Platform != r.Platform), .. r.New.Select(u => (r.Platform, u))] });
+                break;
+            case SetApiPermission ask when ask.Add:
+                Edit(id, a => a with { Requested = [.. a.Requested, new RequestedPermission(ask.ResourceAppId, ask.PermissionId, ask.IsApplication)] });
+                break;
+            case SetApiPermission unask:
+                Edit(id, a => a with { Requested = [.. a.Requested.Where(q => !(q.ResourceAppId == unask.ResourceAppId && q.PermissionId == unask.PermissionId && q.IsApplication == unask.IsApplication))] });
+                break;
+            case AddAppCertificate c:
+                Edit(id, a => a with { Credentials = [.. a.Credentials, new AppCredential($"k-{Guid.NewGuid():N}", false, c.Subject, c.Thumbprint, c.NotBefore, c.NotAfter)] });
+                break;
             case SetAppOwner o when app.IsRegistration:
                 Edit(id, a => a with { Owners = o.Add ? [.. a.Owners, new AppOwner(o.Owner.Id, o.Owner.Name, o.Owner.Address)] : [.. a.Owners.Where(x => x.Id != o.Owner.Id)] });
                 break;

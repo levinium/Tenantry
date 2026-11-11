@@ -195,6 +195,7 @@ public sealed partial class GraphChangeExecutor
             Ps.Graph("POST", "applications", AppRegistrationBody(c), assignTo: "app"),
             $"Invoke-MgGraphRequest -Method POST -Uri {Ps.Quote(Ps.GraphRoot + "servicePrincipals")} -Body @{{ appId = $app.appId }}")),
         SetAppRisk r => PsScript.Graph(Ps.Graph("POST", AppRiskPath(r), AppRiskBody(r))),
+        SetAppProperty or SetRedirectUris or SetApiPermission or AddAppCertificate => AppEditScript(change),
         _ => null,
     };
 

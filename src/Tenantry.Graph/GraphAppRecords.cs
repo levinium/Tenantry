@@ -219,6 +219,16 @@ public sealed partial class GraphUserRecords : IAppRecords
         return null;
     }
 
+    public async Task<IReadOnlyList<NamedPermission>> GetApiPermissionsAsync(string resourceAppId, CancellationToken cancellationToken = default)
+    {
+        var api = await ApiAsync($"appId:{resourceAppId}", new Dictionary<string, Api?>(StringComparer.OrdinalIgnoreCase), cancellationToken);
+        if (api is null)
+            return [];
+        return [.. api.Scopes.Select(s => new NamedPermission(api.Id, api.Name, s.Key, s.Value.Name, false, s.Value.Description))
+            .Concat(api.Roles.Select(r => new NamedPermission(api.Id, api.Name, r.Key, r.Value.Name, true, r.Value.Description)))
+            .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ThenBy(p => p.IsApplication)];
+    }
+
     public async Task<IReadOnlyList<DeletedApp>> GetDeletedAppsAsync(CancellationToken cancellationToken = default)
     {
         var deleted = new List<DeletedApp>();

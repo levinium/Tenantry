@@ -1867,6 +1867,56 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("App page editing: Add Redirect URI stages one; Add Permission finds and stages one; leaving the name box stages a rename", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            main.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
+            for (var i = 0; i < 50 && main.SecurityArea.Registrations.Total == 0; i++)
+                Settle();
+            main.OpenAppRegistration(main.SecurityArea.Apps!.Registrations.Single(r => r.Name == "Help Desk Bot"));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is AddEntryForm f && b.Command == f.OpenCommand));
+            Settle();
+            var uriBox = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.DataContext is AddEntryForm);
+            Expect(uriBox.IsFocused, "the cursor is in the address box");
+            uriBox.Text = "https://helpdesk.northgate.example/auth2";
+            var addUri = FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is AddEntryForm && Labelled(b, "Add"));
+            addUri.BringIntoView();
+            Settle();
+            Click(window, addUri);
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetRedirectUris { Platform: "Web" }), "the new redirect URI is in Pending Changes");
+            for (var i = 0; i < 5; i++)
+                Settle();
+            var nameBox = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.DataContext is AppField { Label: "Name" });
+            nameBox.Focus();
+            nameBox.Text = "Help Desk Assistant";
+            uriBox = window.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(t => t.IsEffectivelyVisible && t.DataContext is AppField { Label: "Notes" }) ?? nameBox;
+            uriBox.Focus();
+            Settle();
+            Expect(main.Pending.Rows.Any(r => r.Change is SetAppProperty { Property: "displayName", New: "Help Desk Assistant" }), "leaving the name box stages the rename");
+            var page = (AppRegistrationPageViewModel)main.SelectedTab!;
+            Click(window, window.GetVisualDescendants().OfType<TabItem>().First(t => t.DataContext is AppSection { Key: "permissions" }));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is AddPermissionForm f && b.Command == f.OpenCommand));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var search = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.DataContext is AddPermissionForm);
+            search.Text = "Calendars.Read";
+            for (var i = 0; i < 5; i++)
+                Settle();
+            var addCalendars = FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is ApiPermissionChoice { Name: "Calendars.Read" });
+            addCalendars.BringIntoView();
+            Settle();
+            Click(window, addCalendars);
+            Expect(main.Pending.Rows.Any(r => r.Change is SetApiPermission { PermissionName: "Calendars.Read", Add: true }), "the permission is in Pending Changes");
+            Expect(page.HasPending, "the page says what's pending");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("New App Registration: the list's button opens the form; Add stages it and closes; an enterprise app's switch stages a setting", () =>
         {
             var (window, main, _) = OpenList();

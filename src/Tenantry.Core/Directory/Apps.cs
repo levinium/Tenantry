@@ -160,6 +160,13 @@ public interface IAppRecords
     /// <summary>When the app last signed anyone in; null when unknown (the report is slow, so it's read on its own).</summary>
     Task<DateTimeOffset?> GetLastSignInAsync(EnterpriseApp app, CancellationToken cancellationToken = default) => Task.FromResult<DateTimeOffset?>(null);
 
+    /// <summary>
+    /// Every permission an API offers (its delegated scopes and application roles), by the API's
+    /// application ID; empty when it can't be read.
+    /// </summary>
+    Task<IReadOnlyList<NamedPermission>> GetApiPermissionsAsync(string resourceAppId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<NamedPermission>>([]);
+
     /// <summary>App registrations deleted in the last 30 days, which can be restored.</summary>
     Task<IReadOnlyList<DeletedApp>> GetDeletedAppsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<DeletedApp>>([]);
 }
@@ -168,6 +175,21 @@ public interface IAppRecords
 public sealed record DeletedApp(string Id, string AppId, string Name, DateTimeOffset? Deleted)
 {
     public DateTimeOffset? Gone => Deleted?.AddDays(30);
+}
+
+/// <summary>The APIs an app registration usually asks permissions of, by application ID.</summary>
+public static class WellKnownApis
+{
+    public const string MicrosoftGraph = "00000003-0000-0000-c000-000000000000";
+
+    public static IReadOnlyList<(string AppId, string Name)> All { get; } =
+    [
+        (MicrosoftGraph, "Microsoft Graph"),
+        ("00000002-0000-0ff1-ce00-000000000000", "Office 365 Exchange Online"),
+        ("00000003-0000-0ff1-ce00-000000000000", "Office 365 SharePoint Online"),
+        ("00000007-0000-0000-c000-000000000000", "Dynamics CRM"),
+        ("797f4846-ba00-4fd7-ba43-dac1f8f63013", "Azure Service Management"),
+    ];
 }
 
 /// <summary>The app lists' fields.</summary>

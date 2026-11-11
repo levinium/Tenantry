@@ -1473,6 +1473,11 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         for (var i = 0; i < 10; i++)
             Settle();
         Render(premium, "app-registration-permissions-light", height: 1000);
+        premium.OpenAppRegistration(premium.SecurityArea.Apps!.Registrations.First(r => r.Name == "Website Sign-In"));
+        var websitePage = (AppRegistrationPageViewModel)premium.SelectedTab!;
+        for (var i = 0; i < 10; i++)
+            Settle();
+        Render(premium, "app-registration-overview-light", height: 1100);
         premium.OpenEnterpriseApp(premium.SecurityArea.Apps.EnterpriseApps.First(e => e.Name == "Fabrikam Whiteboard"));
         var enterprisePage = (EnterpriseAppPageViewModel)premium.SelectedTab!;
         for (var i = 0; i < 10; i++)
