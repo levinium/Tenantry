@@ -62,6 +62,8 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
         // Threat policies first: their settings are SetExchangeSetting too, with their own nouns.
         if (records is not null && records.ApplyThreatPolicy(change) is { } threat)
             return threat;
+        if (records is not null && records.ApplyIntune(change) is { } intune)
+            return intune;
         if (records is not null && records.ApplyPreset(change) is { } preset)
             return preset;
         if (records is not null && records.ApplyAlert(change) is { } alert)

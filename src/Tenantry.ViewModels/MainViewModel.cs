@@ -73,7 +73,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         Devices.SelectionPanel = (rows, uncheck) =>
             Records.SelectionPanelViewModel.ForDevices(rows, uncheck, _tenant.Changes, manageDevices, _now);
         DevicesArea = new DevicesAreaViewModel(Devices, tenant.Records as IAutopilotRecords, tenant.Changes, manageDevices, tenant.ListState, _now,
-            managedId => { if (_devices.FirstOrDefault(d => d.ManagedId == managedId) is { } device) OpenDevice(device); });
+            managedId => { if (_devices.FirstOrDefault(d => d.ManagedId == managedId) is { } device) OpenDevice(device); }, tenant.Records as IIntunePolicyRecords, _index);
         // SharePoint: one local copy of every site collection, shown as Sites and as OneDrives.
         _manageSites = Evaluate(Capabilities.ManageSites);
         object SitePreview(SiteSummary s) => new Records.SitePreviewViewModel(s, _index, OpenUser, OpenGroup,

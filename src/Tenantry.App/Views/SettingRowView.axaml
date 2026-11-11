@@ -19,6 +19,7 @@
       <Panel Grid.Column="1" VerticalAlignment="Center" IsEnabled="{Binding CanEdit}">
         <ToggleSwitch IsChecked="{Binding IsOn}" IsVisible="{Binding IsOnOff}" OnContent="On" OffContent="Off" />
         <TextBox Text="{Binding NumberText}" IsVisible="{Binding IsNumber}" Width="110" c:EditCommit.Commit="{Binding CommitNumberCommand}" />
+        <TextBox Text="{Binding TextValue}" IsVisible="{Binding IsText}" Width="200" c:EditCommit.Commit="{Binding CommitTextCommand}" PlaceholderText="Not configured" />
         <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Choice}" IsVisible="{Binding IsChoice}" MinWidth="260" />
       </Panel>
     </Grid>

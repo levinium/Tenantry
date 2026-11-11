@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:it="using:Tenantry.ViewModels.Intune"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.AssignmentEditorView"
+             x:DataType="it:AssignmentEditor">
+  <!-- Who a policy or app reaches: the list, then ways to add. Each change goes to Pending Changes. -->
+  <StackPanel Spacing="8">
+    <TextBlock Classes="muted" Text="Not assigned: it reaches nobody." IsVisible="{Binding IsEmpty}" />
+    <ItemsControl ItemsSource="{Binding Rows}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="it:AssignmentRow">
+          <Border Classes="valuerow">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+              <ic:FluentIcon Icon="PeopleProhibited" FontSize="16" IsVisible="{Binding IsExclusion}" VerticalAlignment="Center" ToolTip.Tip="Left out" />
+              <ic:FluentIcon Icon="PeopleCheckmark" FontSize="16" IsVisible="{Binding !IsExclusion}" VerticalAlignment="Center" ToolTip.Tip="Reached" />
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending Changes" />
+              </StackPanel>
+              <Button Grid.Column="2" Content="{Binding ActionText}" Command="{Binding DoCommand}" ToolTip.Tip="{Binding ActionTip}"
+                      IsVisible="{Binding $parent[ItemsControl].((it:AssignmentEditor)DataContext).CanEdit}" />
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <WrapPanel ItemSpacing="8" LineSpacing="8" IsVisible="{Binding CanEdit}">
+      <ComboBox ItemsSource="{x:Static it:AssignmentEditor.Intents}" SelectedItem="{Binding Intent}" MinWidth="150" IsVisible="{Binding ForApps}" ToolTip.Tip="What new assignments do">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="ed:EditorChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <ComboBox ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter}" MinWidth="220" IsVisible="{Binding HasFilters}" ToolTip.Tip="Narrow new assignments to some devices" />
+      <views:AddButton DataContext="{Binding Include}" Text="Add Group" />
+      <views:AddButton DataContext="{Binding Exclude}" Text="Leave Out a Group" />
+      <Button Command="{Binding AddAllUsersCommand}" IsVisible="{Binding CanAddAllUsers}" ToolTip.Tip="Every licensed person (added to Pending Changes as a caution change)">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="People" FontSize="14" />
+          <TextBlock Text="All Users" />
+        </StackPanel>
+      </Button>
+      <Button Command="{Binding AddAllDevicesCommand}" IsVisible="{Binding CanAddAllDevices}" ToolTip.Tip="Every managed device (added to Pending Changes as a caution change)">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="Laptop" FontSize="14" />
+          <TextBlock Text="All Devices" />
+        </StackPanel>
+      </Button>
+    </WrapPanel>
+  </StackPanel>
+</UserControl>

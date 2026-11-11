@@ -22,13 +22,64 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
     [
         new("devices", "All Devices", "Laptop"),
         new("autopilot", "Autopilot", "Rocket"),
+        new("compliance", "Compliance Policies", "ShieldCheckmark"),
     ];
+
+    /// <summary>The pages in sections, as Intune's admin center groups them.</summary>
+    public static IReadOnlyList<SecurityPageGroup> Sections { get; } =
+    [
+        new("devices", "Devices", "Laptop", Of("devices", "autopilot")),
+        new("compliance", "Compliance", "ShieldCheckmark", Of("compliance")),
+    ];
+
+    static IReadOnlyList<MailSecurityPage> Of(params string[] keys) => [.. keys.Select(k => Pages.Single(p => p.Key == k))];
+
+    public static SecurityPageGroup SectionOf(MailSecurityPage page) => Sections.First(s => s.Pages.Contains(page));
+
+    [ObservableProperty]
+    public partial SecurityPageGroup SelectedSection { get; set; } = Sections[0];
+
+    partial void OnSelectedSectionChanged(SecurityPageGroup value)
+    {
+        if (!value.Pages.Contains(SelectedPage))
+            SelectedPage = value.Pages[0];
+    }
+
+    bool _movingSection;
+
+    /// <summary>A page chosen from anywhere brings its section along; the page row clearing its choice while it swaps keeps the page.</summary>
+    partial void OnSelectedPageChanged(MailSecurityPage oldValue, MailSecurityPage newValue)
+    {
+        if (newValue is null)
+        {
+            SelectedPage = oldValue ?? SelectedSection.Pages[0];
+            return;
+        }
+        if (_movingSection || SectionOf(newValue) == SelectedSection)
+            return;
+        _movingSection = true;
+        try
+        {
+            SelectedSection = SectionOf(newValue);
+        }
+        finally
+        {
+            _movingSection = false;
+        }
+        if (SelectedPage != newValue)
+            SelectedPage = newValue;
+    }
+
+    public Intune.CompliancePoliciesViewModel Compliance { get; }
+
+    public bool ShowCompliance => SelectedPage.Key == "compliance";
 
     /// <param name="openDevice">Opens a device's page, for an Autopilot device that has enrolled.</param>
     public DevicesAreaViewModel(DataListViewModel devices, IAutopilotRecords? autopilot, ChangePipeline? pipeline, Availability canEdit,
-        IListStateStore? listState, Func<DateTimeOffset> now, Action<string>? openDevice = null)
+        IListStateStore? listState, Func<DateTimeOffset> now, Action<string>? openDevice = null, IIntunePolicyRecords? policies = null, IDirectoryIndex? index = null)
     {
         Devices = devices;
+        Compliance = new Intune.CompliancePoliciesViewModel(policies, pipeline, canEdit, index ?? EmptyIndex.Instance);
         _autopilot = autopilot;
         Autopilot = DataListViewModel.Create(
             AutopilotList.Definition(d => new Records.AutopilotPreviewViewModel(d, pipeline, canEdit, openDevice)),
@@ -55,7 +106,7 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
     public DataListViewModel Autopilot { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowDevices), nameof(ShowAutopilot))]
+    [NotifyPropertyChangedFor(nameof(ShowDevices), nameof(ShowAutopilot), nameof(ShowCompliance))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     public bool ShowDevices => SelectedPage.Key == "devices";
@@ -63,6 +114,10 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
 
     partial void OnSelectedPageChanged(MailSecurityPage value)
     {
+        if (value is null)
+            return;
+        if (value.Key == "compliance" && !Compliance.IsLoaded)
+            _ = Compliance.Refresh();
         if (value.Key == "autopilot" && !_autopilotRead)
         {
             _autopilotRead = true;

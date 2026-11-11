@@ -1,0 +1,255 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:it="using:Tenantry.ViewModels.Intune"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.CompliancePoliciesView"
+             x:DataType="it:CompliancePoliciesViewModel">
+  <ScrollViewer>
+    <StackPanel Spacing="12" Margin="0,0,0,24">
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h3" Text="Compliance Policies" />
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="What a device must meet to count as compliant (encryption, a password, an up-to-date system…), and what happens when it doesn't. Conditional Access can then let in only compliant devices." />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+            <Button Classes="accent" Command="{Binding ToggleAddCommand}" IsVisible="{Binding CanEdit}" ToolTip.Tip="Make a compliance policy for a platform">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Add" FontSize="14" />
+                <TextBlock Text="New Policy" />
+              </StackPanel>
+            </Button>
+            <Button Classes="ghost" Command="{Binding RefreshCommand}" ToolTip.Tip="Read them from Intune again">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+                <TextBlock Text="Refresh" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+      <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </Border>
+
+      <!-- A new policy -->
+      <Border Classes="card" IsVisible="{Binding IsAddOpen}">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="NEW COMPLIANCE POLICY" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="It starts with nothing required; open it once it&apos;s made to choose its settings and who it reaches." />
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+            <TextBox Text="{Binding NewName}" PlaceholderText="Name" />
+            <ComboBox Grid.Column="1" ItemsSource="{x:Static it:CompliancePoliciesViewModel.Platforms}" SelectedItem="{Binding NewPlatform}" MinWidth="300">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="ed:EditorChoice">
+                  <TextBlock Text="{Binding Label}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+              <TextBlock Classes="caption" Text="Noncompliant after" VerticalAlignment="Center" />
+              <TextBox Text="{Binding NewGraceDays}" Width="60" />
+              <TextBlock Classes="caption" Text="days" VerticalAlignment="Center" />
+            </StackPanel>
+          </Grid>
+          <TextBlock Classes="error" Text="{Binding AddProblem}" IsVisible="{Binding HasAddProblem}" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding AddCommand}" />
+            <Button Content="Cancel" Command="{Binding ToggleAddCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="16" Height="16" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" Text="Reading from Intune…" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+
+      <ItemsControl ItemsSource="{Binding Cards}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="it:CompliancePolicyCard">
+            <Border Classes="card">
+              <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch">
+                <Expander.Header>
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding Assignments.Summary}" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding CountsText}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                      <c:Badge Text="{Binding Platform}" Kind="Info" />
+                      <c:Badge Text="{Binding ProblemText}" Kind="{Binding CountsKind}" IsVisible="{Binding HasProblemText}" />
+                    </StackPanel>
+                  </Grid>
+                </Expander.Header>
+                <StackPanel Spacing="14">
+                  <TextBlock Classes="muted" Text="{Binding Description}" IsVisible="{Binding HasDescription}" TextWrapping="Wrap" />
+
+                  <!-- Settings -->
+                  <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Spacing="8" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="ms:SettingGroup">
+                        <StackPanel Spacing="6">
+                          <TextBlock Classes="label" Text="{Binding Title}" />
+                          <ItemsControl ItemsSource="{Binding Rows}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="ms:SettingRow">
+                                <views:SettingRowView />
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <StackPanel Spacing="4" IsVisible="{Binding HasOthers}">
+                    <TextBlock Classes="label" Text="OTHER SETTINGS (KEPT AS THEY ARE)" />
+                    <ItemsControl ItemsSource="{Binding Others}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="it:SummaryLineText">
+                          <Grid ColumnDefinitions="300,*" ColumnSpacing="10" Margin="0,2">
+                            <TextBlock Classes="caption" Text="{Binding Label}" TextWrapping="Wrap" />
+                            <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+
+                  <!-- Actions for noncompliance -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Classes="label" Text="WHEN A DEVICE DOESN'T COMPLY" />
+                    <ItemsControl ItemsSource="{Binding Actions}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="it:ComplianceActionRow">
+                          <Border Classes="valuerow">
+                            <StackPanel Spacing="4">
+                              <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Classes="caption" Text="after" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                                  <TextBox Text="{Binding DaysText}" Width="60" c:EditCommit.Commit="{Binding CommitDaysCommand}" IsEnabled="{Binding $parent[ItemsControl].((it:CompliancePolicyCard)DataContext).CanEdit}" />
+                                  <TextBlock Classes="caption" Text="days" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <Button Grid.Column="3" Classes="danger-outline" Content="Remove" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}"
+                                        ToolTip.Tip="Stop taking this step (added to Pending Changes)" />
+                              </Grid>
+                              <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsEmail}">
+                                <TextBlock Classes="caption" Text="Message" VerticalAlignment="Center" />
+                                <ComboBox ItemsSource="{Binding Templates}" SelectedItem="{Binding Template}" MinWidth="280">
+                                  <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="ed:EditorChoice">
+                                      <TextBlock Text="{Binding Label}" />
+                                    </DataTemplate>
+                                  </ComboBox.ItemTemplate>
+                                </ComboBox>
+                              </StackPanel>
+                              <TextBlock Classes="error" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" />
+                            </StackPanel>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding CanAddAction}">
+                      <ComboBox x:Name="NewAction" ItemsSource="{Binding ActionChoices}" MinWidth="260" PlaceholderText="Add a step…">
+                        <ComboBox.ItemTemplate>
+                          <DataTemplate x:DataType="ed:EditorChoice">
+                            <TextBlock Text="{Binding Label}" />
+                          </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                      </ComboBox>
+                      <Button Content="Add Step" Command="{Binding AddActionCommand}" CommandParameter="{Binding #NewAction.SelectedItem}"
+                              ToolTip.Tip="Add this step (added to Pending Changes)" />
+                    </StackPanel>
+                  </StackPanel>
+
+                  <!-- Who it reaches -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Classes="label" Text="WHO IT REACHES" />
+                    <views:AssignmentEditorView DataContext="{Binding Assignments}" />
+                  </StackPanel>
+
+                  <!-- Devices -->
+                  <StackPanel Spacing="6">
+                    <Button Command="{Binding ShowDevicesCommand}" HorizontalAlignment="Left" ToolTip.Tip="Each device's state under this policy">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ic:FluentIcon Icon="Laptop" FontSize="14" />
+                        <TextBlock Text="Devices" />
+                      </StackPanel>
+                    </Button>
+                    <StackPanel Spacing="4" IsVisible="{Binding DevicesShown}">
+                      <TextBlock Classes="muted" Text="Reading devices…" IsVisible="{Binding DevicesLoading}" />
+                      <TextBlock Classes="muted" Text="{Binding DevicesNote}" IsVisible="{Binding HasDevicesNote}" TextWrapping="Wrap" />
+                      <ItemsControl ItemsSource="{Binding Devices}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="it:DeviceStatusRow">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,3">
+                              <StackPanel Spacing="1">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                <TextBlock Classes="caption" Text="{Binding Detail}" />
+                              </StackPanel>
+                              <c:Badge Grid.Column="1" Text="{Binding StateText}" Kind="{Binding StateKind}" VerticalAlignment="Center" />
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </StackPanel>
+
+                  <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}" IsVisible="{Binding CanEdit}" HorizontalAlignment="Left"
+                          ToolTip.Tip="Delete the policy: devices it reaches stop being checked by it (you type its name to confirm)" />
+                </StackPanel>
+              </Expander>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Classes="muted" Text="No compliance policies yet." IsVisible="{Binding IsEmpty}" />
+
+      <!-- Organization-wide compliance settings -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="h3" Text="Compliance Settings" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="How Intune treats every device, whatever policies reach it." />
+          <ItemsControl ItemsSource="{Binding OrgSettings}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ms:SettingGroup">
+                <ItemsControl ItemsSource="{Binding Rows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="ms:SettingRow">
+                      <views:SettingRowView />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -1134,6 +1134,14 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
         editing.DevicesArea.Autopilot.PreviewRow(editing.DevicesArea.Autopilot.Rows[0]);
         Render(editing, "autopilot-light");
+        // Compliance policies, the Windows one opened.
+        editing.DevicesArea.SelectedPage = DevicesAreaViewModel.Pages.Single(p => p.Key == "compliance");
+        for (var i = 0; i < 20 && !editing.DevicesArea.Compliance.IsLoaded; i++)
+            Settle();
+        editing.DevicesArea.Compliance.Cards.First(c => c.Name == "Windows Baseline").IsExpanded = true;
+        for (var i = 0; i < 5; i++)
+            Settle();
+        Render(editing, "compliance-light", height: 3200);
         editing.DevicesArea.SelectedPage = DevicesAreaViewModel.Pages[0];
 
         // A site's page, every tab: a team site that's shared outside the organization (opened from SharePoint, as in the app).

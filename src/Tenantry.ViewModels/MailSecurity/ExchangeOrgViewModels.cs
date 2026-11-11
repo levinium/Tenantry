@@ -19,7 +19,14 @@ public sealed record SettingChoice(string Value, string Label)
 }
 
 /// <summary>Everything a setting row needs from the page it sits on.</summary>
-public sealed record SettingContext(ChangePipeline? Pipeline, Availability CanEdit);
+/// <param name="Make">
+/// The change a row stages (setting, new value, old words, new words, caution), for settings that
+/// aren't Exchange's (Intune policies); null stages a <see cref="SetExchangeSetting"/>. Its Key must
+/// be "{SetCmdlet}:{Parameter}" so a row finds what it staged.
+/// </param>
+/// <param name="UnsetText">What a row says when the setting has no value ("Not configured").</param>
+public sealed record SettingContext(ChangePipeline? Pipeline, Availability CanEdit, Func<SettingDef, JsonNode?, string, string, bool, ChangeOp>? Make = null,
+    string? UnsetText = null);
 
 /// <summary>
 /// One Exchange setting as a row: a box to tick, a number or a choice, with what it does. Each
@@ -47,6 +54,7 @@ public sealed partial class SettingRow : ObservableObject
         if (def.Kind == SettingKind.Choice && read?.GetValue<string>() is { } value)
             Choice = Choices.FirstOrDefault(c => c.Value.Equals(value, StringComparison.OrdinalIgnoreCase));
         NumberText = def.Kind == SettingKind.Number && read is not null ? read.GetValue<int>().ToString(CultureInfo.CurrentCulture) : "";
+        TextValue = def.Kind == SettingKind.Text && read is JsonValue text && text.TryGetValue<string>(out var t) ? t : "";
         ListText = read is JsonArray items ? string.Join(Environment.NewLine, items.Select(i => i!.GetValue<string>())) : "";
         _loading = false;
     }
@@ -56,6 +64,15 @@ public sealed partial class SettingRow : ObservableObject
     public partial string ListText { get; set; }
 
     public bool IsList => Def.Kind == SettingKind.List;
+
+    public bool IsText => Def.Kind == SettingKind.Text;
+
+    /// <summary>A line of text; it takes effect on Enter or leaving the box (empty clears it).</summary>
+    [ObservableProperty]
+    public partial string TextValue { get; set; }
+
+    [RelayCommand]
+    void CommitText() => Restage(TextValue.Trim().Length == 0 ? null : JsonValue.Create(TextValue.Trim()));
 
     [RelayCommand]
     void CommitList()
@@ -83,7 +100,8 @@ public sealed partial class SettingRow : ObservableObject
     /// <summary>Exchange leaves it unset: Microsoft's default applies until it's chosen here.</summary>
     public bool IsUnset => _read is null;
 
-    public string UnsetText => Def.DefaultOn is { } d ? $"Not set: Microsoft's default ({(d ? "on" : "off")}) applies." : "Not set: Microsoft's default applies.";
+    public string UnsetText => _context.UnsetText
+        ?? (Def.DefaultOn is { } d ? $"Not set: Microsoft's default ({(d ? "on" : "off")}) applies." : "Not set: Microsoft's default applies.");
 
     public IReadOnlyList<SettingChoice> Choices { get; }
 
@@ -110,6 +128,13 @@ public sealed partial class SettingRow : ObservableObject
     [RelayCommand]
     void CommitNumber()
     {
+        // An Intune setting can be left empty: not configured.
+        if (_context.Make is not null && NumberText.Trim().Length == 0)
+        {
+            Problem = null;
+            Restage(null);
+            return;
+        }
         if (!int.TryParse(NumberText, NumberStyles.Integer, CultureInfo.CurrentCulture, out var n) || n < Def.Min || n > Def.Max)
         {
             Problem = $"A whole number from {Def.Min:N0} to {Def.Max:N0}.";
@@ -130,6 +155,11 @@ public sealed partial class SettingRow : ObservableObject
             pipeline.Unstage(pending);
         if (JsonNode.DeepEquals(value, _read))
             return;
+        if (_context.Make is { } make)
+        {
+            pipeline.Stage(make(Def, value, Def.Words(_read), Def.Words(value), Def.IsCaution(value)));
+            return;
+        }
         pipeline.Stage(new SetExchangeSetting(_owner, Def.SetCmdlet, Def.GetCmdlet, _identity, Def.Parameter, Def.Label,
             Def.ToExchange(value) switch
             {

@@ -4,7 +4,8 @@ using System.Text.Json.Nodes;
 namespace Tenantry.Core.Directory;
 
 /// <summary>How a setting is edited.</summary>
-public enum SettingKind { OnOff, Number, Choice, List }
+/// <summary>How a setting is edited. <see cref="Text"/> is a line of free text (an OS version).</summary>
+public enum SettingKind { OnOff, Number, Choice, List, Text }
 
 /// <summary>
 /// One Exchange setting the app can show and change: where it's read and written (a Get-/Set- pair,

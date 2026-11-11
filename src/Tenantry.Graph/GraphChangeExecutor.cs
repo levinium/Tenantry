@@ -163,6 +163,7 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         UpdateNamedLocation u => await UpdateNamedLocationAsync(u, cancellationToken),
         DeleteNamedLocation d => await DeleteNamedLocationAsync(d, cancellationToken),
         AppChange a => await ApplyAppAsync(a, cancellationToken),
+        IntuneChange i => await ApplyIntuneAsync(i, cancellationToken),
         EdChange e => await ApplyEDiscoveryAsync(e, cancellationToken),
         RetentionChange r => await ApplyRetentionAsync(r, cancellationToken),
         SetAuthMethodConfig m => await SetAuthMethodConfigAsync(m, cancellationToken),

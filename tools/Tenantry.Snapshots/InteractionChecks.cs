@@ -1317,6 +1317,44 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Devices › Compliance: a policy opens; a switch stages a setting; All Devices stages an assignment with Undo; Add Step stages an action", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "devices");
+            Settle();
+            var area = main.DevicesArea;
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is SecurityPageGroup { Key: "compliance" }));
+            for (var i = 0; i < 50 && !area.Compliance.IsLoaded; i++)
+                Settle();
+            Expect(area.Compliance.Cards.Count > 0, "the policies are listed");
+            var card = area.Compliance.Cards.Single(c => c.Name == "zz-tenantry-test-compliance");
+            card.IsExpanded = true;
+            for (var i = 0; i < 5; i++)
+                Settle();
+            var row = card.Groups.SelectMany(g => g.Rows).Single(r => r.Def.Parameter == "bitLockerEnabled");
+            var toggle = window.GetVisualDescendants().OfType<ToggleSwitch>().First(t => t.DataContext == row && t.IsEffectivelyVisible);
+            toggle.BringIntoView();
+            Settle();
+            Click(window, toggle);
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetIntuneSetting { Property: "bitLockerEnabled" }), "requiring BitLocker is in Pending Changes");
+            var all = FindButton(window, b => b.IsEffectivelyVisible && b.Command == card.Assignments.AddAllDevicesCommand);
+            all.BringIntoView();
+            Settle();
+            Click(window, all);
+            Expect(main.Pending.Rows.Any(r => r.Change is SetIntuneAssignments { IsCaution: true }), "reaching all devices is in Pending Changes, as a caution");
+            for (var i = 0; i < 3; i++)
+                Settle();
+            var undo = FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is Tenantry.ViewModels.Intune.AssignmentRow { StateText: "Adding" });
+            undo.BringIntoView();
+            Settle();
+            Click(window, undo);
+            Expect(!main.Pending.Rows.Any(r => r.Change is SetIntuneAssignments), "Undo took the assignment back out");
+            card.AddActionCommand.Execute(card.ActionChoices.First());
+            Expect(main.Pending.Rows.Any(r => r.Change is SetComplianceActions), "the new step is in Pending Changes");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("Devices › Autopilot: the page tab reads the list, a serial opens its preview, and Set Group Tag goes to Pending Changes", () =>
         {
             var (window, main, _) = OpenList();
