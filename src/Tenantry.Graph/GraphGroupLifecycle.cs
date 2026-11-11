@@ -137,7 +137,7 @@ public sealed partial class GraphChangeExecutor
     {
         var result = await RunCheckedAsync("Upgrade-DistributionGroup", UpgradeParameters(change), null, _ => true, cancellationToken);
         return result.Succeeded
-            ? new ApplyResult(ChangeOutcome.Applied, "Upgrade started. Microsoft takes 5 to 10 minutes; the list then shows as a Microsoft 365 group.")
+            ? new ApplyResult(ChangeOutcome.Applied, "Upgrade asked for. Microsoft does it in the background; in testing (twice, on an eligible list) it hadn't happened hours later, so check back. If it still hasn't by tomorrow, upgrade it in the Exchange admin center.")
             : result;
     }
 
