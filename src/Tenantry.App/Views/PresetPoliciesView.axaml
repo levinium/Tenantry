@@ -1,0 +1,118 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.PresetPoliciesView"
+             x:DataType="ms:PresetPoliciesViewModel">
+  <ScrollViewer>
+    <StackPanel Spacing="12" Margin="0,0,0,24">
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h3" Text="Preset Policies" />
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="Microsoft's ready-made protection, kept up to date by Microsoft. Each person gets one set of protections, the first that covers them: Strict, then Standard, then your own policies, then the defaults. Built-in protection gives Safe Links and Safe Attachments to anyone left." />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+      <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </Border>
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="16" Height="16" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" Text="Reading from Exchange…" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding Cards}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ms:PresetCard">
+            <Border Classes="card">
+              <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                  <StackPanel Spacing="4">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Classes="h3" Text="{Binding Title}" />
+                      <c:Badge Text="{Binding StateText}" Kind="{Binding StateKind}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Classes="muted" Text="{Binding About}" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="{Binding SwitchText}" Command="{Binding SwitchCommand}" IsVisible="{Binding CanSwitch}"
+                          ToolTip.Tip="{Binding SwitchTip}" VerticalAlignment="Top" />
+                </Grid>
+
+                <!-- Never turned on: only the Defender portal can make it -->
+                <Border Classes="banner neutral" IsVisible="{Binding NeverTurnedOn}">
+                  <StackPanel Spacing="8">
+                    <TextBlock TextWrapping="Wrap" Text="{Binding NeverTurnedOnText}" />
+                    <Button Command="{Binding OpenPortalCommand}" HorizontalAlignment="Left" ToolTip.Tip="Open preset security policies in Microsoft's Defender portal">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ic:FluentIcon Icon="Open" FontSize="14" />
+                        <TextBlock Text="Turn On in Defender" />
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
+                </Border>
+                <TextBlock Classes="caption" Text="{Binding NoDefenderText}" IsVisible="{Binding ShowNoDefender}" TextWrapping="Wrap" />
+
+                <!-- Who it covers -->
+                <StackPanel Spacing="6" IsVisible="{Binding Exists}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="label" Text="WHO IT COVERS" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding AppliesTo}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <ItemsControl ItemsSource="{Binding Scope}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <UniformGrid Columns="3" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="ms:PresetScopeRow">
+                        <StackPanel Spacing="3" Margin="0,0,10,10">
+                          <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                          <TextBlock Classes="caption" Text="{Binding Help}" TextWrapping="Wrap" />
+                          <TextBox Text="{Binding Text}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" IsEnabled="{Binding CanEdit}"
+                                   PlaceholderText="{Binding Placeholder}" c:EditCommit.Commit="{Binding CommitCommand}" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+
+                <!-- What it does -->
+                <Expander Header="What It Sets" Padding="12,6">
+                  <ItemsControl ItemsSource="{Binding WhatItSets}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{Binding StringFormat='• {0}'}" TextWrapping="Wrap" Margin="0,2" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </Expander>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -185,6 +185,9 @@
     <Panel IsVisible="{Binding ShowQuarantinePolicies}">
       <views:QuarantinePoliciesView DataContext="{Binding QuarantinePolicies}" />
     </Panel>
+    <Panel IsVisible="{Binding ShowPresets}">
+      <views:PresetPoliciesView DataContext="{Binding PresetPolicies}" />
+    </Panel>
     <Panel IsVisible="{Binding ShowFlowReports}">
       <views:MailFlowReportsView DataContext="{Binding FlowReports}" />
     </Panel>

@@ -23,6 +23,8 @@ public sealed partial class GraphChangeExecutor
         RemoveThreatPolicy r => PsScript.Exchange(Ps.Lines([.. RemovePolicyCalls(r).Select(x => Ps.Cmdlet(x.Cmdlet, x.Parameters))])),
         SetThreatRuleEnabled e => PsScript.Exchange(Ps.Cmdlet((e.New ? "Enable-" : "Disable-") + e.RuleNoun,
             new Dictionary<string, object?> { ["Identity"] = e.Policy.Name, ["Confirm"] = false })),
+        PresetChange p => PsScript.Exchange(Ps.Lines([.. PresetCalls(p).Select(x => Ps.Cmdlet(x.Cmdlet, x.Parameters))]),
+            p.Preset == PresetKind.BuiltIn ? null : "Standard and Strict each have two rules: one for anti-spam, anti-phishing and anti-malware, one for Safe Links and Safe Attachments. Change both."),
         SetAlertPolicy a => PsScript.Purview(Ps.Cmdlet("Set-ProtectionAlert", AlertPolicyParameters(a)), "In Security & Compliance PowerShell (Connect-IPPSSession)."),
         UpdateSecurityAlert u => PsScript.Graph(Ps.Graph("PATCH", $"security/alerts_v2/{u.Alert.Id}", AlertUpdateBody(u))),
         SetQuarantinePermissions q => PsScript.Exchange(Ps.Cmdlet("Set-QuarantinePolicy",

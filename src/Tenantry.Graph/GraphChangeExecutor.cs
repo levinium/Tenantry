@@ -120,6 +120,7 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         CreateThreatPolicy c => await CreateThreatPolicyAsync(c, cancellationToken),
         RemoveThreatPolicy r => await RemoveThreatPolicyAsync(r, cancellationToken),
         SetThreatRuleEnabled e => await SetThreatRuleEnabledAsync(e, cancellationToken),
+        PresetChange p => await PresetAsync(p, cancellationToken),
         SetQuarantinePermissions q => await SetQuarantinePermissionsAsync(q, cancellationToken),
         SetAlertPolicy a => await SetAlertPolicyAsync(a, cancellationToken),
         UpdateSecurityAlert u => await UpdateSecurityAlertAsync(u, cancellationToken),

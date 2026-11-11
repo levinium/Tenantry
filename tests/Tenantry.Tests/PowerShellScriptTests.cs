@@ -25,6 +25,14 @@ public sealed class PowerShellScriptTests
     /// <summary>Every kind of change, with made-up values, in each of its enum values where it has one.</summary>
     static IEnumerable<ChangeOp> Samples() => ChangeTypes().SelectMany(Sample.Variants).OfType<ChangeOp>();
 
+    /// <summary>A change type left off the list can be applied but not written to the change log (it throws after the change is made).</summary>
+    [Fact]
+    public void Every_kind_of_change_is_registered_so_the_change_log_can_save_it()
+    {
+        var concrete = typeof(ChangeOp).Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(ChangeOp)) && !t.IsAbstract);
+        Assert.Empty(concrete.Except(ChangeTypes()).Select(t => t.Name));
+    }
+
     [Fact]
     public void Every_change_has_PowerShell_except_Tenantry_records()
     {

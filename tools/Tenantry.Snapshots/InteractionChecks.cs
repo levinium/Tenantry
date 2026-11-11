@@ -380,6 +380,27 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Preset Policies: Turn Off stages switching Strict off; a new exception stages a scope change", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "presets");
+            for (var i = 0; i < 40 && !mail.PresetPolicies.IsLoaded; i++)
+                Settle();
+            Settle();
+            var strict = mail.PresetPolicies.Cards.Single(c => c.Preset.Kind == PresetKind.Strict);
+            Click(window, FindButton(window, b => b.Command == strict.SwitchCommand && b.IsEffectivelyVisible));
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetPresetEnabled { New: false }), "turning Strict off is staged");
+            main.Pending.DiscardAllCommand.Execute(null);
+            var except = strict.Scope.Single(s => s.Part.Parameter == "ExceptIfSentTo");
+            except.Text = "zz-tenantry-test-bo@northgate.example";
+            except.CommitCommand.Execute(null);
+            Expect(main.Pending.Rows.Any(r => r.Change is SetPresetScope { Parameter: "ExceptIfSentTo" }), "the exception is staged");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("Mail Flow Reports: Trace on a top sender opens Message Trace for that sender; Show All lists the rest", () =>
         {
             var (window, main, _) = OpenList();

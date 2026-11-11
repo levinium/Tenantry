@@ -305,7 +305,7 @@ if (args.Contains("--mail-review"))
         main.SelectedTab = mail;
 
         // Threat policies: anti-spam with its default opened, quarantine policies, the connection filter.
-        foreach (var (key, height) in new[] { ("tp-antispam", 2600), ("tp-safelinks", 1200), ("quarantinepolicies", 1300), ("connectionfilter", 1000), ("alerts", 2000), ("flowreports", 2600) })
+        foreach (var (key, height) in new[] { ("tp-antispam", 2600), ("tp-safelinks", 1200), ("quarantinepolicies", 1300), ("connectionfilter", 1000), ("alerts", 2000), ("flowreports", 2600), ("presets", 1700) })
         {
             mail.SelectedPage = pages.Single(p => p.Key == key);
             for (var i = 0; i < 40; i++)
