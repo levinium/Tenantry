@@ -234,6 +234,59 @@ public sealed partial class GraphChangeExecutor
             rows => rows.Count == 1 && QuarantinePermissions.Value(QuarantinePermissions.Parse(GraphUserRecords.StrOf(rows[0], "EndUserQuarantinePermissions") ?? "")) == change.New,
             cancellationToken);
 
+    // ---- Alerts ----------------------------------------------------------------------------------
+
+    internal static Dictionary<string, object?> AlertPolicyParameters(SetAlertPolicy change) => new()
+    {
+        ["Identity"] = change.Identity, [change.Parameter] = change.Value?.DeepClone(),
+    };
+
+    /// <summary>Alert policies live in Security &amp; Compliance: the same REST runner, its other endpoint.</summary>
+    async Task<ApplyResult> SetAlertPolicyAsync(SetAlertPolicy change, CancellationToken cancellationToken)
+    {
+        if (exchange is null)
+            return NoExchange;
+        try
+        {
+            await exchange.InvokeAsync(CmdletEndpoint.Compliance, "Set-ProtectionAlert", AlertPolicyParameters(change), cancellationToken);
+        }
+        catch (CmdletException e)
+        {
+            return new ApplyResult(ChangeOutcome.Failed, e.Explanation);
+        }
+        foreach (var wait in ReadBackWaits)
+        {
+            if (wait > TimeSpan.Zero)
+                await _delay(wait, cancellationToken);
+            var rows = await exchange.InvokeAsync(CmdletEndpoint.Compliance, "Get-ProtectionAlert", new Dictionary<string, object?> { ["Identity"] = change.Identity }, cancellationToken);
+            if (rows.Count == 1 && rows[0].TryGetProperty(change.Parameter, out var v) && SameValue(v, change.Value))
+                return new ApplyResult(ChangeOutcome.Applied);
+        }
+        return new ApplyResult(ChangeOutcome.AppliedNotYetVisible, "Security & Compliance took it but still shows the old setting; check again in a minute.");
+    }
+
+    internal static System.Text.Json.Nodes.JsonObject AlertUpdateBody(UpdateSecurityAlert change)
+    {
+        var body = new System.Text.Json.Nodes.JsonObject { ["status"] = change.Status };
+        if (change.Classification is { } c)
+            body["classification"] = c;
+        if (change.Determination is { } d)
+            body["determination"] = d;
+        return body;
+    }
+
+    async Task<ApplyResult> UpdateSecurityAlertAsync(UpdateSecurityAlert change, CancellationToken cancellationToken)
+    {
+        var path = $"security/alerts_v2/{change.Alert.Id}";
+        await graph.PatchAsync(path, AlertUpdateBody(change), cancellationToken);
+        if (change.Comment is { Length: > 0 } comment)
+            await graph.PostAsync($"{path}/comments", new System.Text.Json.Nodes.JsonObject { ["comment"] = comment }, cancellationToken);
+        var after = await graph.GetAsync(path, cancellationToken);
+        return string.Equals(GraphUserRecords.StrOf(after, "status"), change.Status, StringComparison.OrdinalIgnoreCase)
+            ? new ApplyResult(ChangeOutcome.Applied)
+            : new ApplyResult(ChangeOutcome.AppliedNotYetVisible, "Microsoft took it but still shows the old status.");
+    }
+
     // ---- Where reports go, and answering a report (12d) ---------------------------------------
 
     internal const string ReportPolicy = "DefaultReportSubmissionPolicy";

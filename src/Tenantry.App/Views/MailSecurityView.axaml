@@ -185,6 +185,9 @@
     <Panel IsVisible="{Binding ShowQuarantinePolicies}">
       <views:QuarantinePoliciesView DataContext="{Binding QuarantinePolicies}" />
     </Panel>
+    <Panel IsVisible="{Binding ShowAlerts}">
+      <views:AlertsView DataContext="{Binding AlertsPage}" />
+    </Panel>
     <Panel IsVisible="{Binding ShowConnectionFilter}">
       <views:ConnectionFilterView DataContext="{Binding ConnectionFilter}" />
     </Panel>

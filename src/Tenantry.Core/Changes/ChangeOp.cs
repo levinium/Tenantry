@@ -82,6 +82,8 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(RemoveThreatPolicy), "removeThreatPolicy")]
 [JsonDerivedType(typeof(SetThreatRuleEnabled), "setThreatRuleEnabled")]
 [JsonDerivedType(typeof(SetQuarantinePermissions), "setQuarantinePermissions")]
+[JsonDerivedType(typeof(SetAlertPolicy), "setAlertPolicy")]
+[JsonDerivedType(typeof(UpdateSecurityAlert), "updateSecurityAlert")]
 [JsonDerivedType(typeof(SetSenderListed), "setSenderListed")]
 [JsonDerivedType(typeof(AddListEntry), "addListEntry")]
 [JsonDerivedType(typeof(RemoveListEntry), "removeListEntry")]

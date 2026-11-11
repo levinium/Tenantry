@@ -1,0 +1,137 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.AlertsView"
+             x:DataType="ms:AlertsViewModel">
+  <ScrollViewer>
+    <StackPanel Spacing="12" Margin="0,0,0,24">
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h3" Text="Alerts" />
+            <TextBlock Classes="muted" TextWrapping="Wrap" Text="What Microsoft flagged in the last 30 days (a hacked account, a forwarding rule, malware removed after delivery…), and the alert policies that raise these, with who&apos;s emailed." />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+      <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </Border>
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="16" Height="16" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" Text="Reading from Exchange…" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+      <!-- What fired -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="h3" Text="{Binding AlertsHeading}" VerticalAlignment="Center" />
+            <CheckBox Grid.Column="1" IsChecked="{Binding ShowResolved}" Content="Show Resolved" />
+          </Grid>
+          <TextBlock Classes="error" Text="{Binding AlertsNote}" IsVisible="{Binding HasAlertsNote}" TextWrapping="Wrap" />
+          <TextBlock Classes="muted" Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding Alerts}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ms:AlertRow">
+                <Border Classes="valuerow">
+                  <StackPanel Spacing="4">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                        <c:Badge Text="{Binding SeverityText}" Kind="{Binding SeverityKind}" />
+                        <c:Badge Text="{Binding StatusText}" Kind="{Binding StatusKind}" />
+                      </StackPanel>
+                    </Grid>
+                    <TextBlock Classes="muted" Text="{Binding Description}" IsVisible="{Binding HasDescription}" TextWrapping="Wrap" />
+                    <TextBlock Classes="caption" Text="{Binding Meta}" TextWrapping="Wrap" />
+                    <TextBlock Classes="pendingtext" Text="{Binding PendingText}" IsVisible="{Binding HasPending}" />
+                    <WrapPanel ItemSpacing="8" LineSpacing="8">
+                      <Button Content="Start Working on It" Command="{Binding StartCommand}" IsVisible="{Binding CanStart}"
+                              ToolTip.Tip="Mark it in progress (added to Pending Changes)" />
+                      <Button Classes="danger-outline" Content="Resolve: Real Threat" Command="{Binding ResolveCommand}" CommandParameter="truePositive" IsVisible="{Binding CanWork}"
+                              ToolTip.Tip="Close it as a real threat (added to Pending Changes)" />
+                      <Button Content="Resolve: False Alarm" Command="{Binding ResolveCommand}" CommandParameter="falsePositive" IsVisible="{Binding CanWork}"
+                              ToolTip.Tip="Close it as nothing wrong (added to Pending Changes)" />
+                      <Button Content="Resolve: Expected" Command="{Binding ResolveCommand}" CommandParameter="informationalExpectedActivity" IsVisible="{Binding CanWork}"
+                              ToolTip.Tip="Close it as activity you expected (added to Pending Changes)" />
+                      <Button Command="{Binding OpenCommand}" IsVisible="{Binding HasLink}" ToolTip.Tip="See it in Microsoft's Defender portal, with its full evidence">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <ic:FluentIcon Icon="Open" FontSize="14" />
+                          <TextBlock Text="Open in Defender" />
+                        </StackPanel>
+                      </Button>
+                    </WrapPanel>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <!-- What raises them -->
+      <TextBlock Classes="h3" Text="Alert Policies" Margin="4,8,0,0" />
+      <ItemsControl ItemsSource="{Binding Policies}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ms:AlertPolicyGroup">
+            <Border Classes="card">
+              <StackPanel Spacing="6">
+                <TextBlock Classes="label" Text="{Binding Title}" />
+                <ItemsControl ItemsSource="{Binding Policies}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="ms:AlertPolicyRow">
+                      <Border Classes="valuerow">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                          <StackPanel Spacing="2">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                              <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                              <c:Badge Text="{Binding SeverityText}" Kind="{Binding SeverityKind}" />
+                              <TextBlock Classes="caption" Text="{Binding Owner}" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Classes="muted" Text="{Binding Explanation}" IsVisible="{Binding HasExplanation}" TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                              <TextBlock Classes="caption" Text="{Binding NotifyText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                              <ToggleButton Padding="10,2" FontSize="12" IsChecked="{Binding ShowRecipients}" IsEnabled="{Binding CanEdit}" Content="Change"
+                                            ToolTip.Tip="Change who's emailed, or stop the emails" />
+                            </StackPanel>
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowRecipients}" Margin="0,4,0,0">
+                              <TextBox Text="{Binding RecipientsText}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54"
+                                       PlaceholderText="One address per line (TenantAdmins means every global admin)" c:EditCommit.Commit="{Binding CommitRecipientsCommand}" />
+                              <CheckBox IsChecked="{Binding Emails}" Content="Send the Emails" />
+                            </StackPanel>
+                          </StackPanel>
+                          <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsOn}" IsEnabled="{Binding CanEdit}" OnContent="On" OffContent="Off" VerticalAlignment="Top" />
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

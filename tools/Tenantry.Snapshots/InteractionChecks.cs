@@ -380,6 +380,31 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Alerts: Resolve: False Alarm stages a resolution; a test alert policy's switch stages turning it off", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "alerts");
+            for (var i = 0; i < 40 && !mail.AlertsPage.IsLoaded; i++)
+                Settle();
+            Settle();
+            var open = mail.AlertsPage.Alerts.First(a => a.CanWork);
+            var falseAlarm = FindButton(window, b => b.Command == open.ResolveCommand && (string?)b.CommandParameter == "falsePositive" && b.IsEffectivelyVisible);
+            Click(window, falseAlarm);
+            Expect(main.Pending!.Rows.Any(r => r.Change is UpdateSecurityAlert { Classification: "falsePositive" }), "the resolution is staged");
+            main.Pending.DiscardAllCommand.Execute(null);
+
+            var test = mail.AlertsPage.Policies.SelectMany(g => g.Policies).Single(p => p.Name.StartsWith("zz-tenantry-test-", StringComparison.Ordinal));
+            var toggle = window.GetVisualDescendants().OfType<ToggleSwitch>().First(t => t.DataContext == test && t.IsEffectivelyVisible);
+            toggle.BringIntoView();
+            Settle();
+            Click(window, toggle);
+            Expect(main.Pending.Rows.Any(r => r.Change is SetAlertPolicy { Parameter: "Disabled" }), "turning the test alert policy off is staged");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("Reorder Rules: the button opens the page; ticking two (Shift for a range) and To the Top moves them and stages one new order; Put Them All Back undoes it", () =>
         {
             var (window, main, _) = OpenList();
