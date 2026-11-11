@@ -601,6 +601,36 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Mail tab boxes: typing alone adds nothing; Esc puts the text back; Enter adds the change", () =>
+        {
+            var (window, main, page) = OpenRecord();
+            page.SelectedSection = page.MailTab;
+            Settle();
+            page.MailTab.SelectedPage = MailPage.Limits;
+            for (var i = 0; i < 5; i++)
+                Settle();
+            var box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && ToolTip.GetTip(t) as string == "1 to 1,000 (or Unlimited)");
+            box.BringIntoView();
+            box.Focus();
+            var before = box.Text;
+            box.SelectAll();
+            window.KeyTextInput("42");
+            using (var stop = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
+                Dispatcher.UIThread.MainLoop(stop.Token);
+            Settle();
+            Expect(main.Pending!.Count == 0, "a pause in typing adds nothing");
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Settle();
+            Expect(box.Text == before && main.Pending.Count == 0, "Esc put the text back");
+            box.SelectAll();
+            window.KeyTextInput("42");
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Settle();
+            Expect(main.Pending.Count == 1, "Enter added the limit to Pending Changes");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("Mail tab, mobile devices: a wipe choice closes its menu and adds the change", () =>
         {
             var (window, main, page) = OpenRecord();

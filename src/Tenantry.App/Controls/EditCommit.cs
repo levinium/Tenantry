@@ -119,6 +119,15 @@ public static class EditCommit
             Run(cancel);
             e.Handled = true;
         }
+        else if (e.Key == Key.Escape && GetEnterUpdates(box)
+                 && BindingOperations.GetBindingExpressionBase(box, TextBox.TextProperty) is { } binding)
+        {
+            // A box that updates when left: Esc puts back what it held, so leaving it then changes nothing.
+            StopTimer(box);
+            binding.UpdateTarget();
+            box.CaretIndex = box.Text?.Length ?? 0;
+            e.Handled = true;
+        }
     }
 
     static void Run(ICommand? command)
