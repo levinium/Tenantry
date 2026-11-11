@@ -104,6 +104,10 @@ public static class TenantryPermissions
         // Reported messages (Phase 12d, 2026-11-10): the submissions list and sending a message,
         // link or file to Microsoft (security/threatSubmission answered 401 without it, seen live).
         "ThreatSubmission.ReadWrite.All",
+        // Intune scripts and remediations, and Intune roles and scope tags (Phase 13, 2026-11-11):
+        // their lists were refused (403) without these, seen live.
+        "DeviceManagementScripts.ReadWrite.All",
+        "DeviceManagementRBAC.ReadWrite.All",
     ]);
 
     public static readonly ApiPermissions Exchange = new(ExchangeAppId, "Office 365 Exchange Online", "https://outlook.office365.com",
@@ -152,6 +156,8 @@ public static class TenantryPermissions
         "Policy.ReadWrite.SecurityDefaults" => "turning security defaults on or off",
         "IdentityRiskEvent.Read.All" => "showing risk detections",
         "ThreatSubmission.ReadWrite.All" => "showing reported messages and sending messages to Microsoft for review",
+        "DeviceManagementScripts.ReadWrite.All" => "Intune scripts and remediations",
+        "DeviceManagementRBAC.ReadWrite.All" => "Intune roles and scope tags",
         "IdentityRiskyServicePrincipal.ReadWrite.All" => "showing and dismissing risky apps",
         "eDiscovery.Download.Read" => "downloading eDiscovery exports",
         _ => null,

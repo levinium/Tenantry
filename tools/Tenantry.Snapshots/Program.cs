@@ -1151,6 +1151,18 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         for (var i = 0; i < 20; i++)
             Settle();
         Render(editing, "configuration-light", height: 2800);
+        // The generic Intune pages: apps (Company Portal opened), update rings, enrollment settings, a remediation.
+        foreach (var (key, open, height) in new[] { ("apps", "Company Portal", 1900), ("rings", "Pilot Ring", 2200), ("enrollment", "Staff Device Limit", 1500), ("remediations", "Clear Old Temp Files", 1700), ("mam-ios", "iPhone Work Data", 2600) })
+        {
+            editing.DevicesArea.SelectedPage = DevicesAreaViewModel.Pages.Single(p => p.Key == key);
+            var objects = editing.DevicesArea.ObjectPages[key];
+            for (var i = 0; i < 20 && !objects.IsLoaded; i++)
+                Settle();
+            objects.Cards.First(c => c.Name == open).IsExpanded = true;
+            for (var i = 0; i < 20; i++)
+                Settle();
+            Render(editing, $"intune-{key}-light", height: height);
+        }
         editing.DevicesArea.SelectedPage = DevicesAreaViewModel.Pages[0];
 
         // A site's page, every tab: a team site that's shared outside the organization (opened from SharePoint, as in the app).

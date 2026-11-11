@@ -1,0 +1,167 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:it="using:Tenantry.ViewModels.Intune"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:dir="using:Tenantry.Core.Directory"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.IntuneObjectsView"
+             x:DataType="it:IntuneObjectsViewModel">
+  <!-- One Intune list (apps, update rings, scripts…): what it is, New, and a card per item. -->
+  <ScrollViewer>
+    <StackPanel Spacing="12" Margin="0,0,0,24">
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h3" Text="{Binding Title}" />
+            <TextBlock Classes="muted" TextWrapping="Wrap" Text="{Binding About}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+            <Button Classes="accent" Command="{Binding ToggleAddCommand}" IsVisible="{Binding CanCreate}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Add" FontSize="14" />
+                <TextBlock Text="New" />
+              </StackPanel>
+            </Button>
+            <Button Classes="ghost" Command="{Binding RefreshCommand}" ToolTip.Tip="Read them from Intune again">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+                <TextBlock Text="Refresh" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+      <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </Border>
+
+      <!-- New -->
+      <Border Classes="card" IsVisible="{Binding IsAddOpen}">
+        <StackPanel Spacing="10">
+          <ComboBox ItemsSource="{Binding CreateOptions}" SelectedItem="{Binding CreateOption}" IsVisible="{Binding HasManyOptions}" MinWidth="320">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="dir:CreateOption">
+                <TextBlock Text="{Binding Title}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Classes="caption" Text="{Binding CreateDescription}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding Fields}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="it:CreateFieldRow">
+                <StackPanel Spacing="3" MaxWidth="720" HorizontalAlignment="Left">
+                  <TextBlock Classes="label" Text="{Binding Label}" />
+                  <TextBox Text="{Binding Text}" IsVisible="{Binding IsText}" PlaceholderText="{Binding Placeholder}" MinWidth="420" />
+                  <TextBox Text="{Binding Text}" IsVisible="{Binding IsLong}" PlaceholderText="{Binding Placeholder}" AcceptsReturn="True" MinHeight="90" MaxHeight="300" MinWidth="560"
+                           FontFamily="Cascadia Mono, Consolas, Menlo, monospace" FontSize="12" />
+                  <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Choice}" IsVisible="{Binding IsChoice}" MinWidth="320" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Classes="error" Text="{Binding AddProblem}" IsVisible="{Binding HasAddProblem}" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding AddCommand}" />
+            <Button Content="Cancel" Command="{Binding ToggleAddCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <TextBox Text="{Binding FilterText}" PlaceholderText="Find by name or kind" Width="480" HorizontalAlignment="Left" />
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="16" Height="16" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" Text="Reading from Intune…" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+      <TextBlock Classes="muted" Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}" />
+
+      <ItemsControl ItemsSource="{Binding Cards}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="it:IntuneObjectCard">
+            <Border Classes="card">
+              <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch">
+                <Expander.Header>
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding Assignments.Summary}" IsVisible="{Binding HasAssignments}" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding InstallText}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <c:Badge Grid.Column="1" Text="{Binding TypeText}" Kind="Neutral" IsVisible="{Binding HasType}" VerticalAlignment="Center" />
+                  </Grid>
+                </Expander.Header>
+                <StackPanel Spacing="14">
+                  <Border Classes="banner neutral" IsVisible="{Binding HasKeptText}">
+                    <TextBlock TextWrapping="Wrap" Text="{Binding KeptText}" />
+                  </Border>
+                  <TextBlock Classes="muted" Text="{Binding Note}" IsVisible="{Binding HasNote}" TextWrapping="Wrap" />
+                  <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="ms:SettingGroup">
+                        <StackPanel Spacing="6" Margin="0,0,0,8">
+                          <TextBlock Classes="label" Text="{Binding Title}" />
+                          <ItemsControl ItemsSource="{Binding Rows}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="ms:SettingRow">
+                                <views:SettingRowView />
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <StackPanel Spacing="4" IsVisible="{Binding HasOthers}">
+                    <TextBlock Classes="label" Text="OTHER SETTINGS (KEPT AS THEY ARE)" />
+                    <ItemsControl ItemsSource="{Binding Others}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="it:SummaryLineText">
+                          <Grid ColumnDefinitions="300,*" ColumnSpacing="10" Margin="0,2">
+                            <TextBlock Classes="caption" Text="{Binding Label}" TextWrapping="Wrap" />
+                            <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                  <StackPanel Spacing="4" IsVisible="{Binding HasProtectedApps}">
+                    <TextBlock Classes="label" Text="APPS IT PROTECTS" />
+                    <TextBlock Classes="caption" Text="{Binding ProtectedAppsHelp}" TextWrapping="Wrap" />
+                    <TextBox Text="{Binding ProtectedText}" AcceptsReturn="True" MinHeight="70" MaxHeight="220" MaxWidth="640" HorizontalAlignment="Left" MinWidth="420"
+                             IsEnabled="{Binding CanEdit}" c:EditCommit.Commit="{Binding CommitProtectedCommand}" />
+                  </StackPanel>
+                  <StackPanel Spacing="6" IsVisible="{Binding HasAssignments}">
+                    <TextBlock Classes="label" Text="WHO IT REACHES" />
+                    <TextBlock Classes="caption" Text="Change these in Microsoft's admin center: Intune changes them one at a time for this kind." IsVisible="{Binding AssignmentsReadOnly}" TextWrapping="Wrap" />
+                    <views:AssignmentEditorView DataContext="{Binding Assignments}" />
+                  </StackPanel>
+                  <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}" IsVisible="{Binding CanDelete}" HorizontalAlignment="Left"
+                          ToolTip.Tip="Delete it (you type its name to confirm)" />
+                </StackPanel>
+              </Expander>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

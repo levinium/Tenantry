@@ -81,6 +81,9 @@
       </ContentControl>
     </DockPanel>
 
+    <Panel IsVisible="{Binding ShowObjects}">
+      <views:IntuneObjectsView DataContext="{Binding CurrentObjects}" />
+    </Panel>
     <Panel IsVisible="{Binding ShowConfiguration}">
       <views:ConfigurationProfilesView DataContext="{Binding Configuration}" />
     </Panel>

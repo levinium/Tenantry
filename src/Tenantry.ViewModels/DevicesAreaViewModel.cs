@@ -24,14 +24,38 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
         new("autopilot", "Autopilot", "Rocket"),
         new("compliance", "Compliance Policies", "ShieldCheckmark"),
         new("configuration", "Configuration Profiles", "Settings"),
+        new("autopilotprofiles", "Autopilot Profiles", "Rocket"),
+        new("enrollment", "Enrollment Settings", "PhoneLaptop"),
+        new("categories", "Device Categories", "Tag"),
+        new("cleanup", "Clean-Up Rules", "Broom"),
+        new("notifications", "Notification Messages", "Mail"),
+        new("terms", "Terms and Conditions", "DocumentText"),
+        new("scripts", "Windows Scripts", "Code"),
+        new("remediations", "Remediations", "Wrench"),
+        new("shellscripts", "macOS Scripts", "Code"),
+        new("rings", "Update Rings", "ArrowSync"),
+        new("featureupdates", "Feature Updates", "ArrowUp"),
+        new("qualityupdates", "Expedited Quality Updates", "FlashFlow"),
+        new("driverupdates", "Driver Updates", "Cube"),
+        new("apps", "Apps", "Apps"),
+        new("mam-ios", "iOS App Protection", "Phone"),
+        new("mam-android", "Android App Protection", "Phone"),
+        new("appconfig", "App Configuration", "AppsSettings"),
+        new("mdmappconfig", "App Configuration (Managed Devices)", "AppsSettings"),
+        new("filters", "Assignment Filters", "Filter"),
+        new("scopetags", "Scope Tags", "Tag"),
+        new("intuneroles", "Intune Roles", "PeopleTeam"),
     ];
 
     /// <summary>The pages in sections, as Intune's admin center groups them.</summary>
     public static IReadOnlyList<SecurityPageGroup> Sections { get; } =
     [
-        new("devices", "Devices", "Laptop", Of("devices", "autopilot")),
-        new("compliance", "Compliance", "ShieldCheckmark", Of("compliance")),
-        new("configuration", "Configuration", "Settings", Of("configuration")),
+        new("devices", "Devices", "Laptop", Of("devices", "autopilot", "autopilotprofiles", "enrollment", "categories", "cleanup")),
+        new("compliance", "Compliance", "ShieldCheckmark", Of("compliance", "notifications", "terms")),
+        new("configuration", "Configuration", "Settings", Of("configuration", "scripts", "remediations", "shellscripts")),
+        new("updates", "Updates", "ArrowSync", Of("rings", "featureupdates", "qualityupdates", "driverupdates")),
+        new("apps", "Apps", "Apps", Of("apps", "mam-ios", "mam-android", "appconfig", "mdmappconfig")),
+        new("tenantadmin", "Tenant Administration", "Building", Of("filters", "scopetags", "intuneroles")),
     ];
 
     static IReadOnlyList<MailSecurityPage> Of(params string[] keys) => [.. keys.Select(k => Pages.Single(p => p.Key == k))];
@@ -80,6 +104,13 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
 
     public bool ShowConfiguration => SelectedPage.Key == "configuration";
 
+    /// <summary>The generic Intune pages (apps, updates, scripts, enrollment, tenant administration), by page key.</summary>
+    public IReadOnlyDictionary<string, Intune.IntuneObjectsViewModel> ObjectPages { get; }
+
+    public Intune.IntuneObjectsViewModel? CurrentObjects => ObjectPages.GetValueOrDefault(SelectedPage.Key);
+
+    public bool ShowObjects => CurrentObjects is not null;
+
     /// <param name="openDevice">Opens a device's page, for an Autopilot device that has enrolled.</param>
     public DevicesAreaViewModel(DataListViewModel devices, IAutopilotRecords? autopilot, ChangePipeline? pipeline, Availability canEdit,
         IListStateStore? listState, Func<DateTimeOffset> now, Action<string>? openDevice = null, IIntunePolicyRecords? policies = null, IDirectoryIndex? index = null)
@@ -87,6 +118,7 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
         Devices = devices;
         Compliance = new Intune.CompliancePoliciesViewModel(policies, pipeline, canEdit, index ?? EmptyIndex.Instance);
         Configuration = new Intune.ConfigurationProfilesViewModel(policies as IConfigurationProfileRecords, pipeline, canEdit, index ?? EmptyIndex.Instance, policies);
+        ObjectPages = IntuneKinds.All.ToDictionary(k => k.Key, k => new Intune.IntuneObjectsViewModel(k, policies as IIntuneObjectRecords, pipeline, canEdit, index ?? EmptyIndex.Instance, policies));
         _autopilot = autopilot;
         Autopilot = DataListViewModel.Create(
             AutopilotList.Definition(d => new Records.AutopilotPreviewViewModel(d, pipeline, canEdit, openDevice)),
@@ -113,7 +145,7 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
     public DataListViewModel Autopilot { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowDevices), nameof(ShowAutopilot), nameof(ShowCompliance), nameof(ShowConfiguration))]
+    [NotifyPropertyChangedFor(nameof(ShowDevices), nameof(ShowAutopilot), nameof(ShowCompliance), nameof(ShowConfiguration), nameof(CurrentObjects), nameof(ShowObjects))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     public bool ShowDevices => SelectedPage.Key == "devices";
@@ -127,6 +159,8 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
             _ = Compliance.Refresh();
         if (value.Key == "configuration" && !Configuration.IsLoaded)
             _ = Configuration.Refresh();
+        if (ObjectPages.GetValueOrDefault(value.Key) is { IsLoaded: false } objects)
+            _ = objects.Refresh();
         if (value.Key == "autopilot" && !_autopilotRead)
         {
             _autopilotRead = true;

@@ -39,10 +39,11 @@ public sealed partial class AssignmentEditor : ObservableObject
     readonly string _kindTitle;
     readonly ChangePipeline? _pipeline;
     readonly string _listProperty;
+    readonly System.Text.Json.Nodes.JsonObject? _itemTemplate;
     IReadOnlyList<IntuneAssignment> _current;
 
     public AssignmentEditor(ChangeTarget policy, string kindTitle, IReadOnlyList<IntuneAssignment> current, ChangePipeline? pipeline, bool canEdit, IDirectoryIndex index,
-        IReadOnlyList<AssignmentFilter> filters, bool forApps = false)
+        IReadOnlyList<AssignmentFilter> filters, bool forApps = false, string? listProperty = null, System.Text.Json.Nodes.JsonObject? itemTemplate = null)
     {
         _policy = policy;
         _kindTitle = kindTitle;
@@ -50,7 +51,8 @@ public sealed partial class AssignmentEditor : ObservableObject
         _pipeline = pipeline;
         CanEdit = canEdit && pipeline is not null;
         ForApps = forApps;
-        _listProperty = forApps ? "mobileAppAssignments" : "assignments";
+        _listProperty = listProperty ?? (forApps ? "mobileAppAssignments" : "assignments");
+        _itemTemplate = itemTemplate;
         Filters = [new FilterChoice(null, null, null, "No Filter"), .. filters.SelectMany(f => new[]
         {
             new FilterChoice(f.Id, f.Name, "include", $"Only Devices Matching {f.Name}"),
@@ -126,7 +128,7 @@ public sealed partial class AssignmentEditor : ObservableObject
             return;
         if (Pending is { } pending)
             _pipeline!.Unstage(pending);
-        var change = new SetIntuneAssignments(_policy, _kindTitle, _current, list, _listProperty);
+        var change = new SetIntuneAssignments(_policy, _kindTitle, _current, list, _listProperty, _itemTemplate);
         if (!change.IsNoChange)
             _pipeline!.Stage(change);
     }

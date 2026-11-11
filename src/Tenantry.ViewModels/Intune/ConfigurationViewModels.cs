@@ -640,7 +640,8 @@ public sealed partial class ConfigurationProfilesViewModel : LivePage
             c.IsExpanded = true;
         ShowCards();
         Templates.Clear();
-        foreach (var t in (await templates).OrderBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase))
+        // Update rings live among them in Graph; they have their own page.
+        foreach (var t in (await templates).Where(t => !IntuneKinds.IsUpdateType(t.ODataType)).OrderBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase))
             Templates.Add(new TemplateProfileCard(t, this, _index, filterList));
         OnPropertyChanged(nameof(HasTemplates));
         OnPropertyChanged(nameof(IsEmpty));

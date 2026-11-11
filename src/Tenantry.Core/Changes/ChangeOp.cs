@@ -163,6 +163,8 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(DeleteIntunePolicy), "deleteIntunePolicy")]
 [JsonDerivedType(typeof(SetCatalogSettings), "setCatalogSettings")]
 [JsonDerivedType(typeof(CreateConfigurationProfile), "createConfigurationProfile")]
+[JsonDerivedType(typeof(CreateIntuneObject), "createIntuneObject")]
+[JsonDerivedType(typeof(SetProtectedApps), "setProtectedApps")]
 [JsonDerivedType(typeof(SetAuthMethodConfig), "setAuthMethodConfig")]
 [JsonDerivedType(typeof(SetSecurityDefaults), "setSecurityDefaults")]
 [JsonDerivedType(typeof(SetAppRisk), "setAppRisk")]

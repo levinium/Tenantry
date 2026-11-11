@@ -54,7 +54,8 @@ public sealed partial class SettingRow : ObservableObject
         if (def.Kind == SettingKind.Choice && read?.GetValue<string>() is { } value)
             Choice = Choices.FirstOrDefault(c => c.Value.Equals(value, StringComparison.OrdinalIgnoreCase));
         NumberText = def.Kind == SettingKind.Number && read is not null ? read.GetValue<int>().ToString(CultureInfo.CurrentCulture) : "";
-        TextValue = def.Kind == SettingKind.Text && read is JsonValue text && text.TryGetValue<string>(out var t) ? t : "";
+        TextValue = def.Kind is SettingKind.Text or SettingKind.LongText && read is JsonValue text && text.TryGetValue<string>(out var t) ? t
+            : def.Kind == SettingKind.Script && read is JsonValue script && script.TryGetValue<string>(out var b64) ? Decode(b64) : "";
         ListText = read is JsonArray items ? string.Join(Environment.NewLine, items.Select(i => i!.GetValue<string>())) : "";
         _loading = false;
     }
@@ -67,12 +68,30 @@ public sealed partial class SettingRow : ObservableObject
 
     public bool IsText => Def.Kind == SettingKind.Text;
 
+    /// <summary>Several lines: long text, or a script.</summary>
+    public bool IsLongText => Def.Kind is SettingKind.LongText or SettingKind.Script;
+
+    static string Decode(string base64)
+    {
+        try
+        {
+            return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(base64)).TrimStart('\uFEFF');
+        }
+        catch (FormatException)
+        {
+            return base64;
+        }
+    }
+
+    public static string Encode(string text) => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(text));
+
     /// <summary>A line of text; it takes effect on Enter or leaving the box (empty clears it).</summary>
     [ObservableProperty]
     public partial string TextValue { get; set; }
 
     [RelayCommand]
-    void CommitText() => Restage(TextValue.Trim().Length == 0 ? null : JsonValue.Create(TextValue.Trim()));
+    void CommitText() => Restage(Def.Kind == SettingKind.Script ? JsonValue.Create(Encode(TextValue))
+        : TextValue.Trim().Length == 0 ? null : JsonValue.Create(Def.Kind == SettingKind.LongText ? TextValue : TextValue.Trim()));
 
     [RelayCommand]
     void CommitList()
@@ -157,7 +176,9 @@ public sealed partial class SettingRow : ObservableObject
             return;
         if (_context.Make is { } make)
         {
-            pipeline.Stage(make(Def, value, Def.Words(_read), Def.Words(value), Def.IsCaution(value)));
+            // A script or long text reads the same in words before and after: say it was edited, so it isn't taken as no change.
+            var (before, after) = (Def.Words(_read), Def.Words(value));
+            pipeline.Stage(make(Def, value, before, before == after ? after + " (edited)" : after, Def.IsCaution(value)));
             return;
         }
         pipeline.Stage(new SetExchangeSetting(_owner, Def.SetCmdlet, Def.GetCmdlet, _identity, Def.Parameter, Def.Label,

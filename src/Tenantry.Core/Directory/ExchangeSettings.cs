@@ -4,8 +4,11 @@ using System.Text.Json.Nodes;
 namespace Tenantry.Core.Directory;
 
 /// <summary>How a setting is edited.</summary>
-/// <summary>How a setting is edited. <see cref="Text"/> is a line of free text (an OS version).</summary>
-public enum SettingKind { OnOff, Number, Choice, List, Text }
+/// <summary>
+/// How a setting is edited. <see cref="Text"/> is a line of free text (an OS version);
+/// <see cref="LongText"/> is several lines; <see cref="Script"/> is a script, shown as text and kept in base64 as Intune stores it.
+/// </summary>
+public enum SettingKind { OnOff, Number, Choice, List, Text, LongText, Script }
 
 /// <summary>
 /// One Exchange setting the app can show and change: where it's read and written (a Get-/Set- pair,
@@ -57,6 +60,8 @@ public sealed record SettingDef(string Group, string Key, string Label, string H
     {
         SettingKind.OnOff => value.GetValue<bool>() ? "On" : "Off",
         SettingKind.Number => $"{value.GetValue<int>():N0}{(Unit is null ? "" : " " + Unit)}",
+        SettingKind.Script => "a script",
+        SettingKind.LongText => value.GetValue<string>() is { Length: > 60 } longText ? longText[..60] + "…" : value.GetValue<string>(),
         SettingKind.List => value is JsonArray { Count: > 0 } items
             ? items.Count <= 3 ? string.Join(", ", items.Select(i => i!.GetValue<string>())) : $"{items.Count:N0} entries"
             : "None",

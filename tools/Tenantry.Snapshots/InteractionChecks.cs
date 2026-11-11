@@ -1402,6 +1402,49 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Devices › Apps: New makes a web link; an app's Available assignment and a setting go to Pending Changes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "devices");
+            Settle();
+            var area = main.DevicesArea;
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is SecurityPageGroup { Key: "apps" }));
+            var apps = area.ObjectPages["apps"];
+            for (var i = 0; i < 50 && !apps.IsLoaded; i++)
+                Settle();
+            Expect(apps.Cards.Count > 0, "the apps are listed");
+            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == apps.ToggleAddCommand), $"the New button is on the page (can create {apps.CanCreate})");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == apps.ToggleAddCommand));
+            for (var i = 0; i < 5; i++)
+                Settle();
+            apps.CreateOption = apps.CreateOptions.Single(o => o.Key == "web");
+            Settle();
+            foreach (var (path, text) in new[] { ("displayName", "zz-tenantry-test-link"), ("publisher", "Test"), ("appUrl", "https://test.northgate.example") })
+                apps.Fields.Single(f => f.Field.Path == path).Text = text;
+            var addLink = FindButton(window, b => b.IsEffectivelyVisible && b.Command == apps.AddCommand);
+            addLink.BringIntoView();
+            Settle();
+            Click(window, addLink);
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreateIntuneObject), "the new web link is in Pending Changes");
+            Expect(!apps.IsAddOpen, "the form closed");
+            main.Pending.DiscardAllCommand.Execute(null);
+            var card = apps.Cards.Single(c => c.Name == "zz-tenantry-test-app");
+            card.IsExpanded = true;
+            for (var i = 0; i < 20 && card.Groups.Count == 0; i++)
+                Settle();
+            window.GetVisualDescendants().OfType<Expander>().First(e => e.DataContext == card).BringIntoView();
+            for (var i = 0; i < 10; i++)
+                Settle();
+            card.Assignments.Intent = Tenantry.ViewModels.Intune.AssignmentEditor.Intents.Single(i => i.Value == "available");
+            var all = FindButton(window, b => b.IsEffectivelyVisible && b.Command == card.Assignments.AddAllUsersCommand);
+            all.BringIntoView();
+            Settle();
+            Click(window, all);
+            Expect(main.Pending.Rows.Any(r => r.Change is SetIntuneAssignments { New: [{ Intent: "available" }] }), "offering it to everyone is in Pending Changes");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("Devices › Autopilot: the page tab reads the list, a serial opens its preview, and Set Group Tag goes to Pending Changes", () =>
         {
             var (window, main, _) = OpenList();

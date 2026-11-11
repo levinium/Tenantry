@@ -99,6 +99,8 @@ public sealed partial class DemoUserRecords : IIntunePolicyRecords
             return null;
         if (ApplyCatalog(i) is { } catalog)
             return catalog;
+        if (ApplyObject(i) is { } item)
+            return item;
         if (_compliance is null)
             return null;
         var policy = _compliance.FirstOrDefault(p => i.Path.EndsWith("/" + p.Id, StringComparison.Ordinal));

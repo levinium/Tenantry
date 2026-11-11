@@ -45,8 +45,9 @@ public sealed record SetIntuneSetting(ChangeTarget Policy, string ODataType, str
 /// or All devices is never allowed. Reaching everyone, or reaching fewer, is a caution.
 /// </summary>
 /// <param name="ListProperty">The assign body's list: "assignments" for policies, "mobileAppAssignments" for apps.</param>
+/// <param name="ItemTemplate">Fields every assignment carries besides its target (a remediation's schedule).</param>
 public sealed record SetIntuneAssignments(ChangeTarget Policy, string KindTitle, IReadOnlyList<IntuneAssignment> Old, IReadOnlyList<IntuneAssignment> New,
-    string ListProperty = "assignments") : IntuneChange(Policy)
+    string ListProperty = "assignments", JsonObject? ItemTemplate = null) : IntuneChange(Policy)
 {
     public override string Key => "assignments";
     public override string Label => $"{KindTitle}: Assignments";
@@ -139,4 +140,32 @@ public sealed record CreateConfigurationProfile(ChangeTarget Policy, string Plat
     public override string Before => "None";
     public override string After => $"{SettingsCatalog.PlatformText(Platforms)}: {SettingsText}; not assigned yet";
     public override bool IsNoChange => false;
+}
+
+/// <summary>
+/// A new Intune object of any kind (an app, a script, an update ring…): its body as the New form
+/// filled it in, posted to the kind's collection; then, for some, a second post under it (a
+/// notification template's message).
+/// </summary>
+public sealed record CreateIntuneObject(ChangeTarget Policy, string Collection, string KindTitle, JsonObject Body, string BodyText, string? ThenPath = null, JsonObject? ThenBody = null)
+    : IntuneChange(Policy)
+{
+    public override string Key => "create";
+    public override string Label => $"New {KindTitle} \"{Policy.Name}\"";
+    public override string Before => "None";
+    public override string After => BodyText;
+    public override bool IsNoChange => false;
+}
+
+/// <summary>The apps an app protection policy protects, by bundle ID (iOS) or package ID (Android); the whole list is sent at once.</summary>
+/// <param name="Platform">"ios" or "android".</param>
+public sealed record SetProtectedApps(ChangeTarget Policy, string Platform, IReadOnlyList<string> Old, IReadOnlyList<string> New) : IntuneChange(Policy)
+{
+    public override string Key => "apps";
+    public override string Label => "App Protection: Apps";
+    public override string Before => Old.Count == 0 ? "None" : string.Join(", ", Old);
+    public override string After => New.Count == 0 ? "None" : string.Join(", ", New);
+    public override bool IsCaution => Old.Except(New, StringComparer.OrdinalIgnoreCase).Any();
+    public override bool IsNoChange => Old.Order(StringComparer.OrdinalIgnoreCase).SequenceEqual(New.Order(StringComparer.OrdinalIgnoreCase), StringComparer.OrdinalIgnoreCase);
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetProtectedApps e ? this with { Old = e.Old } : this;
 }

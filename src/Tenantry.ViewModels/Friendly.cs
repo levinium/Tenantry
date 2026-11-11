@@ -23,6 +23,13 @@ public static class Friendly
             return text.Contains("401", StringComparison.Ordinal) || text.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase)
                 ? "Microsoft refused: Tenantry hasn't been given the permission this needs. The banner at the top offers to grant the missing permissions (a Global or Cloud Application Administrator approves)."
                 : "Microsoft answered with a web page instead of data. Try again in a minute.";
+        // Intune answers a missing permission with a JSON blob ("Application is not authorized to perform this operation"): say what to do.
+        if (text.Contains("not authorized to perform this operation", StringComparison.OrdinalIgnoreCase))
+            return "Tenantry hasn't been given the permission this needs. The banner at the top offers to grant the missing permissions (a Global or Cloud Application Administrator approves).";
+        // Intune's other errors wrap a short message in JSON with support IDs: keep the message.
+        if (System.Text.RegularExpressions.Regex.Match(text, @"""Message"":\s*""(?<m>[^""]+?)( - Operation ID[^""]*)?""") is { Success: true } intune)
+            return intune.Groups["m"].Value.Trim() is { Length: > 0 } m && m != "An error has occurred"
+                ? m : "Intune refused it without saying why. Check the values, or try it in Microsoft's admin center to see the reason.";
         return text.Length > 400 ? text[..400] + "…" : text;
     }
 }

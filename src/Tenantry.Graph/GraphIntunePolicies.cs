@@ -120,9 +120,14 @@ public sealed partial class GraphChangeExecutor
     /// <summary>The assign body: every assignment (an app's with its intent), replacing what's there.</summary>
     internal static JsonObject AssignBody(SetIntuneAssignments change) => new()
     {
-        [change.ListProperty] = new JsonArray([.. change.New.Select(a => (JsonNode)(change.ListProperty == "mobileAppAssignments"
-            ? new JsonObject { ["@odata.type"] = "#microsoft.graph.mobileAppAssignment", ["intent"] = a.Intent ?? "required", ["target"] = a.Target() }
-            : new JsonObject { ["target"] = a.Target() }))]),
+        [change.ListProperty] = new JsonArray([.. change.New.Select(a =>
+        {
+            var item = change.ListProperty == "mobileAppAssignments"
+                ? new JsonObject { ["@odata.type"] = "#microsoft.graph.mobileAppAssignment", ["intent"] = a.Intent ?? "required" }
+                : change.ItemTemplate?.DeepClone().AsObject() ?? new JsonObject();
+            item["target"] = a.Target();
+            return (JsonNode)item;
+        })]),
     };
 
     static JsonObject ActionsJson(IEnumerable<ComplianceAction> actions) => new()
@@ -161,9 +166,13 @@ public sealed partial class GraphChangeExecutor
         {
             var obj = current is { } c && c.TryGetProperty(outer, out var o) && o.ValueKind == JsonValueKind.Object ? JsonNode.Parse(o.GetRawText())!.AsObject()
                 : outer == "settings" && change.Path == "deviceManagement" ? DefaultComplianceSettings() : new JsonObject();
-            obj.Remove("@odata.type");
+            if (change.Path == "deviceManagement")
+                obj.Remove("@odata.type");
             obj[inner] = change.Value?.DeepClone();
-            return new JsonObject { [outer] = obj };
+            var dotted = new JsonObject { [outer] = obj };
+            if (change.ODataType.StartsWith('#'))
+                dotted["@odata.type"] = change.ODataType;
+            return dotted;
         }
         var body = new JsonObject { [change.Property] = change.Value?.DeepClone() };
         if (change.ODataType.StartsWith('#'))
@@ -175,12 +184,15 @@ public sealed partial class GraphChangeExecutor
     {
         if (change is SetCatalogSettings or CreateConfigurationProfile)
             return await ApplyCatalogAsync(change, cancellationToken);
+        if (change is CreateIntuneObject or SetProtectedApps)
+            return await ApplyObjectAsync(change, cancellationToken);
         try
         {
             switch (change)
             {
                 case SetIntuneSetting s:
-                    JsonElement? current = s.Property.Contains('.') ? await graph.GetAsync($"{s.Path}?$select={s.Property.Split('.')[0]}", cancellationToken) : null;
+                    JsonElement? current = s.Property.Contains('.')
+                        ? await graph.GetAsync(s.Path == "deviceManagement" ? $"{s.Path}?$select={s.Property.Split('.')[0]}" : s.Path, cancellationToken) : null;
                     await graph.PatchAsync(s.Path, SettingBody(s, current), cancellationToken);
                     break;
                 case SetIntuneAssignments a:
