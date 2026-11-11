@@ -95,7 +95,11 @@ public sealed partial class DemoUserRecords : IIntunePolicyRecords
     /// <summary>Applies an Intune change to the demo; null when it isn't one.</summary>
     public ApplyResult? ApplyIntune(ChangeOp change)
     {
-        if (change is not IntuneChange i || _compliance is null)
+        if (change is not IntuneChange i)
+            return null;
+        if (ApplyCatalog(i) is { } catalog)
+            return catalog;
+        if (_compliance is null)
             return null;
         var policy = _compliance.FirstOrDefault(p => i.Path.EndsWith("/" + p.Id, StringComparison.Ordinal));
         switch (change)

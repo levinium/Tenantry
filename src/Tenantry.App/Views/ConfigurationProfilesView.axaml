@@ -1,0 +1,274 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:it="using:Tenantry.ViewModels.Intune"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:ed="using:Tenantry.ViewModels.Editing"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.ConfigurationProfilesView"
+             x:DataType="it:ConfigurationProfilesViewModel">
+  <ScrollViewer>
+    <StackPanel Spacing="12" Margin="0,0,0,24">
+      <Border Classes="card">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h3" Text="Configuration Profiles" />
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="Settings Intune puts on devices: from the settings catalog (every setting Microsoft offers, searchable), endpoint security, and older template profiles." />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+            <Button Classes="accent" Command="{Binding ToggleAddCommand}" IsVisible="{Binding CanEdit}" ToolTip.Tip="Make a settings catalog profile">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Add" FontSize="14" />
+                <TextBlock Text="New Profile" />
+              </StackPanel>
+            </Button>
+            <Button Classes="ghost" Command="{Binding RefreshCommand}" ToolTip.Tip="Read them from Intune again">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+                <TextBlock Text="Refresh" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+      <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+        <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+      </Border>
+
+      <Border Classes="card" IsVisible="{Binding IsAddOpen}">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="NEW CONFIGURATION PROFILE" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Intune needs one setting to make a profile; add the rest, and choose who it reaches, on its card once it&apos;s made." />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <TextBox Text="{Binding NewName}" PlaceholderText="Name" />
+            <ComboBox Grid.Column="1" ItemsSource="{x:Static it:ConfigurationProfilesViewModel.Platforms}" SelectedItem="{Binding NewPlatform}" MinWidth="240">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="ed:EditorChoice">
+                  <TextBlock Text="{Binding Label}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </Grid>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox Text="{Binding NewSearchText}" PlaceholderText="First setting: search the catalog" Width="360">
+              <TextBox.KeyBindings>
+                <KeyBinding Gesture="Enter" Command="{Binding SearchNewCommand}" />
+              </TextBox.KeyBindings>
+            </TextBox>
+            <Button Command="{Binding SearchNewCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Search" FontSize="14" />
+                <TextBlock Text="Search" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+          <TextBlock Text="{Binding NewSettingText}" FontWeight="SemiBold" IsVisible="{Binding HasNewSetting}" />
+          <ScrollViewer MaxHeight="260">
+            <ItemsControl ItemsSource="{Binding NewFound}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="it:CatalogFound">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,3">
+                    <StackPanel Spacing="1">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding Description}" IsVisible="{Binding HasDescription}" TextWrapping="Wrap" MaxHeight="34" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Choose" Command="{Binding AddCommand}" VerticalAlignment="Center" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+          <TextBlock Classes="error" Text="{Binding AddProblem}" IsVisible="{Binding HasAddProblem}" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding AddCommand}" />
+            <Button Content="Cancel" Command="{Binding ToggleAddCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <TextBox Text="{Binding FilterText}" PlaceholderText="Find a profile by name or kind" MaxWidth="480" HorizontalAlignment="Left" Width="480" />
+      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+        <Panel Width="16" Height="16" VerticalAlignment="Center">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="muted" Text="Reading from Intune…" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+      <TextBlock Classes="muted" Text="No configuration profiles." IsVisible="{Binding IsEmpty}" />
+
+      <ItemsControl ItemsSource="{Binding Cards}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="it:ConfigurationProfileCard">
+            <Border Classes="card">
+              <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch">
+                <Expander.Header>
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding Assignments.Summary}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                      <TextBlock Classes="caption" Text="{Binding SettingsText}" VerticalAlignment="Center" />
+                      <c:Badge Text="{Binding PlatformText}" Kind="Info" />
+                      <c:Badge Text="{Binding KindText}" Kind="Neutral" />
+                    </StackPanel>
+                  </Grid>
+                </Expander.Header>
+                <StackPanel Spacing="14">
+                  <ItemsControl ItemsSource="{Binding About}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="ms:SettingGroup">
+                        <ItemsControl ItemsSource="{Binding Rows}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="ms:SettingRow">
+                              <views:SettingRowView />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+
+                  <StackPanel Spacing="8">
+                    <TextBlock Classes="label" Text="SETTINGS" />
+                    <TextBlock Classes="muted" Text="Reading its settings…" IsVisible="{Binding IsReading}" />
+                    <TextBlock Classes="muted" Text="{Binding Note}" IsVisible="{Binding HasNote}" TextWrapping="Wrap" />
+                    <ItemsControl ItemsSource="{Binding Roots}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="it:CatalogNode">
+                          <Border Classes="valuerow">
+                            <views:CatalogNodeView />
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+
+                  <!-- Add from the catalog -->
+                  <Border Classes="levelrow" IsVisible="{Binding CanEdit}">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="Add a Setting" FontWeight="SemiBold" />
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBox Text="{Binding SearchText}" PlaceholderText="Search the catalog, like BitLocker or screen lock" Width="360">
+                          <TextBox.KeyBindings>
+                            <KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" />
+                          </TextBox.KeyBindings>
+                        </TextBox>
+                        <Button Classes="accent" Command="{Binding SearchCommand}">
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <ic:FluentIcon Icon="Search" FontSize="14" />
+                            <TextBlock Text="Search" />
+                          </StackPanel>
+                        </Button>
+                      </StackPanel>
+                      <TextBlock Classes="muted" Text="Searching the catalog…" IsVisible="{Binding IsSearching}" />
+                      <TextBlock Classes="caption" Text="{Binding SearchNote}" IsVisible="{Binding HasSearchNote}" TextWrapping="Wrap" />
+                      <ScrollViewer MaxHeight="360">
+                        <ItemsControl ItemsSource="{Binding Found}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="it:CatalogFound">
+                              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,3">
+                                <StackPanel Spacing="1">
+                                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                  <TextBlock Classes="caption" Text="{Binding Description}" IsVisible="{Binding HasDescription}" TextWrapping="Wrap" MaxHeight="34" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="Add" Command="{Binding AddCommand}" VerticalAlignment="Center" ToolTip.Tip="Add it at Microsoft's default (added to Pending Changes)" />
+                              </Grid>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </ScrollViewer>
+                    </StackPanel>
+                  </Border>
+
+                  <StackPanel Spacing="6">
+                    <TextBlock Classes="label" Text="WHO IT REACHES" />
+                    <views:AssignmentEditorView DataContext="{Binding Assignments}" />
+                  </StackPanel>
+                  <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}" IsVisible="{Binding CanEdit}" HorizontalAlignment="Left"
+                          ToolTip.Tip="Delete the profile: its settings stop being enforced on devices (you type its name to confirm)" />
+                </StackPanel>
+              </Expander>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <!-- Older template profiles -->
+      <TextBlock Classes="h3" Text="Template Profiles" IsVisible="{Binding HasTemplates}" Margin="4,8,0,0" />
+      <ItemsControl ItemsSource="{Binding Templates}" IsVisible="{Binding HasTemplates}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="it:TemplateProfileCard">
+            <Border Classes="card">
+              <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch">
+                <Expander.Header>
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding Assignments.Summary}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <c:Badge Grid.Column="1" Text="{Binding TypeText}" Kind="Neutral" VerticalAlignment="Center" />
+                  </Grid>
+                </Expander.Header>
+                <StackPanel Spacing="14">
+                  <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="ms:SettingGroup">
+                        <StackPanel Spacing="6" Margin="0,0,0,8">
+                          <TextBlock Classes="label" Text="{Binding Title}" />
+                          <ItemsControl ItemsSource="{Binding Rows}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="ms:SettingRow">
+                                <views:SettingRowView />
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <StackPanel Spacing="4" IsVisible="{Binding HasOthers}">
+                    <TextBlock Classes="label" Text="OTHER SETTINGS (KEPT AS THEY ARE)" />
+                    <ItemsControl ItemsSource="{Binding Others}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="it:SummaryLineText">
+                          <Grid ColumnDefinitions="300,*" ColumnSpacing="10" Margin="0,2">
+                            <TextBlock Classes="caption" Text="{Binding Label}" TextWrapping="Wrap" />
+                            <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                  <StackPanel Spacing="6">
+                    <TextBlock Classes="label" Text="WHO IT REACHES" />
+                    <views:AssignmentEditorView DataContext="{Binding Assignments}" />
+                  </StackPanel>
+                  <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}" IsVisible="{Binding CanEdit}" HorizontalAlignment="Left"
+                          ToolTip.Tip="Delete the profile (you type its name to confirm)" />
+                </StackPanel>
+              </Expander>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

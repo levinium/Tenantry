@@ -173,6 +173,8 @@ public sealed partial class GraphChangeExecutor
 
     async Task<ApplyResult> ApplyIntuneAsync(IntuneChange change, CancellationToken cancellationToken)
     {
+        if (change is SetCatalogSettings or CreateConfigurationProfile)
+            return await ApplyCatalogAsync(change, cancellationToken);
         try
         {
             switch (change)

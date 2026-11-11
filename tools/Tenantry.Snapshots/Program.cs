@@ -1142,6 +1142,15 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         for (var i = 0; i < 5; i++)
             Settle();
         Render(editing, "compliance-light", height: 3200);
+        // Configuration profiles: BitLocker (a choice with an inner setting) and the printers (a repeating group) opened.
+        editing.DevicesArea.SelectedPage = DevicesAreaViewModel.Pages.Single(p => p.Key == "configuration");
+        for (var i = 0; i < 20 && !editing.DevicesArea.Configuration.IsLoaded; i++)
+            Settle();
+        foreach (var name in new[] { "BitLocker for Windows", "Office Printers" })
+            editing.DevicesArea.Configuration.Cards.First(c => c.Name == name).IsExpanded = true;
+        for (var i = 0; i < 20; i++)
+            Settle();
+        Render(editing, "configuration-light", height: 2800);
         editing.DevicesArea.SelectedPage = DevicesAreaViewModel.Pages[0];
 
         // A site's page, every tab: a team site that's shared outside the organization (opened from SharePoint, as in the app).

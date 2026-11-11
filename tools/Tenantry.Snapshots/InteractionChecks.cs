@@ -1355,6 +1355,53 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Devices › Configuration: a profile opens its settings; a choice stages the profile; Search finds and Add adds a setting", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "devices");
+            Settle();
+            var area = main.DevicesArea;
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is SecurityPageGroup { Key: "configuration" }));
+            for (var i = 0; i < 50 && !area.Configuration.IsLoaded; i++)
+                Settle();
+            var card = area.Configuration.Cards.Single(c => c.Name == "zz-tenantry-test-profile");
+            card.IsExpanded = true;
+            for (var i = 0; i < 20 && card.Roots.Count == 0; i++)
+                Settle();
+            Expect(card.Roots.Count == 1, "its setting is listed");
+            var node = card.Roots[0];
+            window.GetVisualDescendants().OfType<Expander>().First(e => e.DataContext == card).BringIntoView();
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var combo = window.GetVisualDescendants().OfType<ComboBox>().First(c => c.DataContext == node && c.IsEffectivelyVisible);
+            combo.BringIntoView();
+            Settle();
+            combo.SelectedItem = node.Options[1];
+            for (var i = 0; i < 5; i++)
+                Settle();
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetCatalogSettings), "the profile's settings are in Pending Changes");
+            var search = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.DataContext == card && t.PlaceholderText?.StartsWith("Search the catalog", StringComparison.Ordinal) == true);
+            search.BringIntoView();
+            search.Text = "realtime";
+            Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == card.SearchCommand));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var add = FindButton(window, b => b.IsEffectivelyVisible && b.DataContext is Tenantry.ViewModels.Intune.CatalogFound { Name: "Allow Realtime Monitoring" });
+            add.BringIntoView();
+            Settle();
+            Click(window, add);
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Expect(card.Roots.Any(r => r.Id == "defender_allowrealtimemonitoring"), "the setting was added to the profile");
+            Expect(main.Pending.Rows.Count(r => r.Change is SetCatalogSettings) == 1, "still one change for the profile");
+            main.Pending.DiscardAllCommand.Execute(null);
+            for (var i = 0; i < 5; i++)
+                Settle();
+            Expect(card.Roots.Count == 1, "discarding put the settings back as read");
+            window.Close();
+        });
+
         Check("Devices › Autopilot: the page tab reads the list, a serial opens its preview, and Set Group Tag goes to Pending Changes", () =>
         {
             var (window, main, _) = OpenList();

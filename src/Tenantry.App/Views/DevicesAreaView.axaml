@@ -81,6 +81,9 @@
       </ContentControl>
     </DockPanel>
 
+    <Panel IsVisible="{Binding ShowConfiguration}">
+      <views:ConfigurationProfilesView DataContext="{Binding Configuration}" />
+    </Panel>
     <Panel IsVisible="{Binding ShowCompliance}">
       <views:CompliancePoliciesView DataContext="{Binding Compliance}" />
     </Panel>

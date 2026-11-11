@@ -35,7 +35,7 @@ public sealed record SetIntuneSetting(ChangeTarget Policy, string ODataType, str
     public override string After => NewText;
     public override bool IsCaution => Caution;
     public override bool IsNoChange => OldText == NewText;
-    public override IReadOnlyList<ChangeTarget> Guarded => Property == "displayName" && Value?.GetValue<string>() is { } name ? [Policy, Policy with { Name = name }] : [Policy];
+    public override IReadOnlyList<ChangeTarget> Guarded => Property is "displayName" or "name" && Value?.GetValue<string>() is { } name ? [Policy, Policy with { Name = name }] : [Policy];
     public override ChangeOp Since(ChangeOp earlier) => earlier is SetIntuneSetting e ? this with { OldText = e.OldText } : this;
 }
 
@@ -109,5 +109,34 @@ public sealed record DeleteIntunePolicy(ChangeTarget Policy, string KindTitle, s
     public override string After => "Deleted";
     public override bool IsCaution => true;
     public override string? ConfirmPhrase => Policy.Name;
+    public override bool IsNoChange => false;
+}
+
+/// <summary>
+/// A settings catalog profile's settings: the whole list, sent with the profile in one PUT (as
+/// Intune's portal does). Before and After name the settings that changed.
+/// </summary>
+/// <param name="Header">The profile without its settings (name, description, platforms, technologies, template, scope tags).</param>
+public sealed record SetCatalogSettings(ChangeTarget Policy, JsonObject Header, JsonArray Old, JsonArray New, string BeforeText, string AfterText) : IntuneChange(Policy)
+{
+    public override string Key => "settings";
+    public override string Label => "Configuration Profile: Settings";
+    public override string Before => BeforeText;
+    public override string After => AfterText;
+    public override bool IsNoChange => JsonNode.DeepEquals(Old, New);
+    /// <summary>Taking a setting out lets devices fall back to their own: a caution.</summary>
+    public override bool IsCaution => Old.Select(o => (string?)o?["settingDefinitionId"]).Except(New.Select(n => (string?)n?["settingDefinitionId"])).Any();
+    public override ChangeOp Since(ChangeOp earlier) => earlier is SetCatalogSettings e ? this with { Old = e.Old } : this;
+}
+
+/// <summary>A new settings catalog profile with its first setting (Intune refuses one with none); more are added on its card.</summary>
+/// <param name="Settings">Its first settings (settingInstances).</param>
+/// <param name="SettingsText">Those settings in words.</param>
+public sealed record CreateConfigurationProfile(ChangeTarget Policy, string Platforms, string Technologies, string? Description, JsonArray Settings, string SettingsText) : IntuneChange(Policy)
+{
+    public override string Key => "create";
+    public override string Label => $"New Configuration Profile \"{Policy.Name}\"";
+    public override string Before => "None";
+    public override string After => $"{SettingsCatalog.PlatformText(Platforms)}: {SettingsText}; not assigned yet";
     public override bool IsNoChange => false;
 }

@@ -52,6 +52,7 @@ public sealed partial class GraphChangeExecutor
         ?? SiteScript(change)
         ?? AppScript(change)
         ?? GraphChangeExecutor.IntuneScript(change)
+        ?? GraphChangeExecutor.CatalogScript(change)
         ?? EDiscoveryScript(change)
         ?? RetentionScript(change);
 

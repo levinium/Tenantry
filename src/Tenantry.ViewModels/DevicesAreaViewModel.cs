@@ -23,6 +23,7 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
         new("devices", "All Devices", "Laptop"),
         new("autopilot", "Autopilot", "Rocket"),
         new("compliance", "Compliance Policies", "ShieldCheckmark"),
+        new("configuration", "Configuration Profiles", "Settings"),
     ];
 
     /// <summary>The pages in sections, as Intune's admin center groups them.</summary>
@@ -30,6 +31,7 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
     [
         new("devices", "Devices", "Laptop", Of("devices", "autopilot")),
         new("compliance", "Compliance", "ShieldCheckmark", Of("compliance")),
+        new("configuration", "Configuration", "Settings", Of("configuration")),
     ];
 
     static IReadOnlyList<MailSecurityPage> Of(params string[] keys) => [.. keys.Select(k => Pages.Single(p => p.Key == k))];
@@ -74,12 +76,17 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
 
     public bool ShowCompliance => SelectedPage.Key == "compliance";
 
+    public Intune.ConfigurationProfilesViewModel Configuration { get; }
+
+    public bool ShowConfiguration => SelectedPage.Key == "configuration";
+
     /// <param name="openDevice">Opens a device's page, for an Autopilot device that has enrolled.</param>
     public DevicesAreaViewModel(DataListViewModel devices, IAutopilotRecords? autopilot, ChangePipeline? pipeline, Availability canEdit,
         IListStateStore? listState, Func<DateTimeOffset> now, Action<string>? openDevice = null, IIntunePolicyRecords? policies = null, IDirectoryIndex? index = null)
     {
         Devices = devices;
         Compliance = new Intune.CompliancePoliciesViewModel(policies, pipeline, canEdit, index ?? EmptyIndex.Instance);
+        Configuration = new Intune.ConfigurationProfilesViewModel(policies as IConfigurationProfileRecords, pipeline, canEdit, index ?? EmptyIndex.Instance, policies);
         _autopilot = autopilot;
         Autopilot = DataListViewModel.Create(
             AutopilotList.Definition(d => new Records.AutopilotPreviewViewModel(d, pipeline, canEdit, openDevice)),
@@ -106,7 +113,7 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
     public DataListViewModel Autopilot { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowDevices), nameof(ShowAutopilot), nameof(ShowCompliance))]
+    [NotifyPropertyChangedFor(nameof(ShowDevices), nameof(ShowAutopilot), nameof(ShowCompliance), nameof(ShowConfiguration))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     public bool ShowDevices => SelectedPage.Key == "devices";
@@ -118,6 +125,8 @@ public sealed partial class DevicesAreaViewModel : TabViewModel
             return;
         if (value.Key == "compliance" && !Compliance.IsLoaded)
             _ = Compliance.Refresh();
+        if (value.Key == "configuration" && !Configuration.IsLoaded)
+            _ = Configuration.Refresh();
         if (value.Key == "autopilot" && !_autopilotRead)
         {
             _autopilotRead = true;

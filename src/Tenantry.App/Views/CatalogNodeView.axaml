@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:it="using:Tenantry.ViewModels.Intune"
+             xmlns:dir="using:Tenantry.Core.Directory"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.CatalogNodeView"
+             x:DataType="it:CatalogNode">
+  <!-- One settings catalog setting; its inner settings (a choice's, a group's) nest below it. -->
+  <StackPanel Spacing="4">
+    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+      <Panel Width="{Binding IndentWidth}" />
+      <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+        <TextBlock Classes="muted" Text="{Binding Description}" IsVisible="{Binding HasDescription}" TextWrapping="Wrap" MaxHeight="60" TextTrimming="CharacterEllipsis"
+                   ToolTip.Tip="{Binding Description}" />
+        <TextBlock Classes="caption" Text="{Binding OtherText}" IsVisible="{Binding IsOther}" />
+        <TextBox Text="{Binding ListText}" IsVisible="{Binding IsList}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" MaxHeight="180" Margin="0,4,0,0"
+                 PlaceholderText="None. One per line." c:EditCommit.Commit="{Binding CommitListCommand}" IsEnabled="{Binding CanEdit}" />
+        <ItemsControl ItemsSource="{Binding Ticks}" IsVisible="{Binding IsTicks}" IsEnabled="{Binding CanEdit}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="it:CatalogTick">
+              <CheckBox IsChecked="{Binding IsOn}" Content="{Binding Name}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Classes="error" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
+      </StackPanel>
+      <Panel Grid.Column="2" VerticalAlignment="Center" IsEnabled="{Binding CanEdit}">
+        <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Option}" IsVisible="{Binding IsChoice}" MinWidth="240" MaxWidth="380">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="dir:CatalogOption">
+              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBox Text="{Binding Text}" IsVisible="{Binding IsSimple}" Width="240" PlaceholderText="{Binding Placeholder}" c:EditCommit.Commit="{Binding CommitTextCommand}" />
+      </Panel>
+      <Button Grid.Column="3" Classes="danger-outline" Content="Remove" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}" VerticalAlignment="Center"
+              ToolTip.Tip="Stop setting this (added to Pending Changes)" />
+    </Grid>
+
+    <!-- A choice's or group's settings -->
+    <ItemsControl ItemsSource="{Binding Children}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="it:CatalogNode">
+          <views:CatalogNodeView Margin="0,4,0,0" />
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <!-- A repeating group's items -->
+    <StackPanel Spacing="6" IsVisible="{Binding IsGroupCollection}">
+      <ItemsControl ItemsSource="{Binding Items}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="it:CatalogGroupItem">
+            <Border Classes="levelrow" Margin="0,0,0,6">
+              <StackPanel Spacing="4">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Classes="label" Text="{Binding Title}" VerticalAlignment="Center" />
+                  <Button Grid.Column="1" Classes="danger-outline" Content="Remove Item" Command="{Binding RemoveCommand}" IsVisible="{Binding CanEdit}"
+                          ToolTip.Tip="Take this item out (added to Pending Changes)" />
+                </Grid>
+                <ItemsControl ItemsSource="{Binding Children}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="it:CatalogNode">
+                      <views:CatalogNodeView Margin="0,4,0,0" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Button Command="{Binding AddItemCommand}" IsVisible="{Binding CanAddItem}" HorizontalAlignment="Left" ToolTip.Tip="Add another item, at Microsoft's defaults">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="Add" FontSize="14" />
+          <TextBlock Text="Add Item" />
+        </StackPanel>
+      </Button>
+    </StackPanel>
+  </StackPanel>
+</UserControl>
