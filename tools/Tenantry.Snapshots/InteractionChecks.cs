@@ -1445,6 +1445,100 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Security › Data Loss Prevention: New makes a policy in simulation; New Rule and turning a policy on go to Pending Changes", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            var area = main.SecurityArea!;
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is SecurityPageGroup { Key: "dlp" }));
+            Settle();
+            Expect(area.SelectedPage.Key == "dlp", "the section opens on DLP Policies");
+            var dlp = area.PurviewPages["dlp"].Kinds[0];
+            for (var i = 0; i < 50 && !dlp.IsLoaded; i++)
+                Settle();
+            Expect(dlp.Cards.Count > 0, "the policies are listed");
+            var create = dlp.Create!;
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == create.ToggleCommand && Labelled(b, "New")));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Expect(create.IsOpen, "the New form opened");
+            create.Fields.Single(f => f.Field.Path == "Name").Text = "zz-tenantry-test-dlp";
+            create.Fields.Single(f => f.Field.Path == "TeamsLocation").Text = "zz-tenantry-test-ada@northgate.example";
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == create.AddCommand));
+            Expect(main.Pending!.Rows.Any(r => r.Change is CreatePurviewObject c && (string?)c.Parameters["Mode"] == "TestWithoutNotifications"), "the new policy, in simulation, is in Pending Changes");
+            Expect(!create.IsOpen, "the form closed");
+            main.Pending.DiscardAllCommand.Execute(null);
+
+            var card = dlp.Cards.Single(c => c.Name == "Health Records");
+            card.IsExpanded = true;
+            Settle();
+            var newRule = FindButton(window, b => b.IsEffectivelyVisible && b.Command == card.RuleCreate!.ToggleCommand);
+            newRule.BringIntoView();
+            Settle();
+            Click(window, newRule);
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Expect(card.RuleCreate!.IsOpen, "New Rule opened inside the policy");
+            card.RuleCreate.Fields.Single(f => f.Field.Path == "Name").Text = "zz-tenantry-test-rule";
+            card.RuleCreate.Fields.Single(f => f.Field.Path == "ContentContainsSensitiveInformation").Text = "Credit Card Number";
+            var add = FindButton(window, b => b.IsEffectivelyVisible && b.Command == card.RuleCreate.AddCommand);
+            add.BringIntoView();
+            Settle();
+            Click(window, add);
+            Expect(main.Pending.Rows.Any(r => r.Change is CreatePurviewObject c && (string?)c.Parameters["Policy"] == "Health Records"), "the rule, in its policy, is in Pending Changes");
+            main.Pending.DiscardAllCommand.Execute(null);
+
+            var mode = card.Groups.SelectMany(g => g.Rows).Single(r => r.Def.Key == "Mode");
+            mode.Choice = mode.Choices.Single(c => c.Value == "Enable");
+            Settle();
+            Expect(main.Pending.Rows.Any(r => r.Change is SetPurviewSetting { Parameter: "Mode", IsCaution: true }), "turning it on is in Pending Changes, as a caution");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
+        Check("Security › Information Protection and Insider Risk: a label's header, the file plan's six lists, Start Applying", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            Settle();
+            var area = main.SecurityArea!;
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is SecurityPageGroup { Key: "protection" }));
+            Settle();
+            Expect(area.SelectedPage.Key == "labels", "the section opens on Sensitivity Labels");
+            var labels = area.PurviewPages["labels"].Kinds[0];
+            for (var i = 0; i < 50 && !labels.IsLoaded; i++)
+                Settle();
+            var label = labels.Cards.Single(c => c.Name == "General");
+            label.IsExpanded = true;
+            Settle();
+            var header = label.Groups.SelectMany(g => g.Rows).Single(r => r.Def.Key == "ApplyContentMarkingHeaderEnabled");
+            header.IsOn = true;
+            Settle();
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetPurviewSetting { Parameter: "ApplyContentMarkingHeaderEnabled" }), "adding a header is in Pending Changes");
+            main.Pending.DiscardAllCommand.Execute(null);
+
+            area.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "fileplan");
+            Settle();
+            var plan = area.PurviewPages["fileplan"].Kinds;
+            for (var i = 0; i < 50 && !plan.All(k => k.IsLoaded); i++)
+                Settle();
+            Expect(plan.Count == 6 && plan.All(k => k.Cards.Count > 0), "the file plan shows all six lists");
+
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is SecurityPageGroup { Key: "risk" }));
+            Settle();
+            area.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "barriers");
+            Settle();
+            var barriers = area.PurviewPages["barriers"].Kinds[0];
+            for (var i = 0; i < 50 && !barriers.IsLoaded; i++)
+                Settle();
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == barriers.RunActionCommand));
+            Expect(main.Pending.Rows.Any(r => r.Change is RunPurviewAction), "Start Applying is in Pending Changes");
+            Expect(barriers.ActionText.StartsWith("Undo", StringComparison.Ordinal), "the button now undoes it");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
         Check("Devices › Autopilot: the page tab reads the list, a serial opens its preview, and Set Group Tag goes to Pending Changes", () =>
         {
             var (window, main, _) = OpenList();

@@ -483,6 +483,8 @@
         </ContentControl.DataTemplates>
       </ContentControl>
     </DockPanel>
+    <!-- Purview protection (14a-14f): labels, DLP, information types, insider risk, barriers, the file plan -->
+    <Panel IsVisible="{Binding ShowPurview}" Margin="8,0"><views:PurviewPageView DataContext="{Binding CurrentPurview}" /></Panel>
     <!-- Retention (8f-3): policies, labels, scopes and events, read live from Purview together, with Refresh -->
     <DockPanel IsVisible="{Binding ShowRetentionPolicies}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">

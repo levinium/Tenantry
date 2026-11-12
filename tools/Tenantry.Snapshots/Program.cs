@@ -1151,6 +1151,21 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         for (var i = 0; i < 20; i++)
             Settle();
         Render(editing, "configuration-light", height: 2800);
+        // Purview protection: a label, a DLP policy with its rules, the file plan.
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "security");
+        Settle();
+        foreach (var (key, open, height) in new[] { ("labels", "Confidential", 2400), ("dlp", "U.S. Financial Data", 3200), ("fileplan", "", 2200) })
+        {
+            editing.SecurityArea!.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == key);
+            var kinds = editing.SecurityArea.PurviewPages[key].Kinds;
+            for (var i = 0; i < 20 && !kinds.All(k => k.IsLoaded); i++)
+                Settle();
+            if (open.Length > 0)
+                kinds[0].Cards.First(c => c.Name == open).IsExpanded = true;
+            for (var i = 0; i < 20; i++)
+                Settle();
+            Render(editing, $"purview-{key}-light", height: height);
+        }
         // The generic Intune pages: apps (Company Portal opened), update rings, enrollment settings, a remediation.
         foreach (var (key, open, height) in new[] { ("apps", "Company Portal", 1900), ("rings", "Pilot Ring", 2200), ("enrollment", "Staff Device Limit", 1500), ("remediations", "Clear Old Temp Files", 1700), ("mam-ios", "iPhone Work Data", 2600) })
         {

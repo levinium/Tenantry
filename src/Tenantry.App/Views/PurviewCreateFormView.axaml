@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pv="using:Tenantry.ViewModels.Purview"
+             xmlns:it="using:Tenantry.ViewModels.Intune"
+             xmlns:dir="using:Tenantry.Core.Directory"
+             x:Class="Tenantry.App.Views.PurviewCreateFormView"
+             x:DataType="pv:PurviewCreateForm">
+  <!-- New: what a Purview kind can make (or a rule in one policy), with its boxes. -->
+  <Border Classes="card" IsVisible="{Binding IsOpen}">
+    <StackPanel Spacing="10">
+      <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Option}" IsVisible="{Binding HasManyOptions}" MinWidth="320">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="dir:PurviewCreate">
+            <TextBlock Text="{Binding Title}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding Fields}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="8" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="it:CreateFieldRow">
+            <StackPanel Spacing="3" MaxWidth="720" HorizontalAlignment="Left">
+              <TextBlock Classes="label" Text="{Binding Label}" />
+              <TextBox Text="{Binding Text}" IsVisible="{Binding IsText}" PlaceholderText="{Binding Placeholder}" MinWidth="420" />
+              <TextBox Text="{Binding Text}" IsVisible="{Binding IsLong}" PlaceholderText="{Binding Placeholder}" AcceptsReturn="True" MinHeight="70" MaxHeight="240" MinWidth="560" />
+              <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Choice}" IsVisible="{Binding IsChoice}" MinWidth="320" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Classes="caption" Text="{Binding TypesHint}" IsVisible="{Binding TypesHint, Converter={x:Static ObjectConverters.IsNotNull}}" TextWrapping="Wrap" MaxWidth="720" HorizontalAlignment="Left" />
+      <TextBlock Classes="error" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Classes="accent" Content="Add to Pending Changes" Command="{Binding AddCommand}" />
+        <Button Content="Cancel" Command="{Binding ToggleCommand}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</UserControl>

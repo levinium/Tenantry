@@ -55,7 +55,8 @@ public sealed partial class GraphChangeExecutor
         ?? GraphChangeExecutor.CatalogScript(change)
         ?? GraphChangeExecutor.ObjectScript(change)
         ?? EDiscoveryScript(change)
-        ?? RetentionScript(change);
+        ?? RetentionScript(change)
+        ?? PurviewObjectScript(change);
 
     /// <summary>Profile, sign-in, password, licenses, group membership and mailbox access.</summary>
     static PsScript? PeopleScript(ChangeOp change) => change switch

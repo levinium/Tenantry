@@ -166,6 +166,7 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         IntuneChange i => await ApplyIntuneAsync(i, cancellationToken),
         EdChange e => await ApplyEDiscoveryAsync(e, cancellationToken),
         RetentionChange r => await ApplyRetentionAsync(r, cancellationToken),
+        PurviewChange p => await ApplyPurviewAsync(p, cancellationToken),
         SetAuthMethodConfig m => await SetAuthMethodConfigAsync(m, cancellationToken),
         SetSecurityDefaults d => await SetSecurityDefaultsAsync(d, cancellationToken),
         _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),

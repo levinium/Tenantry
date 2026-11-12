@@ -1,0 +1,88 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pv="using:Tenantry.ViewModels.Purview"
+             xmlns:it="using:Tenantry.ViewModels.Intune"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.PurviewCardView"
+             x:DataType="pv:PurviewObjectCard">
+  <!-- One Purview item: its settings edited in place, what it only shows, its rules (each this same card), and Delete. -->
+  <Border Classes="card">
+    <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch">
+      <Expander.Header>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+          <StackPanel Spacing="2">
+            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock Classes="caption" Text="{Binding Subtitle}" IsVisible="{Binding HasSubtitle}" TextWrapping="Wrap" />
+          </StackPanel>
+          <c:Badge Grid.Column="1" Text="{Binding ModeBadge}" Kind="{Binding ModeKind}" IsVisible="{Binding HasModeBadge}" VerticalAlignment="Center" />
+        </Grid>
+      </Expander.Header>
+      <StackPanel Spacing="14">
+        <Border Classes="banner neutral" IsVisible="{Binding HasKeptText}">
+          <TextBlock TextWrapping="Wrap" Text="{Binding KeptText}" />
+        </Border>
+        <ItemsControl ItemsSource="{Binding Groups}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="ms:SettingGroup">
+              <StackPanel Spacing="6" Margin="0,0,0,8">
+                <TextBlock Classes="label" Text="{Binding Title}" />
+                <ItemsControl ItemsSource="{Binding Rows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="ms:SettingRow">
+                      <views:SettingRowView />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <StackPanel Spacing="4" IsVisible="{Binding HasDetails}">
+          <TextBlock Classes="label" Text="DETAILS" />
+          <ItemsControl ItemsSource="{Binding Details}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="it:SummaryLineText">
+                <Grid ColumnDefinitions="260,*" ColumnSpacing="10" Margin="0,2">
+                  <TextBlock Classes="caption" Text="{Binding Label}" TextWrapping="Wrap" />
+                  <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+        <StackPanel Spacing="8" IsVisible="{Binding HasRules}">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="label" Text="RULES" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Classes="accent" Command="{Binding RuleCreate.ToggleCommand}" IsVisible="{Binding CanAddRule}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Add" FontSize="14" />
+                <TextBlock Text="New Rule" />
+              </StackPanel>
+            </Button>
+          </Grid>
+          <Panel IsVisible="{Binding CanAddRule}">
+            <views:PurviewCreateFormView DataContext="{Binding RuleCreate}" />
+          </Panel>
+          <TextBlock Classes="muted" Text="{Binding RulesEmptyText}" IsVisible="{Binding HasNoRules}" />
+          <ItemsControl ItemsSource="{Binding Rules}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="pv:PurviewObjectCard">
+                <views:PurviewCardView />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+        <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}" IsVisible="{Binding CanDelete}" HorizontalAlignment="Left"
+                ToolTip.Tip="Delete it (you type its name to confirm)" />
+      </StackPanel>
+    </Expander>
+  </Border>
+</UserControl>

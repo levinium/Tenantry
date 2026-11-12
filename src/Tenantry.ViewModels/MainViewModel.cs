@@ -120,7 +120,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             EdEditable ? NewCase : null, EdEditable ? () => EdContextFor().NewSearch(null) : null,
             tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageEDiscovery).Reason,
             tenant.Records as IRetentionRecords, tenant.Records is IRetentionRecords ? RetentionContextFor() : null, OpenScope,
-            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageRetention).Reason);
+            tenant.Changes is null ? "This tenant can't be edited" : Evaluate(Capabilities.ManageRetention).Reason,
+            tenant.Records as IPurviewObjectRecords, Evaluate(Capabilities.ManageProtection));
         SecurityArea.RolesRead += (_, _) => FollowRoles();
         SecurityArea.PoliciesRead += (_, _) => FollowPolicies();
         SecurityArea.AppsRead += (_, _) => FollowApps();

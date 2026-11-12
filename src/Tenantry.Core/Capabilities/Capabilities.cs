@@ -74,7 +74,11 @@ public static class Capabilities
     public static readonly Capability ManageRetention = new("compliance.retention", "Manage Retention Policies and Labels",
         [ComplianceAdministrator]);
 
+    /// <summary>Purview protection (14a-14f): labels, DLP, information types, insider risk, barriers, the file plan (Purview checks its own roles too).</summary>
+    public static readonly Capability ManageProtection = new("compliance.protection", "Manage Sensitivity Labels, DLP and Information Protection",
+        [ComplianceAdministrator, SecurityAdministrator]);
+
     public static IReadOnlyList<Capability> All { get; } =
         [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess, ManageDevices,
-            ManageSites, ManageRoles, ManageApps, ManageAuthPolicy, ManageRisk, ManageEDiscovery, ManageRetention];
+            ManageSites, ManageRoles, ManageApps, ManageAuthPolicy, ManageRisk, ManageEDiscovery, ManageRetention, ManageProtection];
 }

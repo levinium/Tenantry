@@ -38,6 +38,21 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         new("retentionlabels", "Retention Labels", "Tag"),
         new("adaptivescopes", "Adaptive Scopes", "Filter"),
         new("retentionevents", "Retention Events", "CalendarClock"),
+        new("labels", "Sensitivity Labels", "Tag"),
+        new("labelpolicies", "Label Policies", "DocumentSearch"),
+        new("autolabel", "Auto-Labeling", "ShieldCheckmark"),
+        new("infotypes", "Sensitive Info Types", "Key"),
+        new("keywords", "Keyword Dictionaries", "Filter"),
+        new("edm", "Exact Data Match", "DocumentSearch"),
+        new("dlp", "DLP Policies", "ShieldLock"),
+        new("dlpalerts", "DLP Alerts", "Warning"),
+        new("endpointdlp", "Endpoint DLP Settings", "Settings"),
+        new("insiderrisk", "Insider Risk", "PersonWarning"),
+        new("commcompliance", "Communication Compliance", "DocumentSearch"),
+        new("segments", "Segments", "PeopleTeam"),
+        new("barriers", "Information Barriers", "ShieldLock"),
+        new("fileplan", "File Plan", "Briefcase"),
+        new("purviewroles", "Purview Role Groups", "PersonKey"),
         new("roles", "Admin Roles", "PersonKey"),
         new("myroles", "My Roles", "PersonStar"),
         new("approvals", "Approvals", "ApprovalsApp"),
@@ -53,7 +68,10 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         new("access", "Access", "ShieldLock", Of("ca", "whatif", "locations", "strengths", "authmethods")),
         new("rolesapps", "Roles & Apps", "PersonKey", Of("roles", "myroles", "approvals", "appregs", "enterprise", "deletedapps")),
         new("threats", "Threats", "Warning", Of("riskyusers", "riskdetections", "riskyapps", "auditlog")),
-        new("compliance", "Compliance", "Briefcase", Of("cases", "searches", "retentionpolicies", "retentionlabels", "adaptivescopes", "retentionevents")),
+        new("compliance", "Compliance", "Briefcase", Of("cases", "searches", "retentionpolicies", "retentionlabels", "adaptivescopes", "retentionevents", "fileplan", "purviewroles")),
+        new("protection", "Information Protection", "Tag", Of("labels", "labelpolicies", "autolabel", "infotypes", "keywords", "edm")),
+        new("dlp", "Data Loss Prevention", "ShieldLock", Of("dlp", "dlpalerts", "endpointdlp")),
+        new("risk", "Insider Risk", "PersonWarning", Of("insiderrisk", "commcompliance", "segments", "barriers")),
     ];
 
     static IReadOnlyList<MailSecurityPage> Of(params string[] keys) => [.. keys.Select(k => Pages.Single(p => p.Key == k))];
@@ -81,8 +99,11 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         IRiskRecords? risk = null, Availability? canManageRisk = null, Action<string>? openUserById = null, Action<string>? openAppById = null,
         IAuditRecords? audit = null, IEDiscoveryRecords? eDiscovery = null, Action<EdCase>? openCase = null, Action<EdSearch>? openSearch = null,
         Action? newCase = null, Action? newSearch = null, string? cantEditEDiscovery = null,
-        IRetentionRecords? retention = null, RetentionContext? retentionContext = null, Action<AdaptiveScope>? openScope = null, string? cantEditRetention = null)
+        IRetentionRecords? retention = null, RetentionContext? retentionContext = null, Action<AdaptiveScope>? openScope = null, string? cantEditRetention = null,
+        IPurviewObjectRecords? purview = null, Availability? canEditPurview = null)
     {
+        PurviewPages = PurviewKinds.Pages.ToDictionary(p => p.Key, p => new Purview.PurviewPageViewModel(
+            [.. p.Value.Select(k => new Purview.PurviewObjectsViewModel(k, purview, pipeline, canEditPurview ?? Availability.No(cantEditRetention ?? "This tenant can't be edited")))]));
         _roles = roles;
         _ca = ca;
         Policies = DataListViewModel.Create(CaList.Definition(p => new Records.CaPolicyPreviewViewModel(p, openPolicy)),
@@ -255,7 +276,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals), nameof(ShowPolicies), nameof(ShowWhatIf), nameof(ShowLocations),
         nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps), nameof(ShowDeletedApps), nameof(ShowAuthMethods), nameof(ShowRiskyUsers), nameof(ShowRiskDetections), nameof(ShowRiskyApps), nameof(RiskNote), nameof(HasRiskNote), nameof(ShowAuditLog),
-        nameof(ShowCases), nameof(ShowSearches), nameof(ShowRetentionPolicies), nameof(ShowRetentionLabels), nameof(ShowAdaptiveScopes), nameof(ShowRetentionEvents))]
+        nameof(ShowCases), nameof(ShowSearches), nameof(ShowRetentionPolicies), nameof(ShowRetentionLabels), nameof(ShowAdaptiveScopes), nameof(ShowRetentionEvents),
+        nameof(CurrentPurview), nameof(ShowPurview))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     // ---- Apps (8c) -------------------------------------------------------------------------------
@@ -423,6 +445,13 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public bool ShowMyRoles => SelectedPage.Key == "myroles";
     public bool ShowApprovals => SelectedPage.Key == "approvals";
 
+    /// <summary>Purview protection pages (14a-14f), by page key: labels, DLP, information types, insider risk, barriers, the file plan.</summary>
+    public IReadOnlyDictionary<string, Purview.PurviewPageViewModel> PurviewPages { get; }
+
+    public Purview.PurviewPageViewModel? CurrentPurview => SelectedPage is { } page ? PurviewPages.GetValueOrDefault(page.Key) : null;
+
+    public bool ShowPurview => CurrentPurview is not null;
+
     /// <summary>Reads the roles the first time the area is shown.</summary>
     public void Shown()
     {
@@ -450,6 +479,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
             AuditLog.Shown();
         EDiscoveryShown();
         RetentionShown();
+        CurrentPurview?.Shown();
         if (ShowAuthMethods)
             AuthMethodsPage.Shown();
         if (ShowDeletedApps)
