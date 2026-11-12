@@ -702,6 +702,13 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
     {
         var text = e.Message;
         var colon = text.IndexOf(": ", StringComparison.Ordinal);
-        return colon >= 0 ? text[(colon + 2)..] : text;
+        text = colon >= 0 ? text[(colon + 2)..] : text;
+        // Intune sometimes refuses with only its own error page wrapped in JSON (seen live): say so, keeping the Activity ID for support.
+        if (text.Contains("An error has occurred - Operation ID", StringComparison.Ordinal))
+        {
+            var id = System.Text.RegularExpressions.Regex.Match(text, @"Activity ID: ([0-9a-fA-F-]{36})");
+            return "Intune refused it without saying why." + (id.Success ? $" (Activity ID for Microsoft support: {id.Groups[1].Value}.)" : "");
+        }
+        return text;
     }
 }

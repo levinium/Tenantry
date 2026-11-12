@@ -48,6 +48,18 @@ public sealed class IntuneObjectTests
     }
 
     [Fact]
+    public async Task Intunes_bare_error_page_reads_as_a_refusal_with_its_activity_id()
+    {
+        var page = """{"error":{"code":"BadRequest","message":"{\"_version\": 3, \"Message\": \"An error has occurred - Operation ID (for customer support): 00000000-0000-0000-0000-000000000000 - Activity ID: 0d8674f7-7498-40cc-8583-bfb108f2f4ed - Url: https://proxy.example/x\"}"}}""";
+        var http = new FakeHttp().On(HttpMethod.Post, "windowsAutopilotDeploymentProfiles", page, System.Net.HttpStatusCode.BadRequest);
+        var executor = new GraphChangeExecutor(new GraphClient(http.Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore(), NoDelay.Instance);
+        var result = await executor.ApplyAsync(new CreateIntuneObject(IntuneChange.TargetFor("new:a:zz-tenantry-test-a", "zz-tenantry-test-a"), IntuneKinds.AutopilotProfiles.Collection,
+            "Autopilot Profile", new JsonObject { ["displayName"] = "zz-tenantry-test-a" }, "x"), Ct);
+        Assert.Equal(ChangeOutcome.Failed, result.Outcome);
+        Assert.Equal("Intune refused it without saying why. (Activity ID for Microsoft support: 0d8674f7-7498-40cc-8583-bfb108f2f4ed.)", result.Detail);
+    }
+
+    [Fact]
     public async Task A_new_object_is_posted_then_its_follow_up_and_a_remediations_assignments_carry_its_schedule()
     {
         var http = new FakeHttp()
