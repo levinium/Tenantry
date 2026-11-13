@@ -122,6 +122,28 @@ public sealed record SensitiveTypeMatch(string Name, int MinCount = 1)
         {
             switch (e.ValueKind)
             {
+                // Over REST a table is a list of {"_key","_value"} pairs (seen live): read it as one table.
+                case JsonValueKind.Array when e.GetArrayLength() > 0 && e.EnumerateArray().All(i => i.ValueKind == JsonValueKind.Object && i.TryGetProperty("_key", out _)):
+                    string? pairName = null;
+                    var pairMin = 1;
+                    var nested = false;
+                    foreach (var pair in e.EnumerateArray())
+                    {
+                        var key = pair.GetProperty("_key").GetString() ?? "";
+                        var value = pair.TryGetProperty("_value", out var v) ? v : default;
+                        if (key.Equals("name", StringComparison.OrdinalIgnoreCase) && value.ValueKind == JsonValueKind.String)
+                            pairName = value.GetString();
+                        else if (key.Equals("mincount", StringComparison.OrdinalIgnoreCase))
+                            pairMin = value.ValueKind == JsonValueKind.Number ? value.GetInt32() : int.TryParse(value.ToString(), out var m) ? m : 1;
+                        else if (value.ValueKind is JsonValueKind.Array or JsonValueKind.Object)
+                        {
+                            nested = true;
+                            Walk(value);
+                        }
+                    }
+                    if (pairName is { Length: > 0 } && !nested)
+                        found.Add(new SensitiveTypeMatch(pairName, Math.Max(1, pairMin)));
+                    break;
                 case JsonValueKind.Array:
                     foreach (var i in e.EnumerateArray())
                         Walk(i);

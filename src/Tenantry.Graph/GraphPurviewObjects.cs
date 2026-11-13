@@ -42,7 +42,12 @@ public sealed partial class GraphUserRecords : IPurviewObjectRecords
         {
             var text = e.Explanation;
             var licensing = text.Contains("licens", StringComparison.OrdinalIgnoreCase) || text.TrimStart().StartsWith('<');
+            // Seen live: settings never set up answer "Sequence contains no elements"; a role the
+            // account lacks answers "User is not allowed to call …".
             return new PurviewRead([], licensing && kind.Licensing is { } need ? $"Purview refused: {need}"
+                : text.Contains("Sequence contains no elements", StringComparison.OrdinalIgnoreCase) ? (kind.Single ? $"{kind.Title} haven't been set up for this organization yet." : null)
+                : text.Contains("is not allowed to call", StringComparison.OrdinalIgnoreCase)
+                    ? $"Purview refused: your account isn't in a Purview role group that can see {kind.Title.ToLowerInvariant()}. Add it to one in the Purview portal's Roles and Scopes (Organization Management covers everything)."
                 : e.IsNotFound ? null : $"Couldn't read these from Purview: {text}");
         }
         var items = rows.Where(r => r.ValueKind == JsonValueKind.Object).Select(r => ToPurviewObject(kind, r)).ToList();
@@ -99,9 +104,13 @@ public sealed partial class GraphChangeExecutor
         _ => Task.FromResult(new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet.")),
     });
 
-    /// <summary>A keyword dictionary's words, as Purview's file data: UTF-16 text, one word per line, sent as bytes.</summary>
+    /// <summary>
+    /// A keyword dictionary's words, as Purview's file data: UTF-8 text, one word per line, sent as bytes.
+    /// (Microsoft's examples use UTF-16 with the PowerShell module; over REST that keeps only the first
+    /// letter of the first word, seen live. UTF-8 reads back whole.)
+    /// </summary>
     internal static JsonArray KeywordBytes(IEnumerable<string> words) =>
-        new([.. Encoding.Unicode.GetBytes(string.Join("\r\n", words)).Select(b => (JsonNode)JsonValue.Create((int)b))]);
+        new([.. Encoding.UTF8.GetBytes(string.Join("\r\n", words)).Select(b => (JsonNode)JsonValue.Create((int)b))]);
 
     static IEnumerable<string> Words(JsonNode? value) => value switch
     {
@@ -110,11 +119,17 @@ public sealed partial class GraphChangeExecutor
         _ => [],
     };
 
-    internal static Dictionary<string, object?> SettingParameters(SetPurviewSetting change) => new()
+    internal static Dictionary<string, object?> SettingParameters(SetPurviewSetting change)
     {
-        ["Identity"] = change.Item.Name,
-        [change.Parameter] = change.Parameter == "FileData" ? KeywordBytes(Words(change.Value)) : change.Value?.DeepClone(),
-    };
+        var parameters = new Dictionary<string, object?>
+        {
+            ["Identity"] = change.Item.Name,
+            [change.Parameter] = change.Parameter == "FileData" ? KeywordBytes(Words(change.Value)) : change.Value?.DeepClone(),
+        };
+        foreach (var (key, value) in change.Also ?? [])
+            parameters[key] = value?.DeepClone();
+        return parameters;
+    }
 
     internal static Dictionary<string, object?> CreateParameters(CreatePurviewObject change)
     {
@@ -157,7 +172,7 @@ public sealed partial class GraphChangeExecutor
         if (!parameters.ContainsKey("FileData"))
             return Ps.Cmdlet(cmdlet, parameters);
         parameters["FileData"] = FileDataMark;
-        var expression = $"([System.Text.Encoding]::Unicode.GetBytes(({Ps.Value(Words(words).ToArray())} -join \"`r`n\")))";
+        var expression = $"([System.Text.Encoding]::UTF8.GetBytes(({Ps.Value(Words(words).ToArray())} -join \"`r`n\")))";
         return Ps.Cmdlet(cmdlet, parameters).Replace(Ps.Quote(FileDataMark), expression, StringComparison.Ordinal);
     }
 

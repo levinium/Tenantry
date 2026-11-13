@@ -242,9 +242,28 @@ public sealed partial class PurviewObjectCard : ObservableObject
         var cautious = caution || (field.CautionValues?.Contains(value?.ToString() ?? "", StringComparer.OrdinalIgnoreCase) == true)
                        || (field.CautionOff && value is JsonValue on && on.TryGetValue<bool>(out var isOn) && !isOn)
                        || field.Value == PurviewValue.SensitiveTypes && oldText != newText;
+        // Purview refuses a header, footer or watermark turned on without its text ("The text can not
+        // be empty", seen live): the label's shown name goes with it, and says so.
+        JsonObject? also = null;
+        if (value is JsonValue turned && turned.TryGetValue<bool>(out var turnedOn) && turnedOn && MarkingText(field.Property) is { } textProperty
+            && string.IsNullOrWhiteSpace(Line(textProperty)))
+        {
+            var text = Line("DisplayName") ?? Name;
+            also = new JsonObject { [textProperty] = text };
+            newText += $" (showing \"{text}\"; change the text after)";
+        }
         return new SetPurviewSetting(Target, Display.TitleCase(_kind.Noun), _kind.Set!, field.Parameter!, field.Label, sent, oldText, newText, cautious,
-            field.IsGuarded ? Items(value).Except(Items(read), StringComparer.OrdinalIgnoreCase).ToArray() : null);
+            field.IsGuarded ? Items(value).Except(Items(read), StringComparer.OrdinalIgnoreCase).ToArray() : null, also);
     }
+
+    /// <summary>The text a marking switch needs (header, footer, watermark).</summary>
+    static string? MarkingText(string property) => property switch
+    {
+        "ApplyContentMarkingHeaderEnabled" => "ApplyContentMarkingHeaderText",
+        "ApplyContentMarkingFooterEnabled" => "ApplyContentMarkingFooterText",
+        "ApplyWaterMarkingEnabled" => "ApplyWaterMarkingText",
+        _ => null,
+    };
 
     // ---- Delete --------------------------------------------------------------------------------
 

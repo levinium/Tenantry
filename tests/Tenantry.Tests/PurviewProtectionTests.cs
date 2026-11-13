@@ -47,6 +47,16 @@ public sealed class PurviewProtectionTests
     }
 
     [Fact]
+    public void Sensitive_types_read_from_the_key_value_pairs_Purview_answers_over_REST()
+    {
+        // As Get-DlpComplianceRule answered live: a list of tables, each a list of _key/_value pairs.
+        var raw = J("""[[{"_key":"id","_value":"50842eb7"},{"_key":"name","_value":"Credit Card Number"},{"_key":"mincount","_value":"2"},{"_key":"maxcount","_value":"-1"}],[{"_key":"name","_value":"U.S. Social Security Number (SSN)"},{"_key":"mincount","_value":"1"}]]""");
+        var found = SensitiveTypeMatch.From(raw);
+        Assert.Equal(["Credit Card Number", "U.S. Social Security Number (SSN)"], found.Select(f => f.Name));
+        Assert.Equal(2, found[0].MinCount);
+    }
+
+    [Fact]
     public void Sensitive_types_read_from_every_shape_Purview_gives_and_lines_parse_with_counts()
     {
         var flat = SensitiveTypeMatch.From(J("""[{"name":"Credit Card Number","mincount":"2"},{"Name":"U.S. Bank Account Number","minCount":1}]"""));
@@ -118,8 +128,8 @@ public sealed class PurviewProtectionTests
 
         await executor.ApplyAsync(new CreatePurviewObject(PurviewChange.TargetFor("keywords", "zz-tenantry-test-kw"), "Keyword Dictionary", "New-DlpKeywordDictionary",
             new JsonObject { ["Name"] = "zz-tenantry-test-kw", ["FileData"] = new JsonArray("alpha", "beta") }, "x", []), Ct);
-        // UTF-16 text, one word per line, as bytes: "a" is 97, 0.
-        Assert.StartsWith("{\"Name\":\"zz-tenantry-test-kw\",\"FileData\":[97,0,108,0", exchange.Calls[^1].Parameters, StringComparison.Ordinal);
+        // UTF-8 text, one word per line, as bytes (UTF-16 kept only the first letter over REST, seen live): "al" is 97, 108.
+        Assert.StartsWith("{\"Name\":\"zz-tenantry-test-kw\",\"FileData\":[97,108,112,104,97,13,10,98", exchange.Calls[^1].Parameters, StringComparison.Ordinal);
 
         await executor.ApplyAsync(new SetPurviewList(PurviewChange.TargetFor("purviewroles", "zz-tenantry-test-rg"), "Role Group", "", "Members", null, null,
             ["a@x.example"], ["b@x.example"], Guard: true, MemberCmdlets: PurviewKinds.RoleGroups.Members), Ct);
@@ -132,7 +142,7 @@ public sealed class PurviewProtectionTests
         var script = GraphChangeExecutor.ScriptFor(new CreatePurviewObject(PurviewChange.TargetFor("keywords", "zz-tenantry-test-kw"), "Keyword Dictionary", "New-DlpKeywordDictionary",
             new JsonObject { ["Name"] = "zz-tenantry-test-kw", ["FileData"] = new JsonArray("alpha", "beta") }, "x", []))!;
         Assert.Contains("New-DlpKeywordDictionary", script.Text, StringComparison.Ordinal);
-        Assert.Contains("[System.Text.Encoding]::Unicode.GetBytes((@('alpha', 'beta') -join \"`r`n\"))", script.Text, StringComparison.Ordinal);
+        Assert.Contains("[System.Text.Encoding]::UTF8.GetBytes((@('alpha', 'beta') -join \"`r`n\"))", script.Text, StringComparison.Ordinal);
 
         var mode = GraphChangeExecutor.ScriptFor(new SetPurviewSetting(PurviewChange.TargetFor("dlp", "zz-tenantry-test-dlp"), "DLP Policy", "Set-DlpCompliancePolicy", "Mode", "Mode",
             JsonValue.Create("Enable"), "Simulation", "On", true))!;

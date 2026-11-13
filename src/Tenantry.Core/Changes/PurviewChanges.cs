@@ -22,8 +22,9 @@ public abstract record PurviewChange(ChangeTarget Item) : ChangeOp
 /// <summary>One property, set with the kind's Set- cmdlet. Renaming a label's shown name is not guarded (its Name, the identity, can't change).</summary>
 /// <param name="Value">What's sent; for sensitive information types a list of name/minCount tables.</param>
 /// <param name="Values">Names in it Test mode judges (segments, reviewers).</param>
+/// <param name="Also">Other parameters the same Set- needs (a label's header text when turning the header on).</param>
 public sealed record SetPurviewSetting(ChangeTarget Item, string KindTitle, string Cmdlet, string Parameter, string SettingLabel, JsonNode? Value, string OldText, string NewText,
-    bool Caution = false, IReadOnlyList<string>? Values = null) : PurviewChange(Item)
+    bool Caution = false, IReadOnlyList<string>? Values = null, JsonObject? Also = null) : PurviewChange(Item)
 {
     public override string Key => Parameter;
     public override string Label => $"{KindTitle}: {SettingLabel}";
