@@ -198,7 +198,7 @@ public sealed partial class GraphChangeExecutor
     {
         var result = await purging;
         return result.Outcome == ChangeOutcome.Failed && (result.Detail ?? "").Trim().Equals("Invalid Operation", StringComparison.OrdinalIgnoreCase)
-            ? result with { Detail = "Purview refused the purge. Purging needs the Search And Purge role, which only the Organization Management and Data Investigator role groups have (Compliance Administrator doesn't); add your account to one in the Purview portal's Roles and Scopes." }
+            ? result with { Detail = "Purview refused the purge. Purging needs the Search And Purge role, which Microsoft leaves out of Global Administrator and Compliance Administrator. Add your account to a Purview role group that has it (Organization Management, Data Investigator, or one of your own) in Roles and Scopes; a new role can take up to an hour to apply." }
             : result;
     }
 
