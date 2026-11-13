@@ -363,6 +363,7 @@
                           <TextBlock DockPanel.Dock="Left" Classes="muted" Text="→" Margin="0,0,6,0" />
                           <TextBlock Text="{Binding After}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding After}" />
                         </DockPanel>
+                        <TextBlock Classes="muted" Text="{Binding Notice}" TextWrapping="Wrap" IsVisible="{Binding HasNotice}" />
                         <TextBlock Classes="error" Text="{Binding Problem}" TextWrapping="Wrap" IsVisible="{Binding HasProblem}" />
                         <!-- A long change (a rule reorder) says how far it has got while it applies. -->
                         <StackPanel Spacing="4" IsVisible="{Binding HasProgress}">

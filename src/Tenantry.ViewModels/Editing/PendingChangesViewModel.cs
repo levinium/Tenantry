@@ -27,6 +27,11 @@ public sealed partial class PendingRow(ChangeOp change, Action<ChangeOp> remove,
 
     public bool IsCaution => Change.IsCaution;
 
+    /// <summary>Something to know before applying it (a change Microsoft takes in two steps).</summary>
+    public string? Notice => Change.Notice;
+
+    public bool HasNotice => Change.Notice is not null;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasProblem))]
     public partial string? Problem { get; set; }
@@ -376,7 +381,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
             RevealsChanged();
             _problems.Clear();
             foreach (var (change, result) in results.Where(r => !r.Result.Succeeded))
-                _problems[change] = result.Detail ?? result.Outcome.ToString();
+                _problems[result.Remaining ?? change] = result.Detail ?? result.Outcome.ToString();
             var applied = results.Count(r => r.Result.Succeeded);
             var lagging = results.Count(r => r.Result.Outcome == ChangeOutcome.AppliedNotYetVisible);
             var failed = results.Count - applied;

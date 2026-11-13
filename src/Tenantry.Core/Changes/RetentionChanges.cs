@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Tenantry.Core.Directory;
 
 namespace Tenantry.Core.Changes;
@@ -80,6 +81,30 @@ public sealed record UpdateRetentionPolicy(ChangeTarget Policy, RetentionPolicyD
     public override IReadOnlyList<ChangeTarget> Guarded => [Policy, .. Old.AllPlaces.Concat(New.AllPlaces).DistinctBy(EdChange.Place, StringComparer.OrdinalIgnoreCase)];
 
     public override ChangeOp Since(ChangeOp earlier) => earlier is UpdateRetentionPolicy e ? this with { Old = e.Old } : this;
+
+    /// <summary>What the policy does (its rule) changes.</summary>
+    [JsonIgnore]
+    public bool ChangesWhatItDoes => Old.Setting != New.Setting || Old.Query != New.Query || !Old.Labels.SequenceEqual(New.Labels, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Where it applies (or its description) changes: the policy itself.</summary>
+    [JsonIgnore]
+    public bool ChangesWhereItApplies => !New.SamePlaces(Old) || (Old.Comment ?? "") != (New.Comment ?? "");
+
+    /// <summary>
+    /// Both change: Purview takes them as two steps, and refuses the second until it has put the
+    /// first in place (minutes to hours), so the second part needs a later Apply.
+    /// </summary>
+    [JsonIgnore]
+    public bool NeedsTwoApplies => ChangesWhatItDoes && ChangesWhereItApplies;
+
+    [JsonIgnore]
+    public override string? Notice => NeedsTwoApplies
+        ? "This changes both what the policy does and where it applies. Purview takes these one at a time: Apply changes what it does, and where it applies stays here to apply again once Purview has finished (it can take a few hours)."
+        : null;
+
+    /// <summary>What's left once what it does has changed: only where it applies.</summary>
+    [JsonIgnore]
+    public UpdateRetentionPolicy WhereItAppliesOnly => this with { Old = New with { Comment = Old.Comment, Places = Old.Places, Scopes = Old.Scopes } };
 }
 
 /// <summary>Turns a policy off (its content is no longer kept or deleted by it: a caution change) or on.</summary>

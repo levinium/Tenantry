@@ -129,6 +129,42 @@ public sealed class RetentionTests
     }
 
     [Fact]
+    public async Task Changing_both_parts_warns_first_and_keeps_where_it_applies_pending_when_Purview_is_busy()
+    {
+        var cy = Bo with { Id = "u3", Name = "zz-tenantry-test-cy", Address = "zz-tenantry-test-cy@contoso.example" };
+        var busy = true;
+        var exchange = new FakeCmdlets((cmdlet, _) => cmdlet switch
+        {
+            "Get-RetentionComplianceRule" => """[{"Guid":"rule-1","Name":"r"}]""",
+            "Set-RetentionCompliancePolicy" when busy => throw new CmdletException(cmdlet, 400, "|x|Previous changes to the policy 'p' are being deployed. Once deployed, additional actions can be performed."),
+            _ => "[]",
+        });
+        var pipeline = new ChangePipeline(Executor(exchange), new ChangeLog(new MemoryEntityStore()), new MemoryTestModeStore(true), "admin");
+        var both = new UpdateRetentionPolicy(TestPolicy, Draft(places: (RetentionPlaces.Exchange, [Bo])),
+            Draft(setting: new RetentionSetting("Keep", 60, "CreationAgeInDays"), places: (RetentionPlaces.Exchange, [Bo, cy])));
+        Assert.NotNull(both.Notice);
+        Assert.Null(new UpdateRetentionPolicy(TestPolicy, both.Old, both.Old with { Setting = both.New.Setting }).Notice);
+        pipeline.Stage(both);
+
+        var (_, result) = Assert.Single(await pipeline.ApplyAsync(cancellationToken: Ct));
+
+        Assert.Equal(ChangeOutcome.Failed, result.Outcome);
+        Assert.Contains("still in Pending Changes", result.Detail, StringComparison.Ordinal);
+        // Only where it applies is left, starting from what it now does.
+        var rest = Assert.IsType<UpdateRetentionPolicy>(Assert.Single(pipeline.Pending));
+        Assert.False(rest.ChangesWhatItDoes);
+        Assert.True(rest.ChangesWhereItApplies);
+        Assert.Null(rest.Notice);
+
+        busy = false;
+        exchange.Calls.Clear();
+        Assert.True(Assert.Single(await pipeline.ApplyAsync(cancellationToken: Ct)).Result.Succeeded);
+        Assert.Empty(pipeline.Pending);
+        Assert.DoesNotContain(exchange.Calls, c => c.Cmdlet == "Set-RetentionComplianceRule");
+        Assert.Contains("\"AddExchangeLocation\":[\"zz-tenantry-test-cy@contoso.example\"]", exchange.Calls.Single(c => c.Cmdlet == "Set-RetentionCompliancePolicy").Parameters, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_policy_still_being_deployed_says_so_plainly()
     {
         var exchange = new FakeCmdlets((cmdlet, _) => cmdlet == "Set-RetentionCompliancePolicy"

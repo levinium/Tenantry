@@ -83,7 +83,7 @@ public sealed partial class GraphChangeExecutor
         var lines = new List<string>();
         if (placed.Count > 1)
             lines.Add(Ps.Cmdlet("Set-RetentionCompliancePolicy", placed));
-        if (RuleChanged(change))
+        if (change.ChangesWhatItDoes)
         {
             // A policy has one rule; it's found by its policy.
             lines.Add($"$rule = Get-RetentionComplianceRule -Policy {Ps.Quote(change.Policy.Name)} | Select-Object -First 1");

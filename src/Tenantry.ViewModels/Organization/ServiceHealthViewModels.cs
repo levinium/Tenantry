@@ -54,8 +54,11 @@ public static class ServiceHealthLists
         IssueView("all", "All", false),
     ];
 
-    static (string, BadgeKind) StatusBadge(ServiceIssue i) => (i.StatusText, i.IsResolved || ServiceHealth.IsHealthy(i.Status) ? BadgeKind.Success
-        : ServiceHealth.Severity(i.Status) <= 1 ? BadgeKind.Danger : BadgeKind.Warning);
+    /// <summary>One colour rule for a status everywhere on the page: degraded or interrupted red, other open states amber, healthy green.</summary>
+    public static BadgeKind KindOf(string status, bool resolved = false) => resolved || ServiceHealth.IsHealthy(status) ? BadgeKind.Success
+        : ServiceHealth.Severity(status) <= 1 ? BadgeKind.Danger : BadgeKind.Warning;
+
+    static (string, BadgeKind) StatusBadge(ServiceIssue i) => (i.StatusText, KindOf(i.Status, i.IsResolved));
 
     public static ListDefinition<ServiceIssue> Issues(Func<ServiceIssue, object> preview) => new()
     {
@@ -183,7 +186,7 @@ public sealed record ServiceTile(ServiceStatus Status, int OpenIssues)
     public bool IsHealthy => Status.IsHealthy;
     public bool IsDown => Status.Status == "serviceInterruption";
     public bool IsDegraded => !IsHealthy && !IsDown;
-    public BadgeKind Kind => IsHealthy ? BadgeKind.Success : IsDown ? BadgeKind.Danger : BadgeKind.Warning;
+    public BadgeKind Kind => ServiceHealthLists.KindOf(Status.Status);
     public string IssuesText => OpenIssues switch { 0 => "No open issues", 1 => "1 open issue", var n => $"{n} open issues" };
 }
 
@@ -194,6 +197,7 @@ public sealed class ServiceIssuePreviewViewModel(ServiceIssue issue, Func<DateTi
     public string Title => Issue.Title;
     public string Subtitle => $"{Issue.KindText} · {Issue.Service}{(Issue.Feature is { Length: > 0 } f ? " · " + f : "")} · {Issue.Id}";
     public string StatusText => Issue.StatusText;
+    public BadgeKind StatusKind => ServiceHealthLists.KindOf(Issue.Status, Issue.IsResolved);
     public bool IsResolved => Issue.IsResolved;
     public bool IsOpen => !Issue.IsResolved;
     public string? Impact => Issue.Impact;
@@ -203,12 +207,111 @@ public sealed class ServiceIssuePreviewViewModel(ServiceIssue issue, Func<DateTi
         : $"Started {(Issue.Start is { } s ? Display.Relative(s, now()) : "at an unknown time")}{(Issue.Modified is { } m ? $", updated {Display.Relative(m, now())}" : "")}";
 
     public IReadOnlyList<IssuePostRow> Posts => [.. Issue.Posts.OrderByDescending(p => p.When).Select(p => new IssuePostRow(
-        p.When is { } w ? $"{w.ToLocalTime():ddd d MMM yyyy, h:mm tt}" : "", p.Text))];
+        p.When is { } w ? $"{w.ToLocalTime():ddd d MMM yyyy, h:mm tt}" : "", p.Text, IssuePostText.Parse(p.Text)))];
+
+    /// <summary>The newest update, in full.</summary>
+    public IssuePostRow? Latest => Posts.FirstOrDefault();
+
+    /// <summary>Earlier updates (each mostly repeats the next), folded away.</summary>
+    public IReadOnlyList<IssuePostRow> Earlier => [.. Posts.Skip(1)];
+
+    public bool HasEarlier => Issue.Posts.Count > 1;
+
+    public string EarlierText => Issue.Posts.Count == 2 ? "1 Earlier Update" : $"{Issue.Posts.Count - 1} Earlier Updates";
 
     public bool HasPosts => Issue.Posts.Count > 0;
 }
 
-public sealed record IssuePostRow(string When, string Text);
+public sealed record IssuePostRow(string When, string Text, IReadOnlyList<PostSection> Sections);
+
+/// <summary>A part of a Microsoft update ("Current Status", "More Info"), with its paragraphs and bullets.</summary>
+public sealed record PostSection(string? Heading, IReadOnlyList<PostBlock> Blocks)
+{
+    public bool HasHeading => Heading is not null;
+}
+
+/// <summary>A paragraph, or a bullet with an optional bold lead ("Exchange Online").</summary>
+public sealed record PostBlock(string? Lead, string Text, bool IsBullet)
+{
+    public bool HasLead => Lead is not null;
+    public bool IsParagraph => !IsBullet;
+}
+
+/// <summary>
+/// Microsoft's incident updates are plain text laid out as "Heading: text" paragraphs and "- Service:
+/// text" bullets. Splits them that way so they read as sections rather than one block.
+/// </summary>
+public static partial class IssuePostText
+{
+    [System.Text.RegularExpressions.GeneratedRegex(@"^(?<h>[A-Z][A-Za-z ()/'&-]{1,40}):\s*(?<rest>.*)$")]
+    private static partial System.Text.RegularExpressions.Regex Heading();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^(?:[-•*·]|\d+[.)])\s+(?<text>.+)$")]
+    private static partial System.Text.RegularExpressions.Regex Bullet();
+
+    static readonly HashSet<string> Small = new(StringComparer.OrdinalIgnoreCase) { "a", "an", "and", "by", "for", "in", "of", "on", "or", "the", "to" };
+
+    static string TitleCase(string text) => string.Join(' ', text.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Select((w, i) => i > 0 && Small.Contains(w) ? w.ToLowerInvariant() : char.ToUpperInvariant(w[0]) + w[1..]));
+
+    public static IReadOnlyList<PostSection> Parse(string text)
+    {
+        var sections = new List<PostSection>();
+        string? heading = null;
+        var blocks = new List<PostBlock>();
+        var paragraph = new List<string>();
+        void EndParagraph()
+        {
+            if (paragraph.Count > 0)
+                blocks.Add(new PostBlock(null, string.Join(' ', paragraph), false));
+            paragraph.Clear();
+        }
+        void EndSection()
+        {
+            EndParagraph();
+            // Title repeats the issue's own title.
+            if ((heading is not null || blocks.Count > 0) && !string.Equals(heading, "Title", StringComparison.Ordinal))
+                sections.Add(new PostSection(heading, [.. blocks]));
+            heading = null;
+            blocks = [];
+        }
+        var atParagraphStart = true;
+        foreach (var raw in text.Replace("\r", "").Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0)
+            {
+                EndParagraph();
+                atParagraphStart = true;
+                continue;
+            }
+            if (Bullet().Match(line) is { Success: true } b)
+            {
+                EndParagraph();
+                var item = b.Groups["text"].Value;
+                var colon = item.IndexOf(':');
+                blocks.Add(colon is > 0 and <= 60 && !item[..colon].Contains('.')
+                    ? new PostBlock(item[..colon].Trim(), item[(colon + 1)..].Trim(), true)
+                    : new PostBlock(null, item, true));
+                atParagraphStart = true;
+                continue;
+            }
+            if (atParagraphStart && Heading().Match(line) is { Success: true } h)
+            {
+                EndSection();
+                heading = TitleCase(h.Groups["h"].Value.Trim());
+                if (h.Groups["rest"].Value is { Length: > 0 } rest)
+                    paragraph.Add(rest);
+                atParagraphStart = false;
+                continue;
+            }
+            paragraph.Add(line);
+            atParagraphStart = false;
+        }
+        EndSection();
+        return sections;
+    }
+}
 
 /// <summary>One of a post's details (its roadmap ID, platforms…).</summary>
 public sealed record PostDetail(string Name, string Value);

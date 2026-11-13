@@ -151,7 +151,7 @@ public sealed partial class GraphChangeExecutor
         // What it does (the rule) goes first: changing where it applies (the policy) starts Purview
         // putting it in place again, and Purview then refuses the rule until it's done (seen live).
         var ruleDone = false;
-        if (RuleChanged(change))
+        if (change.ChangesWhatItDoes)
         {
             var rules = await ReadPurview("Get-RetentionComplianceRule", new() { ["Policy"] = change.Policy.Name }, cancellationToken);
             if (rules.FirstOrDefault() is not { ValueKind: JsonValueKind.Object } rule
@@ -167,8 +167,13 @@ public sealed partial class GraphChangeExecutor
         if (parameters.Count <= 1)
             return new ApplyResult(ChangeOutcome.Applied);
         var placed = await Plain(Purview("Set-RetentionCompliancePolicy", parameters, null, _ => true, cancellationToken));
+        // Half done: the rest (where it applies) stays in Pending Changes for a later Apply.
         return placed.Outcome == ChangeOutcome.Applied || !ruleDone ? placed
-            : placed with { Detail = $"What it does was changed, but where it applies wasn't: {placed.Detail}" };
+            : placed with
+            {
+                Detail = $"What it does was changed, but where it applies wasn't: {placed.Detail} That part is still in Pending Changes; apply it again once Purview is done.",
+                Remaining = change.WhereItAppliesOnly,
+            };
     }
 
     // ---- Parameters (shared with the PowerShell shown for each change) ---------------------------
@@ -214,9 +219,4 @@ public sealed partial class GraphChangeExecutor
             parameters["RemoveAdaptiveScopeLocation"] = removeScopes;
         return parameters;
     }
-
-    /// <summary>Whether what the policy does (its rule) changed, not only where it applies.</summary>
-    static bool RuleChanged(UpdateRetentionPolicy change) =>
-        change.Old.Setting != change.New.Setting || change.Old.Query != change.New.Query
-        || !change.Old.Labels.SequenceEqual(change.New.Labels, StringComparer.OrdinalIgnoreCase);
 }

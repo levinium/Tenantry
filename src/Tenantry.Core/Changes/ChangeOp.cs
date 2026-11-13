@@ -253,6 +253,10 @@ public abstract record ChangeOp
     [JsonIgnore]
     public string? DependsOn { get; init; }
 
+    /// <summary>Something to know before applying it, shown with it in Pending Changes ("This needs two applies…"); null for most.</summary>
+    [JsonIgnore]
+    public virtual string? Notice => null;
+
     /// <summary>True when the change would leave things as they are (staged back to the original).</summary>
     [JsonIgnore]
     public abstract bool IsNoChange { get; }

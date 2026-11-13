@@ -69,6 +69,41 @@ public sealed class ServiceHealthTests
         Assert.All(health.Issues.Rows.Cast<ServiceIssue>(), i => Assert.False(i.IsResolved));
     }
 
+    [Fact]
+    public void An_update_reads_as_sections_with_bullets_and_the_title_left_out()
+    {
+        var sections = IssuePostText.Parse("""
+            Title: Users can't open mail
+
+            User impact: Users can't open mail.
+
+            Current status: We're rolling back a change.
+            It should finish soon.
+
+            More info: Affected services:
+            - Exchange Online: Mail may be delayed.
+            - A plain bullet with no lead. Really: none.
+
+            Next update by: Friday, 3:00 PM UTC
+            """);
+        Assert.Equal(["User Impact", "Current Status", "More Info", "Next Update by"], sections.Select(s => s.Heading));
+        Assert.Equal("We're rolling back a change. It should finish soon.", Assert.Single(sections[1].Blocks).Text);
+        var bullets = sections[2].Blocks.Where(b => b.IsBullet).ToArray();
+        Assert.Equal(("Exchange Online", "Mail may be delayed."), (bullets[0].Lead, bullets[0].Text));
+        Assert.Null(bullets[1].Lead);
+        // Text with no headings stays one paragraph.
+        Assert.Equal("Fixed soon.", Assert.Single(Assert.Single(IssuePostText.Parse("Fixed soon.")).Blocks).Text);
+    }
+
+    [Fact]
+    public void Degraded_is_red_everywhere_and_investigating_amber()
+    {
+        Assert.Equal(BadgeKind.Danger, new ServiceTile(new ServiceStatus("x", "Exchange Online", "serviceDegradation"), 1).Kind);
+        Assert.Equal(BadgeKind.Danger, ServiceHealthLists.KindOf("serviceDegradation"));
+        Assert.Equal(BadgeKind.Warning, ServiceHealthLists.KindOf("investigating"));
+        Assert.Equal(BadgeKind.Success, ServiceHealthLists.KindOf("serviceDegradation", resolved: true));
+    }
+
     sealed class FixedHealth(ServiceHealthRead read) : IServiceHealthRecords
     {
         public Task<ServiceHealthRead> GetServiceHealthAsync(CancellationToken cancellationToken = default) => Task.FromResult(read);

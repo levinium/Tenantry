@@ -5,6 +5,12 @@ namespace Tenantry.Core.Changes;
 /// (a temporary password).</param>
 public sealed record ApplyResult(ChangeOutcome Outcome, string? Detail = null, string? Reveal = null)
 {
+    /// <summary>
+    /// When a change went through only in part: what's still to do. It replaces the change in
+    /// Pending Changes, so the next Apply sends only that.
+    /// </summary>
+    public ChangeOp? Remaining { get; init; }
+
     public bool Succeeded => Outcome is ChangeOutcome.Applied or ChangeOutcome.AppliedNotYetVisible;
 }
 
@@ -166,6 +172,8 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
         var batch = _pending.ToArray();
         var results = new List<(ChangeOp, ApplyResult)>(batch.Length);
         var succeeded = new HashSet<ChangeOp>(ReferenceEqualityComparer.Instance);
+        // Went through in part (the rest stays pending); open pages still need to re-read.
+        var partly = new HashSet<ChangeOp>(ReferenceEqualityComparer.Instance);
         // Slots whose change in this batch didn't go through, for changes that depend on them.
         var notApplied = new Dictionary<(string, string), ChangeOp>();
         for (var i = 0; i < batch.Length; i++)
@@ -183,7 +191,18 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
             if (result.Succeeded)
                 succeeded.Add(change);
             else
+            {
                 notApplied[(change.Target.Id, change.Key)] = change;
+                // Part of it went through: only the rest stays pending.
+                if (result.Remaining is { } rest && _pending.IndexOf(change) is >= 0 and var at)
+                {
+                    partly.Add(change);
+                    _pending[at] = rest;
+                    var slot = (change.Target.Id, change.Key);
+                    _bySlot.Remove(slot);
+                    _bySlot[(rest.Target.Id, rest.Key)] = rest;
+                }
+            }
             results.Add((change, result));
             progress?.Report((i + 1, batch.Length));
         }
@@ -196,8 +215,8 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
                 _bySlot.Remove(slot);
         }
         Changed?.Invoke(this, EventArgs.Empty);
-        if (succeeded.Count > 0)
-            Applied?.Invoke(this, batch.Where(succeeded.Contains).ToArray());
+        if (succeeded.Count + partly.Count > 0)
+            Applied?.Invoke(this, batch.Where(c => succeeded.Contains(c) || partly.Contains(c)).ToArray());
         return results;
     }
 
