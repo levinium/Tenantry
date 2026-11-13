@@ -1445,6 +1445,48 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Areas with sections: clicking each section shows that section's pages in the row below, with one chosen", () =>
+        {
+            var (window, main, _) = OpenList();
+            var areas = new (string Key, Func<object> Area)[]
+            {
+                ("mail", () => main.MailSecurity!), ("security", () => main.SecurityArea), ("devices", () => main.DevicesArea), ("organization", () => main.Organization),
+            };
+            foreach (var (key, area) in areas)
+            {
+                Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection n && n.Key == key));
+                Settle();
+                var vm = area();
+                var sectionProp = vm.GetType().GetProperty("SelectedSection")!;
+                var pageProp = vm.GetType().GetProperty("SelectedPage")!;
+                var sections = window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStripItem>()
+                    .Where(i => i.IsEffectivelyVisible && i.DataContext is SecurityPageGroup).Select(i => (SecurityPageGroup)i.DataContext!).Distinct().ToArray();
+                Expect(sections.Length > 1, $"{key}: the section row shows");
+                // From every page of every section, to the next section: the switch must not depend on
+                // which page was showing (seen in the app: from a later Messages page to Rules & Lists).
+                var switches = sections.SelectMany((from, n) => from.Pages.Select(p => (From: from, Page: p, To: sections[(n + 1) % sections.Length]))).ToArray();
+                foreach (var (from, startPage, section) in switches)
+                {
+                    Avalonia.Controls.Primitives.TabStripItem Visible(object item) => window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStripItem>().First(i => i.IsEffectivelyVisible && Equals(i.DataContext, item));
+                    Click(window, Visible(from));
+                    Settle();
+                    Click(window, Visible(startPage));
+                    Settle();
+                    Click(window, Visible(section));
+                    for (var i = 0; i < 3; i++)
+                        Settle();
+                    var page = (Tenantry.ViewModels.MailSecurity.MailSecurityPage)pageProp.GetValue(vm)!;
+                    Expect(Equals(sectionProp.GetValue(vm), section), $"{key}: {section.Title} is the chosen section");
+                    Expect(section.Pages.Contains(page), $"{key}: from {startPage.Title}, choosing {section.Title} shows one of its own pages (not {page.Title})");
+                    var row = window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStripItem>()
+                        .Where(i => i.IsEffectivelyVisible && i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage).ToArray();
+                    Expect(row.Select(i => i.DataContext).SequenceEqual(section.Pages), $"{key}: the page row shows {section.Title}'s pages");
+                    Expect(Equals(row.Single(i => i.IsSelected).DataContext, page), $"{key}: the page row has {page.Title} chosen");
+                }
+            }
+            window.Close();
+        });
+
         Check("Health › Message Center: the tab reads the posts; opening one marks it read; Archive takes it out of the inbox", () =>
         {
             var (window, main, _) = OpenList();

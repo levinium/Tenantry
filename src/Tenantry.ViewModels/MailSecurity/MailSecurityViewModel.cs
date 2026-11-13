@@ -78,10 +78,16 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     [ObservableProperty]
     public partial SecurityPageGroup SelectedSection { get; set; } = Sections[0];
 
-    partial void OnSelectedSectionChanged(SecurityPageGroup value)
+    /// <summary>
+    /// A new section's first page is chosen only after everything watching the section has heard of
+    /// it: the page row must have the new section's pages first. Chosen earlier (in the section's
+    /// changed hook), the row still holds the old section's pages and keeps showing them.
+    /// </summary>
+    protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (!value.Pages.Contains(SelectedPage))
-            SelectedPage = value.Pages[0];
+        base.OnPropertyChanged(e);
+        if (e.PropertyName == nameof(SelectedSection) && SelectedPage is not null && SelectedSection is not null && !SelectedSection.Pages.Contains(SelectedPage))
+            SelectedPage = SelectedSection.Pages[0];
     }
 
     bool _movingSection;
@@ -92,7 +98,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
         // The page row clears its choice while it swaps to another section's pages; keep the page asked for.
         if (newValue is null)
         {
-            SelectedPage = oldValue ?? SelectedSection.Pages[0];
+            SelectedPage = oldValue is not null && SelectedSection.Pages.Contains(oldValue) ? oldValue : SelectedSection.Pages[0];
             return;
         }
         if (_movingSection || SectionOf(newValue) == SelectedSection)
