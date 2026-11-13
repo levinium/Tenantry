@@ -148,21 +148,27 @@ public sealed partial class GraphChangeExecutor
 
     async Task<ApplyResult> UpdateRetentionPolicyAsync(UpdateRetentionPolicy change, CancellationToken cancellationToken)
     {
-        var parameters = UpdatePolicyParameters(change);
-        if (parameters.Count > 1)
+        // What it does (the rule) goes first: changing where it applies (the policy) starts Purview
+        // putting it in place again, and Purview then refuses the rule until it's done (seen live).
+        var ruleDone = false;
+        if (RuleChanged(change))
         {
-            var placed = await Purview("Set-RetentionCompliancePolicy", parameters, null, _ => true, cancellationToken);
-            if (placed.Outcome != ChangeOutcome.Applied)
-                return placed;
+            var rules = await ReadPurview("Get-RetentionComplianceRule", new() { ["Policy"] = change.Policy.Name }, cancellationToken);
+            if (rules.FirstOrDefault() is not { ValueKind: JsonValueKind.Object } rule
+                || (rule.TryGetProperty("Guid", out var g) ? g.GetString() : rule.TryGetProperty("Name", out var n) ? n.GetString() : null) is not { } ruleId)
+                return new ApplyResult(ChangeOutcome.Failed, "The policy's rule wasn't found, so nothing was changed.");
+            var ruled = await Plain(Purview("Set-RetentionComplianceRule", RuleParameters(new() { ["Identity"] = ruleId }, change.Policy.Name, change.New, creating: false),
+                null, _ => true, cancellationToken));
+            if (ruled.Outcome != ChangeOutcome.Applied)
+                return ruled;
+            ruleDone = true;
         }
-        if (!RuleChanged(change))
+        var parameters = UpdatePolicyParameters(change);
+        if (parameters.Count <= 1)
             return new ApplyResult(ChangeOutcome.Applied);
-        var rules = await ReadPurview("Get-RetentionComplianceRule", new() { ["Policy"] = change.Policy.Name }, cancellationToken);
-        if (rules.FirstOrDefault() is not { ValueKind: JsonValueKind.Object } rule
-            || (rule.TryGetProperty("Guid", out var g) ? g.GetString() : rule.TryGetProperty("Name", out var n) ? n.GetString() : null) is not { } ruleId)
-            return new ApplyResult(ChangeOutcome.Failed, "The policy's rule wasn't found, so what it does couldn't be changed.");
-        return await Purview("Set-RetentionComplianceRule", RuleParameters(new() { ["Identity"] = ruleId }, change.Policy.Name, change.New, creating: false),
-            null, _ => true, cancellationToken);
+        var placed = await Plain(Purview("Set-RetentionCompliancePolicy", parameters, null, _ => true, cancellationToken));
+        return placed.Outcome == ChangeOutcome.Applied || !ruleDone ? placed
+            : placed with { Detail = $"What it does was changed, but where it applies wasn't: {placed.Detail}" };
     }
 
     // ---- Parameters (shared with the PowerShell shown for each change) ---------------------------
