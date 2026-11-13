@@ -69,6 +69,37 @@ public sealed class ServiceHealthTests
         Assert.All(health.Issues.Rows.Cast<ServiceIssue>(), i => Assert.False(i.IsResolved));
     }
 
+    sealed class FixedHealth(ServiceHealthRead read) : IServiceHealthRecords
+    {
+        public Task<ServiceHealthRead> GetServiceHealthAsync(CancellationToken cancellationToken = default) => Task.FromResult(read);
+        public Task<MessageCenterRead> GetMessageCenterAsync(CancellationToken cancellationToken = default) => Task.FromResult(new MessageCenterRead([]));
+        public Task SetMessageViewAsync(IReadOnlyList<string> ids, MessageView view, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    static ServiceIssue Issue(string id, string service, bool resolved) =>
+        new(id, "An issue", service, null, null, null, resolved ? "serviceRestored" : "serviceDegradation", true, resolved, false, null, null, null, []);
+
+    [Fact]
+    public async Task An_issue_posted_under_one_service_counts_for_every_service_it_affects_and_healthy_ones_hide()
+    {
+        // Microsoft lists a Microsoft 365 suite incident under Exchange and Teams too.
+        var read = new ServiceHealthRead(
+        [
+            new ServiceStatus("Exchange", "Exchange Online", "serviceDegradation") { IssueIds = ["EX1", "MO1"] },
+            new ServiceStatus("Teams", "Microsoft Teams", "serviceDegradation") { IssueIds = ["MO1"] },
+            new ServiceStatus("Planner", "Planner", "serviceOperational") { IssueIds = ["PL1"] },
+        ],
+        [Issue("MO1", "Microsoft 365 suite", false), Issue("EX1", "Exchange Online", true), Issue("PL1", "Planner", true)]);
+        var health = new ServiceHealthViewModel(new FixedHealth(read), null, Now);
+        await health.LoadAsync();
+        Assert.Equal([1, 1, 0], health.Services.Select(s => s.OpenIssues));
+        Assert.Contains("1 open issue", health.Summary, StringComparison.Ordinal);
+        Assert.Equal(["Exchange Online", "Microsoft Teams"], health.ShownServices.Select(s => s.Name));
+        health.ToggleAllServicesCommand.Execute(null);
+        Assert.Equal(3, health.ShownServices.Count);
+        Assert.Equal("MO1", Assert.Single(health.Issues.Rows.Cast<ServiceIssue>()).Id);
+    }
+
     [Fact]
     public async Task Opening_a_post_marks_it_read_and_archive_moves_it_out_of_the_inbox()
     {

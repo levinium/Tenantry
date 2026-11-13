@@ -24,14 +24,25 @@ public sealed partial class GraphUserRecords : IServiceHealthRecords
     {
         try
         {
+            // The issues collection answers only its first 100 (oldest-first, with no next link), so
+            // today's issues never arrive. Each service's overview with its issues expanded has them
+            // all, and lists an issue under every service it affects.
             var services = new List<ServiceStatus>();
-            await foreach (var s in graph.GetAllAsync($"{Announcements}healthOverviews", cancellationToken))
-                services.Add(new ServiceStatus(Str(s, "id") ?? "", Str(s, "service") ?? Str(s, "id") ?? "A service", Str(s, "status") ?? ""));
-            var issues = new List<ServiceIssue>();
-            await foreach (var i in graph.GetAllAsync($"{Announcements}issues?$top=100", cancellationToken))
-                issues.Add(ToIssue(i));
+            var issues = new Dictionary<string, ServiceIssue>(StringComparer.OrdinalIgnoreCase);
+            await foreach (var s in graph.GetAllAsync($"{Announcements}healthOverviews?$expand=issues", cancellationToken))
+            {
+                var affecting = new List<string>();
+                if (s.TryGetProperty("issues", out var list) && list.ValueKind == JsonValueKind.Array)
+                    foreach (var i in list.EnumerateArray())
+                    {
+                        var issue = ToIssue(i);
+                        issues.TryAdd(issue.Id, issue);
+                        affecting.Add(issue.Id);
+                    }
+                services.Add(new ServiceStatus(Str(s, "id") ?? "", Str(s, "service") ?? Str(s, "id") ?? "A service", Str(s, "status") ?? "") { IssueIds = affecting });
+            }
             return new ServiceHealthRead([.. services.OrderBy(s => ServiceHealth.Severity(s.Status)).ThenBy(s => s.Service, StringComparer.CurrentCultureIgnoreCase)],
-                [.. issues.OrderByDescending(i => i.Modified ?? i.Start)]);
+                [.. issues.Values.OrderBy(i => i.IsResolved).ThenByDescending(i => i.Modified ?? i.Start)]);
         }
         catch (GraphException e)
         {

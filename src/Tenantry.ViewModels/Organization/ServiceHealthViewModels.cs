@@ -235,7 +235,22 @@ public sealed partial class ServiceHealthViewModel : ObservableObject
     public DataListViewModel Issues { get; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShownServices), nameof(CanShowAll), nameof(ShowAllText))]
     public partial IReadOnlyList<ServiceTile> Services { get; private set; } = [];
+
+    /// <summary>Show healthy services too; by default only the ones with a problem show, to keep the issues list in view.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShownServices), nameof(ShowAllText))]
+    public partial bool ShowAllServices { get; set; }
+
+    public IReadOnlyList<ServiceTile> ShownServices => ShowAllServices ? Services : [.. Services.Where(s => !s.IsHealthy || s.OpenIssues > 0)];
+
+    public bool CanShowAll => Services.Any(s => s.IsHealthy && s.OpenIssues == 0);
+
+    public string ShowAllText => ShowAllServices ? "Show Problems Only" : $"Show All {Services.Count} Services";
+
+    [RelayCommand]
+    void ToggleAllServices() => ShowAllServices = !ShowAllServices;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasNote))]
@@ -251,12 +266,17 @@ public sealed partial class ServiceHealthViewModel : ObservableObject
     async Task<ServiceHealthRead> ReadAsync(CancellationToken cancellationToken)
     {
         var read = _records is null ? new ServiceHealthRead([], [], "Service health isn't available for this tenant.") : await _records.GetServiceHealthAsync(cancellationToken);
-        var open = read.Issues.Where(i => !i.IsResolved).GroupBy(i => i.Service, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
-        Services = [.. read.Services.Select(s => new ServiceTile(s, open.GetValueOrDefault(s.Service)))];
+        // An issue counts for every service Microsoft lists it under (one posted under Microsoft 365
+        // suite can affect Exchange, Teams and SharePoint); without that list, by its own service.
+        var open = read.Issues.Where(i => !i.IsResolved).ToDictionary(i => i.Id, StringComparer.OrdinalIgnoreCase);
+        Services = [.. read.Services.Select(s => new ServiceTile(s, s.IssueIds.Count > 0
+            ? s.IssueIds.Count(open.ContainsKey)
+            : open.Values.Count(i => string.Equals(i.Service, s.Service, StringComparison.OrdinalIgnoreCase))))];
         Note = read.Note;
         var unhealthy = read.Services.Count(s => !s.IsHealthy);
-        Summary = read.Note is not null ? "" : unhealthy == 0 ? $"All {read.Services.Count} services are healthy."
-            : $"{unhealthy} of {read.Services.Count} services {(unhealthy == 1 ? "has" : "have")} a problem right now.";
+        var issuesText = open.Count switch { 0 => "no open issues", 1 => "1 open issue", var n => $"{n} open issues" };
+        Summary = read.Note is not null ? "" : unhealthy == 0 ? $"All {read.Services.Count} services are healthy; {issuesText}."
+            : $"{unhealthy} of {read.Services.Count} services {(unhealthy == 1 ? "has" : "have")} a problem right now; {issuesText}.";
         return read;
     }
 

@@ -1179,6 +1179,24 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
                 Settle();
             Render(editing, $"org-{key}-light", height: 1100);
         }
+        // A view's count growing after the chips are laid out (2 → 100) must widen its chip, not spill past its edge.
+        editing.Organization.SelectedPage = OrganizationAreaViewModel.Pages.Single(p => p.Key == "servicehealth");
+        Render(editing, "org-servicehealth-count-grows-light", height: 700, during: w =>
+        {
+            var chip = editing.Organization.Health.Issues.ChipViews.Single(v => v.Name == "Resolved");
+            var was = chip.Count;
+            // Also while hidden: the count changes on another page, then the page shows again.
+            editing.Organization.SelectedPage = OrganizationAreaViewModel.Pages.Single(p => p.Key == "messagecenter");
+            Settle();
+            chip.Count = 1000;
+            Settle();
+            editing.Organization.SelectedPage = OrganizationAreaViewModel.Pages.Single(p => p.Key == "servicehealth");
+            Settle();
+            var button = w.GetVisualDescendants().OfType<Button>().First(b => b.DataContext == chip && b.IsEffectivelyVisible);
+            var inner = button.GetVisualDescendants().OfType<StackPanel>().First();
+            Console.WriteLine($"    count chip: button {button.Bounds.Width:F1} wide, content {inner.Bounds.Width:F1} + padding {button.Padding.Left + button.Padding.Right}" +
+                $" ({(button.Bounds.Width + 0.5 >= inner.DesiredSize.Width + button.Padding.Left + button.Padding.Right + 2 ? "fits" : "SPILLS")}; was {was})");
+        });
         // Organization (15b-15f): card pages, a domain and a team opened, and a usage report.
         foreach (var (key, open, height) in new[] { ("licenses", "", 1100), ("usersettings", "", 2400), ("domains", "zz-tenantry-test.example", 1900), ("teams", "Operations", 2600),
                      ("teamsmeetings", "Front Desk", 2200), ("crosstenant", "", 2200), ("usage", "", 1000) })

@@ -6,6 +6,9 @@ public sealed record ServiceStatus(string Id, string Service, string Status)
     public string StatusText => ServiceHealth.StatusText(Status);
 
     public bool IsHealthy => ServiceHealth.IsHealthy(Status);
+
+    /// <summary>The issues Microsoft lists under this service, including ones posted under another service (Microsoft 365 suite) that affect it too.</summary>
+    public IReadOnlyList<string> IssueIds { get; init; } = [];
 }
 
 /// <summary>An update Microsoft posted on an incident or advisory.</summary>

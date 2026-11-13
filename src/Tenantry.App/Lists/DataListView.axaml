@@ -85,7 +85,8 @@
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <ic:FluentIcon Icon="Bookmark" FontSize="12" IsVisible="{Binding !IsBuiltIn}" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding Name}" />
-                    <TextBlock Opacity="0.65" Text="{Binding Count}" />
+                    <!-- A little room past the count: at 125-150% display scaling the digits can round wider than measured -->
+                    <TextBlock Opacity="0.65" Text="{Binding Count}" Margin="0,0,3,0" />
                   </StackPanel>
                 </Button>
               </DataTemplate>

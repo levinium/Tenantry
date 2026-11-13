@@ -58,22 +58,25 @@
               <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Note}" />
             </StackPanel>
           </Border>
-          <TextBlock Classes="caption" Text="{Binding Summary}" TextWrapping="Wrap" />
-          <ItemsControl ItemsSource="{Binding Services}">
+          <!-- One compact line per service with a problem; healthy ones only on request, so the issues stay in view -->
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Content="{Binding ShowAllText}" Command="{Binding ToggleAllServicesCommand}"
+                    IsVisible="{Binding CanShowAll}" Padding="12,4" VerticalAlignment="Center" />
+            <TextBlock Classes="caption" Text="{Binding Summary}" TextWrapping="Wrap" VerticalAlignment="Center" />
+          </DockPanel>
+          <ItemsControl ItemsSource="{Binding ShownServices}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
-                <WrapPanel ItemSpacing="8" LineSpacing="8" />
+                <WrapPanel ItemSpacing="6" LineSpacing="6" />
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="org:ServiceTile">
-                <Border Classes="card" Padding="12,10" Width="240">
-                  <StackPanel Spacing="4">
-                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                      <c:Badge Text="{Binding StatusText}" Kind="{Binding Kind}" />
-                      <TextBlock Classes="caption" Text="{Binding IssuesText}" VerticalAlignment="Center" />
-                    </StackPanel>
+                <Border Classes="card" Padding="10,5" CornerRadius="8">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <c:Badge Text="{Binding StatusText}" Kind="{Binding Kind}" VerticalAlignment="Center" />
+                    <TextBlock Classes="caption" Text="{Binding IssuesText}" VerticalAlignment="Center" />
                   </StackPanel>
                 </Border>
               </DataTemplate>
