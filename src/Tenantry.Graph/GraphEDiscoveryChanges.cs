@@ -31,8 +31,8 @@ public sealed partial class GraphChangeExecutor
             ct => ReadPurview("Get-ComplianceSearch", new() { ["Identity"] = d.Search.Name }, ct), rows => rows.Count == 0, cancellationToken),
         CreateHold h => CreateHoldAsync(h, cancellationToken),
         // Purview names the action after the search; it runs on its own after this.
-        PurgeSearch p => Purview("New-ComplianceSearchAction", PurgeParameters(p),
-            ct => ReadPurview("Get-ComplianceSearchAction", new() { ["Identity"] = p.Search.Name + "_Purge" }, ct), rows => rows.Count > 0, cancellationToken),
+        PurgeSearch p => PurgeWords(Purview("New-ComplianceSearchAction", PurgeParameters(p),
+            ct => ReadPurview("Get-ComplianceSearchAction", new() { ["Identity"] = p.Search.Name + "_Purge" }, ct), rows => rows.Count > 0, cancellationToken)),
         UpdateHold u => UpdateHoldAsync(u, cancellationToken),
         SetHoldEnabled e => Purview("Set-CaseHoldPolicy", new() { ["Identity"] = e.Hold.Name, ["Enabled"] = e.New },
             ct => ReadPurview("Get-CaseHoldPolicy", new() { ["Identity"] = e.Hold.Name }, ct),
@@ -189,6 +189,18 @@ public sealed partial class GraphChangeExecutor
 
     static Dictionary<string, object?> CaseMemberParameters(SetCaseMember change) =>
         new() { ["Case"] = change.Case.Name, ["Member"] = EdChange.Place(change.Member), ["Confirm"] = false };
+
+    /// <summary>
+    /// Purview answers a purge from an account without the Search And Purge role with only "Invalid
+    /// Operation" (seen live, in both sessions and every parameter form): said in words.
+    /// </summary>
+    static async Task<ApplyResult> PurgeWords(Task<ApplyResult> purging)
+    {
+        var result = await purging;
+        return result.Outcome == ChangeOutcome.Failed && (result.Detail ?? "").Trim().Equals("Invalid Operation", StringComparison.OrdinalIgnoreCase)
+            ? result with { Detail = "Purview refused the purge. Purging needs the Search And Purge role, which only the Organization Management and Data Investigator role groups have (Compliance Administrator doesn't); add your account to one in the Purview portal's Roles and Scopes." }
+            : result;
+    }
 
     static Dictionary<string, object?> PurgeParameters(PurgeSearch change) =>
         new() { ["SearchName"] = change.Search.Name, ["Purge"] = true, ["PurgeType"] = change.Hard ? "HardDelete" : "SoftDelete", ["Confirm"] = false };
