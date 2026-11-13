@@ -104,6 +104,12 @@ public interface IMailboxContents
 
     Task<IReadOnlyList<MobileDevice>> GetMobileDevicesAsync(string address, CancellationToken cancellationToken = default);
 
+    /// <summary>The most deleted items one search lists; past it the page says to narrow by subject.</summary>
+    const int DeletedItemsLimit = 200;
+
+    /// <summary>The most messages one trace lists (Get-MessageTraceV2's most); past it the page says so.</summary>
+    const int TraceLimit = 5000;
+
     /// <param name="subject">Only items whose subject contains this, when given.</param>
     Task<IReadOnlyList<DeletedItem>> GetDeletedItemsAsync(string address, string? subject, CancellationToken cancellationToken = default);
 

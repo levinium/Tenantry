@@ -88,7 +88,7 @@ public sealed partial class GraphUserRecords : IMailboxContents
 
     public async Task<IReadOnlyList<DeletedItem>> GetDeletedItemsAsync(string address, string? subject, CancellationToken cancellationToken = default)
     {
-        var parameters = new Dictionary<string, object?> { ["Identity"] = address, ["ResultSize"] = 200 };
+        var parameters = new Dictionary<string, object?> { ["Identity"] = address, ["ResultSize"] = IMailboxContents.DeletedItemsLimit };
         if (!string.IsNullOrWhiteSpace(subject))
             parameters["SubjectContains"] = subject.Trim();
         var rows = await Run("Get-RecoverableItems", parameters, cancellationToken);
@@ -114,7 +114,7 @@ public sealed partial class GraphUserRecords : IMailboxContents
             [direction == TraceDirection.Sent ? "SenderAddress" : "RecipientAddress"] = address,
             ["StartDate"] = end.AddDays(-Math.Clamp(days, 1, MaxTraceDays)).ToString("o", CultureInfo.InvariantCulture),
             ["EndDate"] = end.ToString("o", CultureInfo.InvariantCulture),
-            ["ResultSize"] = 1000,
+            ["ResultSize"] = IMailboxContents.TraceLimit,
         };
         var rows = await Run("Get-MessageTraceV2", parameters, cancellationToken);
         return rows.Select(r => new TracedMessage(

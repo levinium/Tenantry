@@ -76,7 +76,9 @@ public sealed partial class GraphUserRecords : IServiceHealthRecords
         try
         {
             var posts = new List<MessageCenterPost>();
-            await foreach (var m in graph.GetAllAsync($"{Announcements}messages?$top=100", cancellationToken))
+            // No $top: with one, Microsoft answers that many posts and no next link, so the rest never
+            // arrive (seen live: 100 of several hundred). Without it, the pages link on as usual.
+            await foreach (var m in graph.GetAllAsync($"{Announcements}messages", cancellationToken))
             {
                 posts.Add(ToPost(m));
                 if (posts.Count >= MaxPosts)

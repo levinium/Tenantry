@@ -33,9 +33,9 @@ public sealed partial class GraphUserRecords : IRiskRecords
                     : notLicensed);
             }
         }
-        var usersRead = Read("identityProtection/riskyUsers?$top=500", Risk.NeedsP2, 5000);
-        var detectionsRead = Read("identityProtection/riskDetections?$top=500&$orderby=detectedDateTime desc", Risk.NeedsP2, 2000);
-        var appsRead = Read("identityProtection/riskyServicePrincipals?$top=500", Risk.NeedsWorkloadPremium, 5000);
+        var usersRead = Read("identityProtection/riskyUsers", Risk.NeedsP2, 5000);
+        var detectionsRead = Read("identityProtection/riskDetections?$orderby=detectedDateTime desc", Risk.NeedsP2, 2000);
+        var appsRead = Read("identityProtection/riskyServicePrincipals", Risk.NeedsWorkloadPremium, 5000);
         var (users, usersNote) = await usersRead;
         var (detections, detectionsNote) = await detectionsRead;
         var (apps, appsNote) = await appsRead;

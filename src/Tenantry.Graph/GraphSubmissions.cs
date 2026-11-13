@@ -19,7 +19,10 @@ public sealed partial class GraphUserRecords : ISubmissionRecords
         var found = new List<ThreatSubmission>();
         foreach (var kind in new[] { "emailThreats", "urlThreats", "fileThreats" })
         {
-            await foreach (var row in graph.GetAllAsync($"{Submissions}{kind}?$filter=createdDateTime ge {since}&$top=200", cancellationToken))
+            if (found.Count >= MaxSubmissions)
+                break;
+            // No $top: some Microsoft collections answer that many and no next link (service health did).
+            await foreach (var row in graph.GetAllAsync($"{Submissions}{kind}?$filter=createdDateTime ge {since}", cancellationToken))
             {
                 found.Add(ToSubmission(row));
                 if (found.Count >= MaxSubmissions)

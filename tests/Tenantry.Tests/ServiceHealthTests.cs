@@ -96,6 +96,22 @@ public sealed class ServiceHealthTests
     }
 
     [Fact]
+    public async Task Message_Center_reads_every_page_and_never_asks_for_a_page_size()
+    {
+        // With $top, Microsoft answers that many posts and no next link, so the rest never come (seen live: 100 of 672).
+        var http = new Tenantry.Tests.Fakes.FakeHttp()
+            .On(HttpMethod.Get, "skiptoken", """{"value":[{"id":"MC2","title":"Second page"}]}""")
+            .On(HttpMethod.Get, "serviceAnnouncement/messages", """{"value":[{"id":"MC1","title":"First page"}],"@odata.nextLink":"https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/messages?$skiptoken=2"}""");
+        var records = new GraphUserRecords(new GraphClient(http.Client(), new Tenantry.Tests.Fakes.FakeTokens(), delay: Tenantry.Tests.Fakes.NoDelay.Instance),
+            new Tenantry.Core.Cache.MemoryEntityStore(), null);
+
+        var read = await records.GetMessageCenterAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(["MC1", "MC2"], read.Posts.Select(p => p.Id).Order());
+        Assert.DoesNotContain(http.Requests, r => r.PathAndQuery.Contains("top", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Degraded_is_red_everywhere_and_investigating_amber()
     {
         Assert.Equal(BadgeKind.Danger, new ServiceTile(new ServiceStatus("x", "Exchange Online", "serviceDegradation"), 1).Kind);

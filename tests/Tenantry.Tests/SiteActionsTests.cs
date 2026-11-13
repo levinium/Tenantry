@@ -36,6 +36,22 @@ public sealed class SiteActionsTests
         return await action.PlanAsync(Ct);
     }
 
+    [Fact]
+    public async Task A_site_REST_read_follows_SharePoint_s_next_links_unless_only_the_first_page_is_wanted()
+    {
+        var http = new FakeHttp()
+            .On(HttpMethod.Get, "sites/root", Root)
+            .On(HttpMethod.Get, "skiptoken", """{"value":[{"Title":"Second"}]}""")
+            .On(HttpMethod.Get, "_api/web/SiteUsers", """{"value":[{"Title":"First"}],"odata.nextLink":"https://contoso.sharepoint.com/sites/x/_api/web/SiteUsers?%24skiptoken=2"}""");
+        var sp = SharePoint(http);
+
+        var all = await sp.GetSiteAsync("https://contoso.sharepoint.com/sites/x/_api/web/SiteUsers?$select=Title", Ct);
+        var first = await sp.GetSiteAsync("https://contoso.sharepoint.com/sites/x/_api/web/SiteUsers?$select=Title", Ct, firstPageOnly: true);
+
+        Assert.Equal(["First", "Second"], all.GetProperty("value").EnumerateArray().Select(u => u.GetProperty("Title").GetString()));
+        Assert.Single(first.GetProperty("value").EnumerateArray());
+    }
+
     // ---- The write guard -----------------------------------------------------------------------
 
     [Fact]

@@ -595,6 +595,7 @@
             <TextBlock Classes="muted" Text="Reading their deleted items…" IsVisible="{Binding DeletedLoading}" />
             <TextBlock Classes="error" Text="{Binding DeletedError}" IsVisible="{Binding HasDeletedError}" TextWrapping="Wrap" />
             <TextBlock Classes="muted" Text="No deleted items found." IsVisible="{Binding HasNoDeleted}" />
+            <TextBlock Classes="caption" Text="{Binding DeletedLimitText}" TextWrapping="Wrap" IsVisible="{Binding HasDeletedLimit}" />
             <ScrollViewer MaxHeight="420">
               <c:ReadableWidth>
               <ItemsControl ItemsSource="{Binding DeletedItems}">

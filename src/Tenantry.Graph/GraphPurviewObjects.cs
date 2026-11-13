@@ -22,8 +22,11 @@ public sealed partial class GraphUserRecords : IPurviewObjectRecords
         if (kind.Graph is { } path)
             try
             {
-                var answer = await graph.GetAsync(path, cancellationToken);
-                return new PurviewRead([.. answer.GetProperty("value").EnumerateArray().Select(a =>
+                // Every page: the first alone was 200 at most, with older alerts left out unsaid.
+                var all = new List<JsonElement>();
+                await foreach (var item in graph.GetAllAsync(path, cancellationToken))
+                    all.Add(item);
+                return new PurviewRead([.. all.Select(a =>
                     new PurviewObject(Text(a, "id") ?? "", Text(a, kind.NameProperty) ?? "An alert", null, When(a, "lastUpdateDateTime") ?? When(a, "createdDateTime"), a.Clone()))
                     .OrderByDescending(o => o.Modified)]);
             }

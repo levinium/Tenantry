@@ -37,10 +37,11 @@ public sealed partial class GraphUserRecords : IOrgObjectRecords, IUsageReportRe
             await foreach (var r in graph.GetAllAsync($"https://graph.microsoft.com/beta/reports/{report.Function}(period='{period.Value}')?$format=application/json", cancellationToken))
             {
                 rows.Add(r.Clone());
-                if (rows.Count >= 20000)
+                if (rows.Count >= MaxReportRows)
                     break;
             }
-            return new UsageReportRead(rows);
+            return new UsageReportRead(rows, rows.Count >= MaxReportRows
+                ? $"Showing the first {MaxReportRows:N0} rows; Microsoft has more. Download the report from the admin center for all of them." : null);
         }
         catch (GraphException e)
         {
@@ -49,6 +50,11 @@ public sealed partial class GraphUserRecords : IOrgObjectRecords, IUsageReportRe
                 : $"Couldn't read the report: {e.Message}");
         }
     }
+
+    /// <summary>The most rows a usage report or an organization list shows; past this a note says so.</summary>
+    const int MaxReportRows = 20000;
+
+    const int MaxOrgRows = 20000;
 
     Task<string>? _orgId;
 
@@ -90,7 +96,7 @@ public sealed partial class GraphUserRecords : IOrgObjectRecords, IUsageReportRe
                 while (true)
                 {
                     rows.AddRange(page.GetProperty("value").EnumerateArray());
-                    if (rows.Count >= 2000 || !page.TryGetProperty("@odata.nextLink", out var next) || next.GetString() is not { } link)
+                    if (rows.Count >= MaxOrgRows || !page.TryGetProperty("@odata.nextLink", out var next) || next.GetString() is not { } link)
                         break;
                     page = await client.GetAsync(link, cancellationToken);
                 }
@@ -110,7 +116,7 @@ public sealed partial class GraphUserRecords : IOrgObjectRecords, IUsageReportRe
             {
                 // The list leaves out each item's settings (teams): read each, a few at a time.
                 using var gate = new SemaphoreSlim(6);
-                var whole = await Task.WhenAll(items.Take(300).Select(async item =>
+                var whole = await Task.WhenAll(items.Select(async item =>
                 {
                     await gate.WaitAsync(cancellationToken);
                     try
@@ -126,9 +132,10 @@ public sealed partial class GraphUserRecords : IOrgObjectRecords, IUsageReportRe
                         gate.Release();
                     }
                 }));
-                items = [.. whole, .. items.Skip(300)];
+                items = [.. whole];
             }
-            return new OrgRead([.. items.OrderBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase)]);
+            return new OrgRead([.. items.OrderBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase)],
+                rows.Count >= MaxOrgRows ? $"Showing the first {MaxOrgRows:N0}; Microsoft has more." : null);
         }
         catch (GraphException e)
         {

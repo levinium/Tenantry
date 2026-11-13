@@ -524,6 +524,13 @@ public sealed partial class MailSection
 
     public bool HasNoDeleted => _deleted is { Count: 0 };
 
+    /// <summary>Said when a search fills its limit: there may be more, found by narrowing the subject.</summary>
+    public string? DeletedLimitText => _deleted is { } d && d.Count >= IMailboxContents.DeletedItemsLimit
+        ? $"Showing {d.Count:N0} deleted items; there may be more. Search by subject to find a particular one."
+        : null;
+
+    public bool HasDeletedLimit => DeletedLimitText is not null;
+
     /// <summary>Narrows the deleted items to subjects containing this (searched again as it changes).</summary>
     [ObservableProperty]
     public partial string DeletedSearch { get; set; } = "";
@@ -553,6 +560,8 @@ public sealed partial class MailSection
             }));
         }
         OnPropertyChanged(nameof(HasNoDeleted));
+        OnPropertyChanged(nameof(DeletedLimitText));
+        OnPropertyChanged(nameof(HasDeletedLimit));
     }
 
     // ---- Message trace ----------------------------------------------------------------------
@@ -589,7 +598,11 @@ public sealed partial class MailSection
 
     public bool HasNoTrace => _trace is { Count: 0 };
 
-    public string TraceSummary => _trace is { } t ? $"{t.Count:N0} message{(t.Count == 1 ? "" : "s")} {(TraceDirection == TraceDirection.Received ? "to" : "from")} this mailbox in the last {(TraceDays == 1 ? "day" : $"{TraceDays} days")}" : "";
+    public string TraceSummary => _trace is { } t
+        ? t.Count >= IMailboxContents.TraceLimit
+            ? $"The newest {t.Count:N0} messages {(TraceDirection == TraceDirection.Received ? "to" : "from")} this mailbox; there are more in the last {(TraceDays == 1 ? "day" : $"{TraceDays} days")}, so choose fewer days to see them all"
+            : $"{t.Count:N0} message{(t.Count == 1 ? "" : "s")} {(TraceDirection == TraceDirection.Received ? "to" : "from")} this mailbox in the last {(TraceDays == 1 ? "day" : $"{TraceDays} days")}"
+        : "";
 
     async Task LoadTraceAsync(bool again = false)
     {

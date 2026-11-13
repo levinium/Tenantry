@@ -100,8 +100,34 @@ public sealed class SharePointAdmin(HttpClient http, ITokenSource tokens, GraphC
     /// A GET on any site's REST API (<c>{siteUrl}/_api/…</c>), OneDrives included: the tenant's
     /// SharePoint token covers every host (checked live).
     /// </summary>
-    public async Task<JsonElement> GetSiteAsync(string url, CancellationToken cancellationToken = default) =>
-        JsonDocument.Parse(await SendAsync(HttpMethod.Get, url, null, "application/json;odata=nometadata", cancellationToken)).RootElement.Clone();
+    /// <param name="firstPageOnly">For a read that wants only the top few rows (the newest 10 files), not the whole collection.</param>
+    public async Task<JsonElement> GetSiteAsync(string url, CancellationToken cancellationToken = default, bool firstPageOnly = false)
+    {
+        var first = JsonDocument.Parse(await SendAsync(HttpMethod.Get, url, null, "application/json;odata=nometadata", cancellationToken)).RootElement.Clone();
+        if (firstPageOnly || !first.TryGetProperty("value", out var value) || value.ValueKind != JsonValueKind.Array || NextOf(first) is not { } next)
+            return first;
+        // A collection in pages: follow SharePoint's next links and answer every row as one value.
+        var rows = new System.Text.Json.Nodes.JsonArray();
+        foreach (var row in value.EnumerateArray())
+            rows.Add(System.Text.Json.Nodes.JsonNode.Parse(row.GetRawText()));
+        for (var page = 0; next is not null && page < MaxRestPages; page++)
+        {
+            var more = JsonDocument.Parse(await SendAsync(HttpMethod.Get, next, null, "application/json;odata=nometadata", cancellationToken)).RootElement;
+            if (more.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.Array)
+                foreach (var row in v.EnumerateArray())
+                    rows.Add(System.Text.Json.Nodes.JsonNode.Parse(row.GetRawText()));
+            next = NextOf(more);
+        }
+        return JsonDocument.Parse(new System.Text.Json.Nodes.JsonObject { ["value"] = rows }.ToJsonString()).RootElement.Clone();
+    }
+
+    /// <summary>How many further pages one REST read follows (5,000 rows a page is the most SharePoint gives).</summary>
+    const int MaxRestPages = 200;
+
+    static string? NextOf(JsonElement page) =>
+        page.TryGetProperty("odata.nextLink", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString()
+        : page.TryGetProperty("@odata.nextLink", out var b) && b.ValueKind == JsonValueKind.String ? b.GetString()
+        : null;
 
     /// <summary>The CSOM type of the filter Get-SPOSite passes (SPOSitePropertiesEnumerableFilter).</summary>
     const string SiteFilterTypeId = "{b92aeee2-c92c-4b67-abcc-024e471bc140}";

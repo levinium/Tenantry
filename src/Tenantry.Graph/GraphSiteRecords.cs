@@ -208,7 +208,7 @@ public sealed partial class GraphUserRecords : ISiteRecords, IDeletedSiteRecords
         {
             var answer = await SharePoint.GetSiteAsync(
                 $"{site.Url}/_api/web/lists(guid'{library.Id}')/items?$select=FileLeafRef,Modified,Editor/Title&$expand=Editor&$orderby=Modified desc&$top=10&$filter=FSObjType eq 0",
-                cancellationToken);
+                cancellationToken, firstPageOnly: true);
             return new(Rows(answer).Select(f => new RecentFile(Text(f, "FileLeafRef") ?? "A file", When(f, "Modified"),
                 f.TryGetProperty("Editor", out var e) && e.ValueKind == JsonValueKind.Object ? Text(e, "Title") : null, library.Name)).ToArray());
         }

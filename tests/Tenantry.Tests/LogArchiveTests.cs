@@ -127,6 +127,39 @@ public sealed class LogArchiveTests : IDisposable
     }
 
     [Fact]
+    public async Task Each_day_s_Exchange_admin_actions_are_read_until_the_search_is_empty_not_only_the_first_100()
+    {
+        // Search-UnifiedAuditLog over REST answers 100 a call, whatever ResultSize says (seen live).
+        static string Row(int n) => JsonSerializer.Serialize(new
+        {
+            RecordType = "ExchangeAdmin",
+            AuditData = JsonSerializer.Serialize(new { Id = $"x{n}", CreationTime = "2026-09-30T09:00:00", Operation = "Set-Mailbox", UserId = "admin@contoso.example", ResultStatus = "True" }),
+        });
+        var calls = new Dictionary<string, int>();
+        var exchange = new FakeCmdlets((cmdlet, p) =>
+        {
+            if (cmdlet != "Search-UnifiedAuditLog")
+                return "[]";
+            var session = (string)p!["SessionId"]!;
+            var call = calls[session] = calls.GetValueOrDefault(session) + 1;
+            // The first day archived has 250; every other day none.
+            if (calls.Count > 1)
+                return "[]";
+            var from = (call - 1) * 100;
+            return "[" + string.Join(",", Enumerable.Range(from, Math.Clamp(250 - from, 0, 100)).Select(Row)) + "]";
+        });
+        var http = new FakeHttp().On(HttpMethod.Get, "auditLogs", """{"value":[]}""");
+        var store = new MemoryEntityStore();
+        var archiver = new LogArchiver(new GraphClient(http.Client(), new FakeTokens(), delay: NoDelay.Instance), store, store, exchange, () => SyncSettings.Default, () => T0);
+
+        await archiver.ArchiveAsync(null, Ct);
+
+        Assert.Equal(250, store.Span(LogKinds.ExchangeAdmin).Count);
+        // 100, 100, 50, then the empty answer that ends the day.
+        Assert.Equal(4, calls.Values.First());
+    }
+
+    [Fact]
     public void Settings_saved_before_the_history_existed_read_with_its_defaults()
     {
         File.WriteAllText(Path.Combine(_folder, "sync.json"), """{"ChangesMinutes":5,"DetailsMinutes":60,"MailboxDetailsMinutes":60,"MailboxSizesMinutes":240}""");

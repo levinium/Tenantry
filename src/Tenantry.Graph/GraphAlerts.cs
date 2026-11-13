@@ -34,10 +34,11 @@ public sealed partial class GraphUserRecords : IAlertRecords
     {
         var since = DateTimeOffset.UtcNow.AddDays(-30).ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
         var alerts = new List<SecurityAlert>();
-        await foreach (var a in graph.GetAllAsync($"security/alerts_v2?$filter=createdDateTime ge {since}&$top=200", cancellationToken))
+        // No $top: some Microsoft collections answer that many and no next link (service health did).
+        await foreach (var a in graph.GetAllAsync($"security/alerts_v2?$filter=createdDateTime ge {since}", cancellationToken))
         {
             alerts.Add(ToSecurityAlert(a));
-            if (alerts.Count >= 1000)
+            if (alerts.Count >= 5000)
                 break;
         }
         return [.. alerts.OrderByDescending(a => a.Created)];

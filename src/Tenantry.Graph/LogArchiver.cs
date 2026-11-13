@@ -26,6 +26,15 @@ public sealed class LogArchiver(GraphClient graph, ILogArchive archive, IEntityS
     /// <summary>Unified audit pages are at most this many (Search-UnifiedAuditLog's limit).</summary>
     const int AuditPage = 5000;
 
+    /// <summary>
+    /// Calls per day of one search session. Each call answers 100 records over REST, whatever
+    /// ResultSize says (seen live: 9 calls of 100 for 855), and the search stops at 50,000.
+    /// </summary>
+    const int AuditCallsPerDay = 500;
+
+    /// <summary>The Exchange admin archive's mark once it reads every record of a day, not the first 100.</summary>
+    const string WholeDays = "whole-days";
+
     readonly Func<DateTimeOffset> _now = now ?? (() => DateTimeOffset.UtcNow);
 
     /// <summary>Adds what's new to each log and prunes; returns how many events were added, and notes on what couldn't be read.</summary>
@@ -103,7 +112,10 @@ public sealed class LogArchiver(GraphClient graph, ILogArchive archive, IEntityS
     async Task<int> ExchangeAdminAsync(IProgress<string>? progress, List<string> notes, CancellationToken cancellationToken)
     {
         var added = 0;
-        var from = Since(LogKinds.ExchangeAdmin, LogKinds.MicrosoftKeepsDays);
+        // Archives made before whole days were read kept only each day's first 100: read Microsoft's
+        // whole span once more to fill them (records already kept are skipped by id).
+        var whole = marks.GetMark(LogKinds.ExchangeAdmin)?.Cursor == WholeDays;
+        var from = whole ? Since(LogKinds.ExchangeAdmin, LogKinds.MicrosoftKeepsDays) : _now().AddDays(-LogKinds.MicrosoftKeepsDays);
         try
         {
             for (var start = from; start < _now(); start = start.AddDays(1))
@@ -111,7 +123,10 @@ public sealed class LogArchiver(GraphClient graph, ILogArchive archive, IEntityS
                 var end = start.AddDays(1) < _now() ? start.AddDays(1) : _now();
                 var session = Guid.NewGuid().ToString();
                 progress?.Report($"Archiving Exchange admin actions: {start.ToLocalTime():d MMM}…");
-                for (var page = 0; page < 10; page++)
+                // The session hands out the day's records in turn until it's empty: a short call is
+                // not the end (each is 100 long), only an empty one is.
+                var calls = 0;
+                for (; calls < AuditCallsPerDay; calls++)
                 {
                     var rows = await exchange!.InvokeAsync(CmdletEndpoint.Exchange, "Search-UnifiedAuditLog", new Dictionary<string, object?>
                     {
@@ -122,12 +137,14 @@ public sealed class LogArchiver(GraphClient graph, ILogArchive archive, IEntityS
                         ["SessionCommand"] = "ReturnLargeSet",
                         ["ResultSize"] = AuditPage,
                     }, cancellationToken);
-                    added += archive.AddEvents(LogKinds.ExchangeAdmin, [.. rows.Select(ToExchangeAdmin).OfType<ArchivedEvent>()]);
-                    if (rows.Count < AuditPage)
+                    if (rows.Count == 0)
                         break;
+                    added += archive.AddEvents(LogKinds.ExchangeAdmin, [.. rows.Select(ToExchangeAdmin).OfType<ArchivedEvent>()]);
                 }
+                if (calls == AuditCallsPerDay)
+                    notes.Add($"Exchange admin actions on {start.ToLocalTime():d MMM yyyy} were more than Microsoft's search returns; some weren't archived.");
             }
-            marks.SetMark(LogKinds.ExchangeAdmin, new SyncMark(null, _now()));
+            marks.SetMark(LogKinds.ExchangeAdmin, new SyncMark(WholeDays, _now()));
         }
         catch (CmdletException e)
         {

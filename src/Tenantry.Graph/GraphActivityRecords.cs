@@ -8,7 +8,8 @@ namespace Tenantry.Graph;
 /// <summary>The Activity tab's reads (4d-1): Microsoft's directory audit log and the usage reports.</summary>
 public sealed partial class GraphUserRecords : IActivityRecords
 {
-    const int AuditLimit = 100;
+    /// <summary>Directory audits kept per person (Microsoft keeps 30 days): enough for a busy admin's month.</summary>
+    const int AuditLimit = 1000;
 
     /// <summary>How long one read of the usage report serves every record page (it changes once a day).</summary>
     static readonly TimeSpan ReportKeep = TimeSpan.FromMinutes(30);
@@ -23,7 +24,7 @@ public sealed partial class GraphUserRecords : IActivityRecords
         var events = new List<AuditEvent>();
         try
         {
-            await foreach (var e in graph.GetAllAsync($"auditLogs/directoryAudits?$filter={filter}&$top={AuditLimit}", cancellationToken))
+            await foreach (var e in graph.GetAllAsync($"auditLogs/directoryAudits?$filter={filter}&$top=999", cancellationToken))
             {
                 events.Add(ToAudit(e));
                 if (events.Count >= AuditLimit)
