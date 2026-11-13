@@ -155,6 +155,7 @@ public static class TenantryPermissions
         "BrowserSiteLists.ReadWrite.All",
         "WindowsUpdates.ReadWrite.All",
         "Place.Read.All",
+        "Agreement.ReadWrite.All",
     ]);
 
     public static readonly ApiPermissions Exchange = new(ExchangeAppId, "Office 365 Exchange Online", "https://outlook.office365.com",
@@ -263,6 +264,7 @@ public static class TenantryPermissions
         "BrowserSiteLists.ReadWrite.All" => "Edge Internet Explorer mode site lists",
         "WindowsUpdates.ReadWrite.All" => "Windows Autopatch deployments",
         "Place.Read.All" => "room and workspace lists",
+        "Agreement.ReadWrite.All" => "changing and deleting terms of use",
         _ => null,
     };
 

@@ -7,6 +7,7 @@
              xmlns:listviews="using:Tenantry.App.Lists"
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:views="using:Tenantry.App.Views"
              x:Class="Tenantry.App.Views.OrganizationAreaView"
              x:DataType="vm:OrganizationAreaViewModel">
   <DockPanel>
@@ -80,6 +81,36 @@
           </ItemsControl>
         </StackPanel>
         <ContentControl Content="{Binding Issues}">
+          <ContentControl.DataTemplates>
+            <listviews:ListViewCache />
+          </ContentControl.DataTemplates>
+        </ContentControl>
+      </DockPanel>
+    </Panel>
+
+    <!-- Billing, settings, identity and Teams: pages of cards -->
+    <Panel IsVisible="{Binding ShowOrgPage}">
+      <views:OrgPageView DataContext="{Binding CurrentOrgPage}" />
+    </Panel>
+
+    <!-- Usage Reports: a report and a period, then the report as a list -->
+    <Panel IsVisible="{Binding ShowUsage}">
+      <DockPanel DataContext="{Binding Usage}" x:DataType="org:UsageReportsViewModel">
+        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ComboBox ItemsSource="{x:Static org:UsageReportsViewModel.Reports}" SelectedItem="{Binding Report}" MinWidth="280" />
+            <ComboBox ItemsSource="{x:Static org:UsageReportsViewModel.Periods}" SelectedItem="{Binding Period}" MinWidth="170" />
+            <TextBlock Classes="muted" Text="Reading the report from Microsoft…" IsVisible="{Binding IsReading}" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Classes="caption" Text="{Binding About}" TextWrapping="Wrap" />
+          <Border Classes="banner neutral" IsVisible="{Binding HasNote}">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+              <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Note}" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+        <ContentControl Content="{Binding List}">
           <ContentControl.DataTemplates>
             <listviews:ListViewCache />
           </ContentControl.DataTemplates>

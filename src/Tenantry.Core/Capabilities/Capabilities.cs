@@ -78,7 +78,15 @@ public static class Capabilities
     public static readonly Capability ManageProtection = new("compliance.protection", "Manage Sensitivity Labels, DLP and Information Protection",
         [ComplianceAdministrator, SecurityAdministrator]);
 
+    /// <summary>
+    /// The Organization area's settings (15c-15f): organization profile, user settings, domains,
+    /// groups, Teams and the rest. Each setting needs its own admin role too, which Microsoft checks.
+    /// </summary>
+    public static readonly Capability ManageOrganization = new("organization.settings", "Manage Organization Settings",
+        [GroupsAdministrator, SharePointAdministrator, TeamsAdministrator, SecurityAdministrator, ApplicationAdministrator, CloudApplicationAdministrator,
+         AuthenticationPolicyAdministrator, UserAdministrator]);
+
     public static IReadOnlyList<Capability> All { get; } =
         [ReadUsers, EditUsers, ResetPasswords, ManageAuthMethods, ReadSignInLogs, ReadAuditLogs, ManageMailboxes, ManageMailSecurity, ManageConditionalAccess, ManageDevices,
-            ManageSites, ManageRoles, ManageApps, ManageAuthPolicy, ManageRisk, ManageEDiscovery, ManageRetention, ManageProtection];
+            ManageSites, ManageRoles, ManageApps, ManageAuthPolicy, ManageRisk, ManageEDiscovery, ManageRetention, ManageProtection, ManageOrganization];
 }

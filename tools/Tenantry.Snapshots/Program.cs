@@ -1179,6 +1179,22 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
                 Settle();
             Render(editing, $"org-{key}-light", height: 1100);
         }
+        // Organization (15b-15f): card pages, a domain and a team opened, and a usage report.
+        foreach (var (key, open, height) in new[] { ("licenses", "", 1100), ("usersettings", "", 2400), ("domains", "zz-tenantry-test.example", 1900), ("teams", "Operations", 2600),
+                     ("teamsmeetings", "Front Desk", 2200), ("crosstenant", "", 2200), ("usage", "", 1000) })
+        {
+            editing.Organization.SelectedPage = OrganizationAreaViewModel.Pages.Single(p => p.Key == key);
+            if (editing.Organization.OrgPages.GetValueOrDefault(key) is { } orgPage)
+            {
+                for (var i = 0; i < 30 && !orgPage.Kinds.All(k => k.IsLoaded); i++)
+                    Settle();
+                if (open.Length > 0)
+                    orgPage.Kinds[0].Cards.First(c => c.Name == open).IsExpanded = true;
+            }
+            for (var i = 0; i < 30; i++)
+                Settle();
+            Render(editing, $"org-{key}-light", height: height);
+        }
         // The generic Intune pages: apps (Company Portal opened), update rings, enrollment settings, a remediation.
         foreach (var (key, open, height) in new[] { ("apps", "Company Portal", 1900), ("rings", "Pilot Ring", 2200), ("enrollment", "Staff Device Limit", 1500), ("remediations", "Clear Old Temp Files", 1700), ("mam-ios", "iPhone Work Data", 2600) })
         {

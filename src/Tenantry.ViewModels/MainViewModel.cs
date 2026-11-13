@@ -223,7 +223,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             };
         }
         // Organization (15): service health and Message Center, read live when first shown.
-        Organization = new OrganizationAreaViewModel(tenant.Records as IServiceHealthRecords, tenant.ListState, _now);
+        Organization = new OrganizationAreaViewModel(tenant.Records as IServiceHealthRecords, tenant.ListState, _now, tenant.Records as IOrgObjectRecords, tenant.Changes,
+            tenant.Changes is null ? Availability.No("This tenant can't be edited") : Evaluate(Capabilities.ManageOrganization), tenant.Records as IUsageReportRecords);
         foreach (var list in Organization.Lists)
             list.FollowSharedPreferences(shared);
         Reports.ChangeLog.FollowSharedPreferences(shared);

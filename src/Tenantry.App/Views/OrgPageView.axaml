@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:org="using:Tenantry.ViewModels.Organization"
+             xmlns:views="using:Tenantry.App.Views"
+             x:Class="Tenantry.App.Views.OrgPageView"
+             x:DataType="org:OrgPageViewModel">
+  <!-- An Organization page: each kind it holds, top to bottom. -->
+  <ScrollViewer>
+    <ItemsControl ItemsSource="{Binding Kinds}" Margin="0,0,0,24">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="22" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="org:OrgObjectsViewModel">
+          <views:OrgKindView />
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </ScrollViewer>
+</UserControl>

@@ -1474,6 +1474,83 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Organization › Identity and Teams: a user setting's switch stages a caution, a domain's Verify and a team's Archive go to Pending Changes", () =>
+        {
+            var (window, main, _) = OpenList();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection { Key: "organization" }));
+            Settle();
+            var area = main.Organization;
+            Click(window, window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStripItem>().First(i => i.DataContext is SecurityPageGroup { Key: "identity" }));
+            Settle();
+            Expect(area.SelectedPage.Key == "usersettings", "Identity opens on User Settings");
+            var users = area.OrgPages["usersettings"].Kinds[0];
+            for (var i = 0; i < 50 && !users.IsLoaded; i++)
+                Settle();
+            var apps = users.Cards[0].Groups.SelectMany(g => g.Rows).Single(r => r.Def.Key == "defaultUserRolePermissions.allowedToCreateApps");
+            var toggle = window.GetVisualDescendants().OfType<ToggleSwitch>().First(t => t.DataContext == apps && t.IsEffectivelyVisible);
+            toggle.BringIntoView();
+            Settle();
+            Click(window, toggle);
+            Settle();
+            Expect(main.Pending!.Rows.Any(r => r.Change is SetOrgSetting { Path: "defaultUserRolePermissions.allowedToCreateApps" }), "the switch is in Pending Changes");
+            main.Pending.DiscardAllCommand.Execute(null);
+
+            area.SelectedPage = OrganizationAreaViewModel.Pages.Single(p => p.Key == "domains");
+            var domains = area.OrgPages["domains"].Kinds[0];
+            for (var i = 0; i < 50 && !domains.IsLoaded; i++)
+                Settle();
+            var test = domains.Cards.Single(c => c.Name == "zz-tenantry-test.example");
+            test.IsExpanded = true;
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var verify = test.Actions.Single(a => a.Action.Key == "verify");
+            var verifyButton = FindButton(window, b => b.IsEffectivelyVisible && b.Command == verify.RunCommand);
+            verifyButton.BringIntoView();
+            Settle();
+            Click(window, verifyButton);
+            Expect(main.Pending.Rows.Any(r => r.Change is RunOrgAction { Title: "Verify" }), "Verify is in Pending Changes");
+            Expect(verify.Text == "Undo Verify", "the button now undoes it");
+            main.Pending.DiscardAllCommand.Execute(null);
+
+            var before = $"{area.SelectedSection.Key}/{area.SelectedPage.Key}";
+            Click(window, window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStripItem>().First(i => i.DataContext is SecurityPageGroup { Key: "teamsadmin" }));
+            Settle();
+            Expect(area.SelectedPage.Key == "teams", $"the Teams section opens on Teams (it showed {area.SelectedSection.Key}/{area.SelectedPage.Key}; before the click {before})");
+            var teams = area.OrgPages["teams"].Kinds[0];
+            for (var i = 0; i < 50 && !teams.IsLoaded; i++)
+                Settle();
+            var team = teams.Cards.Single(c => c.Name == "zz-tenantry-test-team");
+            team.IsExpanded = true;
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var archive = team.Actions.Single(a => a.Action.Key == "archive");
+            var archiveButton = FindButton(window, b => b.IsEffectivelyVisible && b.Command == archive.RunCommand);
+            archiveButton.BringIntoView();
+            Settle();
+            Click(window, archiveButton);
+            Expect(main.Pending.Rows.Any(r => r.Change is RunOrgAction { Title: "Archive" }), "Archive is in Pending Changes");
+            main.Pending.DiscardAllCommand.Execute(null);
+
+            // The other sectioned areas switch sections the same way.
+            foreach (var (nav, sectionKey, firstPage, page) in new (string, string, string, Func<string>)[]
+            {
+                ("devices", "updates", "rings", () => main.DevicesArea.SelectedPage.Key),
+                ("security", "risk", main.SecurityArea!.SelectedPage.Key, () => main.SecurityArea.SelectedPage.Key),
+            })
+            {
+                Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection { Key: var k } && k == nav));
+                Settle();
+                var tab = window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStripItem>().FirstOrDefault(i => i.IsEffectivelyVisible && i.DataContext is SecurityPageGroup { Key: var s } && s == sectionKey);
+                if (tab is null)
+                    continue;
+                var group = (SecurityPageGroup)tab.DataContext!;
+                Click(window, tab);
+                Settle();
+                Expect(group.Pages.Any(p => p.Key == page()), $"{nav}: choosing {group.Title} shows one of its pages (it showed {page()})");
+            }
+            window.Close();
+        });
+
         Check("Security › Data Loss Prevention: New makes a policy in simulation; New Rule and turning a policy on go to Pending Changes", () =>
         {
             var (window, main, _) = OpenList();

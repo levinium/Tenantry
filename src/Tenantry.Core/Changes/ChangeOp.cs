@@ -200,6 +200,10 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(CreatePurviewObject), "createPurviewObject")]
 [JsonDerivedType(typeof(DeletePurviewObject), "deletePurviewObject")]
 [JsonDerivedType(typeof(RunPurviewAction), "runPurviewAction")]
+[JsonDerivedType(typeof(SetOrgSetting), "setOrgSetting")]
+[JsonDerivedType(typeof(CreateOrgObject), "createOrgObject")]
+[JsonDerivedType(typeof(DeleteOrgObject), "deleteOrgObject")]
+[JsonDerivedType(typeof(RunOrgAction), "runOrgAction")]
 [JsonDerivedType(typeof(PowerShellCommand), "powerShellCommand")]
 public abstract record ChangeOp
 {

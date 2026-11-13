@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:org="using:Tenantry.ViewModels.Organization"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.OrgKindView"
+             x:DataType="org:OrgObjectsViewModel">
+  <!-- One organization kind: what it is, New, a search and its cards. -->
+<StackPanel Spacing="12">
+  <Border Classes="card">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="h3" Text="{Binding Title}" />
+        <TextBlock Classes="muted" TextWrapping="Wrap" Text="{Binding About}" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+        <Button Classes="accent" Command="{Binding Create.ToggleCommand}" IsVisible="{Binding CanCreate}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Add" FontSize="14" />
+            <TextBlock Text="New" />
+          </StackPanel>
+        </Button>
+        <Button Classes="ghost" Command="{Binding RefreshCommand}" ToolTip.Tip="Read them from Microsoft again">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+            <TextBlock Text="Refresh" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+    </Grid>
+  </Border>
+  <Border Classes="banner neutral" IsVisible="{Binding !CanEdit}">
+    <TextBlock TextWrapping="Wrap" Text="{Binding EditReason}" />
+  </Border>
+  <Panel IsVisible="{Binding CanCreate}">
+    <views:OrgCreateFormView DataContext="{Binding Create}" />
+  </Panel>
+  <Border Classes="banner neutral" IsVisible="{Binding HasNote}">
+    <TextBlock TextWrapping="Wrap" Text="{Binding Note}" />
+  </Border>
+  <TextBox Text="{Binding FilterText}" PlaceholderText="Find by name" Width="480" HorizontalAlignment="Left" IsVisible="{Binding ShowFilter}" />
+  <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
+    <Panel Width="16" Height="16" VerticalAlignment="Center">
+      <Ellipse Classes="spintrack" />
+      <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+        <Arc.RenderTransform>
+          <RotateTransform />
+        </Arc.RenderTransform>
+      </Arc>
+    </Panel>
+    <TextBlock Classes="muted" Text="Reading from Microsoft…" VerticalAlignment="Center" />
+  </StackPanel>
+  <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+  <TextBlock Classes="muted" Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}" />
+  <ItemsControl ItemsSource="{Binding Cards}">
+    <ItemsControl.ItemsPanel>
+      <ItemsPanelTemplate>
+        <StackPanel Spacing="12" />
+      </ItemsPanelTemplate>
+    </ItemsControl.ItemsPanel>
+    <ItemsControl.ItemTemplate>
+      <DataTemplate x:DataType="org:OrgObjectCard">
+        <views:OrgCardView />
+      </DataTemplate>
+    </ItemsControl.ItemTemplate>
+  </ItemsControl>
+</StackPanel>
+</UserControl>

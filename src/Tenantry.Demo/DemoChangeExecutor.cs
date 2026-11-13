@@ -40,6 +40,8 @@ public sealed class DemoChangeExecutor(DemoTenantDirectory directory, DemoUserRe
             return eDiscovery;
         if (records is not null && records.ApplyPurview(change) is { } purview)
             return purview;
+        if (records is not null && records.ApplyOrg(change) is { } org)
+            return org;
         if (records is not null && records.ApplyRetention(change) is { } retention)
             return retention;
         if (records is not null && records.ApplyCa(change))

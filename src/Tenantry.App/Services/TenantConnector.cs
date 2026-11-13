@@ -71,6 +71,12 @@ public sealed class TenantConnector : ITenantConnector
         var purview = await MsalTokenSource.CreateAsync(TenantryPermissions.ExchangePowerShellClientId, profile.TenantId, folder, tokens.Account, cacheName: "purview");
         var exchange = new RestCmdletRunner(Http, NoRedirectHttp, new PurviewTokens(tokens, purview), profile.TenantId);
         var sharePoint = new SharePointAdmin(Http, tokens, graph);
+        // Teams policies (15e) go to the Teams admin API, with a token for it: only once the app
+        // registration asks for that API, or the token request opens a sign-in that can only fail
+        // (AADSTS650057). Until then the Teams policy pages say to grant the new permissions.
+        var teamsAdmin = missing.Intersect(TenantryPermissions.TeamsAdmin.DelegatedScopes).Any()
+            ? null
+            : new GraphClient(Http, tokens, [TenantryPermissions.TeamsAdmin.DefaultScope], "https://api.interfaces.records.teams.microsoft.com/");
         var passwordStyle = new JsonPasswordStyleStore(folder);
         var syncSettings = new Tenantry.Core.Directory.JsonSyncSettingsStore(folder);
         return new ConnectedTenant(profile.DisplayName, account, new CachedTenantDirectory(entities, profile.DisplayName), context,
@@ -101,9 +107,9 @@ public sealed class TenantConnector : ITenantConnector
             ListState: new JsonListStateStore(folder),
             Sync: new DirectorySync(graph, entities, exchange, settings: syncSettings.Load, sharePoint: sharePoint, keepLogs: true),
             Resources: entities,
-            Changes: new ChangePipeline(new GraphChangeExecutor(graph, entities, exchange: exchange, sharePoint: sharePoint, passwordStyle: passwordStyle.Load),
+            Changes: new ChangePipeline(new GraphChangeExecutor(graph, entities, exchange: exchange, sharePoint: sharePoint, passwordStyle: passwordStyle.Load) { TeamsAdmin = teamsAdmin },
                 new ChangeLog(entities), new JsonTestModeStore(folder, TestModeByDefault), account),
-            Records: new GraphUserRecords(graph, entities, exchange, sharePoint),
+            Records: new GraphUserRecords(graph, entities, exchange, sharePoint) { TeamsAdmin = teamsAdmin },
             SyncSettings: syncSettings,
             PasswordStyle: passwordStyle,
             Scripts: new GraphChangeScripts(),

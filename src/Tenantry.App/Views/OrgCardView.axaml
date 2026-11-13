@@ -1,0 +1,92 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:org="using:Tenantry.ViewModels.Organization"
+             xmlns:it="using:Tenantry.ViewModels.Intune"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.OrgCardView"
+             x:DataType="org:OrgObjectCard">
+  <!-- One organization item: its settings edited in place, what it only shows, what is read under it, its actions, its children (a team's channels), and Delete. -->
+  <Border Classes="card">
+    <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch">
+      <Expander.Header>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+          <StackPanel Spacing="2">
+            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock Classes="caption" Text="{Binding Subtitle}" IsVisible="{Binding HasSubtitle}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Grid>
+      </Expander.Header>
+      <StackPanel Spacing="14">
+        <Border Classes="banner neutral" IsVisible="{Binding HasKeptText}">
+          <TextBlock TextWrapping="Wrap" Text="{Binding KeptText}" />
+        </Border>
+        <ItemsControl ItemsSource="{Binding Groups}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="ms:SettingGroup">
+              <StackPanel Spacing="6" Margin="0,0,0,8">
+                <TextBlock Classes="label" Text="{Binding Title}" />
+                <ItemsControl ItemsSource="{Binding Rows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="ms:SettingRow">
+                      <views:SettingRowView />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <StackPanel Spacing="4" IsVisible="{Binding HasDetails}">
+          <TextBlock Classes="label" Text="DETAILS" />
+          <ItemsControl ItemsSource="{Binding Details}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="it:SummaryLineText">
+                <Grid ColumnDefinitions="260,*" ColumnSpacing="10" Margin="0,2">
+                  <TextBlock Classes="caption" Text="{Binding Label}" TextWrapping="Wrap" />
+                  <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+        <ItemsControl ItemsSource="{Binding Extras}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="org:OrgExtraLines">
+              <StackPanel Spacing="4" Margin="0,0,0,8">
+                <TextBlock Classes="label" Text="{Binding Title}" />
+                <TextBlock Classes="muted" Text="None." IsVisible="{Binding IsEmpty}" />
+                <ItemsControl ItemsSource="{Binding Lines}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <SelectableTextBlock Text="{Binding}" TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" Margin="0,1" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <ItemsControl ItemsSource="{Binding Actions}" IsVisible="{Binding HasActions}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemSpacing="8" LineSpacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="org:OrgActionButton">
+              <Button Classes="accent" Content="{Binding Text}" Command="{Binding RunCommand}" ToolTip.Tip="{Binding Description}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Panel IsVisible="{Binding HasChildren}">
+          <views:OrgKindView DataContext="{Binding Children}" />
+        </Panel>
+        <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}" IsVisible="{Binding CanDelete}" HorizontalAlignment="Left"
+                ToolTip.Tip="Delete it (you type its name to confirm)" />
+      </StackPanel>
+    </Expander>
+  </Border>
+</UserControl>
