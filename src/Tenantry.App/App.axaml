@@ -5,6 +5,10 @@
              xmlns:wf="using:Tenantry.ViewModels.Workflows"
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
              xmlns:views="using:Tenantry.App.Views"
+             xmlns:org="using:Tenantry.ViewModels.Organization"
+             xmlns:dir="using:Tenantry.Core.Directory"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.App"
              Name="Tenantry"
              RequestedThemeVariant="Default">
@@ -171,6 +175,138 @@
     </DataTemplate>
     <DataTemplate DataType="ms:TracePreviewViewModel">
       <views:TracePreviewView />
+    </DataTemplate>
+  <!-- An incident or advisory: what's affected, then Microsoft's updates, newest first -->
+    <DataTemplate DataType="org:ServiceIssuePreviewViewModel">
+      <StackPanel Spacing="14">
+        <StackPanel Spacing="6">
+          <SelectableTextBlock Classes="h3" Text="{Binding Title}" TextWrapping="Wrap" />
+          <TextBlock Classes="caption" Text="{Binding Subtitle}" TextWrapping="Wrap" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <c:Badge Text="{Binding StatusText}" Kind="Warning" IsVisible="{Binding IsOpen}" />
+          <c:Badge Text="{Binding StatusText}" Kind="Success" IsVisible="{Binding IsResolved}" />
+          <TextBlock Classes="caption" Text="{Binding When}" VerticalAlignment="Center" TextWrapping="Wrap" />
+        </StackPanel>
+        <Border Classes="valuerow" IsVisible="{Binding HasImpact}">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="label" Text="WHO IT AFFECTS" />
+            <SelectableTextBlock Text="{Binding Impact}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+        <StackPanel Spacing="8" IsVisible="{Binding HasPosts}">
+          <TextBlock Classes="label" Text="MICROSOFT'S UPDATES" />
+          <ItemsControl ItemsSource="{Binding Posts}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="10" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="org:IssuePostRow">
+                <Border Classes="card" Padding="12,10">
+                  <StackPanel Spacing="4">
+                    <TextBlock Classes="caption" Text="{Binding When}" FontWeight="SemiBold" />
+                    <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </StackPanel>
+    </DataTemplate>
+
+    <!-- A Message Center post: when to act, the post's text, and read / archive / favorite -->
+    <DataTemplate DataType="org:MessagePostPreviewViewModel">
+      <StackPanel Spacing="14">
+        <StackPanel Spacing="6">
+          <SelectableTextBlock Classes="h3" Text="{Binding Title}" TextWrapping="Wrap" />
+          <TextBlock Classes="caption" Text="{Binding Subtitle}" TextWrapping="Wrap" />
+          <TextBlock Classes="caption" Text="{Binding When}" TextWrapping="Wrap" />
+        </StackPanel>
+        <WrapPanel ItemSpacing="8" LineSpacing="6">
+          <c:Badge Text="{Binding SeverityText}" Kind="Warning" IsVisible="{Binding IsUrgent}" />
+          <c:Badge Text="Major Change" Kind="Info" IsVisible="{Binding IsMajorChange}" />
+          <c:Badge Text="{Binding ActByText}" Kind="Danger" IsVisible="{Binding IsOverdue}" />
+        </WrapPanel>
+        <Border Classes="banner warning" IsVisible="{Binding HasActBy}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="CalendarClock" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding ActByText}" />
+          </StackPanel>
+        </Border>
+        <WrapPanel ItemSpacing="8" LineSpacing="8">
+          <Button Command="{Binding ToggleArchiveCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="Archive" FontSize="14" />
+              <TextBlock Text="{Binding ArchiveText}" />
+            </StackPanel>
+          </Button>
+          <Button Command="{Binding ToggleFavoriteCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="Star" FontSize="14" />
+              <TextBlock Text="{Binding FavoriteText}" />
+            </StackPanel>
+          </Button>
+          <Button Command="{Binding ToggleReadCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="MailRead" FontSize="14" />
+              <TextBlock Text="{Binding ReadText}" />
+            </StackPanel>
+          </Button>
+        </WrapPanel>
+        <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+        <Border Classes="divider" />
+        <SelectableTextBlock Text="{Binding Body}" TextWrapping="Wrap" />
+        <StackPanel Spacing="6" IsVisible="{Binding HasTags}">
+          <TextBlock Classes="label" Text="TAGS" />
+          <TextBlock Classes="caption" Text="{Binding TagsText}" TextWrapping="Wrap" />
+        </StackPanel>
+        <StackPanel Spacing="6" IsVisible="{Binding HasDetails}">
+          <TextBlock Classes="label" Text="DETAILS" />
+          <ItemsControl ItemsSource="{Binding Details}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="org:PostDetail">
+                <Grid ColumnDefinitions="140,*" ColumnSpacing="10" Margin="0,2">
+                  <TextBlock Classes="caption" Text="{Binding Name}" TextWrapping="Wrap" />
+                  <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </StackPanel>
+    </DataTemplate>
+
+    <!-- Several posts ticked -->
+    <DataTemplate DataType="org:MessageSelectionViewModel">
+      <StackPanel Spacing="12">
+        <TextBlock Classes="h3" Text="{Binding CountText}" />
+        <TextBlock Classes="caption" TextWrapping="Wrap" Text="These change only how the posts show for you; other admins keep their own." />
+        <WrapPanel ItemSpacing="8" LineSpacing="8">
+          <Button Command="{Binding SetCommand}" CommandParameter="Read" Content="Mark Read" />
+          <Button Command="{Binding SetCommand}" CommandParameter="Unread" Content="Mark Unread" />
+          <Button Command="{Binding SetCommand}" CommandParameter="Archive" Content="Archive" />
+          <Button Command="{Binding SetCommand}" CommandParameter="Unarchive" Content="Move to Inbox" />
+          <Button Command="{Binding SetCommand}" CommandParameter="Favorite" Content="Favorite" />
+          <Button Command="{Binding SetCommand}" CommandParameter="Unfavorite" Content="Remove Favorite" />
+        </WrapPanel>
+        <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding Posts}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="dir:MessageCenterPost">
+              <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="chipx" Command="{Binding $parent[ItemsControl].((org:MessageSelectionViewModel)DataContext).RemoveCommand}"
+                        CommandParameter="{Binding}" ToolTip.Tip="Untick it">
+                  <ic:FluentIcon Icon="Dismiss" FontSize="12" />
+                </Button>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
     </DataTemplate>
     <DataTemplate DataType="ms:SubmissionPreviewViewModel">
       <views:SubmissionPreviewView />

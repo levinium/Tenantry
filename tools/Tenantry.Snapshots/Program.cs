@@ -1166,6 +1166,19 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
                 Settle();
             Render(editing, $"purview-{key}-light", height: height);
         }
+        // Organization (15a): service health with an issue open, Message Center with a post open.
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "organization");
+        Settle();
+        foreach (var (key, orgList) in new[] { ("servicehealth", editing.Organization.Health.Issues), ("messagecenter", editing.Organization.Messages.Posts) })
+        {
+            editing.Organization.SelectedPage = OrganizationAreaViewModel.Pages.Single(p => p.Key == key);
+            for (var i = 0; i < 30 && orgList.Rows.Count == 0; i++)
+                Settle();
+            orgList.PreviewRow(orgList.Rows[0]);
+            for (var i = 0; i < 20; i++)
+                Settle();
+            Render(editing, $"org-{key}-light", height: 1100);
+        }
         // The generic Intune pages: apps (Company Portal opened), update rings, enrollment settings, a remediation.
         foreach (var (key, open, height) in new[] { ("apps", "Company Portal", 1900), ("rings", "Pilot Ring", 2200), ("enrollment", "Staff Device Limit", 1500), ("remediations", "Clear Old Temp Files", 1700), ("mam-ios", "iPhone Work Data", 2600) })
         {

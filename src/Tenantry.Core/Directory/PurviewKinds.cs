@@ -340,7 +340,7 @@ public static class PurviewKinds
 
     public static readonly PurviewKind DlpAlerts = new("dlpalerts", "DLP Alerts",
         "Alerts DLP policies raised, newest first. Investigate them in Microsoft Defender or Purview.",
-        "alert", "", Graph: "security/alerts_v2?$filter=serviceSource eq 'microsoftDataLossPrevention'&$top=200", NameProperty: "title",
+        "alert", "", Graph: "security/alerts_v2?$filter=serviceSource eq 'dataLossPrevention'&$top=200", NameProperty: "title",
         Fields:
         [
             new("severity", "Severity"), new("status", "Status"), new("description", "What Happened"), new("createdDateTime", "Raised"), new("assignedTo", "Assigned To"),

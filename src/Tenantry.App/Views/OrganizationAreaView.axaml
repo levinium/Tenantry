@@ -1,0 +1,112 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:org="using:Tenantry.ViewModels.Organization"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:listviews="using:Tenantry.App.Lists"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.OrganizationAreaView"
+             x:DataType="vm:OrganizationAreaViewModel">
+  <DockPanel>
+    <!-- The area's pages, in sections: the sections on one row, the chosen section's pages under it. -->
+    <StackPanel DockPanel.Dock="Top" Margin="8,8,8,10" Spacing="6">
+      <TabStrip Classes="pagetabs" ItemsSource="{x:Static vm:OrganizationAreaViewModel.Sections}" SelectedItem="{Binding SelectedSection}">
+        <TabStrip.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel />
+          </ItemsPanelTemplate>
+        </TabStrip.ItemsPanel>
+        <TabStrip.ItemTemplate>
+          <DataTemplate x:DataType="vm:SecurityPageGroup">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="15" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontWeight="SemiBold" />
+            </StackPanel>
+          </DataTemplate>
+        </TabStrip.ItemTemplate>
+      </TabStrip>
+      <Border Background="{DynamicResource SubtleBg}" CornerRadius="8" Padding="6,2">
+        <TabStrip Classes="pagetabs" ItemsSource="{Binding SelectedSection.Pages}" SelectedItem="{Binding SelectedPage}">
+          <TabStrip.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </TabStrip.ItemsPanel>
+          <TabStrip.ItemTemplate>
+            <DataTemplate x:DataType="ms:MailSecurityPage">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="14" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="13" />
+              </StackPanel>
+            </DataTemplate>
+          </TabStrip.ItemTemplate>
+        </TabStrip>
+      </Border>
+    </StackPanel>
+    <Grid>
+
+    <!-- Service Health: a tile per service, then the incidents and advisories -->
+    <Panel IsVisible="{Binding ShowHealth}">
+      <DockPanel DataContext="{Binding Health}" x:DataType="org:ServiceHealthViewModel">
+        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+          <Border Classes="banner neutral" IsVisible="{Binding HasNote}">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+              <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Note}" />
+            </StackPanel>
+          </Border>
+          <TextBlock Classes="caption" Text="{Binding Summary}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding Services}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel ItemSpacing="8" LineSpacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="org:ServiceTile">
+                <Border Classes="card" Padding="12,10" Width="240">
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <c:Badge Text="{Binding StatusText}" Kind="{Binding Kind}" />
+                      <TextBlock Classes="caption" Text="{Binding IssuesText}" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+        <ContentControl Content="{Binding Issues}">
+          <ContentControl.DataTemplates>
+            <listviews:ListViewCache />
+          </ContentControl.DataTemplates>
+        </ContentControl>
+      </DockPanel>
+    </Panel>
+
+    <!-- Message Center: Microsoft's posts, with read, archive and favorite -->
+    <Panel IsVisible="{Binding ShowMessages}">
+      <DockPanel DataContext="{Binding Messages}" x:DataType="org:MessageCenterViewModel">
+        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+          <Border Classes="banner neutral" IsVisible="{Binding HasNote}">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+              <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Note}" />
+            </StackPanel>
+          </Border>
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="Microsoft's announcements about changes coming to your services, and things to do before they arrive. Read, archived and favorite are yours alone: other admins keep their own." />
+        </StackPanel>
+        <ContentControl Content="{Binding Posts}">
+          <ContentControl.DataTemplates>
+            <listviews:ListViewCache />
+          </ContentControl.DataTemplates>
+        </ContentControl>
+      </DockPanel>
+    </Panel>
+    </Grid>
+  </DockPanel>
+</UserControl>

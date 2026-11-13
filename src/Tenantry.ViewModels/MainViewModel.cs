@@ -222,6 +222,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                     uiContext.Post(_ => Reports.Archived(), null);
             };
         }
+        // Organization (15): service health and Message Center, read live when first shown.
+        Organization = new OrganizationAreaViewModel(tenant.Records as IServiceHealthRecords, tenant.ListState, _now);
+        foreach (var list in Organization.Lists)
+            list.FollowSharedPreferences(shared);
         Reports.ChangeLog.FollowSharedPreferences(shared);
         Reports.SignIns.List.FollowSharedPreferences(shared);
         Reports.Audits.List.FollowSharedPreferences(shared);
@@ -235,6 +239,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             new NavSection("sharepoint", "SharePoint & OneDrive", readUsers.Reason),
             new NavSection("devices", "Devices", readUsers.Reason),
             new NavSection("security", "Security & Compliance", readUsers.Reason),
+            new NavSection("organization", "Organization", readUsers.Reason),
             new NavSection("reports", "Reports", readUsers.Reason),
         ];
         Tabs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasRecordTabs));
@@ -270,6 +275,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     /// <summary>Reports and the change log.</summary>
     public ReportsAreaViewModel Reports { get; }
+
+    /// <summary>The Organization area: service health, Message Center and the admin center's settings.</summary>
+    public OrganizationAreaViewModel Organization { get; }
 
     /// <summary>The SharePoint &amp; OneDrive area's tab: Sites and OneDrives, as pages.</summary>
     public SharePointAreaViewModel SharePoint { get; }
@@ -496,7 +504,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// <summary>Each sidebar entry's tab: a list, or an area with pages of its own.</summary>
     IEnumerable<(string Section, TabViewModel Tab)> AreaTabs =>
     [
-        ("users", Users), ("contacts", Contacts), ("groups", Groups), ("devices", DevicesArea), ("sharepoint", SharePoint), ("security", SecurityArea), ("reports", Reports),
+        ("users", Users), ("contacts", Contacts), ("groups", Groups), ("devices", DevicesArea), ("sharepoint", SharePoint), ("security", SecurityArea), ("organization", Organization), ("reports", Reports),
         .. MailSecurity is null ? Array.Empty<(string, TabViewModel)>() : [("mail", (TabViewModel)MailSecurity)],
     ];
 
@@ -910,6 +918,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             SecurityArea.Shown();
         if (value?.Key == "reports")
             Reports.Shown();
+        if (value?.Key == "organization")
+            Organization.Shown();
     }
 
     /// <summary>The tab strip only appears once a record is open beside the list.</summary>

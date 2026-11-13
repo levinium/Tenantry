@@ -1445,6 +1445,35 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Organization › Message Center: the tab reads the posts; opening one marks it read; Archive takes it out of the inbox", () =>
+        {
+            var (window, main, _) = OpenList();
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection { Key: "organization" }));
+            Settle();
+            var area = main.Organization;
+            Expect(area.ShowHealth, "the area opens on Service Health");
+            for (var i = 0; i < 50 && area.Health.Issues.Rows.Count == 0; i++)
+                Settle();
+            Expect(area.Health.Services.Count > 0 && area.Health.Issues.Rows.Count > 0, "services and issues are listed");
+            Click(window, window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStripItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "messagecenter" }));
+            Settle();
+            Expect(area.ShowMessages, "the Message Center tab opened");
+            var posts = area.Messages.Posts;
+            for (var i = 0; i < 50 && posts.Rows.Count == 0; i++)
+                Settle();
+            var unread = posts.Rows.Cast<Tenantry.Core.Directory.MessageCenterPost>().First(p => !p.IsRead);
+            posts.PreviewRow(unread);
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var preview = (Tenantry.ViewModels.Organization.MessagePostPreviewViewModel)posts.PreviewModel!;
+            Expect(preview.ReadText == "Mark Unread", "the opened post reads as read");
+            Click(window, FindButton(window, b => b.IsEffectivelyVisible && b.Command == preview.ToggleArchiveCommand));
+            for (var i = 0; i < 10; i++)
+                Settle();
+            Expect(posts.Rows.Cast<Tenantry.Core.Directory.MessageCenterPost>().All(p => p.Id != unread.Id), "Archive took it out of the inbox");
+            window.Close();
+        });
+
         Check("Security › Data Loss Prevention: New makes a policy in simulation; New Rule and turning a policy on go to Pending Changes", () =>
         {
             var (window, main, _) = OpenList();

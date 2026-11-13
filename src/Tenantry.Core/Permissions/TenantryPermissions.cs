@@ -108,6 +108,53 @@ public static class TenantryPermissions
         // their lists were refused (403) without these, seen live.
         "DeviceManagementScripts.ReadWrite.All",
         "DeviceManagementRBAC.ReadWrite.All",
+        // Organization area (Phase 15, 2026-11-13): service health, Message Center, organization
+        // settings, Teams and the rest of the admin centers. Each list below answered 403 without
+        // its permission (seen live), and each name was checked against Graph's published scopes.
+        "ServiceHealth.Read.All",
+        "ServiceMessage.Read.All",
+        "ServiceMessageViewpoint.Write",
+        "OnPremDirectorySynchronization.ReadWrite.All",
+        "SharePointTenantSettings.ReadWrite.All",
+        "OrgSettings-Microsoft365Install.ReadWrite.All",
+        "OrgSettings-Forms.ReadWrite.All",
+        "OrgSettings-Todo.ReadWrite.All",
+        "OrgSettings-AppsAndServices.ReadWrite.All",
+        "OrgSettings-DynamicsVoice.ReadWrite.All",
+        "ReportSettings.ReadWrite.All",
+        "PeopleSettings.ReadWrite.All",
+        "Organization.ReadWrite.All",
+        "OrganizationalBranding.ReadWrite.All",
+        "Policy.ReadWrite.Authorization",
+        "Policy.ReadWrite.CrossTenantAccess",
+        "Policy.ReadWrite.ExternalIdentities",
+        "Policy.ReadWrite.ConsentRequest",
+        "Policy.ReadWrite.PermissionGrant",
+        "Policy.ReadWrite.ApplicationConfiguration",
+        "Policy.ReadWrite.FeatureRollout",
+        "Domain.ReadWrite.All",
+        "AdministrativeUnit.ReadWrite.All",
+        "Team.ReadBasic.All",
+        "Team.Create",
+        "TeamSettings.ReadWrite.All",
+        "TeamMember.ReadWrite.All",
+        "Channel.ReadBasic.All",
+        "Channel.Create",
+        "Channel.Delete.All",
+        "ChannelSettings.ReadWrite.All",
+        "ChannelMember.ReadWrite.All",
+        "TeamworkAppSettings.ReadWrite.All",
+        "AppCatalog.ReadWrite.All",
+        "TeamTemplates.Read",
+        "CustomSecAttributeDefinition.ReadWrite.All",
+        "CustomSecAttributeAssignment.ReadWrite.All",
+        "DirectoryRecommendations.ReadWrite.All",
+        "AccessReview.ReadWrite.All",
+        "EntitlementManagement.ReadWrite.All",
+        "LifecycleWorkflows.ReadWrite.All",
+        "BrowserSiteLists.ReadWrite.All",
+        "WindowsUpdates.ReadWrite.All",
+        "Place.Read.All",
     ]);
 
     public static readonly ApiPermissions Exchange = new(ExchangeAppId, "Office 365 Exchange Online", "https://outlook.office365.com",
@@ -135,7 +182,18 @@ public static class TenantryPermissions
         "eDiscovery.Download.Read",
     ], CreateIfMissing: true);
 
-    public static IReadOnlyList<ApiPermissions> All { get; } = [Graph, Exchange, SharePoint, PurviewEDiscovery];
+    public const string TeamsAdminAppId = "48ac35b8-9aa8-4d74-927d-1f4a14a0b239";
+
+    /// <summary>
+    /// Skype and Teams Tenant Admin API (Phase 15e): Teams policies and organization-wide Teams
+    /// settings, which Graph doesn't cover. Its ID is its audience (docs/research/teams-admin-access.md).
+    /// </summary>
+    public static readonly ApiPermissions TeamsAdmin = new(TeamsAdminAppId, "Skype and Teams Tenant Admin API", TeamsAdminAppId,
+    [
+        "user_impersonation",
+    ], CreateIfMissing: true);
+
+    public static IReadOnlyList<ApiPermissions> All { get; } = [Graph, Exchange, SharePoint, PurviewEDiscovery, TeamsAdmin];
 
     /// <summary>
     /// What a permission lets Tenantry do, in words, for the "grant missing permissions" banner. Ones
@@ -160,6 +218,51 @@ public static class TenantryPermissions
         "DeviceManagementRBAC.ReadWrite.All" => "Intune roles and scope tags",
         "IdentityRiskyServicePrincipal.ReadWrite.All" => "showing and dismissing risky apps",
         "eDiscovery.Download.Read" => "downloading eDiscovery exports",
+        "user_impersonation" => "Teams policies and organization-wide Teams settings",
+        "ServiceHealth.Read.All" => "service health",
+        "ServiceMessage.Read.All" => "the Message Center",
+        "ServiceMessageViewpoint.Write" => "marking Message Center posts read, archived or favorite",
+        "OnPremDirectorySynchronization.ReadWrite.All" => "Entra Connect sync status and settings",
+        "SharePointTenantSettings.ReadWrite.All" => "SharePoint organization settings",
+        "OrgSettings-Microsoft365Install.ReadWrite.All" => "Microsoft 365 apps installation options",
+        "OrgSettings-Forms.ReadWrite.All" => "Microsoft Forms settings",
+        "OrgSettings-Todo.ReadWrite.All" => "Microsoft To Do settings",
+        "OrgSettings-AppsAndServices.ReadWrite.All" => "user-owned apps and services settings",
+        "OrgSettings-DynamicsVoice.ReadWrite.All" => "Dynamics 365 voice settings",
+        "ReportSettings.ReadWrite.All" => "hiding names in usage reports",
+        "PeopleSettings.ReadWrite.All" => "profile cards and pronouns",
+        "Organization.ReadWrite.All" => "the company profile and release preferences",
+        "OrganizationalBranding.ReadWrite.All" => "sign-in page branding",
+        "Policy.ReadWrite.Authorization" => "user settings such as who can invite guests or register apps",
+        "Policy.ReadWrite.CrossTenantAccess" => "cross-tenant access settings",
+        "Policy.ReadWrite.ExternalIdentities" => "external user leave settings",
+        "Policy.ReadWrite.ConsentRequest" => "admin consent requests",
+        "Policy.ReadWrite.PermissionGrant" => "user consent settings",
+        "Policy.ReadWrite.ApplicationConfiguration" => "token lifetime and sign-out policies",
+        "Policy.ReadWrite.FeatureRollout" => "staged rollout of cloud sign-in",
+        "Domain.ReadWrite.All" => "adding, verifying and removing domains",
+        "AdministrativeUnit.ReadWrite.All" => "administrative units",
+        "Team.ReadBasic.All" => "listing teams",
+        "Team.Create" => "creating teams",
+        "TeamSettings.ReadWrite.All" => "team settings",
+        "TeamMember.ReadWrite.All" => "team owners and members",
+        "Channel.ReadBasic.All" => "listing channels",
+        "Channel.Create" => "creating channels",
+        "Channel.Delete.All" => "deleting channels",
+        "ChannelSettings.ReadWrite.All" => "channel settings",
+        "ChannelMember.ReadWrite.All" => "private and shared channel members",
+        "TeamworkAppSettings.ReadWrite.All" => "Teams app settings",
+        "AppCatalog.ReadWrite.All" => "your organization's Teams apps",
+        "TeamTemplates.Read" => "team templates",
+        "CustomSecAttributeDefinition.ReadWrite.All" => "custom security attributes",
+        "CustomSecAttributeAssignment.ReadWrite.All" => "setting custom security attributes on people and apps",
+        "DirectoryRecommendations.ReadWrite.All" => "Entra recommendations",
+        "AccessReview.ReadWrite.All" => "access reviews",
+        "EntitlementManagement.ReadWrite.All" => "access packages",
+        "LifecycleWorkflows.ReadWrite.All" => "lifecycle workflows",
+        "BrowserSiteLists.ReadWrite.All" => "Edge Internet Explorer mode site lists",
+        "WindowsUpdates.ReadWrite.All" => "Windows Autopatch deployments",
+        "Place.Read.All" => "room and workspace lists",
         _ => null,
     };
 
