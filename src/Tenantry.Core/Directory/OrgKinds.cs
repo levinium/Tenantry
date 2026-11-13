@@ -51,7 +51,7 @@ public sealed record OrgField(string Path, string Label, SettingKind Kind = Sett
 
 /// <summary>What New makes: a fixed body, the boxes that fill it in, and where it's sent (the kind's collection when null).</summary>
 /// <param name="NameField">The box whose text names the new item (Test mode judges it).</param>
-/// <param name="Put">Sent with PUT to the collection's item address for the name (Teams policies), not POST.</param>
+/// <param name="Put">Sent with PUT to the collection's item address for the name, not POST. (Teams policies are POSTed to their collection with their Identity; a PUT to a new name answers 404, seen live.)</param>
 public sealed record OrgCreate(string Key, string Title, string Description, JsonObject Fixed, IReadOnlyList<CreateField> Fields,
     string NameField = "displayName", string? Url = null, bool Put = false);
 
@@ -775,7 +775,7 @@ public static class OrgKinds
         NameOf: p => p.TryGetProperty("Identity", out var id) && id.GetString() is { } name ? name == "Global" ? "Global (Everyone Else)" : name.StartsWith("Tag:", StringComparison.Ordinal) ? name[4..] : name : null,
         Needs: "the Skype and Teams Tenant Admin API permission (grant it from Settings) and a Teams Administrator role.",
         Creates: single ? null : [new("new", title.TrimEnd('s') is var one && one.EndsWith("ie", StringComparison.Ordinal) ? one[..^2] + "y" : one,
-            "Starts as Microsoft's defaults; assign it to people in the Teams admin center.", J("{}"), [new("Identity", "Name")], NameField: "Identity", Put: true)]);
+            "Starts as Microsoft's defaults; assign it to people in the Teams admin center.", J("{}"), [new("Identity", "Name")], NameField: "Identity")]);
 
     public static readonly OrgKind MeetingPolicies = TeamsPolicy("teams-meeting", "TeamsMeetingPolicy", "Meeting Policies",
         "What people can do in meetings they organize: recording, transcription, lobby, who can present.");

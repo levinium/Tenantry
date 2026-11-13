@@ -169,8 +169,10 @@ public sealed class OrganizationSettingsTests
         page.Create.Fields.Single().Text = "zz-tenantry-test-meetings";
         page.Create.AddCommand.Execute(null);
         var made = Assert.IsType<CreateOrgObject>(Assert.Single(pipeline.Pending));
-        Assert.True(made.Put);
-        Assert.Equal("Skype.Policy/configurations/TeamsMeetingPolicy/configuration/zz-tenantry-test-meetings", made.Url);
+        // POSTed to the collection with its Identity; Teams keeps it as Tag:name (a PUT to a new name answers 404, seen live).
+        Assert.False(made.Put);
+        Assert.Equal("Skype.Policy/configurations/TeamsMeetingPolicy", made.Url);
+        Assert.Equal("zz-tenantry-test-meetings", (string?)made.Body["Identity"]);
         Assert.Equal("New Meeting Policy \"zz-tenantry-test-meetings\"", made.Label);
         Assert.Contains("$teamsToken", GraphChangeExecutor.OrgScript(made)!.Text, StringComparison.Ordinal);
     }
