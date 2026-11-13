@@ -191,7 +191,8 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="org:PostSection">
                 <StackPanel Spacing="6">
-                  <TextBlock Text="{Binding Heading}" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" IsVisible="{Binding HasHeading}" />
+                  <!-- Plain bold text, not the accent colour: coloured headings read as links -->
+                  <TextBlock Text="{Binding Heading}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}" IsVisible="{Binding HasHeading}" />
                   <ItemsControl ItemsSource="{Binding Blocks}">
                     <ItemsControl.ItemsPanel>
                       <ItemsPanelTemplate>
