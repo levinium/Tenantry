@@ -19,6 +19,7 @@ public sealed class NavIcon : IValueConverter
         "devices" => Icon.Laptop,
         "security" => Icon.ShieldLock,
         "reports" => Icon.DataBarVertical,
+        "health" => Icon.HeartPulse,
         "organization" => Icon.Building,
         _ => Icon.Apps,
     };

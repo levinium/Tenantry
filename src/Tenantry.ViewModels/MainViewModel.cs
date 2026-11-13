@@ -222,11 +222,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                     uiContext.Post(_ => Reports.Archived(), null);
             };
         }
-        // Organization (15): service health and Message Center, read live when first shown.
-        Organization = new OrganizationAreaViewModel(tenant.Records as IServiceHealthRecords, tenant.ListState, _now, tenant.Records as IOrgObjectRecords, tenant.Changes,
-            tenant.Changes is null ? Availability.No("This tenant can't be edited") : Evaluate(Capabilities.ManageOrganization), tenant.Records as IUsageReportRecords);
-        foreach (var list in Organization.Lists)
+        // Health (15a): service health and Message Center, read live when first shown.
+        Health = new HealthAreaViewModel(tenant.Records as IServiceHealthRecords, tenant.ListState, _now);
+        foreach (var list in Health.Lists)
             list.FollowSharedPreferences(shared);
+        // Organization (15b-15f): the admin centers' settings, read live when first shown.
+        Organization = new OrganizationAreaViewModel(tenant.ListState, _now, tenant.Records as IOrgObjectRecords, tenant.Changes,
+            tenant.Changes is null ? Availability.No("This tenant can't be edited") : Evaluate(Capabilities.ManageOrganization), tenant.Records as IUsageReportRecords);
         Reports.ChangeLog.FollowSharedPreferences(shared);
         Reports.SignIns.List.FollowSharedPreferences(shared);
         Reports.Audits.List.FollowSharedPreferences(shared);
@@ -240,6 +242,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             new NavSection("sharepoint", "SharePoint & OneDrive", readUsers.Reason),
             new NavSection("devices", "Devices", readUsers.Reason),
             new NavSection("security", "Security & Compliance", readUsers.Reason),
+            new NavSection("health", "Health", readUsers.Reason),
             new NavSection("organization", "Organization", readUsers.Reason),
             new NavSection("reports", "Reports", readUsers.Reason),
         ];
@@ -278,6 +281,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     public ReportsAreaViewModel Reports { get; }
 
     /// <summary>The Organization area: service health, Message Center and the admin center's settings.</summary>
+    public HealthAreaViewModel Health { get; }
+
     public OrganizationAreaViewModel Organization { get; }
 
     /// <summary>The SharePoint &amp; OneDrive area's tab: Sites and OneDrives, as pages.</summary>
@@ -505,7 +510,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// <summary>Each sidebar entry's tab: a list, or an area with pages of its own.</summary>
     IEnumerable<(string Section, TabViewModel Tab)> AreaTabs =>
     [
-        ("users", Users), ("contacts", Contacts), ("groups", Groups), ("devices", DevicesArea), ("sharepoint", SharePoint), ("security", SecurityArea), ("organization", Organization), ("reports", Reports),
+        ("users", Users), ("contacts", Contacts), ("groups", Groups), ("devices", DevicesArea), ("sharepoint", SharePoint), ("security", SecurityArea), ("health", Health), ("organization", Organization), ("reports", Reports),
         .. MailSecurity is null ? Array.Empty<(string, TabViewModel)>() : [("mail", (TabViewModel)MailSecurity)],
     ];
 
@@ -919,6 +924,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             SecurityArea.Shown();
         if (value?.Key == "reports")
             Reports.Shown();
+        if (value?.Key == "health")
+            Health.Shown();
         if (value?.Key == "organization")
             Organization.Shown();
     }

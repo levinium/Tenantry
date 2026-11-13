@@ -171,8 +171,10 @@ public sealed class ServiceHealthTests
     }
 
     [Fact]
-    public void The_area_has_every_page_in_a_section()
+    public void The_area_has_every_page_in_a_section_and_health_is_its_own_area()
     {
+        Assert.DoesNotContain(OrganizationAreaViewModel.Pages, p => p.Key is "servicehealth" or "messagecenter");
+        Assert.Equal(["servicehealth", "messagecenter"], HealthAreaViewModel.Pages.Select(p => p.Key));
         var pages = OrganizationAreaViewModel.Sections.SelectMany(s => s.Pages).ToArray();
         Assert.Equal(OrganizationAreaViewModel.Pages.Count, pages.Distinct().Count());
         Assert.All(OrganizationAreaViewModel.Pages, p => Assert.Contains(p, pages));

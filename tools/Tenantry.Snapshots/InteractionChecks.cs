@@ -1445,12 +1445,12 @@ static class InteractionChecks
             window.Close();
         });
 
-        Check("Organization › Message Center: the tab reads the posts; opening one marks it read; Archive takes it out of the inbox", () =>
+        Check("Health › Message Center: the tab reads the posts; opening one marks it read; Archive takes it out of the inbox", () =>
         {
             var (window, main, _) = OpenList();
-            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection { Key: "organization" }));
+            Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection { Key: "health" }));
             Settle();
-            var area = main.Organization;
+            var area = main.Health;
             Expect(area.ShowHealth, "the area opens on Service Health");
             for (var i = 0; i < 50 && area.Health.Issues.Rows.Count == 0; i++)
                 Settle();
