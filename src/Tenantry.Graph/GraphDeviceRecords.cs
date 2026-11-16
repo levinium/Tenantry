@@ -28,7 +28,7 @@ public sealed partial class GraphUserRecords : IDeviceRecords
         }
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.BadRequest)
         {
-            intuneProblem = "Intune devices need an Intune role (and an Intune license in the tenant).";
+            intuneProblem = MicrosoftReply.After("Intune devices need an Intune role (and an Intune license in the tenant).", e);
             managed = Task.FromResult(new List<JsonElement>());
         }
         catch (GraphException e) when (e.Status == HttpStatusCode.NotFound)

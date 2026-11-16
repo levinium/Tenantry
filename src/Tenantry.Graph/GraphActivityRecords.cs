@@ -33,7 +33,7 @@ public sealed partial class GraphUserRecords : IActivityRecords
         }
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
         {
-            return Available<IReadOnlyList<AuditEvent>>.Because("Reading the audit log needs the Reports Reader, Security Reader or Global Reader role.");
+            return Available<IReadOnlyList<AuditEvent>>.Because(MicrosoftReply.After("Reading the audit log needs the Reports Reader, Security Reader or Global Reader role.", e));
         }
         return new(events.OrderByDescending(e => e.At).ToArray());
     }
@@ -72,7 +72,7 @@ public sealed partial class GraphUserRecords : IActivityRecords
         }
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
         {
-            return Available<AppActivity>.Because("Usage reports need the Reports Reader or Global Reader role.");
+            return Available<AppActivity>.Because(MicrosoftReply.After("Usage reports need the Reports Reader or Global Reader role.", e));
         }
         // With names concealed (the tenant's default since 2021) every row is a scrambled name.
         if (rows.Count > 0 && !rows.Keys.Any(k => k.Contains('@')))

@@ -157,7 +157,7 @@ public sealed partial class GraphUserRecords : ISecurityRecords
         }
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.BadRequest)
         {
-            return Available<UserRisk>.Because("Risk detection (Identity Protection) needs Microsoft Entra ID P2.");
+            return Available<UserRisk>.Because(MicrosoftReply.After("Risk detection (Identity Protection) needs Microsoft Entra ID P2.", e));
         }
     }
 
@@ -172,7 +172,7 @@ public sealed partial class GraphUserRecords : ISecurityRecords
         }
         catch (GraphException e) when (e.Status is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden)
         {
-            eligible = Available<IReadOnlyList<RoleHeld>>.Because("Eligible roles (Privileged Identity Management) need Microsoft Entra ID P2.");
+            eligible = Available<IReadOnlyList<RoleHeld>>.Because(MicrosoftReply.After("Eligible roles (Privileged Identity Management) need Microsoft Entra ID P2.", e));
         }
         return (await active, eligible);
     }

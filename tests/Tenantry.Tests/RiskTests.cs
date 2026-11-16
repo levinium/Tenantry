@@ -23,6 +23,20 @@ public sealed class RiskTests
     public void Detections_read_in_words(string type, string words) => Assert.Equal(words, Risk.EventName(type));
 
     [Fact]
+    public void A_likely_reason_is_followed_by_Microsoft_s_reply()
+    {
+        var refused = new GraphException(HttpStatusCode.Forbidden, "Forbidden", "Insufficient privileges\n  to complete the operation.");
+        Assert.Equal("Needs a role. Microsoft's reply: Insufficient privileges to complete the operation.", MicrosoftReply.After("Needs a role.", refused));
+        // Nothing to add: an empty reply, or one the reason already quotes.
+        Assert.Equal("Needs a role.", MicrosoftReply.After("Needs a role.", new GraphException(HttpStatusCode.Forbidden, null, " ")));
+        Assert.Equal("Purview: x failed.", MicrosoftReply.After("Purview: x failed.", new InvalidOperationException("x failed.")));
+        // Exchange's internal prefix is left out; long replies are cut.
+        var cmdlet = new Tenantry.Core.Exchange.CmdletException("Get-X", 403, "Ex1|Microsoft.Exchange.SomeException|Access denied.");
+        Assert.Equal("Why. Microsoft's reply: Access denied.", MicrosoftReply.After("Why.", cmdlet));
+        Assert.EndsWith("…", MicrosoftReply.After("Why.", new InvalidOperationException(new string('a', 500))), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Each_list_says_whether_it_needs_P2_or_a_permission()
     {
         var http = new FakeHttp()
@@ -34,7 +48,8 @@ public sealed class RiskTests
 
         var risk = await records.GetRiskAsync(Ct);
 
-        Assert.Equal(Risk.NeedsP2, risk.UsersUnavailable);
+        // The likely reason, then Microsoft's own words.
+        Assert.Equal($"{Risk.NeedsP2} Microsoft's reply: Your tenant is not licensed for this feature.", risk.UsersUnavailable);
         Assert.Contains("Grant Permissions", risk.DetectionsUnavailable, StringComparison.Ordinal);
         Assert.Null(risk.AppsUnavailable);
         Assert.Equal("Survey", Assert.Single(risk.Apps).Name);

@@ -30,7 +30,7 @@ public sealed partial class GraphUserRecords : IRiskRecords
             {
                 return ([], e.Message.Contains("scopes are missing", StringComparison.OrdinalIgnoreCase)
                     ? "Tenantry needs another permission to read this: use Grant Permissions at the top of the window."
-                    : notLicensed);
+                    : MicrosoftReply.After(notLicensed, e));
             }
         }
         var usersRead = Read("identityProtection/riskyUsers", Risk.NeedsP2, 5000);

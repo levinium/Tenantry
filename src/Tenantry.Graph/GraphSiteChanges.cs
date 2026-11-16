@@ -26,7 +26,7 @@ public sealed partial class GraphChangeExecutor
         catch (SharePointException e)
         {
             return new ApplyResult(ChangeOutcome.Failed, e.Status is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized
-                ? "SharePoint lets only a site's admins change what's inside it. Add yourself as a site admin first."
+                ? MicrosoftReply.After("SharePoint lets only a site's admins change what's inside it. Add yourself as a site admin first.", e)
                 // Seen live for people without a SharePoint license: SharePoint doesn't know them.
                 : e.Message.Contains("Archiving", StringComparison.Ordinal) && e.Message.Contains("Billing", StringComparison.OrdinalIgnoreCase)
                     ? "Archiving needs Microsoft 365 Archive, which needs pay-as-you-go billing set up in the Microsoft 365 admin center (Settings › Org settings › Pay-as-you-go services)."

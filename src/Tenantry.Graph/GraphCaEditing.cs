@@ -34,7 +34,7 @@ public sealed partial class GraphUserRecords : ICaEditingRecords
         }
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
         {
-            return Available<IReadOnlyList<TermsOfUse>>.Because("Requiring terms of use needs Tenantry's Agreement.Read.All permission; grant it in Settings.");
+            return Available<IReadOnlyList<TermsOfUse>>.Because(MicrosoftReply.After("Requiring terms of use needs Tenantry's Agreement.Read.All permission; grant it in Settings.", e));
         }
     }
 

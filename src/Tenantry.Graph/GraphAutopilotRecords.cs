@@ -28,7 +28,7 @@ public sealed partial class GraphUserRecords : IAutopilotRecords
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             return Available<IReadOnlyList<AutopilotDevice>>.Because(
-                "Autopilot needs an Intune role, and Tenantry's permission to read Intune's service settings (grant it from the banner at the top).");
+                MicrosoftReply.After("Autopilot needs an Intune role, and Tenantry's permission to read Intune's service settings (grant it from the banner at the top).", e));
         }
     }
 

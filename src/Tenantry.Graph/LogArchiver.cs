@@ -95,7 +95,7 @@ public sealed class LogArchiver(GraphClient graph, ILogArchive archive, IEntityS
             added += archive.AddEvents(kind, batch);
             notes.Add(e.Code?.Contains("NonPremium", StringComparison.OrdinalIgnoreCase) == true || e.Message.Contains("premium", StringComparison.OrdinalIgnoreCase)
                 ? $"The {what} history needs Microsoft Entra ID P1."
-                : $"The {what} history couldn't be read: it needs the Reports Reader, Security Reader or Global Reader role.");
+                : MicrosoftReply.After($"The {what} history couldn't be read: it needs the Reports Reader, Security Reader or Global Reader role.", e));
         }
         return added;
     }

@@ -37,7 +37,7 @@ public sealed partial class DirectorySync
         }
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.BadRequest)
         {
-            notes.Add("Contacts weren't read: reading them needs a role that can read the directory.");
+            notes.Add(MicrosoftReply.After("Contacts weren't read: reading them needs a role that can read the directory.", e));
             return 0;
         }
     }

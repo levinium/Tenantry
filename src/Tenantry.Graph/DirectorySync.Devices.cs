@@ -57,7 +57,7 @@ public sealed partial class DirectorySync
         }
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.BadRequest)
         {
-            notes.Add("Devices weren't read: reading Entra devices needs a role that can read the directory's devices.");
+            notes.Add(MicrosoftReply.After("Devices weren't read: reading Entra devices needs a role that can read the directory's devices.", e));
             return 0;
         }
     }
@@ -85,7 +85,7 @@ public sealed partial class DirectorySync
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.BadRequest or HttpStatusCode.NotFound)
         {
             // No Intune role, or no Intune in the tenant: devices show from Entra only.
-            notes.Add("Intune devices weren't read: they need an Intune role (and Intune in the tenant).");
+            notes.Add(MicrosoftReply.After("Intune devices weren't read: they need an Intune role (and Intune in the tenant).", e));
             store.SetMark(ManagedDevices, new SyncMark(null, _now()));
             return 0;
         }

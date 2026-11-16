@@ -58,7 +58,7 @@ public sealed partial class GraphUserRecords : IAppActivationRecords
         }
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
         {
-            return Available<IReadOnlyList<OfficeActivation>>.Because("The activation report needs the Reports Reader or Global Reader role.");
+            return Available<IReadOnlyList<OfficeActivation>>.Because(MicrosoftReply.After("The activation report needs the Reports Reader or Global Reader role.", e));
         }
         if (ActivationReport.IsConcealed(rows.Keys))
             return Available<IReadOnlyList<OfficeActivation>>.Because(ActivationReport.ConcealedReason);
@@ -112,7 +112,7 @@ public sealed partial class GraphUserRecords : IAppActivationRecords
         }
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
         {
-            return Available<IReadOnlyList<SignedInDevice>>.Because("The sign-in log needs the Reports Reader, Security Reader or Global Reader role.");
+            return Available<IReadOnlyList<SignedInDevice>>.Because(MicrosoftReply.After("The sign-in log needs the Reports Reader, Security Reader or Global Reader role.", e));
         }
     }
 }

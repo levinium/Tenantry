@@ -14,6 +14,35 @@ public sealed class GraphException(HttpStatusCode status, string? code, string m
 {
     public HttpStatusCode Status { get; } = status;
     public string? Code { get; } = code;
+
+    /// <summary>Graph's own words, without the status and code.</summary>
+    public string Reply { get; } = message;
+}
+
+/// <summary>
+/// A refusal explained: Tenantry's likely reason, then Microsoft's own reply. A refusal's status
+/// code alone doesn't say why (a 403 can be a missing role, license or permission, or something
+/// else), so the likely reason never stands alone: a wrong guess once hid the real cause.
+/// </summary>
+public static class MicrosoftReply
+{
+    const int MaxReply = 300;
+
+    public static string After(string likely, Exception e)
+    {
+        var reply = e switch
+        {
+            GraphException g => g.Reply,
+            Tenantry.Core.Exchange.CmdletException c => c.Explanation,
+            _ => e.Message,
+        };
+        reply = string.Join(' ', (reply ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        if (reply.Length == 0 || likely.Contains(reply, StringComparison.OrdinalIgnoreCase))
+            return likely;
+        if (reply.Length > MaxReply)
+            reply = reply[..MaxReply].TrimEnd() + "…";
+        return $"{likely} Microsoft's reply: {reply}";
+    }
 }
 
 /// <summary>

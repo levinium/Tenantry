@@ -215,7 +215,7 @@ public sealed partial class GraphUserRecords : ISiteRecords, IDeletedSiteRecords
         catch (SharePointException e) when (e.Status is HttpStatusCode.InternalServerError or HttpStatusCode.BadRequest)
         {
             return Available<IReadOnlyList<RecentFile>>.Because(
-                $"{library.Name} has too many files ({library.Items:N0}) for SharePoint to list the newest here. The activity numbers above come from Microsoft's report.");
+                MicrosoftReply.After($"{library.Name} has too many files ({library.Items:N0}) for SharePoint to list the newest here. The activity numbers above come from Microsoft's report.", e));
         }
     }
 
@@ -248,7 +248,7 @@ public sealed partial class GraphUserRecords : ISiteRecords, IDeletedSiteRecords
             }
             catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.BadRequest)
             {
-                return Available<SiteUsage>.Because("Activity numbers need a role that can read Microsoft 365 usage reports.");
+                return Available<SiteUsage>.Because(MicrosoftReply.After("Activity numbers need a role that can read Microsoft 365 usage reports.", e));
             }
             if (oneDrive)
                 _driveUsage = (DateTimeOffset.UtcNow, rows);

@@ -21,7 +21,7 @@ public sealed partial class GraphUserRecords : IOneDriveRecords
         }
         catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
         {
-            return Available<OneDriveInfo>.Because("Reading OneDrive needs the SharePoint Administrator role.");
+            return Available<OneDriveInfo>.Because(MicrosoftReply.After("Reading OneDrive needs the SharePoint Administrator role.", e));
         }
         var quota = drive.TryGetProperty("quota", out var q) ? q : default;
         var ids = drive.TryGetProperty("sharePointIds", out var s) ? s : default;
