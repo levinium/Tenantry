@@ -287,11 +287,14 @@ public sealed class RestCmdletRunner : ICmdletRunner
                 foreach (var d in details.EnumerateArray())
                     if (d.TryGetProperty("message", out var m) && !string.IsNullOrWhiteSpace(m.GetString()))
                         return m.GetString();
-            if (error.TryGetProperty("innererror", out var inner))
+            // Purview writes "internalexception" in lower case, Exchange "internalException"; the inner
+            // message is the useful one (the outer one can be just "Invalid Operation").
+            if (Property(error, "innererror") is { } inner)
             {
-                if (inner.TryGetProperty("internalException", out var ie) && ie.TryGetProperty("message", out var iem))
+                if (Property(inner, "internalexception") is { } ie && Property(ie, "message") is { ValueKind: JsonValueKind.String } iem
+                    && !string.IsNullOrWhiteSpace(iem.GetString()))
                     return iem.GetString();
-                if (inner.TryGetProperty("message", out var im))
+                if (Property(inner, "message") is { } im)
                     return im.GetString();
             }
             return error.TryGetProperty("message", out var top) ? top.GetString() : null;
@@ -300,5 +303,16 @@ public sealed class RestCmdletRunner : ICmdletRunner
         {
             return string.IsNullOrWhiteSpace(body) ? null : body;
         }
+    }
+
+    /// <summary>A JSON property by name, ignoring case.</summary>
+    static JsonElement? Property(JsonElement element, string name)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+            return null;
+        foreach (var p in element.EnumerateObject())
+            if (p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                return p.Value;
+        return null;
     }
 }

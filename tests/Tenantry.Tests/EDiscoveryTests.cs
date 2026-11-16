@@ -402,7 +402,8 @@ public sealed class EDiscoveryTests
         var sent = exchange.Calls[0];
         Assert.Equal("New-ComplianceSearchAction", sent.Cmdlet);
         Assert.Contains("\"PurgeType\":\"HardDelete\"", sent.Parameters, StringComparison.Ordinal);
-        Assert.Contains("\"SearchName\":\"zz-tenantry-test-search\"", sent.Parameters, StringComparison.Ordinal);
+        // A list, as the module sends it: Purview refuses a plain string over REST (seen live).
+        Assert.Contains("\"SearchName\":[\"zz-tenantry-test-search\"]", sent.Parameters, StringComparison.Ordinal);
     }
 
     [Fact]

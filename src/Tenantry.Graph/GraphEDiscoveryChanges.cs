@@ -31,8 +31,8 @@ public sealed partial class GraphChangeExecutor
             ct => ReadPurview("Get-ComplianceSearch", new() { ["Identity"] = d.Search.Name }, ct), rows => rows.Count == 0, cancellationToken),
         CreateHold h => CreateHoldAsync(h, cancellationToken),
         // Purview names the action after the search; it runs on its own after this.
-        PurgeSearch p => PurgeWords(Purview("New-ComplianceSearchAction", PurgeParameters(p),
-            ct => ReadPurview("Get-ComplianceSearchAction", new() { ["Identity"] = p.Search.Name + "_Purge" }, ct), rows => rows.Count > 0, cancellationToken)),
+        PurgeSearch p => Purview("New-ComplianceSearchAction", PurgeParameters(p),
+            ct => ReadPurview("Get-ComplianceSearchAction", new() { ["Identity"] = p.Search.Name + "_Purge" }, ct), rows => rows.Count > 0, cancellationToken),
         UpdateHold u => UpdateHoldAsync(u, cancellationToken),
         SetHoldEnabled e => Purview("Set-CaseHoldPolicy", new() { ["Identity"] = e.Hold.Name, ["Enabled"] = e.New },
             ct => ReadPurview("Get-CaseHoldPolicy", new() { ["Identity"] = e.Hold.Name }, ct),
@@ -191,19 +191,12 @@ public sealed partial class GraphChangeExecutor
         new() { ["Case"] = change.Case.Name, ["Member"] = EdChange.Place(change.Member), ["Confirm"] = false };
 
     /// <summary>
-    /// Purview answers a purge from an account without the Search And Purge role with only "Invalid
-    /// Operation" (seen live, in both sessions and every parameter form): said in words.
+    /// SearchName is a list in the cmdlet: Purview refuses a plain string over REST ("Invalid Operation",
+    /// with "Cannot process argument transformation on parameter 'SearchName'" inside; seen live
+    /// 2026-11-16, while the module, which sends a list, purged the same search).
     /// </summary>
-    static async Task<ApplyResult> PurgeWords(Task<ApplyResult> purging)
-    {
-        var result = await purging;
-        return result.Outcome == ChangeOutcome.Failed && (result.Detail ?? "").Trim().Equals("Invalid Operation", StringComparison.OrdinalIgnoreCase)
-            ? result with { Detail = "Purview refused the purge. Purging needs the Search And Purge role, which Microsoft leaves out of Global Administrator and Compliance Administrator. Add your account to a Purview role group that has it (Organization Management, Data Investigator, or one of your own) in Roles and Scopes; a new role can take up to an hour to apply." }
-            : result;
-    }
-
-    static Dictionary<string, object?> PurgeParameters(PurgeSearch change) =>
-        new() { ["SearchName"] = change.Search.Name, ["Purge"] = true, ["PurgeType"] = change.Hard ? "HardDelete" : "SoftDelete", ["Confirm"] = false };
+    internal static Dictionary<string, object?> PurgeParameters(PurgeSearch change) =>
+        new() { ["SearchName"] = new[] { change.Search.Name }, ["Purge"] = true, ["PurgeType"] = change.Hard ? "HardDelete" : "SoftDelete", ["Confirm"] = false };
 
     static Dictionary<string, object?> CreateSearchParameters(CreateSearch change)
     {

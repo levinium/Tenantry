@@ -87,6 +87,8 @@ public class RestCmdletRunnerTests
 
     [Theory]
     [InlineData("""{"error":{"message":"top","innererror":{"internalException":{"message":"deep"}}}}""", "deep")]
+    // Purview's spelling (lower case), under a bare "Invalid Operation".
+    [InlineData("""{"error":{"code":"BadRequest","message":"Invalid Operation","innererror":{"message":"Invalid Operation","internalexception":{"message":"Cannot convert"}}}}""", "Cannot convert")]
     [InlineData("""{"error":{"message":"top","innererror":{"message":"inner"}}}""", "inner")]
     [InlineData("""{"error":{"message":"top"}}""", "top")]
     [InlineData("not json", "not json")]
