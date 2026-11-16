@@ -1216,6 +1216,9 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Render(editing, $"org-{key}-light", height: height);
         }
         // The generic Intune pages: apps (Company Portal opened), update rings, enrollment settings, a remediation.
+        editing.SelectedSection = editing.Sections.Single(s => s.Key == "devices");
+        editing.SelectedTab = editing.Tabs[0];
+        Settle();
         foreach (var (key, open, height) in new[] { ("apps", "Company Portal", 1900), ("rings", "Pilot Ring", 2200), ("enrollment", "Staff Device Limit", 1500), ("remediations", "Clear Old Temp Files", 1700), ("mam-ios", "iPhone Work Data", 2600) })
         {
             editing.DevicesArea.SelectedPage = DevicesAreaViewModel.Pages.Single(p => p.Key == key);
@@ -1281,6 +1284,7 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Settle();
         Render(editing, "new-site-light", height: 1100);
         editing.CloseDialogCommand.Execute(null);
+        editing.SelectedTab = editing.Tabs[0];
         editing.SharePoint.SelectedPage = SharePointAreaViewModel.Pages.Single(p => p.Key == "deleted");
         for (var i = 0; i < 20; i++)
             Settle();
@@ -1582,6 +1586,7 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         for (var i = 0; i < 10; i++)
             Settle();
         Render(premium, "app-enterprise-sso-light", height: 1500);
+        premium.SelectedTab = enterprisePage;
         enterprisePage.SelectedSection = enterprisePage.Sections.Single(s => s.Key == "permissions");
         for (var i = 0; i < 10; i++)
             Settle();

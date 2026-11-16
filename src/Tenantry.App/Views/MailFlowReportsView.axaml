@@ -15,7 +15,7 @@
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Top">
             <ComboBox ItemsSource="{x:Static ms:MailFlowReportsViewModel.Ranges}" SelectedItem="{Binding Range}" MinWidth="150" />
-            <Button Classes="ghost" Command="{Binding RefreshCommand}" ToolTip.Tip="Read the reports from Exchange again">
+            <Button Command="{Binding RefreshCommand}" ToolTip.Tip="Read the reports from Exchange again">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
                 <TextBlock Text="Refresh" />
@@ -103,7 +103,7 @@
               <TextBlock Classes="h3" Text="{Binding ThreatsHeading}" />
               <TextBlock Classes="caption" TextWrapping="Wrap" Text="Which of Microsoft's filters stopped each kind of threat. This report is slow, so it always covers the last week." />
             </StackPanel>
-            <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshThreatsCommand}" VerticalAlignment="Top" ToolTip.Tip="Read Defender's breakdown again">
+            <Button Grid.Column="1" Command="{Binding RefreshThreatsCommand}" VerticalAlignment="Top" ToolTip.Tip="Read Defender's breakdown again">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
             </Button>
           </Grid>

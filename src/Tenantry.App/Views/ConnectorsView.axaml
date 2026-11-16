@@ -14,7 +14,7 @@
             <TextBlock Classes="h3" Text="Connectors" />
             <TextBlock Classes="muted" TextWrapping="Wrap" Text="How mail moves between Microsoft 365 and your own mail servers, partners or a filtering service in front of Microsoft 365. Most organizations need none." />
           </StackPanel>
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
+          <Button Grid.Column="1" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />

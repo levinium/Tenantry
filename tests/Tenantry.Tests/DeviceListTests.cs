@@ -22,7 +22,7 @@ public sealed class DeviceListTests
 
     static DeviceSummary Device(string name, string? objectId = "e-", string? managedId = "m-", bool? enabled = true, DateTimeOffset? seen = null, string os = "Windows") =>
         new(objectId is null ? "intune:" + managedId + name : objectId + name, objectId is null ? null : objectId + name, "d-" + name,
-            managedId is null ? null : managedId + name, name, os, "11", "Contoso", "Book", null, objectId is null ? "Intune only" : "Entra joined",
+            managedId is null ? null : managedId + name, name, os, "11", "Contoso", "Book", null, objectId is null ? "Intune Only" : "Entra Joined",
             objectId is null ? null : enabled, true, true, seen ?? Now.AddDays(-1), null, Now.AddDays(-400), DeviceFields.Company, null, null, null);
 
     static async Task<BulkPlan> Plan(string title, IReadOnlyList<DeviceSummary> devices, Func<BulkChoice, bool>? choose = null)

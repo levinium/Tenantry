@@ -13,7 +13,7 @@
             <TextBlock Classes="muted" TextWrapping="Wrap"
                        Text="People Microsoft stopped from sending because their account sent spam. Their mail bounces with 5.1.8. It's usually a hacked account: secure it first (Respond to Compromise on their page), then unblock it." />
           </StackPanel>
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read the blocked senders again">
+          <Button Grid.Column="1" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read the blocked senders again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />

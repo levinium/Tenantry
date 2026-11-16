@@ -408,7 +408,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         var state = a.CredentialState(now);
         var badge = AppList.CredentialBadge(state);
         return new Records.AppPreviewViewModel(a.Name, a.AppId,
-            badge.Text.Length > 0 ? [new Records.HealthChip($"Credentials {badge.Text}", badge.Kind, "Its client secrets and certificates")] : [],
+            badge.Text.Length > 0 ? [new Records.HealthChip(AppList.CredentialChip(state), badge.Kind, "Its client secrets and certificates")] : [],
             [
                 new("Who Can Sign In", AppRegistration.AudienceText(a.Audience)),
                 new("Secrets", $"{a.Credentials.Count(c => c.IsSecret):N0}"),

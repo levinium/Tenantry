@@ -3032,10 +3032,24 @@ static class InteractionChecks
     /// <summary>A real mouse click (down and up) at the middle of the control, on whatever top level shows it.</summary>
     static void Click(Control control) => Click(TopLevel.GetTopLevel(control) ?? throw new InvalidOperationException("not shown"), control);
 
+    static Point? _lastClick;
+    static System.Diagnostics.Stopwatch _sinceClick = System.Diagnostics.Stopwatch.StartNew();
+
     static void Click(TopLevel top, Control control, RawInputModifiers keys = RawInputModifiers.None)
     {
-        var middle = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), top)
+        var exact = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), top)
             ?? throw new InvalidOperationException("control isn't on screen");
+        // A mouse reports whole pixels.
+        var middle = new Point(Math.Round(exact.X), Math.Round(exact.Y));
+        // Two clicks a few pixels apart with no time between them count as a double-click, and a
+        // switch ignores the second one; a person's clicks are never that quick, so wait it out.
+        if (_lastClick is { } last && Math.Abs(last.X - middle.X) < 8 && Math.Abs(last.Y - middle.Y) < 8 && _sinceClick.ElapsedMilliseconds < 600)
+            Thread.Sleep(600);
+        _lastClick = middle;
+        _sinceClick.Restart();
+        // A mouse arrives at a control before pressing it (a switch's knob tracks the pointer from there).
+        top.MouseMove(middle, keys);
+        Settle();
         top.MouseDown(middle, MouseButton.Left, keys);
         top.MouseUp(middle, MouseButton.Left, keys);
         Settle();

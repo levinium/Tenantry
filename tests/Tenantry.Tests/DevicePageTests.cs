@@ -20,7 +20,7 @@ public sealed class DevicePageTests
         new(new GraphClient(http.Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore());
 
     static DeviceSummary Laptop(string? managedId = "m1", string? userId = "u1") =>
-        new("e1", "e1", "d1", managedId, "LAPTOP-1", "Windows", "10.0.26100", "Contoso", "Book", "SN1", "Entra joined", true, false, true,
+        new("e1", "e1", "d1", managedId, "LAPTOP-1", "Windows", "10.0.26100", "Contoso", "Book", "SN1", "Entra Joined", true, false, true,
             DateTimeOffset.UtcNow.AddHours(-2), null, DateTimeOffset.UtcNow.AddDays(-100), DeviceFields.Company, userId, "Ada", "ada@contoso.example");
 
     [Fact]

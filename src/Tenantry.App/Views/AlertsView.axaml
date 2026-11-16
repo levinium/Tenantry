@@ -14,7 +14,7 @@
             <TextBlock Classes="h3" Text="Alerts" />
             <TextBlock Classes="muted" TextWrapping="Wrap" Text="What Microsoft flagged in the last 30 days (a hacked account, a forwarding rule, malware removed after delivery…), and the alert policies that raise these, with who&apos;s emailed." />
           </StackPanel>
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
+          <Button Grid.Column="1" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />

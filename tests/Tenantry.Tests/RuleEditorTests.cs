@@ -293,7 +293,7 @@ public sealed class RuleEditorTests
         ]);
 
         Assert.Equal(2, devices.Count);
-        Assert.Equal(("LAPTOP-1", "Entra joined", at.AddDays(1)), (devices[0].Name, devices[0].Trust, devices[0].LastSeen));
+        Assert.Equal(("LAPTOP-1", "Entra Joined", at.AddDays(1)), (devices[0].Name, devices[0].Trust, devices[0].LastSeen));
         Assert.Equal(["Microsoft Teams", "Outlook"], devices[0].Apps);
         Assert.Equal(("macOS device", "Not in Entra", false), (devices[1].Name, devices[1].Trust, devices[1].IsKnown));
     }
@@ -321,6 +321,14 @@ public sealed class RuleEditorTests
     [InlineData("redirect the message to", "Redirect the Message To")]
     public void Labels_read_in_title_case(string text, string expected) =>
         Assert.Equal(expected, Tenantry.ViewModels.Display.TitleCase(text));
+
+    [Theory]
+    [InlineData("AllowPowerPointSharing", "Allow PowerPoint Sharing")]
+    [InlineData("AllowAnonymousUsersToJoinMeeting", "Allow Anonymous Users to Join Meeting")]
+    [InlineData("allowCreateUpdateChannels", "Allow Create Update Channels")]
+    [InlineData("MeetingChatEnabledType", "Meeting Chat Enabled Type")]
+    public void Property_names_read_as_labels(string name, string expected) =>
+        Assert.Equal(expected, Tenantry.ViewModels.Display.PropertyLabel(name));
 
     [Fact]
     public void Sizes_are_entered_with_a_unit_and_kept_in_bytes()

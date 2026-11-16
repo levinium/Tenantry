@@ -24,7 +24,7 @@
                 <TextBlock Text="New Policy" />
               </StackPanel>
             </Button>
-            <Button Classes="ghost" Command="{Binding RefreshCommand}" ToolTip.Tip="Read them from Intune again">
+            <Button Command="{Binding RefreshCommand}" ToolTip.Tip="Read them from Intune again">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
                 <TextBlock Text="Refresh" />

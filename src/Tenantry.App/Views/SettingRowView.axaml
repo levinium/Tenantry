@@ -9,8 +9,9 @@
     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
       <StackPanel Spacing="2" VerticalAlignment="Center">
         <TextBlock Text="{Binding Label}" FontWeight="SemiBold" TextWrapping="Wrap" />
-        <TextBlock Classes="muted" Text="{Binding Help}" TextWrapping="Wrap" />
-        <TextBlock Classes="caption" Text="{Binding UnsetText}" IsVisible="{Binding IsUnset}" />
+        <!-- An empty line would still take a line's height and lift the label above its control. -->
+        <TextBlock Classes="muted" Text="{Binding Help}" TextWrapping="Wrap" IsVisible="{Binding Help, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <TextBlock Classes="caption" Text="{Binding UnsetText}" IsVisible="{Binding ShowUnsetText}" />
         <TextBlock Classes="caption" Text="{Binding RecommendedNote}" IsVisible="{Binding HasRecommendedNote}" Foreground="{DynamicResource BadgeWarningFg}" TextWrapping="Wrap" />
         <TextBox Text="{Binding ListText}" IsVisible="{Binding IsList}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" MaxHeight="160" Margin="0,4,0,0"
                  PlaceholderText="None. One per line." c:EditCommit.Commit="{Binding CommitListCommand}" IsEnabled="{Binding CanEdit}" />
@@ -20,8 +21,12 @@
       </StackPanel>
       <Panel Grid.Column="1" VerticalAlignment="Center" IsEnabled="{Binding CanEdit}">
         <ToggleSwitch IsChecked="{Binding IsOn}" IsVisible="{Binding IsOnOff}" OnContent="On" OffContent="Off" />
-        <TextBox Text="{Binding NumberText}" IsVisible="{Binding IsNumber}" Width="110" c:EditCommit.Commit="{Binding CommitNumberCommand}" />
-        <TextBox Text="{Binding TextValue}" IsVisible="{Binding IsText}" Width="200" c:EditCommit.Commit="{Binding CommitTextCommand}" PlaceholderText="Not configured" />
+        <TextBox Text="{Binding NumberText}" IsVisible="{Binding IsNumber}" Width="140" c:EditCommit.Commit="{Binding CommitNumberCommand}">
+          <TextBox.InnerRightContent>
+            <TextBlock Classes="caption" Text="{Binding Unit}" IsVisible="{Binding HasUnit}" VerticalAlignment="Center" Margin="4,0,10,0" />
+          </TextBox.InnerRightContent>
+        </TextBox>
+        <TextBox Text="{Binding TextValue}" IsVisible="{Binding IsText}" Width="320" c:EditCommit.Commit="{Binding CommitTextCommand}" PlaceholderText="Not configured" />
         <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Choice}" IsVisible="{Binding IsChoice}" MinWidth="260" />
       </Panel>
     </Grid>

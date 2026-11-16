@@ -7,7 +7,7 @@ namespace Tenantry.Core.Directory;
 /// <param name="ObjectId">The Entra device object's ID (enable, disable).</param>
 /// <param name="DeviceId">The Entra device ID: what BitLocker keys and LAPS passwords are filed under.</param>
 /// <param name="ManagedId">The Intune managed device's ID (sync, restart, wipe…).</param>
-/// <param name="JoinType">"Entra joined", "Hybrid joined", "Registered" or "Intune only".</param>
+/// <param name="JoinType">"Entra Joined", "Hybrid Joined", "Registered" or "Intune Only".</param>
 /// <param name="Relation">How it's theirs: "Primary user", "Registered by them", "They own it".</param>
 public sealed record UserDevice(
     string? ObjectId,

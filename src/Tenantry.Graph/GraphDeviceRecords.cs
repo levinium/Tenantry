@@ -64,7 +64,7 @@ public sealed partial class GraphUserRecords : IDeviceRecords
                 Manufacturer: Text(m, "manufacturer"),
                 Model: Text(m, "model"),
                 Serial: Text(m, "serialNumber") is { Length: > 0 } serial ? serial : null,
-                JoinType: hasEntra ? Join(Text(entraDevice, "trustType")) : "Intune only",
+                JoinType: hasEntra ? Join(Text(entraDevice, "trustType")) : "Intune Only",
                 Enabled: hasEntra && entraDevice.TryGetProperty("accountEnabled", out var on) ? on.ValueKind == JsonValueKind.True : null,
                 Compliant: Text(m, "complianceState") switch { "compliant" => true, "noncompliant" => false, _ => null },
                 Encrypted: m.TryGetProperty("isEncrypted", out var enc) && enc.ValueKind is JsonValueKind.True or JsonValueKind.False ? enc.ValueKind == JsonValueKind.True : null,
@@ -104,8 +104,8 @@ public sealed partial class GraphUserRecords : IDeviceRecords
 
     internal static string Join(string? trustType) => trustType switch
     {
-        "AzureAd" => "Entra joined",
-        "ServerAd" => "Hybrid joined",
+        "AzureAd" => "Entra Joined",
+        "ServerAd" => "Hybrid Joined",
         "Workplace" => "Registered",
         _ => "Registered",
     };

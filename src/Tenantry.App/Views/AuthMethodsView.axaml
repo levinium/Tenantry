@@ -11,7 +11,7 @@
   <DockPanel>
     <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
       <StackPanel Orientation="Horizontal" Spacing="10">
-        <Button Classes="ghost" Command="{Binding ReadCommand}" ToolTip.Tip="Read the sign-in methods from Entra again">
+        <Button Command="{Binding ReadCommand}" ToolTip.Tip="Read the sign-in methods from Entra again">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
             <TextBlock Text="Refresh" />

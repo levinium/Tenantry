@@ -14,7 +14,7 @@
             <TextBlock Classes="muted" TextWrapping="Wrap"
                        Text="Microsoft's ready-made protection, kept up to date by Microsoft. Each person gets one set of protections, the first that covers them: Strict, then Standard, then your own policies, then the defaults. Built-in protection gives Safe Links and Safe Attachments to anyone left." />
           </StackPanel>
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
+          <Button Grid.Column="1" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />

@@ -14,7 +14,7 @@
             <TextBlock Classes="h3" Text="Accepted Domains" />
             <TextBlock Classes="muted" TextWrapping="Wrap" Text="The domains the organization takes mail for. Adding and verifying a domain is done in Microsoft 365&apos;s domain setup; each one&apos;s sender checks are on Email Authentication." />
           </StackPanel>
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
+          <Button Grid.Column="1" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />

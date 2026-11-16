@@ -106,7 +106,7 @@
 
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Classes="label" Text="SEARCHES" VerticalAlignment="Center" />
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding ReadCommand}" ToolTip.Tip="Read the searches from Purview again">
+          <Button Grid.Column="1" Command="{Binding ReadCommand}" ToolTip.Tip="Read the searches from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />

@@ -125,7 +125,7 @@ public sealed partial class OrgObjectCard : ObservableObject
 
     /// <summary>A Teams policy's settings, from what it has: switches, numbers and text become settings; lists and objects are shown.</summary>
     static IReadOnlyList<OrgField> AutoFields(JsonElement raw) => raw.ValueKind != JsonValueKind.Object ? [] :
-        [.. raw.EnumerateObject().Where(p => !Housekeeping.Contains(p.Name)).Select(p => new OrgField(p.Name, Display.TitleCase(SettingsCatalog.Words(p.Name)),
+        [.. raw.EnumerateObject().Where(p => !Housekeeping.Contains(p.Name)).Select(p => new OrgField(p.Name, Display.PropertyLabel(p.Name),
             p.Value.ValueKind switch
             {
                 JsonValueKind.True or JsonValueKind.False => SettingKind.OnOff,

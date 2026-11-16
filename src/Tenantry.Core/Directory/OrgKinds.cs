@@ -532,7 +532,7 @@ public static class OrgKinds
         [
             new("isVerified", "Verified", ReadOnly: true),
             new("isDefault", "Default for New People", Caution: true, Help: "Only one domain is the default; choosing this one moves it."),
-            new("passwordValidityPeriodInDays", "Passwords Expire After", SettingKind.Number, "2147483647 means never (Microsoft's recommendation).", Min: 14, Max: int.MaxValue, Unit: "days"),
+            new("passwordValidityPeriodInDays", "Passwords Expire After", SettingKind.Number, "Type Never so passwords don't expire (Microsoft's recommendation).", Min: 14, Max: int.MaxValue, Unit: "days"),
             new("passwordNotificationWindowInDays", "Warn Before Expiry", SettingKind.Number, Min: 1, Max: 30, Unit: "days"),
             new("authenticationType", "Sign-In", SettingKind.Text, ReadOnly: true),
             new("supportedServices", "Used For", SettingKind.List, ReadOnly: true),

@@ -30,7 +30,7 @@ public sealed partial class ComplianceActionRow : ObservableObject
     }
 
     public string Action { get; }
-    public string Title => ComplianceAction.ActionText(Action);
+    public string Title => ComplianceAction.ActionTitle(Action);
     public bool IsEmail => Action == "notification";
     public IReadOnlyList<EditorChoice> Templates { get; }
     public IReadOnlyList<string>? CcGroupIds { get; }
@@ -155,7 +155,7 @@ public sealed partial class CompliancePolicyCard : ObservableObject
 
     public IReadOnlyList<EditorChoice> ActionChoices => [.. Addable.Where(a => Actions.All(r => r.Action != a) && (a != "notification" || _templates.Count > 0)
         && (a != "remoteLock" || Policy.ODataType is CompliancePlatforms.IOS or CompliancePlatforms.AndroidAdmin or CompliancePlatforms.AndroidWorkProfile or CompliancePlatforms.AndroidDeviceOwner))
-        .Select(a => new EditorChoice(a, ComplianceAction.ActionText(a)))];
+        .Select(a => new EditorChoice(a, ComplianceAction.ActionTitle(a)))];
 
     public bool CanAddAction => CanEdit && ActionChoices.Count > 0;
 

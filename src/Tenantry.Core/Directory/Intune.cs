@@ -115,6 +115,17 @@ public sealed record ComplianceAction(string Action, int GraceHours, string? Tem
         _ => action,
     };
 
+    /// <summary>The step as a title or a choice (Title Case, like the labels around it).</summary>
+    public static string ActionTitle(string action) => action switch
+    {
+        "block" => "Mark the Device Noncompliant",
+        "notification" => "Email the User",
+        "pushNotification" => "Send a Notification to the Device",
+        "remoteLock" => "Lock the Device",
+        "retire" => "Add the Device to the Retire List",
+        _ => action,
+    };
+
     public string Text => $"{ActionText(Action)} {(GraceHours == 0 ? "at once" : GraceHours % 24 == 0 ? $"after {GraceHours / 24} {(GraceHours == 24 ? "day" : "days")}" : $"after {GraceHours} hours")}";
 }
 

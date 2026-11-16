@@ -57,8 +57,8 @@
             <TextBlock Grid.Row="3" Classes="label" Text="SECRET KEY" VerticalAlignment="Center" />
             <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SecretKey}" Width="320" HorizontalAlignment="Left" PasswordChar="•" />
           </Grid>
-          <CheckBox IsChecked="{Binding SixtySeconds}" Content="its code changes every 60 seconds (most change every 30)" />
-          <CheckBox IsChecked="{Binding Sha256}" Content="it uses SHA-256 (most use SHA-1; the vendor's file says)" />
+          <CheckBox IsChecked="{Binding SixtySeconds}" Content="Its code changes every 60 seconds (most change every 30)" />
+          <CheckBox IsChecked="{Binding Sha256}" Content="It uses SHA-256 (most use SHA-1; the vendor's file says)" />
           <TextBlock Classes="caption" Text="{Binding Hint}" IsVisible="{Binding HasHint}" TextWrapping="Wrap" />
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Button Classes="accent" Content="Add Token" Command="{Binding SaveCommand}"
@@ -224,7 +224,7 @@
             <StackPanel Grid.Column="1" Spacing="2">
               <TextBlock Text="Revoke Sessions" FontWeight="SemiBold" />
               <TextBlock Classes="caption" TextWrapping="Wrap"
-                         Text="Signs them out of every app, browser and device, so anything still signed in has to sign in again. Same as Sign out everywhere." />
+                         Text="Signs them out of every app, browser and device, so anything still signed in has to sign in again. Same as Sign Out Everywhere." />
             </StackPanel>
             <Button Grid.Column="2" Classes="danger-outline quiet" Classes.undo="{Binding IsRevokePending}" Content="{Binding RevokeText}"
                     Command="{Binding ToggleRevokeSessionsCommand}" IsEnabled="{Binding CanEdit}" VerticalAlignment="Center" Width="190" HorizontalContentAlignment="Center" />

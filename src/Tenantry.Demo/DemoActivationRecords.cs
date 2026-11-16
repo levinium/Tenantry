@@ -26,7 +26,7 @@ public sealed partial class DemoUserRecords : IAppActivationRecords
             string[] apps = d.Os is "iOS" or "iPadOS" ? ["Outlook Mobile", "Microsoft Teams"] : ["Microsoft Office", "Outlook", "Microsoft Teams", "OneDrive SyncEngine"];
             foreach (var app in apps.Take(random.Next(1, apps.Length + 1)))
                 signIns.Add((now.AddHours(-random.Next(1, 200)), app, d.DeviceId, d.Name, d.Os == "Windows" ? "Windows 11" : d.Os, d.Os == "Windows" ? "Edge 141.0.0" : null,
-                    d.JoinType == "Entra joined" ? "Azure AD joined" : "Azure AD registered", d.Compliant, d.IsManaged, "New York, US"));
+                    d.JoinType == "Entra Joined" ? "Azure AD joined" : "Azure AD registered", d.Compliant, d.IsManaged, "New York, US"));
         }
         if (random.NextDouble() < 0.35)
             signIns.Add((now.AddDays(-random.Next(2, 20)), "Microsoft Office", null, null, "MacOs", "Safari 18.6", null, null, null, "Brooklyn, US"));

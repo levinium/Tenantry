@@ -355,7 +355,7 @@
               <TextBlock Classes="value" Text="{Binding ArchiveText}" TextWrapping="Wrap" IsVisible="{Binding ArchiveText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
               <ToggleSwitch IsChecked="{Binding ArchiveOn}" IsEnabled="{Binding CanEdit}" OnContent="Archive On" OffContent="Archive Off"
                             ToolTip.Tip="Switching adds the change to Pending Changes. Turning it off deletes the archive's contents after 30 days." />
-              <Button Classes="ghost" HorizontalAlignment="Left" Content="Let the Archive Grow Automatically…" Command="{Binding EnableAutoExpandingCommand}"
+              <Button HorizontalAlignment="Left" Content="Let the Archive Grow Automatically…" Command="{Binding EnableAutoExpandingCommand}"
                       IsVisible="{Binding CanEnableAutoExpanding}"
                       ToolTip.Tip="Auto-expanding archiving adds space as the archive fills, up to 1.5 TB. Microsoft offers no way to turn it off again." />
               <TextBlock Classes="pendingtext" Text="{Binding ArchivePendingText}" IsVisible="{Binding HasArchivePending}" TextWrapping="Wrap" />

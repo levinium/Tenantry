@@ -468,7 +468,7 @@ namespace Tenantry.ViewModels
                 {
                     Title = t.Name,
                     Detail = t.Comment,
-                    Badges = t.BuiltIn ? [new HealthChip("Built In", BadgeKind.Neutral, "Microsoft's own")] : [],
+                    Badges = t.BuiltIn ? [new HealthChip("Built-In", BadgeKind.Neutral, "Microsoft's own")] : [],
                 };
                 if (!_ctx.Editable || t.BuiltIn || used.Contains(t.Name))
                     return row;

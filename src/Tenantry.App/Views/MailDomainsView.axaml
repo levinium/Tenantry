@@ -15,7 +15,7 @@
                        Text="How receivers can tell mail from your domains is really yours: SPF (which servers may send), DKIM (a signature), DMARC (what to do when those fail) and where mail arrives (MX). Read from Exchange and DNS." />
             <TextBlock Text="{Binding SummaryText}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,4,0,0" />
           </StackPanel>
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read Exchange and DNS again (after publishing a record)">
+          <Button Grid.Column="1" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read Exchange and DNS again (after publishing a record)">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Check Again" />

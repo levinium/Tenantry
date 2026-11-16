@@ -166,7 +166,8 @@
           </Button>
         </StackPanel>
 
-        <!-- Areas -->
+        <!-- Areas: scroll when the window is too short for them, rather than run under the footer. -->
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="6">
           <TextBlock Classes="label" Margin="20,0,0,2" Text="ADMIN AREAS" />
           <ListBox Classes="nav" ItemsSource="{Binding Sections}" SelectedItem="{Binding SelectedSection}">
@@ -187,6 +188,7 @@
             </ListBox.ItemTemplate>
           </ListBox>
         </StackPanel>
+        </ScrollViewer>
       </DockPanel>
     </Border>
 
@@ -222,7 +224,7 @@
           <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
             <ic:FluentIcon Icon="Beaker" FontSize="16" VerticalAlignment="Center" />
             <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding TestModeText}" />
-            <Button Grid.Column="2" Classes="ghost" VerticalAlignment="Center" IsVisible="{Binding !IsTurningOff}"
+            <Button Grid.Column="2" VerticalAlignment="Center" IsVisible="{Binding !IsTurningOff}"
                     Command="{Binding StartTurnOffCommand}" Content="Allow Real Changes…"
                     ToolTip.Tip="Turn Test mode off for this tenant, so real users and groups can be changed" />
           </Grid>
@@ -280,7 +282,7 @@
                   <TextBlock Text="Show PowerShell" />
                 </StackPanel>
               </Button>
-              <Button Classes="ghost" Command="{Binding DiscardAllCommand}" Content="Discard All"
+              <Button Command="{Binding DiscardAllCommand}" Content="Discard All"
                       ToolTip.Tip="Remove every pending change; nothing is sent" />
               <Button Command="{Binding CancelConfirmCommand}" Content="Cancel" IsVisible="{Binding ApplyIsDanger}" />
               <Button Classes="accent" Classes.danger="{Binding ApplyIsDanger}" Command="{Binding ApplyCommand}"

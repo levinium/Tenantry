@@ -32,7 +32,7 @@
                   </Button>
                   <Button Classes="accent" Content="{Binding ActionText}" Command="{Binding RunActionCommand}" IsVisible="{Binding HasAction}"
                           ToolTip.Tip="{Binding ActionDescription}" />
-                  <Button Classes="ghost" Command="{Binding RefreshCommand}" ToolTip.Tip="Read them from Purview again">
+                  <Button Command="{Binding RefreshCommand}" ToolTip.Tip="Read them from Purview again">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                       <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
                       <TextBlock Text="Refresh" />

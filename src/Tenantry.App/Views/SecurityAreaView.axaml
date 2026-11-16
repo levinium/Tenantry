@@ -55,7 +55,7 @@
     <DockPanel IsVisible="{Binding ShowPolicies}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshPoliciesCommand}" ToolTip.Tip="Read Conditional Access from Entra again">
+          <Button Command="{Binding RefreshPoliciesCommand}" ToolTip.Tip="Read Conditional Access from Entra again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -206,7 +206,7 @@
             </ListBox>
             <TextBox Text="{Binding PlacesText}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" PlaceholderText="{Binding PlacesHint}"
                      FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
-            <CheckBox IsChecked="{Binding Trusted}" IsVisible="{Binding IsIp}" Content="Trusted (Policies That Leave Out Trusted Places Skip It)" />
+            <CheckBox IsChecked="{Binding Trusted}" IsVisible="{Binding IsIp}" Content="Trusted (policies that leave out trusted places skip it)" />
             <StackPanel Spacing="6" IsVisible="{Binding !IsIp}">
               <CheckBox IsChecked="{Binding IncludeUnknown}" Content="Include Addresses No Country Can Be Found For" />
               <CheckBox IsChecked="{Binding ByGps}" Content="Judge by the Authenticator App's GPS (Not the IP Address)" />
@@ -317,7 +317,7 @@
     <DockPanel IsVisible="{Binding ShowRegistrations}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshAppsCommand}" ToolTip.Tip="Read apps from Entra again">
+          <Button Command="{Binding RefreshAppsCommand}" ToolTip.Tip="Read apps from Entra again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -342,7 +342,7 @@
     <DockPanel IsVisible="{Binding ShowEnterpriseApps}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshAppsCommand}" ToolTip.Tip="Read apps from Entra again">
+          <Button Command="{Binding RefreshAppsCommand}" ToolTip.Tip="Read apps from Entra again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -368,7 +368,7 @@
     <DockPanel IsVisible="{Binding ShowRiskyUsers}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
+          <Button Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -391,7 +391,7 @@
     </DockPanel>    <DockPanel IsVisible="{Binding ShowRiskDetections}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
+          <Button Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -414,7 +414,7 @@
     </DockPanel>    <DockPanel IsVisible="{Binding ShowRiskyApps}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
+          <Button Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -438,7 +438,7 @@
     <DockPanel IsVisible="{Binding ShowCases}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshEDiscoveryCommand}" ToolTip.Tip="Read cases and searches from Purview again">
+          <Button Command="{Binding RefreshEDiscoveryCommand}" ToolTip.Tip="Read cases and searches from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -462,7 +462,7 @@
     <DockPanel IsVisible="{Binding ShowSearches}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshEDiscoveryCommand}" ToolTip.Tip="Read cases and searches from Purview again">
+          <Button Command="{Binding RefreshEDiscoveryCommand}" ToolTip.Tip="Read cases and searches from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -489,7 +489,7 @@
     <DockPanel IsVisible="{Binding ShowRetentionPolicies}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
+          <Button Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -513,7 +513,7 @@
     <DockPanel IsVisible="{Binding ShowRetentionLabels}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
+          <Button Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -537,7 +537,7 @@
     <DockPanel IsVisible="{Binding ShowAdaptiveScopes}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
+          <Button Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -567,7 +567,7 @@
     <DockPanel IsVisible="{Binding ShowRetentionEvents}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
+          <Button Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -605,7 +605,7 @@
     <DockPanel IsVisible="{Binding ShowRoles}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding RefreshRolesCommand}" ToolTip.Tip="Read admin roles from Entra again">
+          <Button Command="{Binding RefreshRolesCommand}" ToolTip.Tip="Read admin roles from Entra again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -632,7 +632,7 @@
     <ScrollViewer DataContext="{Binding MyRoles}" x:DataType="rec:MyRolesViewModel">
       <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Left" Margin="0,0,0,24">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding ReadAgainCommand}" ToolTip.Tip="Read your roles from Entra again">
+          <Button Command="{Binding ReadAgainCommand}" ToolTip.Tip="Read your roles from Entra again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
@@ -737,7 +737,7 @@
     <ScrollViewer DataContext="{Binding Approvals}" x:DataType="rec:ApprovalsViewModel">
       <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Left" Margin="0,0,0,24">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Button Classes="ghost" Command="{Binding ReadAgainCommand}" ToolTip.Tip="Read requests from Entra again">
+          <Button Command="{Binding ReadAgainCommand}" ToolTip.Tip="Read requests from Entra again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />

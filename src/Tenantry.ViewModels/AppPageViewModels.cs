@@ -248,7 +248,7 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
             var state = App.CredentialState(Now());
             var chips = new List<HealthChip>();
             if (AppList.CredentialBadge(state) is { Text.Length: > 0 } badge)
-                chips.Add(new HealthChip(state == AppFields.Current ? "Credentials Current" : $"Credentials {badge.Text}", badge.Kind, "Its client secrets and certificates"));
+                chips.Add(new HealthChip(AppList.CredentialChip(state), badge.Kind, "Its client secrets and certificates"));
             if (App.Audience != "AzureADMyOrg")
                 chips.Add(new HealthChip(AppRegistration.AudienceText(App.Audience), BadgeKind.Info, "Who can sign in to it"));
             if (App.Owners.Count == 0)

@@ -47,7 +47,7 @@ public sealed partial class DemoTenantDirectory
             devices.Add(new DeviceSummary($"obj-l-{id}", $"obj-l-{id}", $"dev-l-{id}", $"mdm-l-{id}",
                 $"NG-{initials}-{random.Next(100, 999)}",
                 mac ? "macOS" : "Windows", mac ? "15.6" : "10.0.26100", mac ? "Apple" : "Lenovo", mac ? "MacBook Air" : "ThinkPad T14",
-                $"PF{random.Next(1000000, 9999999)}", mac ? "Registered" : "Entra joined", true, random.NextDouble() > 0.1, random.NextDouble() > 0.05,
+                $"PF{random.Next(1000000, 9999999)}", mac ? "Registered" : "Entra Joined", true, random.NextDouble() > 0.1, random.NextDouble() > 0.05,
                 LastCheckIn: stale ? now.AddDays(-random.Next(95, 200)) : now.AddHours(-random.Next(1, 48)),
                 LastSignIn: stale ? now.AddDays(-random.Next(95, 200)) : now.AddHours(-random.Next(1, 72)),
                 Registered: now.AddDays(-random.Next(100, 700)), DeviceFields.Company, id, person.DisplayName, person.UserPrincipalName,
@@ -71,10 +71,10 @@ public sealed partial class DemoTenantDirectory
                 $"R9{shared.Next(100000, 999999)}", "Registered", true, i != 3, true, now.AddHours(-shared.Next(1, 20)), null,
                 now.AddDays(-shared.Next(100, 300)), DeviceFields.Company, null, null, null));
         devices.Add(new DeviceSummary("obj-room-1", "obj-room-1", "dev-room-1", "mdm-room-1", "NG-BOARDROOM", "Windows", "10.0.26100", "Dell", "OptiPlex 7010",
-            $"CN{shared.Next(1000000, 9999999)}", "Entra joined", true, true, true, now.AddHours(-3), now.AddDays(-1), now.AddDays(-420), DeviceFields.Company,
+            $"CN{shared.Next(1000000, 9999999)}", "Entra Joined", true, true, true, now.AddHours(-3), now.AddDays(-1), now.AddDays(-420), DeviceFields.Company,
             null, null, null, 256L << 30, 180L << 30));
         devices.Add(new DeviceSummary("obj-old-1", "obj-old-1", "dev-old-1", null, "NG-OLD-LAPTOP", "Windows", "10.0.19045", "HP", "EliteBook 840 G5",
-            null, "Hybrid joined", false, null, null, null, now.AddDays(-380), now.AddDays(-1900), null, null, null, null));
+            null, "Hybrid Joined", false, null, null, null, now.AddDays(-380), now.AddDays(-1900), null, null, null, null));
         return devices;
     }
 }

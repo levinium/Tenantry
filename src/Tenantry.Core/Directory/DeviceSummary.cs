@@ -10,7 +10,7 @@ namespace Tenantry.Core.Directory;
 /// <param name="ObjectId">Entra's object ID (enable, disable, delete, groups).</param>
 /// <param name="DeviceId">Entra's device ID: what Intune, BitLocker and LAPS file it under.</param>
 /// <param name="ManagedId">Intune's managed device ID (remote actions).</param>
-/// <param name="JoinType">"Entra joined", "Hybrid joined", "Registered" or "Intune only".</param>
+/// <param name="JoinType">"Entra Joined", "Hybrid Joined", "Registered" or "Intune Only".</param>
 /// <param name="LastCheckIn">When it last checked in with Intune.</param>
 /// <param name="LastSignIn">When it was last used to sign in (Entra's approximate time).</param>
 /// <param name="Encrypted">Intune's word, or true when a BitLocker key is backed up for it (<paramref name="KeyBackedUp"/>).</param>
@@ -101,7 +101,7 @@ public static class DeviceFields
         new()
         {
             Key = Join, Label = "Join Type", Kind = FieldKind.Choice, Aliases = ["jointype", "trust"],
-            ChoiceOrder = ["Entra joined", "Hybrid joined", "Registered", "Intune only"], Text = d => d.JoinType,
+            ChoiceOrder = ["Entra Joined", "Hybrid Joined", "Registered", "Intune Only"], Text = d => d.JoinType,
         },
         new()
         {

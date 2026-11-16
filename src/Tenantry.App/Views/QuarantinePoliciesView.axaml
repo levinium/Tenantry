@@ -14,7 +14,7 @@
             <TextBlock Classes="h3" Text="Quarantine Policies" />
             <TextBlock Classes="muted" TextWrapping="Wrap" Text="What people can do with their own quarantined mail, and whether they&apos;re told about it. Each threat policy names the quarantine policy for what it holds." />
           </StackPanel>
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
+          <Button Grid.Column="1" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />

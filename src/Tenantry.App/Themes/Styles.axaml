@@ -322,8 +322,10 @@
   <Style Selector="TextBlock.error">
     <Setter Property="Foreground" Value="{DynamicResource BadgeDangerFg}" />
   </Style>
+  <!-- What's waiting in Pending Changes: set apart in italics, not in the accent colour (that reads as a link). -->
   <Style Selector="TextBlock.pendingtext">
-    <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    <Setter Property="FontStyle" Value="Italic" />
   </Style>
   <Style Selector="TextBlock.before">
     <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
@@ -627,9 +629,15 @@
 
   <!-- Buttons by role -->
   <!-- A saved view has unsaved changes: the Save view button says so. -->
+  <!-- Unsaved view changes: the usual filled button, ringed in the accent colour. -->
   <Style Selector="Button.outline.attention">
+    <Setter Property="Background" Value="{DynamicResource ButtonBackground}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderThickness" Value="1.5" />
     <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+  </Style>
+  <Style Selector="Button.outline.attention /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ButtonBackground}" />
   </Style>
   <Style Selector="Button.danger">
     <Setter Property="Background" Value="{DynamicResource DangerFill}" />
@@ -1146,7 +1154,7 @@
     <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
   </Style>
   <Style Selector="Border.backdrop">
-    <Setter Property="Background" Value="#66000000" />
+    <Setter Property="Background" Value="{DynamicResource BackdropBg}" />
   </Style>
   <Style Selector="Border.palette">
     <Setter Property="Background" Value="{DynamicResource CardBg}" />

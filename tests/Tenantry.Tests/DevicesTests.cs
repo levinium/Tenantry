@@ -39,7 +39,7 @@ public sealed class DevicesTests
 
         Assert.Equal(2, devices.Count);
         var laptop = devices.Single(d => d.Name == "LAPTOP-1");
-        Assert.Equal(("o1", "d1", "m1", "Entra joined", false, "Company-owned"), (laptop.ObjectId, laptop.DeviceId, laptop.ManagedId, laptop.JoinType, laptop.Compliant, laptop.Ownership));
+        Assert.Equal(("o1", "d1", "m1", "Entra Joined", false, "Company-owned"), (laptop.ObjectId, laptop.DeviceId, laptop.ManagedId, laptop.JoinType, laptop.Compliant, laptop.Ownership));
         var ipad = devices.Single(d => d.Name == "iPad");
         Assert.Equal((false, "Registered", "Registered by them", false), (ipad.IsManaged, ipad.JoinType, ipad.Relation, ipad.Enabled));
     }
@@ -103,7 +103,7 @@ public sealed class DevicesTests
         public Task<Available<IReadOnlyList<UserDevice>>> GetDevicesAsync(string userId, CancellationToken cancellationToken = default) =>
             Task.FromResult(new Available<IReadOnlyList<UserDevice>>(
             [
-                new("o1", "d1", "m1", "zz-tenantry-test-laptop", "Windows", "11", "Lenovo", "T14", "PF1", "Entra joined", true, true, true, null, null, "Primary user", "Company-owned"),
+                new("o1", "d1", "m1", "zz-tenantry-test-laptop", "Windows", "11", "Lenovo", "T14", "PF1", "Entra Joined", true, true, true, null, null, "Primary user", "Company-owned"),
             ]));
         public Task<IReadOnlyList<RecoveryKeyInfo>> GetRecoveryKeysAsync(string deviceId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<RecoveryKeyInfo>>([new RecoveryKeyInfo("k1", null, "System drive")]);

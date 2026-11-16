@@ -45,6 +45,14 @@ public static class AppList
         _ => ("", BadgeKind.Neutral),
     };
 
+    /// <summary>The credential state as a stand-alone chip ("Some Credentials Expired", not "Credentials Some Expired").</summary>
+    public static string CredentialChip(string state) => state switch
+    {
+        F.SomeExpired => "Some Credentials Expired",
+        F.Soon => "Credentials Expire Soon",
+        var other => $"Credentials {CredentialBadge(other).Text}",
+    };
+
     public static ListDefinition<AppRegistration> Registrations(Func<AppRegistration, object> preview, Func<DateTimeOffset> now) => new()
     {
         Key = "appregistrations",

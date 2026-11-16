@@ -89,7 +89,7 @@ public sealed partial class DemoUserRecords : IRoleRecords
         Task.FromResult<IReadOnlyList<ResourceAction>>(
         [
             .. Catalog.SelectMany(c => c.Actions.Select(a => (Action: a, c.Privileged))).DistinctBy(a => a.Action).OrderBy(a => a.Action, StringComparer.Ordinal)
-                .Select(a => new ResourceAction(a.Action, $"Lets holders {a.Action[(a.Action.IndexOf('/') + 1)..].Replace('/', ' ')}", a.Privileged)),
+                .Select(a => new ResourceAction(a.Action, "", a.Privileged)),
         ]);
 
     /// <summary>A person's roles, for their Security tab.</summary>

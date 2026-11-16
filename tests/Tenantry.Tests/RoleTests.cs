@@ -204,10 +204,10 @@ public sealed class RoleTests
     }
 
     [Theory]
-    [InlineData("microsoft.directory/users/password/update", "Users", "password › update")]
-    [InlineData("microsoft.directory/groups.unified/create", "Groups Unified", "create")]
-    [InlineData("microsoft.office365.exchange/allEntities/basic/allTasks", "Office365 Exchange › All Entities", "basic › all tasks")]
-    [InlineData("microsoft.directory/conditionalAccessPolicies/allProperties/read", "Conditional Access Policies", "all properties › read")]
+    [InlineData("microsoft.directory/users/password/update", "Users", "Password › Update")]
+    [InlineData("microsoft.directory/groups.unified/create", "Groups Unified", "Create")]
+    [InlineData("microsoft.office365.exchange/allEntities/basic/allTasks", "Office365 Exchange › All Entities", "Basic › All Tasks")]
+    [InlineData("microsoft.directory/conditionalAccessPolicies/allProperties/read", "Conditional Access Policies", "All Properties › Read")]
     public void Permissions_are_grouped_by_what_they_act_on(string action, string group, string item) =>
         Assert.Equal((group, item), RolePermissionsSection.Split(action));
 }

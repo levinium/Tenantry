@@ -31,7 +31,7 @@
 
     <DockPanel IsVisible="{Binding ShowReports}">
       <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
-        <Button Classes="ghost" Command="{Binding RefreshCommand}" ToolTip.Tip="Count again from the local copy">
+        <Button Command="{Binding RefreshCommand}" ToolTip.Tip="Count again from the local copy">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
             <TextBlock Text="Refresh" />
@@ -57,7 +57,7 @@
 
     <DockPanel IsVisible="{Binding ShowChangeLog}">
       <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
-        <Button Classes="ghost" Command="{Binding RefreshCommand}" ToolTip.Tip="Read the change log again">
+        <Button Command="{Binding RefreshCommand}" ToolTip.Tip="Read the change log again">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
             <TextBlock Text="Refresh" />

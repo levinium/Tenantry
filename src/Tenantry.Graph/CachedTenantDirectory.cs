@@ -280,7 +280,7 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
 
     /// <summary>
     /// Entra's devices joined with Intune's on the Entra device ID. A device Intune manages without
-    /// an Entra record (or with one not yet synced) is still listed, as "Intune only".
+    /// an Entra record (or with one not yet synced) is still listed, as "Intune Only".
     /// </summary>
     public Task<IReadOnlyList<DeviceSummary>> GetDevicesAsync(CancellationToken cancellationToken = default) =>
         Task.Run<IReadOnlyList<DeviceSummary>>(() =>
@@ -473,7 +473,7 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
             Manufacturer: Text(intune, "manufacturer") ?? Text(entra, "manufacturer"),
             Model: Text(intune, "model") ?? Text(entra, "model"),
             Serial: Text(intune, "serialNumber"),
-            JoinType: entra is not null ? GraphUserRecords.Join(Text(entra, "trustType")) : "Intune only",
+            JoinType: entra is not null ? GraphUserRecords.Join(Text(entra, "trustType")) : "Intune Only",
             Enabled: Flag(entra, "accountEnabled"),
             Compliant: intune is not null
                 ? Text(intune, "complianceState") switch { "compliant" => true, "noncompliant" => false, _ => null }

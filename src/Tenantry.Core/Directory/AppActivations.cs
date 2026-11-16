@@ -49,7 +49,7 @@ public static class OfficeActivations
 /// knows the device, its system, the Microsoft 365 apps used on it and when last seen.
 /// </summary>
 /// <param name="DeviceId">The Entra device ID; null for a device Entra doesn't know.</param>
-/// <param name="Trust">"Entra joined", "Hybrid joined", "Registered" or "Not in Entra".</param>
+/// <param name="Trust">"Entra Joined", "Hybrid Joined", "Registered" or "Not in Entra".</param>
 public sealed record SignedInDevice(
     string? DeviceId,
     string Name,
@@ -116,8 +116,8 @@ public static class SignedInDevices
 
     static string TrustName(string? trustType, bool known) => trustType switch
     {
-        "Azure AD joined" or "AzureAd" => "Entra joined",
-        "Hybrid Azure AD joined" or "ServerAd" => "Hybrid joined",
+        "Azure AD joined" or "AzureAd" => "Entra Joined",
+        "Hybrid Azure AD joined" or "ServerAd" => "Hybrid Joined",
         "Azure AD registered" or "Workplace" => "Registered",
         _ => known ? "In Entra" : "Not in Entra",
     };

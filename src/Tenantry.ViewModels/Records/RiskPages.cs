@@ -106,7 +106,7 @@ public static class RiskLists
         Id = d => d.Id,
         Views =
         [
-            View(NewestDetections, "atrisk", "Still At Risk", AtRisk),
+            View(NewestDetections, "atrisk", "Still at Risk", AtRisk),
             View(NewestDetections, "high", "High Risk", new ChoiceCondition(F.Level, ["High"], [])),
             View(NewestDetections, "week", "Last 7 Days", new DateCondition(F.Detected, DateOp.WithinLastDays, 7)),
             View(NewestDetections, "all", "All Detections"),

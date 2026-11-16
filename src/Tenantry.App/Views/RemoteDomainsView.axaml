@@ -14,7 +14,7 @@
             <TextBlock Classes="h3" Text="Remote Domains" />
             <TextBlock Classes="muted" TextWrapping="Wrap" Text="Rules for mail leaving the organization, per outside domain: automatic replies and forwarding, bounces, receipts and format. &quot;Every Other Domain&quot; covers any domain without its own entry." />
           </StackPanel>
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
+          <Button Grid.Column="1" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />

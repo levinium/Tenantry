@@ -25,7 +25,7 @@ public sealed class DeviceActionsTests
     static readonly ChangeTarget Laptop = new("manageddevice", "m1", "zz-tenantry-test-laptop", null);
 
     static DeviceSummary Device(string name, string os = "Windows", string? managedId = "m-") =>
-        new("e-" + name, "e-" + name, "d-" + name, managedId is null ? null : managedId + name, name, os, "11", "Contoso", "Book", null, "Entra joined",
+        new("e-" + name, "e-" + name, "d-" + name, managedId is null ? null : managedId + name, name, os, "11", "Contoso", "Book", null, "Entra Joined",
             true, true, true, Now.AddDays(-1), null, Now.AddDays(-300), DeviceFields.Company, "u1", "Ada", "ada@contoso.example");
 
     static async Task<BulkPlan> Plan(string title, IReadOnlyList<DeviceSummary> devices, Action<BulkAction>? fill = null, bool one = false,

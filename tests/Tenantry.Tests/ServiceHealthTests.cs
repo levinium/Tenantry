@@ -118,6 +118,10 @@ public sealed class ServiceHealthTests
         Assert.Equal(BadgeKind.Danger, ServiceHealthLists.KindOf("serviceDegradation"));
         Assert.Equal(BadgeKind.Warning, ServiceHealthLists.KindOf("investigating"));
         Assert.Equal(BadgeKind.Success, ServiceHealthLists.KindOf("serviceDegradation", resolved: true));
+        // Healthy with an open advisory: amber "Advisory", never green beside an open issue.
+        var advisory = new ServiceTile(new ServiceStatus("x", "SharePoint Online", "serviceOperational"), 1);
+        Assert.Equal(("Advisory", BadgeKind.Warning), (advisory.StatusText, advisory.Kind));
+        Assert.Equal(BadgeKind.Success, new ServiceTile(new ServiceStatus("x", "Planner", "serviceOperational"), 0).Kind);
     }
 
     sealed class FixedHealth(ServiceHealthRead read) : IServiceHealthRecords

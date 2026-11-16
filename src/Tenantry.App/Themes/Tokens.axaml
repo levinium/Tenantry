@@ -32,6 +32,7 @@
       <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#1C3796" />
       <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#1C3796" />
       <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#A4AAB3" />
+      <SolidColorBrush x:Key="BackdropBg" Color="#66000000" />
       <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
       <!-- Calm buttons (Undo, a Remove on every row): grey until pointed at. -->
       <SolidColorBrush x:Key="ButtonNeutralBg" Color="#ECEEF1" />
@@ -134,7 +135,9 @@
       <SolidColorBrush x:Key="ButtonForeground" Color="#D3DEFF" />
       <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#E6ECFF" />
       <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#E6ECFF" />
-      <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#62676F" />
+      <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#80858E" />
+      <!-- Behind a popup: dark pages need more dimming than light ones to set the popup apart. -->
+      <SolidColorBrush x:Key="BackdropBg" Color="#A6000000" />
       <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
       <!-- Calm buttons (Undo, a Remove on every row): grey until pointed at. -->
       <SolidColorBrush x:Key="ButtonNeutralBg" Color="#35383F" />

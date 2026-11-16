@@ -182,11 +182,16 @@ public static class ServiceHealthLists
 public sealed record ServiceTile(ServiceStatus Status, int OpenIssues)
 {
     public string Name => Status.Service;
-    public string StatusText => Status.StatusText;
+    /// <summary>
+    /// Microsoft keeps a service "healthy" while advisories are open; a green chip beside an open
+    /// issue reads as a contradiction, so that case says "Advisory" in amber.
+    /// </summary>
+    public bool HasAdvisory => Status.IsHealthy && OpenIssues > 0;
+    public string StatusText => HasAdvisory ? "Advisory" : Status.StatusText;
     public bool IsHealthy => Status.IsHealthy;
     public bool IsDown => Status.Status == "serviceInterruption";
     public bool IsDegraded => !IsHealthy && !IsDown;
-    public BadgeKind Kind => ServiceHealthLists.KindOf(Status.Status);
+    public BadgeKind Kind => HasAdvisory ? BadgeKind.Warning : ServiceHealthLists.KindOf(Status.Status);
     public string IssuesText => OpenIssues switch { 0 => "No open issues", 1 => "1 open issue", var n => $"{n} open issues" };
 }
 

@@ -53,7 +53,7 @@
       <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
         <TextBlock Classes="caption" Text="Period" VerticalAlignment="Center" />
         <ComboBox ItemsSource="{x:Static ms:MailSecurityViewModel.QuarantineRanges}" SelectedItem="{Binding QuarantineRange}" MinWidth="160" />
-        <Button Classes="ghost" Command="{Binding RefreshQuarantineCommand}" ToolTip.Tip="Read the quarantine again">
+        <Button Command="{Binding RefreshQuarantineCommand}" ToolTip.Tip="Read the quarantine again">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
             <TextBlock Text="Refresh" />
@@ -121,7 +121,7 @@
             <TextBlock Text="Reorder Rules" />
           </StackPanel>
         </Button>
-        <Button Classes="ghost" Command="{Binding RefreshRulesCommand}" ToolTip.Tip="Read the rules again">
+        <Button Command="{Binding RefreshRulesCommand}" ToolTip.Tip="Read the rules again">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
             <TextBlock Text="Refresh" />
@@ -144,7 +144,7 @@
             <TextBlock Text="Add Entries" />
           </StackPanel>
         </Button>
-        <Button Classes="ghost" Command="{Binding RefreshEntriesCommand}" ToolTip.Tip="Read the lists again">
+        <Button Command="{Binding RefreshEntriesCommand}" ToolTip.Tip="Read the lists again">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
             <TextBlock Text="Refresh" />

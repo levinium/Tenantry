@@ -53,7 +53,7 @@ public sealed partial class SettingRow : ObservableObject
         Choices = [.. (def.Choices ?? []).Select(c => new SettingChoice(c.Value, c.Label))];
         if (def.Kind == SettingKind.Choice && read?.GetValue<string>() is { } value)
             Choice = Choices.FirstOrDefault(c => c.Value.Equals(value, StringComparison.OrdinalIgnoreCase));
-        NumberText = def.Kind == SettingKind.Number && read is not null ? read.GetValue<int>().ToString(CultureInfo.CurrentCulture) : "";
+        NumberText = def.Kind == SettingKind.Number && read is not null ? NumberWords(read.GetValue<int>()) : "";
         TextValue = def.Kind is SettingKind.Text or SettingKind.LongText && read is JsonValue text && text.TryGetValue<string>(out var t) ? t
             : def.Kind == SettingKind.Script && read is JsonValue script && script.TryGetValue<string>(out var b64) ? Decode(b64) : "";
         ListText = read is JsonArray items ? string.Join(Environment.NewLine, items.Select(i => i!.GetValue<string>())) : "";
@@ -112,12 +112,36 @@ public sealed partial class SettingRow : ObservableObject
     public string Help => Def.Help;
     public bool IsOnOff => Def.Kind == SettingKind.OnOff;
     public bool IsNumber => Def.Kind == SettingKind.Number;
+
+    /// <summary>"days", "MB": shown in the number box.</summary>
+    public string? Unit => Def.Unit;
+
+    public bool HasUnit => !string.IsNullOrEmpty(Def.Unit);
+
+    /// <summary>
+    /// Microsoft writes "never" as the largest whole number (2147483647, as for password expiry):
+    /// shown and typed as Never, where the setting allows it.
+    /// </summary>
+    string NumberWords(int n) => n == int.MaxValue && Def.Max == int.MaxValue ? "Never" : n.ToString(CultureInfo.CurrentCulture);
+
+    bool TryNumber(string text, out int n)
+    {
+        if (Def.Max == int.MaxValue && text.Trim().Equals("never", StringComparison.OrdinalIgnoreCase))
+        {
+            n = int.MaxValue;
+            return true;
+        }
+        return int.TryParse(text, NumberStyles.Integer, CultureInfo.CurrentCulture, out n);
+    }
     public bool IsChoice => Def.Kind == SettingKind.Choice;
 
     public bool CanEdit => _context.Pipeline is not null && _context.CanEdit.IsAvailable;
 
     /// <summary>Exchange leaves it unset: Microsoft's default applies until it's chosen here.</summary>
     public bool IsUnset => _read is null;
+
+    /// <summary>The "not set" note, except where the empty box already says "Not configured".</summary>
+    public bool ShowUnsetText => IsUnset && !IsText;
 
     public string UnsetText => _context.UnsetText
         ?? (Def.DefaultOn is { } d ? $"Not set: Microsoft's default ({(d ? "on" : "off")}) applies." : "Not set: Microsoft's default applies.");
@@ -154,9 +178,9 @@ public sealed partial class SettingRow : ObservableObject
             Restage(null);
             return;
         }
-        if (!int.TryParse(NumberText, NumberStyles.Integer, CultureInfo.CurrentCulture, out var n) || n < Def.Min || n > Def.Max)
+        if (!TryNumber(NumberText, out var n) || n < Def.Min || n > Def.Max)
         {
-            Problem = $"A whole number from {Def.Min:N0} to {Def.Max:N0}.";
+            Problem = Def.Max == int.MaxValue ? $"A whole number from {Def.Min:N0} up, or Never." : $"A whole number from {Def.Min:N0} to {Def.Max:N0}.";
             return;
         }
         Problem = null;

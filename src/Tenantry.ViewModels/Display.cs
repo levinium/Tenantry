@@ -73,6 +73,26 @@ public static class Display
     /// "set the message header to this value" → "Set the Message Header to This Value". Words already
     /// carrying capitals ("SCL", "(SCL)", and "To" in "the To box") are names and stay as they are.
     /// </summary>
+    /// <summary>
+    /// A label from a property name ("AllowPowerPointSharing" → "Allow PowerPoint Sharing",
+    /// "AllowAnonymousUsersToJoinMeeting" → "Allow Anonymous Users to Join Meeting"): product names
+    /// rejoined, and short words lower case even though the name capitalised them.
+    /// </summary>
+    public static string PropertyLabel(string name)
+    {
+        var words = TitleCase(Tenantry.Core.Directory.SettingsCatalog.Words(name)).Split(' ');
+        for (var i = 1; i < words.Length - 1; i++)
+            if (MinorWords.Contains(words[i]) && words[i].Skip(1).All(char.IsLower))
+                words[i] = words[i].ToLowerInvariant();
+        var label = string.Join(' ', words);
+        foreach (var (split, joined) in JoinedNames)
+            label = label.Replace(split, joined, StringComparison.Ordinal);
+        return label;
+    }
+
+    static readonly (string, string)[] JoinedNames =
+        [("Power Point", "PowerPoint"), ("Share Point", "SharePoint"), ("One Drive", "OneDrive"), ("One Note", "OneNote"), ("You Tube", "YouTube")];
+
     public static string TitleCase(string text)
     {
         var words = text.Split(' ');

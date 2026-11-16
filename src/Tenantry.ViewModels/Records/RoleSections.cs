@@ -301,9 +301,9 @@ public sealed class RolePermissionsSection : RecordSection
         static IEnumerable<string> Words(string s) => System.Text.RegularExpressions.Regex.Replace(s.Replace('.', ' '), "(?<=[a-z0-9])(?=[A-Z])", " ")
             .Split(' ', StringSplitOptions.RemoveEmptyEntries);
         static string Title(string s) => string.Join(' ', Words(s).Select(w => char.ToUpperInvariant(w[0]) + w[1..]));
-        static string Lower(string s) => string.Join(' ', Words(s).Select(w => w.ToLowerInvariant()));
         var service = parts[0] == "microsoft.directory" ? "" : Title(parts[0].Replace("microsoft.", "", StringComparison.Ordinal)) + " › ";
-        return (service + Title(parts[1]), parts.Length > 2 ? string.Join(" › ", parts[2..].Select(Lower)) : "everything");
+        // Items are chips: Title Case, like every other chip.
+        return (service + Title(parts[1]), parts.Length > 2 ? string.Join(" › ", parts[2..].Select(Title)) : "Everything");
     }
 
     internal void Rebuild()

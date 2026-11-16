@@ -14,7 +14,7 @@
             <TextBlock Classes="h3" Text="Connection Filter" />
             <TextBlock Classes="muted" TextWrapping="Wrap" Text="IP addresses always let in or always refused, before any other check. For a sender by name or domain, use Block and Allow Lists instead." />
           </StackPanel>
-          <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
+          <Button Grid.Column="1" Command="{Binding RefreshCommand}" VerticalAlignment="Top" ToolTip.Tip="Read them from Exchange again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />

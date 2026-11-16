@@ -72,7 +72,7 @@
         <StackPanel Spacing="10">
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Classes="h3" Text="Reports" VerticalAlignment="Center" />
-            <Button Grid.Column="1" Classes="ghost" Command="{Binding RefreshCommand}" ToolTip.Tip="Read the reports again">
+            <Button Grid.Column="1" Command="{Binding RefreshCommand}" ToolTip.Tip="Read the reports again">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
                 <TextBlock Text="Refresh" />

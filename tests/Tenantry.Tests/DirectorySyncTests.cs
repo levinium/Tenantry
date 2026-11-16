@@ -192,7 +192,7 @@ public class DirectorySyncTests
         Assert.NotNull(store.GetMark(DirectorySync.SignIns));
         // No Intune role: devices come from Entra alone, with a note saying why.
         var device = (await new CachedTenantDirectory(store, "Contoso").GetDevicesAsync(Ct)).Single();
-        Assert.Equal(("LAPTOP-1", "Entra joined", false), (device.Name, device.JoinType, device.IsManaged));
+        Assert.Equal(("LAPTOP-1", "Entra Joined", false), (device.Name, device.JoinType, device.IsManaged));
         Assert.Contains(sync.Notes, n => n.StartsWith("Intune devices weren't read", StringComparison.Ordinal));
     }
 
@@ -219,7 +219,7 @@ public class DirectorySyncTests
         Assert.False(laptop.KeyBackedUp);
         // Intune-only: keyed by its Intune ID, no Entra record to enable or delete.
         var kiosk = devices.Single(d => d.Name == "KIOSK");
-        Assert.Equal(("intune:m3", null, "Intune only", true), (kiosk.Key, kiosk.ObjectId, kiosk.JoinType, kiosk.Compliant));
+        Assert.Equal(("intune:m3", null, "Intune Only", true), (kiosk.Key, kiosk.ObjectId, kiosk.JoinType, kiosk.Compliant));
     }
 
     [Fact]
