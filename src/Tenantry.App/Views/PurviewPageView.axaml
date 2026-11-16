@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:Tenantry.App.Controls"
              xmlns:pv="using:Tenantry.ViewModels.Purview"
              xmlns:views="using:Tenantry.App.Views"
              xmlns:ic="using:FluentIcons.Avalonia"
@@ -49,7 +50,7 @@
             <Border Classes="banner neutral" IsVisible="{Binding HasNote}">
               <TextBlock TextWrapping="Wrap" Text="{Binding Note}" />
             </Border>
-            <TextBox Text="{Binding FilterText}" PlaceholderText="Find by name" Width="480" HorizontalAlignment="Left" IsVisible="{Binding ShowFilter}" />
+            <TextBox c:SearchClear.IsOn="True" Text="{Binding FilterText}" PlaceholderText="Find by name" Width="480" HorizontalAlignment="Left" IsVisible="{Binding ShowFilter}" />
             <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
               <Panel Width="16" Height="16" VerticalAlignment="Center">
                 <Ellipse Classes="spintrack" />

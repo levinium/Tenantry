@@ -40,7 +40,7 @@
         <Flyout Placement="BottomEdgeAlignedLeft">
           <StackPanel Spacing="8" Width="420">
             <TextBlock Classes="caption" TextWrapping="Wrap" Text="Type the start of the app's name." />
-            <TextBox Text="{Binding Query}" PlaceholderText="App name" />
+            <TextBox c:SearchClear.IsOn="True" Text="{Binding Query}" PlaceholderText="App name" />
             <TextBlock Classes="muted" Text="Searching…" IsVisible="{Binding IsSearching}" />
     <ScrollViewer MaxHeight="320">
     <ItemsControl x:Name="RowList" ItemsSource="{Binding Rows}">

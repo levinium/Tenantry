@@ -589,7 +589,7 @@
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="Items they deleted that Exchange still keeps (usually 14 days after emptying Deleted Items). Restoring puts an item back in the folder it was deleted from." />
             <c:ReadableWidth>
-              <TextBox Text="{Binding DeletedSearch, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True"
+              <TextBox c:SearchClear.IsOn="True" Text="{Binding DeletedSearch, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True"
                        PlaceholderText="Search by subject" Width="360" HorizontalAlignment="Left" />
             </c:ReadableWidth>
             <TextBlock Classes="muted" Text="Reading their deleted items…" IsVisible="{Binding DeletedLoading}" />

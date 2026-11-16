@@ -34,7 +34,7 @@
         </ComboBox>
       </StackPanel>
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-        <TextBox Text="{Binding Search}" PlaceholderText="Search permissions: users, password, groups…" />
+        <TextBox c:SearchClear.IsOn="True" Text="{Binding Search}" PlaceholderText="Search permissions: users, password, groups…" />
         <CheckBox Grid.Column="1" IsChecked="{Binding OnlyChosen}" Content="Only Chosen" VerticalAlignment="Center" />
         <TextBlock Grid.Column="2" Classes="caption" Text="{Binding ChosenText}" VerticalAlignment="Center" />
       </Grid>

@@ -43,7 +43,7 @@
           <TextBlock Classes="h3" Text="{Binding InstalledHeading}" />
           <TextBlock Classes="caption" TextWrapping="Wrap" Text="Everything the device reports installed, as Intune last heard it." />
         </StackPanel>
-        <TextBox Text="{Binding Search}" PlaceholderText="Search apps or publishers" MaxWidth="420" HorizontalAlignment="Left" Width="420" />
+        <TextBox c:SearchClear.IsOn="True" Text="{Binding Search}" PlaceholderText="Search apps or publishers" MaxWidth="420" HorizontalAlignment="Left" Width="420" />
         <TextBlock Classes="muted" Text="It reports no installed apps." IsVisible="{Binding HasNoInstalled}" />
         <ItemsControl ItemsSource="{Binding Installed}">
           <ItemsControl.ItemsPanel>

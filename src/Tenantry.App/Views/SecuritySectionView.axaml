@@ -319,7 +319,7 @@
                     ToolTip.Tip="How they connected. Legacy protocols (IMAP, POP, SMTP, ActiveSync…) often sign in without MFA." />
           <ComboBox ItemsSource="{Binding AuthOptions}" SelectedItem="{Binding SelectedAuth}" MinWidth="170" MaxDropDownHeight="360"
                     ToolTip.Tip="Whether the sign-in needed more than a password" />
-          <TextBox Text="{Binding SignInSearch, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True"
+          <TextBox c:SearchClear.IsOn="True" Text="{Binding SignInSearch, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" c:EditCommit.Idle="True"
                    Width="220" PlaceholderText="Search IP, device, reason…" />
           <Button Classes="link" Content="Clear Filters" Command="{Binding ClearSignInFiltersCommand}" IsVisible="{Binding HasSignInFilters}" VerticalAlignment="Center" />
         </WrapPanel>

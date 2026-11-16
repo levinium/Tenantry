@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:Tenantry.App.Controls"
              xmlns:vm="using:Tenantry.ViewModels"
              xmlns:lists="using:Tenantry.ViewModels.Lists"
              xmlns:views="using:Tenantry.App.Views"
@@ -125,7 +126,7 @@
       </Grid>
 
       <!-- Search: full width -->
-      <TextBox DockPanel.Dock="Top" Margin="0,0,0,10" Text="{Binding SearchText}" PlaceholderText="{Binding SearchHint}">
+      <TextBox c:SearchClear.IsOn="True" DockPanel.Dock="Top" Margin="0,0,0,10" Text="{Binding SearchText}" PlaceholderText="{Binding SearchHint}">
         <TextBox.InnerLeftContent>
           <ic:FluentIcon Icon="Search" FontSize="16" Margin="10,0,2,0" Foreground="{DynamicResource TextMuted}" />
         </TextBox.InnerLeftContent>
@@ -205,7 +206,7 @@
                 <Flyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="menu">
                   <StackPanel Width="300" Spacing="6">
                     <TextBlock Classes="label" Margin="10,6,10,0" Text="FILTER BY" />
-                    <TextBox Margin="4,0" Text="{Binding FilterFieldSearch}" PlaceholderText="Find a field">
+                    <TextBox c:SearchClear.IsOn="True" Margin="4,0" Text="{Binding FilterFieldSearch}" PlaceholderText="Find a field">
                       <TextBox.InnerLeftContent>
                         <ic:FluentIcon Icon="Search" FontSize="14" Margin="10,0,2,0" Foreground="{DynamicResource TextMuted}" />
                       </TextBox.InnerLeftContent>
@@ -379,7 +380,7 @@
                         <RadioButton Theme="{StaticResource SegmentButton}" GroupName="choiceMode" IsChecked="{Binding HideSelected}" Content="Hide These" />
                       </StackPanel>
                     </Border>
-                    <TextBox Text="{Binding ValueSearch}" PlaceholderText="Find a value" IsVisible="{Binding HasManyValues}">
+                    <TextBox c:SearchClear.IsOn="True" Text="{Binding ValueSearch}" PlaceholderText="Find a value" IsVisible="{Binding HasManyValues}">
                       <TextBox.InnerLeftContent>
                         <ic:FluentIcon Icon="Search" FontSize="14" Margin="10,0,2,0" Foreground="{DynamicResource TextMuted}" />
                       </TextBox.InnerLeftContent>

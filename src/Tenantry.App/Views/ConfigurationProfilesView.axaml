@@ -52,7 +52,7 @@
             </ComboBox>
           </Grid>
           <StackPanel Orientation="Horizontal" Spacing="8">
-            <TextBox Text="{Binding NewSearchText}" PlaceholderText="First setting: search the catalog" Width="360">
+            <TextBox c:SearchClear.IsOn="True" Text="{Binding NewSearchText}" PlaceholderText="First setting: search the catalog" Width="360">
               <TextBox.KeyBindings>
                 <KeyBinding Gesture="Enter" Command="{Binding SearchNewCommand}" />
               </TextBox.KeyBindings>
@@ -88,7 +88,7 @@
         </StackPanel>
       </Border>
 
-      <TextBox Text="{Binding FilterText}" PlaceholderText="Find a profile by name or kind" MaxWidth="480" HorizontalAlignment="Left" Width="480" />
+      <TextBox c:SearchClear.IsOn="True" Text="{Binding FilterText}" PlaceholderText="Find a profile by name or kind" MaxWidth="480" HorizontalAlignment="Left" Width="480" />
       <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
         <Panel Width="16" Height="16" VerticalAlignment="Center">
           <Ellipse Classes="spintrack" />
@@ -161,7 +161,7 @@
                     <StackPanel Spacing="8">
                       <TextBlock Text="Add a Setting" FontWeight="SemiBold" />
                       <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBox Text="{Binding SearchText}" PlaceholderText="Search the catalog, like BitLocker or screen lock" Width="360">
+                        <TextBox c:SearchClear.IsOn="True" Text="{Binding SearchText}" PlaceholderText="Search the catalog, like BitLocker or screen lock" Width="360">
                           <TextBox.KeyBindings>
                             <KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" />
                           </TextBox.KeyBindings>

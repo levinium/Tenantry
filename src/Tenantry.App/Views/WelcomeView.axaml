@@ -41,7 +41,7 @@
       <StackPanel Spacing="10" IsVisible="{Binding HasProfiles}">
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
           <TextBlock Classes="label" Text="TENANTS" VerticalAlignment="Center" />
-          <TextBox Grid.Column="1" MaxWidth="360" HorizontalAlignment="Right" Text="{Binding SearchText}"
+          <TextBox c:SearchClear.IsOn="True" Grid.Column="1" MaxWidth="360" HorizontalAlignment="Right" Text="{Binding SearchText}"
                    PlaceholderText="Search tenants by name, domain or account" IsVisible="{Binding ShowSearch}">
             <TextBox.InnerLeftContent>
               <ic:FluentIcon Icon="Search" FontSize="14" Margin="10,0,2,0" Foreground="{DynamicResource TextMuted}" />

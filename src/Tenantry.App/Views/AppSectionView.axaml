@@ -198,7 +198,7 @@
                                 </DataTemplate>
                               </ComboBox.ItemTemplate>
                             </ComboBox>
-                            <TextBox Text="{Binding Search}" PlaceholderText="Search, like Mail.Read or calendars" Width="300" c:FocusWhen.Value="{Binding IsOpen}">
+                            <TextBox c:SearchClear.IsOn="True" Text="{Binding Search}" PlaceholderText="Search, like Mail.Read or calendars" Width="300" c:FocusWhen.Value="{Binding IsOpen}">
                               <TextBox.KeyBindings>
                                 <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
                               </TextBox.KeyBindings>

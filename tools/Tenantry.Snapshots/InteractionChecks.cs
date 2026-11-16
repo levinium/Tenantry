@@ -681,6 +681,46 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Search boxes: the × shows once something is typed, and clicking it empties the search and keeps the help icon", () =>
+        {
+            var (window, main, _) = OpenList();
+            var box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && Tenantry.App.Controls.SearchClear.GetIsOn(t) && t.DataContext == main.Users);
+            var clear = box.GetVisualDescendants().OfType<Button>().First(b => b.Classes.Contains("searchclear"));
+            Expect(!clear.IsVisible, "no × while the box is empty");
+            Expect(box.GetVisualDescendants().OfType<FluentIcons.Avalonia.FluentIcon>().Any(i => i.Icon == FluentIcons.Common.Icon.QuestionCircle), "the help icon is still there");
+            box.Focus();
+            window.KeyTextInput("zzz");
+            Settle();
+            Expect(main.Users.SearchText == "zzz" && clear.IsVisible, "typing shows the ×");
+            Click(window, clear);
+            Settle();
+            Expect(string.IsNullOrEmpty(main.Users.SearchText), "the × emptied the search");
+            Expect(!clear.IsVisible && box.IsFocused, "the × hid and the cursor is back in the box");
+            window.Close();
+        });
+
+        Check("Search boxes that update when left: the × empties the search straight away", () =>
+        {
+            var (window, _, page) = OpenRecord();
+            page.SelectedSection = page.MailTab;
+            Settle();
+            page.MailTab.SelectedPage = MailPage.Recovery;
+            for (var i = 0; i < 5; i++)
+                Settle();
+            var box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && Tenantry.App.Controls.SearchClear.GetIsOn(t));
+            box.BringIntoView();
+            box.Focus();
+            window.KeyTextInput("zzz");
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Settle();
+            Expect(page.MailTab.DeletedSearch == "zzz", "Enter searched");
+            var clear = box.GetVisualDescendants().OfType<Button>().First(b => b.Classes.Contains("searchclear"));
+            Click(window, clear);
+            Settle();
+            Expect(string.IsNullOrEmpty(page.MailTab.DeletedSearch), "the × emptied the search without leaving the box");
+            window.Close();
+        });
+
         Check("List ticks: a plain click on a row keeps them; the pane has no ✕ while they show; ticking all says so", () =>
         {
             var (window, main, _) = OpenList();

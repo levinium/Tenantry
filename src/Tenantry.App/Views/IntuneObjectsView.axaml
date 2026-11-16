@@ -74,7 +74,7 @@
         </StackPanel>
       </Border>
 
-      <TextBox Text="{Binding FilterText}" PlaceholderText="Find by name or kind" Width="480" HorizontalAlignment="Left" />
+      <TextBox c:SearchClear.IsOn="True" Text="{Binding FilterText}" PlaceholderText="Find by name or kind" Width="480" HorizontalAlignment="Left" />
       <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
         <Panel Width="16" Height="16" VerticalAlignment="Center">
           <Ellipse Classes="spintrack" />
