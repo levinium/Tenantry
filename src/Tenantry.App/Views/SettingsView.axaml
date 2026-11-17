@@ -222,7 +222,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasCount}" VerticalAlignment="Center">
                       <NumericUpDown Value="{Binding Count}" Minimum="1" Maximum="64" Increment="1" FormatString="0" Width="110" ToolTip.Tip="How many" />
                       <TextBlock Classes="caption" Text="up to" VerticalAlignment="Center" />
-                      <NumericUpDown Value="{Binding UpTo}" Minimum="1" Maximum="64" Increment="1" FormatString="0" Width="150" PlaceholderText="Same as minimum"
+                      <NumericUpDown Value="{Binding UpTo}" Minimum="1" Maximum="64" Increment="1" FormatString="0" Width="150" PlaceholderText="No range"
                                      ToolTip.Tip="Leave empty for exactly that many; fill it in for a range, like 6 up to 8" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasLetterRules}" VerticalAlignment="Center">
