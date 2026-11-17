@@ -62,6 +62,25 @@ public sealed class OneDriveActivityTests
     }
 
     [Fact]
+    public async Task Someone_SharePoint_doesnt_know_yet_is_explained_in_plain_words()
+    {
+        // Seen live: licensed, but never signed in, so SharePoint can't resolve them.
+        var http = new FakeHttp()
+            .On(HttpMethod.Get, "/sites/root", Root)
+            .On(HttpMethod.Post, "ProcessQuery", """[{"SchemaVersion":"15.0.0.0","ErrorInfo":{"ErrorMessage":"The user does not exist or is not unique.","ErrorCode":-2146232832}}]""");
+        var executor = new GraphChangeExecutor(Graph(http), new MemoryEntityStore(), NoDelay.Instance, sharePoint: SharePoint(http));
+        var owner = new ChangeTarget("user", "u1", "Ada", "ada@contoso.example");
+        var newcomer = new ChangeTarget("user", "u2", "Bo", "bo@contoso.example");
+
+        var result = await executor.ApplyAsync(new SetOneDriveAccess(owner, "https://contoso-my.sharepoint.com/personal/ada", "site-1", newcomer,
+            SetOneDriveAccess.LoginFor("bo@contoso.example"), false, true), Ct);
+
+        Assert.Equal(ChangeOutcome.Failed, result.Outcome);
+        Assert.StartsWith(SharePointException.UnknownPersonText, result.Detail);
+        Assert.Contains("The user does not exist or is not unique.", result.Detail);
+    }
+
+    [Fact]
     public async Task Access_changes_are_read_back_from_the_admin_list()
     {
         var http = new FakeHttp()

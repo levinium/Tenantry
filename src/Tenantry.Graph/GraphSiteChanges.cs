@@ -27,12 +27,9 @@ public sealed partial class GraphChangeExecutor
         {
             return new ApplyResult(ChangeOutcome.Failed, e.Status is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized
                 ? MicrosoftReply.After("SharePoint lets only a site's admins change what's inside it. Add yourself as a site admin first.", e)
-                // Seen live for people without a SharePoint license: SharePoint doesn't know them.
                 : e.Message.Contains("Archiving", StringComparison.Ordinal) && e.Message.Contains("Billing", StringComparison.OrdinalIgnoreCase)
                     ? "Archiving needs Microsoft 365 Archive, which needs pay-as-you-go billing set up in the Microsoft 365 admin center (Settings › Org settings › Pay-as-you-go services)."
-                : e.Message.Contains("could not be found", StringComparison.OrdinalIgnoreCase) || e.Message.Contains("does not exist or is not unique", StringComparison.OrdinalIgnoreCase)
-                    ? $"{e.Message} SharePoint only gives access to people with a SharePoint license (or guests already invited)."
-                    : e.Message);
+                    : e.Explanation);
         }
         catch (GraphException e)
         {
@@ -192,7 +189,7 @@ public sealed partial class GraphChangeExecutor
                     }
                     catch (SharePointException e)
                     {
-                        unfinished.Add($"{other.Name} ({e.Message})");
+                        unfinished.Add($"{other.Name} ({(e.IsUnknownPerson ? "SharePoint doesn't know them yet: they need a SharePoint license and to have signed in to Microsoft 365 once" : e.Message)})");
                     }
                 }
             else

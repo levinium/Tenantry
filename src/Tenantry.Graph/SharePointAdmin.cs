@@ -18,6 +18,22 @@ public sealed class SharePointException(HttpStatusCode status, string message, s
 
     /// <summary>SharePoint has no such site (or deleted site).</summary>
     public bool IsNoSite => ErrorType is { } t && (t.EndsWith("SpoNoSiteException", StringComparison.Ordinal) || t.EndsWith("FileNotFoundException", StringComparison.Ordinal));
+
+    /// <summary>
+    /// SharePoint doesn't know the person being given access ("The user does not exist or is not
+    /// unique."). Seen live for someone licensed who had never signed in, and for unlicensed people.
+    /// </summary>
+    public bool IsUnknownPerson => Message.Contains("does not exist or is not unique", StringComparison.OrdinalIgnoreCase)
+        || Message.Contains("could not be found", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>What to tell the admin: the plain reason where it's known, Microsoft's words after it.</summary>
+    public string Explanation => IsUnknownPerson
+        ? MicrosoftReply.After(UnknownPersonText, this)
+        : Message;
+
+    public const string UnknownPersonText =
+        "SharePoint doesn't know this person yet. It only knows people with a SharePoint license who have signed in to Microsoft 365 at least once " +
+        "(or guests who accepted their invitation). Ask them to sign in once, for example at office.com, then try again.";
 }
 
 /// <summary>

@@ -17,7 +17,7 @@ public sealed partial class GraphChangeExecutor
         }
         catch (SharePointException e)
         {
-            return new ApplyResult(ChangeOutcome.Failed, e.Message);
+            return new ApplyResult(ChangeOutcome.Failed, e.Explanation);
         }
         foreach (var wait in ReadBackWaits)
         {
