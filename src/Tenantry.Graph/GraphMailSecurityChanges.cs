@@ -504,8 +504,14 @@ public sealed partial class GraphChangeExecutor
             }
             catch (CmdletException e)
             {
-                return new ApplyResult(i == 0 ? ChangeOutcome.Failed : ChangeOutcome.AppliedNotYetVisible,
-                    $"{(i == 0 ? "Nothing moved" : $"{i} of {moves.Count} moves went through")}; moving \"{Name(moves[i].Identity)}\" failed: {e.Explanation} Refresh the rules to see where they stand.");
+                // Part of the order is in place: only the moves still to make stay in Pending Changes.
+                return i == 0
+                    ? new ApplyResult(ChangeOutcome.Failed, $"Nothing moved; moving \"{Name(moves[i].Identity)}\" failed: {e.Explanation}")
+                    : new ApplyResult(ChangeOutcome.Failed,
+                        $"{i} of {moves.Count} moves went through; moving \"{Name(moves[i].Identity)}\" failed: {e.Explanation} The rest stays in Pending Changes to apply again.")
+                    {
+                        Remaining = change.AfterMoves(i),
+                    };
             }
         }
         string Name(string identity) => change.New.FirstOrDefault(r => r.Identity == identity)?.Name ?? identity;
@@ -565,7 +571,11 @@ public sealed partial class GraphChangeExecutor
         var expected = (JsonObject)JsonNode.Parse(change.Parameters)!;
         expected.Remove("Mode");
         expected.Remove("Enabled");
-        return NotAsAsked(await ReadRule(change.Rule.Name, cancellationToken), expected) ?? result;
+        // The rule exists now: a mismatch is reported, but the change must leave Pending Changes,
+        // or applying again would try to make a second rule with the same name.
+        return NotAsAsked(await ReadRule(change.Rule.Name, cancellationToken), expected) is { } wrong
+            ? new ApplyResult(ChangeOutcome.Applied, wrong.Detail + " Open the rule to check them.")
+            : result;
     }
 
     async Task<ApplyResult> UpdateRuleAsync(UpdateRule change, CancellationToken cancellationToken)

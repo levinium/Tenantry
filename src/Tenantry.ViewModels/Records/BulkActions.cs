@@ -511,7 +511,8 @@ public static partial class BulkActions
                 return Task.FromResult(Plan(selected(), d =>
                     d.ManagedId is null ? (null, $"{d.Name}: not managed by Intune")
                     : d.Ownership == (company ? DeviceFields.Company : DeviceFields.Personal) ? (null, $"{d.Name}: already {(company ? "company-owned" : "personal")}")
-                    : (new SetDeviceOwnership(IntuneTarget(d), d.Ownership != DeviceFields.Personal, company), null)));
+                    // Not the chosen one, so the other (unknown ownership too: else the change reads as none and is dropped).
+                    : (new SetDeviceOwnership(IntuneTarget(d), !company, company), null)));
             },
             choiceLabel: "Owned By", choices: [new BulkChoice("Company", true), new BulkChoice("Personal", false)], group: Settings));
         actions.Add(new("Disable or Enable", "A disabled device can't be used to sign in to Microsoft 365; enable it to allow that again.", "Prohibited",
@@ -520,7 +521,7 @@ public static partial class BulkActions
                 var enable = (bool)a.Choice!.Value;
                 return Task.FromResult(Plan(selected(), d => d.ObjectId is null ? (null, $"{d.Name}: not in Entra")
                     : d.Enabled == enable ? (null, $"{d.Name}: already {(enable ? "enabled" : "disabled")}")
-                    : (new SetDeviceEnabled(EntraTarget(d), d.Enabled != false, enable), null)));
+                    : (new SetDeviceEnabled(EntraTarget(d), !enable, enable), null)));
             },
             choiceLabel: "Device", choices: [new BulkChoice("Disable", false), new BulkChoice("Enable", true)], group: Settings));
         actions.Add(new("Rotate BitLocker Keys", "Make new BitLocker recovery keys and back them up, after a key has been shown to someone (Windows).", "Key",

@@ -198,7 +198,7 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
     readonly AddPermissionForm _permissionForm;
     readonly CertificateForm _certificateForm;
     AppDirectory _directory;
-    Task<AppRegistrationDetail>? _detail;
+    readonly SharedRead<AppRegistrationDetail> _detail = new();
 
     public AppRegistrationPageViewModel(AppRegistration app, AppDirectory directory, IAppRecords? records, IDirectoryIndex? index, Action<UserSummary>? openUser,
         Action<EnterpriseApp>? openEnterprise, Func<DateTimeOffset> now, ChangePipeline? pipeline = null, Availability? canEdit = null)
@@ -280,7 +280,7 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
             return false;
         App = app;
         _directory = directory;
-        _detail = null;
+        _detail.Reset();
         _shownName = _shownNotes = null;
         ShowFields();
         Refresh(nameof(App));
@@ -439,18 +439,7 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
             return [.. CanEdit ? [AddPermissionCard()] : Array.Empty<AppCard>(), .. AddingCards(), new AppCard("API Permissions", EmptyText: "It doesn't ask for any permissions.")];
         if (Records is null)
             return [new AppCard("API Permissions", EmptyText: "Permissions can't be read for this tenant.")];
-        var read = _detail ??= Records.GetRegistrationDetailAsync(App, cancellationToken);
-        AppRegistrationDetail detail;
-        try
-        {
-            detail = await read;
-        }
-        catch
-        {
-            if (ReferenceEquals(_detail, read))
-                _detail = null;
-            throw;
-        }
+        var detail = await _detail.GetAsync(ct => Records.GetRegistrationDetailAsync(App, ct), cancellationToken);
         var cards = new List<AppCard>();
         var missing = detail.Permissions.Where(p => p.Consented == false && p.ResourceId.Length > 0).ToArray();
         var waiting = Pending.OfType<GrantAdminConsent>().FirstOrDefault();
@@ -502,7 +491,7 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
     readonly AppToggle _assignment;
     readonly AppToggle _visible;
     AppDirectory _directory;
-    Task<EnterpriseAppDetail>? _detail;
+    readonly SharedRead<EnterpriseAppDetail> _detail = new();
     DateTimeOffset? _lastSignIn;
     bool _lastSignInRead;
     IReadOnlyList<AppOwner> _owners = [];
@@ -598,8 +587,8 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
             return false;
         App = app;
         _directory = directory;
-        _detail = null;
-        _saml = null;
+        _detail.Reset();
+        _saml.Reset();
         _shownSaml = null;
         _settingUp = false;
         Refresh(nameof(App));
@@ -652,17 +641,7 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
     {
         if (Records is null)
             return null;
-        var read = _detail ??= Records.GetEnterpriseDetailAsync(App, cancellationToken);
-        try
-        {
-            return await read;
-        }
-        catch
-        {
-            if (ReferenceEquals(_detail, read))
-                _detail = null;
-            throw;
-        }
+        return await _detail.GetAsync(ct => Records.GetEnterpriseDetailAsync(App, ct), cancellationToken);
     }
 
     IReadOnlyList<AppCard> OverviewCards()

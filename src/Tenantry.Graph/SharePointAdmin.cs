@@ -119,22 +119,33 @@ public sealed class SharePointAdmin(HttpClient http, ITokenSource tokens, GraphC
     /// <param name="firstPageOnly">For a read that wants only the top few rows (the newest 10 files), not the whole collection.</param>
     public async Task<JsonElement> GetSiteAsync(string url, CancellationToken cancellationToken = default, bool firstPageOnly = false)
     {
-        var first = JsonDocument.Parse(await SendAsync(HttpMethod.Get, url, null, "application/json;odata=nometadata", cancellationToken)).RootElement.Clone();
+        JsonElement first;
+        using (var doc = JsonDocument.Parse(await SendAsync(HttpMethod.Get, url, null, "application/json;odata=nometadata", cancellationToken)))
+            first = doc.RootElement.Clone();
         if (firstPageOnly || !first.TryGetProperty("value", out var value) || value.ValueKind != JsonValueKind.Array || NextOf(first) is not { } next)
             return first;
-        // A collection in pages: follow SharePoint's next links and answer every row as one value.
-        var rows = new System.Text.Json.Nodes.JsonArray();
-        foreach (var row in value.EnumerateArray())
-            rows.Add(System.Text.Json.Nodes.JsonNode.Parse(row.GetRawText()));
-        for (var page = 0; next is not null && page < MaxRestPages; page++)
+        // A collection in pages: follow SharePoint's next links and answer every row as one value,
+        // each row copied once into the answer and each page's document let go as soon as it's read.
+        using var buffer = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(buffer))
         {
-            var more = JsonDocument.Parse(await SendAsync(HttpMethod.Get, next, null, "application/json;odata=nometadata", cancellationToken)).RootElement;
-            if (more.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.Array)
-                foreach (var row in v.EnumerateArray())
-                    rows.Add(System.Text.Json.Nodes.JsonNode.Parse(row.GetRawText()));
-            next = NextOf(more);
+            writer.WriteStartObject();
+            writer.WriteStartArray("value");
+            foreach (var row in value.EnumerateArray())
+                row.WriteTo(writer);
+            for (var page = 0; next is not null && page < MaxRestPages; page++)
+            {
+                using var more = JsonDocument.Parse(await SendAsync(HttpMethod.Get, next, null, "application/json;odata=nometadata", cancellationToken));
+                if (more.RootElement.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.Array)
+                    foreach (var row in v.EnumerateArray())
+                        row.WriteTo(writer);
+                next = NextOf(more.RootElement);
+            }
+            writer.WriteEndArray();
+            writer.WriteEndObject();
         }
-        return JsonDocument.Parse(new System.Text.Json.Nodes.JsonObject { ["value"] = rows }.ToJsonString()).RootElement.Clone();
+        using var all = JsonDocument.Parse(buffer.ToArray());
+        return all.RootElement.Clone();
     }
 
     /// <summary>How many further pages one REST read follows (5,000 rows a page is the most SharePoint gives).</summary>

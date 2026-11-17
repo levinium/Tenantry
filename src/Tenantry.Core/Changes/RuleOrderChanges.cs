@@ -61,6 +61,23 @@ public sealed record ReorderRules(ChangeTarget Rules, IReadOnlyList<RuleSlot> Ol
         return moves;
     }
 
+    /// <summary>
+    /// What's left once the first <paramref name="done"/> moves went through: the same new order,
+    /// starting from where those moves left the rules (so the next Apply sends only the rest).
+    /// </summary>
+    public ReorderRules AfterMoves(int done)
+    {
+        var current = Old.ToList();
+        foreach (var (id, to) in Moves().Take(done))
+        {
+            var at = current.FindIndex(r => r.Identity == id);
+            var slot = current[at];
+            current.RemoveAt(at);
+            current.Insert(to, slot);
+        }
+        return this with { Old = current };
+    }
+
     /// <summary>The positions (in <paramref name="values"/>) of a longest increasing run, in order.</summary>
     static List<int> LongestInOrder(List<int> values)
     {

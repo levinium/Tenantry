@@ -35,7 +35,7 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
 {
     readonly EdContext _ctx;
     readonly AppPickForm _memberForm;
-    Task<EdCaseDetail>? _detail;
+    readonly SharedRead<EdCaseDetail> _detail = new();
     EdCaseDetail? _last;
 
     public EdCasePageViewModel(EdCase eCase, EdContext ctx) : base(ctx.Pipeline)
@@ -143,7 +143,7 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
         if ((directory.Cases.FirstOrDefault(c => c.Id == Case.Id) ?? directory.Cases.FirstOrDefault(c => c.Name == Case.Name)) is not { } now)
             return false;
         Case = now;
-        _detail = null;
+        _detail.Reset();
         Refresh();
         return true;
     }
@@ -151,24 +151,14 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
     /// <summary>The searches, holds and members, read once for every tab; a failed read is tried again next time.</summary>
     async Task<EdCaseDetail> DetailAsync(CancellationToken cancellationToken)
     {
-        var read = _detail ??= _ctx.Records.GetCaseDetailAsync(Case, cancellationToken);
-        try
+        var detail = await _detail.GetAsync(ct => _ctx.Records.GetCaseDetailAsync(Case, ct), cancellationToken);
+        if (!ReferenceEquals(_last, detail))
         {
-            var detail = await read;
-            if (!ReferenceEquals(_last, detail))
-            {
-                _last = detail;
-                foreach (var name in new[] { nameof(Badges), nameof(Buttons), nameof(PendingText), nameof(HasPending) })
-                    OnPropertyChanged(name);
-            }
-            return detail;
+            _last = detail;
+            foreach (var name in new[] { nameof(Badges), nameof(Buttons), nameof(PendingText), nameof(HasPending) })
+                OnPropertyChanged(name);
         }
-        catch
-        {
-            if (ReferenceEquals(_detail, read))
-                _detail = null;
-            throw;
-        }
+        return detail;
     }
 
     async Task<IReadOnlyList<AppCard>> OverviewAsync(CancellationToken cancellationToken)
@@ -323,7 +313,7 @@ public sealed partial class EdSearchPageViewModel : CardPageViewModel
 
     readonly EdContext _ctx;
     readonly CancellationTokenSource _closing = new();
-    Task<EdSearchDetail>? _detail;
+    readonly SharedRead<EdSearchDetail> _detail = new();
 
     public EdSearchPageViewModel(EdSearch search, EdContext ctx) : base(ctx.Pipeline)
     {
@@ -405,7 +395,7 @@ public sealed partial class EdSearchPageViewModel : CardPageViewModel
         if (directory.Searches.FirstOrDefault(s => s.Name == Search.Name && s.CaseName == Search.CaseName) is not { } now)
             return false;
         Search = now;
-        _detail = null;
+        _detail.Reset();
         Refresh();
         if (EDiscovery.IsRunning(now.Status) && !IsBusy)
             _ = FollowRunAsync();
@@ -414,25 +404,15 @@ public sealed partial class EdSearchPageViewModel : CardPageViewModel
 
     async Task<EdSearchDetail> DetailAsync(CancellationToken cancellationToken)
     {
-        var read = _detail ??= _ctx.Records.GetEdSearchAsync(Search.Name, cancellationToken);
-        try
+        var detail = await _detail.GetAsync(ct => _ctx.Records.GetEdSearchAsync(Search.Name, ct), cancellationToken);
+        if (!ReferenceEquals(Detail, detail))
         {
-            var detail = await read;
-            if (!ReferenceEquals(Detail, detail))
-            {
-                Detail = detail;
-                Search = detail.Search with { CaseName = Search.CaseName };
-                foreach (var name in new[] { nameof(Badges), nameof(Buttons), nameof(Title) })
-                    OnPropertyChanged(name);
-            }
-            return detail;
+            Detail = detail;
+            Search = detail.Search with { CaseName = Search.CaseName };
+            foreach (var name in new[] { nameof(Badges), nameof(Buttons), nameof(Title) })
+                OnPropertyChanged(name);
         }
-        catch
-        {
-            if (ReferenceEquals(_detail, read))
-                _detail = null;
-            throw;
-        }
+        return detail;
     }
 
     async Task RunAsync()
@@ -466,7 +446,7 @@ public sealed partial class EdSearchPageViewModel : CardPageViewModel
             while (DateTimeOffset.UtcNow - started < GiveUpAfter)
             {
                 await Task.Delay(CheckEvery, _closing.Token);
-                _detail = null;
+                _detail.Reset();
                 var detail = await DetailAsync(_closing.Token);
                 finished = !EDiscovery.IsRunning(detail.Search.Status) && detail.Search.Status != "NotStarted";
                 if (finished)

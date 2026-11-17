@@ -64,7 +64,10 @@ public sealed partial class GraphChangeExecutor
                 "This is their default sign-in method, and Microsoft won't remove it while they have other methods. " +
                 "Remove their other methods first, or they can pick a new default at https://aka.ms/mysecurityinfo.");
         var retried = await Remove();
-        return retried.Succeeded ? retried with { Detail = $"Their default sign-in method is now {now}." } : retried;
+        // The default moved either way, so it's said either way.
+        return retried.Succeeded
+            ? retried with { Detail = $"Their default sign-in method is now {now}." }
+            : retried with { Detail = $"{retried.Detail} Their default sign-in method was changed to {now} so this one could be removed, and it stays {now}." };
     }
 
     /// <summary>A kept method's name for <c>signInPreferences</c>, in the order a new default is picked.</summary>

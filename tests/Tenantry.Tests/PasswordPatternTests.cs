@@ -32,6 +32,8 @@ public sealed class PasswordPatternTests
     [InlineData("L5+1U D2", "needs at least 8")]
     [InlineData("L6 D4", "three kinds")]
     [InlineData("U4 D4", "three kinds")]
+    // Digits that may be left out (0-2) don't make a third kind for sure.
+    [InlineData("U4 l4 D0-2", "three kinds")]
     public void Patterns_Microsoft_would_refuse_are_said_to_be(string text, string expected) =>
         Assert.Contains(expected, PasswordPattern.Problem(PasswordPattern.Parse(text).Parts));
 

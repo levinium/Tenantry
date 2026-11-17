@@ -105,7 +105,9 @@ public sealed class PwshSession(Func<bool, CancellationToken, Task<PsSignIn>> si
         }
         StatusDetail = $"PowerShell {version}";
         await ConnectAsync(PsService.Graph | PsService.Exchange | PsService.Purview | PsService.SharePoint, interactive: false, cancellationToken);
-        SetStatus(PsSessionStatus.Ready);
+        // Unless pwsh stopped while connecting (Exited has said so already).
+        if (Status == PsSessionStatus.Starting)
+            SetStatus(PsSessionStatus.Ready);
     }
 
     /// <summary>Starts pwsh and waits for the host's hello.</summary>
@@ -187,10 +189,12 @@ public sealed class PwshSession(Func<bool, CancellationToken, Task<PsSignIn>> si
             await RequestAsync(request, "connected", ConnectTimeout, cancellationToken);
             _connectedAt = DateTimeOffset.UtcNow;
         }
-        catch (TimeoutException)
+        catch (Exception e) when (e is TimeoutException or InvalidOperationException)
         {
+            // No answer in time, or pwsh stopped while connecting.
+            var why = e is TimeoutException ? "It didn't answer in time." : e.Message;
             foreach (var c in Connections.Where(c => services.HasFlag(c.Service) && c.Status is PsConnectionStatus.Waiting or PsConnectionStatus.Connecting))
-                SetConnection(c.Service, PsConnectionStatus.Failed, "It didn't answer in time.");
+                SetConnection(c.Service, PsConnectionStatus.Failed, why);
         }
     }
 
@@ -216,6 +220,11 @@ public sealed class PwshSession(Func<bool, CancellationToken, Task<PsSignIn>> si
                 {
                     output(new PsLine(PsStream.Verbose, "Signing PowerShell in again (sign-ins last about an hour)…"));
                     await ConnectAsync(connected, interactive: false, cancellationToken);
+                    if (Status is not PsSessionStatus.Ready)
+                    {
+                        output(new PsLine(PsStream.Error, StatusDetail ?? "PowerShell stopped while signing in again."));
+                        return new PsRunResult(false, 1, watch.Elapsed);
+                    }
                 }
             }
             SetStatus(PsSessionStatus.Running);

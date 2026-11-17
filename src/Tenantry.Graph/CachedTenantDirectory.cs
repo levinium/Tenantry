@@ -376,21 +376,35 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
     public Task<IReadOnlyList<SiteSummary>> GetSitesAsync(CancellationToken cancellationToken = default) =>
         Task.Run<IReadOnlyList<SiteSummary>>(() =>
         {
-            // SharePoint lists no owner names: a OneDrive's owner is a sign-in name (matched to the
-            // person), a group's site belongs to the group (named after it).
-            var people = new Dictionary<string, (string Name, string? Mail)>(StringComparer.OrdinalIgnoreCase);
-            foreach (var json in store.All(DirectorySync.Users))
+            // SharePoint lists no owner names: a group's site belongs to the group (named after it,
+            // read by its ID), a OneDrive's owner is a sign-in name (matched to the person). People
+            // are read only when some OneDrive needs a name, since that means every stored person.
+            var groups = new Dictionary<string, (string Name, string? Mail)?>(StringComparer.OrdinalIgnoreCase);
+            (string Name, string? Mail)? Group(string id)
             {
-                using var u = JsonDocument.Parse(json);
-                if (Str(u.RootElement, "userPrincipalName") is { } upn)
-                    people[upn] = (Str(u.RootElement, "displayName") ?? upn, Str(u.RootElement, "mail") ?? upn);
+                if (groups.TryGetValue(id, out var known))
+                    return known;
+                (string Name, string? Mail)? found = null;
+                if (store.Get(DirectorySync.Groups, id) is { } json)
+                {
+                    using var g = JsonDocument.Parse(json);
+                    found = (Str(g.RootElement, "displayName") ?? id, Str(g.RootElement, "mail"));
+                }
+                return groups[id] = found;
             }
-            var groups = new Dictionary<string, (string Name, string? Mail)>(StringComparer.OrdinalIgnoreCase);
-            foreach (var json in store.All(DirectorySync.Groups))
+            Dictionary<string, (string Name, string? Mail)>? people = null;
+            Dictionary<string, (string Name, string? Mail)> People()
             {
-                using var g = JsonDocument.Parse(json);
-                if (Str(g.RootElement, "id") is { } id)
-                    groups[id] = (Str(g.RootElement, "displayName") ?? id, Str(g.RootElement, "mail"));
+                if (people is not null)
+                    return people;
+                people = new Dictionary<string, (string Name, string? Mail)>(StringComparer.OrdinalIgnoreCase);
+                foreach (var json in store.All(DirectorySync.Users))
+                {
+                    using var u = JsonDocument.Parse(json);
+                    if (Str(u.RootElement, "userPrincipalName") is { } upn)
+                        people[upn] = (Str(u.RootElement, "displayName") ?? upn, Str(u.RootElement, "mail") ?? upn);
+                }
+                return people;
             }
             var stored = store.All(DirectorySync.Sites);
             var sites = new List<SiteSummary>(stored.Count);
@@ -401,13 +415,13 @@ public sealed class CachedTenantDirectory(IEntityStore store, string tenantName)
                 var site = ToSite(s.RootElement);
                 if (site.OwnerName is null)
                 {
-                    if (site.GroupId is { } groupId && groups.TryGetValue(groupId, out var group))
+                    if (site.GroupId is { } groupId && Group(groupId) is { } group)
                         site = site with { OwnerName = group.Name, OwnerEmail = site.OwnerEmail ?? group.Mail };
                     else if (site.OwnerLogin is { } login)
                     {
                         // Someone no longer in the directory still has a sign-in name to show.
                         var upn = login[(login.LastIndexOf('|') + 1)..];
-                        site = people.TryGetValue(upn, out var person)
+                        site = People().TryGetValue(upn, out var person)
                             ? site with { OwnerName = person.Name, OwnerEmail = site.OwnerEmail ?? person.Mail }
                             : upn.Contains('@') ? site with { OwnerName = upn } : site;
                     }

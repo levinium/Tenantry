@@ -742,9 +742,8 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
         return new ContactMethodForm($"Change {PhoneName(type)} Phone", "Save", isPhone: true, phone.Value ?? "", [(type, PhoneName(type))],
             form =>
             {
+                // Staged even when it's the number they have: that takes a pending change back out.
                 var number = NormalizePhone(form.Value)!;
-                if (PhoneNumbers.Same(number, phone.Value))
-                    return true;
                 _pipeline!.Stage(new UpdatePhoneMethod(Target, phone.Id, type, phone.Value ?? "", number));
                 return true;
             }, close);
@@ -767,8 +766,8 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
         new ContactMethodForm("Change Password Reset Email", "Save", isPhone: false, email.Value ?? "", [],
             form =>
             {
-                if (!string.Equals(form.Value.Trim(), email.Value, StringComparison.OrdinalIgnoreCase))
-                    _pipeline!.Stage(new SetEmailMethod(Target, email.Id, email.Value, form.Value.Trim()));
+                // Staged even when it's the address they have: that takes a pending change back out.
+                _pipeline!.Stage(new SetEmailMethod(Target, email.Id, email.Value, form.Value.Trim()));
                 return true;
             }, close);
 

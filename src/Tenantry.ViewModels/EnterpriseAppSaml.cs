@@ -10,7 +10,7 @@ namespace Tenantry.ViewModels;
 /// </summary>
 public sealed partial class EnterpriseAppPageViewModel
 {
-    Task<SamlSetup?>? _saml;
+    readonly SharedRead<SamlSetup?> _saml = new();
     bool _settingUp;
     AppField? _identifiers;
     AppField? _replyUrls;
@@ -27,17 +27,7 @@ public sealed partial class EnterpriseAppPageViewModel
     {
         if (Records is null)
             return null;
-        var read = _saml ??= Records.GetSamlAsync(App, cancellationToken);
-        try
-        {
-            return await read;
-        }
-        catch
-        {
-            if (ReferenceEquals(_saml, read))
-                _saml = null;
-            throw;
-        }
+        return await _saml.GetAsync(ct => Records.GetSamlAsync(App, ct), cancellationToken);
     }
 
     static IReadOnlyList<string> Lines(string text) =>
@@ -70,7 +60,7 @@ public sealed partial class EnterpriseAppPageViewModel
     /// <summary>The boxes as typed: checked, then staged as one change (with a first signing certificate when there's none).</summary>
     void StageSaml()
     {
-        if (!CanEdit || _saml is not { IsCompletedSuccessfully: true } read || read.Result is not { CanConfigure: true, RegistrationId: { } registration } setup)
+        if (!CanEdit || !_saml.TryGetDone(out var read) || read is not { CanConfigure: true, RegistrationId: { } registration } setup)
             return;
         var settings = new SamlSettings(Lines(_identifiers!.Text), Lines(_replyUrls!.Text), Blank(_signOnUrl!.Text), Blank(_logoutUrl!.Text), Blank(_relayState!.Text));
         var problems = Saml.Problems(settings);

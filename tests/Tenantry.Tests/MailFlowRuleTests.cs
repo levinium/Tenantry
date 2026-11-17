@@ -218,6 +218,36 @@ public sealed class MailFlowRuleTests
     }
 
     [Fact]
+    public async Task A_move_that_fails_part_way_keeps_only_the_moves_still_to_make_pending()
+    {
+        var sets = 0;
+        var exchange = new FakeCmdlets((cmdlet, _) => cmdlet == "Set-TransportRule" && ++sets == 2
+            ? throw new Tenantry.Core.Exchange.CmdletException("Set-TransportRule", 400, "Exchange is busy")
+            : "[]");
+        var executor = new GraphChangeExecutor(new GraphClient(new FakeHttp().Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore(), NoDelay.Instance, exchange);
+        var pipeline = new ChangePipeline(executor, new ChangeLog(new MemoryEntityStore()), new MemoryTestModeStore(true), "admin");
+        RuleSlot Slot(string id) => new(id, $"zz-tenantry-test-{id}");
+        var change = new ReorderRules(ReorderRules.OrderTarget, [Slot("a"), Slot("b"), Slot("c")], [Slot("c"), Slot("b"), Slot("a")]);
+        Assert.Equal(2, change.Moves().Count);
+        pipeline.Stage(change);
+
+        var (_, result) = Assert.Single(await pipeline.ApplyAsync(cancellationToken: Ct));
+
+        Assert.False(result.Succeeded);
+        var rest = Assert.IsType<ReorderRules>(Assert.Single(pipeline.Pending));
+        Assert.Single(rest.Moves());
+        Assert.Equal(change.New.Select(s => s.Identity), rest.New.Select(s => s.Identity));
+        // Played from where the first move left the rules, the rest still ends in the order asked for.
+        var current = rest.Old.Select(s => s.Identity).ToList();
+        foreach (var (id, priority) in rest.Moves())
+        {
+            current.Remove(id);
+            current.Insert(priority, id);
+        }
+        Assert.Equal(["c", "b", "a"], current);
+    }
+
+    [Fact]
     public async Task Pending_changes_shows_which_move_is_going_while_a_new_order_applies()
     {
         var exchange = new FakeCmdlets((cmdlet, _) => cmdlet == "Get-TransportRule"

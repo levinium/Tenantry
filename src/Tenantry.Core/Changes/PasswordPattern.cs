@@ -206,6 +206,9 @@ public static class PasswordPattern
         var sure = new HashSet<string>();
         foreach (var p in parts)
         {
+            // A part that can be empty (D0-2) guarantees nothing.
+            if (p.Kind != PatternKind.Exact && p.Min == 0)
+                continue;
             switch (p.Kind)
             {
                 case PatternKind.Capitals:
