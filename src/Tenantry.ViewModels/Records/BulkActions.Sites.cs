@@ -45,7 +45,7 @@ public static partial class BulkActions
         {
             actions.Add(new("Add a Site Admin", "Give someone full control of the site, including its permissions and settings.", "PersonAdd",
                 (a, _) => Task.FromResult(Plan(selected(), s => (new SetSiteAdmin(SiteChange.TargetFor(s), s.Url, a.Picked!.Target("user"),
-                    SetOneDriveAccess.LoginFor(a.Picked.Address ?? a.Picked.Name), false, true), null))),
+                    SetOneDriveAccess.LoginFor(a.Picked.Address ?? a.Picked.Name), false, true) { StagedNote = GroupAccess.SharePointNotice(index.User(a.Picked.Id), index) }, null))),
                 pickPlaceholder: "Choose a person: type a name", pickOptions: () => GroupAccess.SitePeople(index), group: SiteAccess));
             actions.Add(new("Remove a Site Admin", "Take someone's site admin rights away. A OneDrive's own owner and a group's owners keep theirs.", "PersonDelete",
                 (a, _) => Task.FromResult(Plan(selected(), s =>

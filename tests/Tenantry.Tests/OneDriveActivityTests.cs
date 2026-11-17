@@ -260,6 +260,8 @@ public sealed class OneDriveActivityTests
         var grant = Assert.IsType<SetOneDriveAccess>(Assert.Single(pipeline.Pending));
         Assert.Equal((SetOneDriveAccess.LoginFor(Ada.UserPrincipalName), true, "site-2"), (grant.Login, grant.New, grant.SiteId));
         Assert.Contains(tab.Access, r => r.Name == Ada.DisplayName && r.PendingText == "Adding");
+        // Ada has no license: said when staged, not only when Apply fails.
+        Assert.Contains("has no license", grant.Notice, StringComparison.Ordinal);
         // Someone already listed (or being added) isn't offered again.
         tab.AccessPicker.Query = "ada";
         Assert.Empty(tab.AccessPicker.Results);

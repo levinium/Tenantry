@@ -63,14 +63,17 @@ public sealed partial class NewSiteViewModel : ObservableObject
 
     // A communication site's other owners join its SharePoint Owners group, which takes licensed
     // people only; a team site's join its Microsoft 365 group, which takes anyone.
-    IEnumerable<PickOption> Candidates() =>
-        _index.AllUsers.Where(u => u.Kind == UserKind.Member && u.Mailbox?.Type is not ("Shared" or "Room" or "Equipment"))
+    IEnumerable<PickOption> Candidates()
+    {
+        var signInsKnown = GroupAccess.SignInsKnown(_index);
+        return _index.AllUsers.Where(u => u.Kind == UserKind.Member && u.Mailbox?.Type is not ("Shared" or "Room" or "Equipment"))
             .Where(u => Owners.All(p => p.Person.Id != u.Id))
             .Select(u =>
             {
                 var o = PickOption.Of(u);
-                return !IsTeam && u.Licenses.Count == 0 ? o with { Detail = $"{o.Detail} · {GroupAccess.NoSharePointLicense}" } : o;
+                return !IsTeam && GroupAccess.SharePointCatch(u, signInsKnown) is { } label ? o with { Detail = $"{o.Detail} · {label}" } : o;
             });
+    }
 
     NewSiteKind _kind;
 

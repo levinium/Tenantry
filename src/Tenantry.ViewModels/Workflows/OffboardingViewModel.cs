@@ -400,7 +400,8 @@ public sealed partial class OffboardingViewModel : ObservableObject
             if (who.Count > 0 && facts.Drive is not { } drive)
                 notes.Add($"{person.DisplayName}: has no OneDrive to hand over.");
             else if (facts.Drive is { } d)
-                changes.AddRange(who.Select(w => new SetOneDriveAccess(target, d.Url, d.SiteId, GroupAccess.Target(w), SetOneDriveAccess.LoginFor(w.UserPrincipalName), false, true)));
+                changes.AddRange(who.Select(w => new SetOneDriveAccess(target, d.Url, d.SiteId, GroupAccess.Target(w), SetOneDriveAccess.LoginFor(w.UserPrincipalName), false, true)
+                    { StagedNote = GroupAccess.SharePointNotice(w, _index) }));
         }
 
         string? convertKey = null;

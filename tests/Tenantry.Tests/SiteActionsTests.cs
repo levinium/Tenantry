@@ -282,6 +282,26 @@ public sealed class SiteActionsTests
     }
 
     [Fact]
+    public async Task Someone_who_never_signed_in_is_flagged_only_when_sign_in_times_are_known()
+    {
+        var users = (await new DemoTenantDirectory(userCount: 60).GetUsersAsync(Ct))
+            .Where(u => UserFields.TypeOf(u) == UserFields.Member && u.Licenses.Count > 0).Take(2).ToArray();
+        var signedIn = users[0] with { LastSignIn = DateTimeOffset.UtcNow.AddDays(-1) };
+        var never = users[1] with { LastSignIn = null };
+        var index = new Index([signedIn, never], []);
+
+        var options = GroupAccess.SitePeople(index).ToDictionary(o => o.Id);
+        Assert.EndsWith(GroupAccess.NeverSignedIn, options[never.Id].Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain(GroupAccess.NeverSignedIn, options[signedIn.Id].Detail, StringComparison.Ordinal);
+        Assert.Contains("sign in once", GroupAccess.SharePointNotice(never, index), StringComparison.Ordinal);
+        Assert.Null(GroupAccess.SharePointNotice(signedIn, index));
+
+        // Without sign-in times (no Entra ID P1) nobody is flagged: everyone would look new.
+        var unknown = new Index([signedIn with { LastSignIn = null }, never], []);
+        Assert.Null(GroupAccess.SharePointNotice(never, unknown));
+    }
+
+    [Fact]
     public async Task A_groups_site_whose_group_isnt_in_the_local_copy_shows_its_people_without_changing_them()
     {
         var (page, _, _) = await DemoPage(s => s.GroupId is not null && s.Kind == SiteKind.TeamSite && s.OwnerName is not null && !s.IsArchived, withGroups: false);

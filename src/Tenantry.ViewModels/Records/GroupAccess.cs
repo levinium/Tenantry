@@ -118,13 +118,44 @@ public static class GroupAccess
     /// People for a SharePoint picker (site admins, a site's own groups, a new site's owners). Members
     /// with no license are still listed, labelled: SharePoint only knows licensed people and guests.
     /// </summary>
-    public static IEnumerable<PickOption> SitePeople(IDirectoryIndex index) =>
-        index.AllUsers.Where(u => UserFields.TypeOf(u) is UserFields.Member or UserFields.Guest)
+    public static IEnumerable<PickOption> SitePeople(IDirectoryIndex index)
+    {
+        var signInsKnown = SignInsKnown(index);
+        return index.AllUsers.Where(u => UserFields.TypeOf(u) is UserFields.Member or UserFields.Guest)
             .Select(u =>
             {
                 var o = PickOption.Of(u);
-                return u.Kind == UserKind.Member && u.Licenses.Count == 0 ? o with { Detail = $"{o.Detail} · {NoSharePointLicense}" } : o;
+                return SharePointCatch(u, signInsKnown) is { } label ? o with { Detail = $"{o.Detail} · {label}" } : o;
             });
+    }
+
+    /// <summary>What a picker says beside someone who has never signed in (SharePoint learns of people at their first sign-in; seen live).</summary>
+    public const string NeverSignedIn = "Never signed in: SharePoint may not know them yet";
+
+    /// <summary>
+    /// Whether the local copy holds sign-in times at all (they need Entra ID P1): without them
+    /// everyone would look as if they had never signed in.
+    /// </summary>
+    public static bool SignInsKnown(IDirectoryIndex index) => index.AllUsers.Any(u => u.LastSignIn is not null);
+
+    /// <summary>Why SharePoint may refuse to add this person, as a short label; null when nothing is known against it.</summary>
+    public static string? SharePointCatch(UserSummary u, bool signInsKnown) =>
+        u.Kind != UserKind.Member ? null
+        : u.Licenses.Count == 0 ? NoSharePointLicense
+        : signInsKnown && u.LastSignIn is null ? NeverSignedIn
+        : null;
+
+    /// <summary>
+    /// The note staged with a change that gives this person SharePoint or OneDrive access, so the
+    /// catch shows in Pending Changes before Apply rather than as a failure after it.
+    /// </summary>
+    public static string? SharePointNotice(UserSummary? u, IDirectoryIndex index) =>
+        u is null ? null : SharePointCatch(u, SignInsKnown(index)) switch
+        {
+            NoSharePointLicense => $"{u.DisplayName} has no license, so SharePoint can't add them and this will fail. Give them a license that includes SharePoint first.",
+            NeverSignedIn => $"{u.DisplayName} has never signed in to Microsoft 365, so SharePoint may not know them yet. If this fails, have them sign in once and try again.",
+            _ => null,
+        };
 
     /// <summary>
     /// Who can join a group as a member: Microsoft 365 groups take people only; security groups

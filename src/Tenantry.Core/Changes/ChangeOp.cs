@@ -255,7 +255,14 @@ public abstract record ChangeOp
 
     /// <summary>Something to know before applying it, shown with it in Pending Changes ("This needs two applies…"); null for most.</summary>
     [JsonIgnore]
-    public virtual string? Notice => null;
+    public virtual string? Notice => StagedNote;
+
+    /// <summary>
+    /// A note the screen that staged it knows and the change doesn't ("They've never signed in, so
+    /// SharePoint may not know them yet."), shown as its <see cref="Notice"/>.
+    /// </summary>
+    [JsonIgnore]
+    public string? StagedNote { get; init; }
 
     /// <summary>True when the change would leave things as they are (staged back to the original).</summary>
     [JsonIgnore]

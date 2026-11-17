@@ -340,7 +340,8 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
             adminRows.Add(Adding(PersonFromTarget(add.Person), add));
         Groups.Add(new SiteGroupCard("Site Admins", "Full control, including over permissions and settings. They see everything in it.", adminRows,
             Picker(permissions.Admins.Select(a => a.Upn ?? "").Concat(adminChanges.Select(c => c.Person.Address ?? "")),
-                u => Page.Pipeline!.Stage(new SetSiteAdmin(site, Site.Url, GroupAccess.Target(u), SetOneDriveAccess.LoginFor(u.UserPrincipalName), false, true)))));
+                u => Page.Pipeline!.Stage(new SetSiteAdmin(site, Site.Url, GroupAccess.Target(u), SetOneDriveAccess.LoginFor(u.UserPrincipalName), false, true)
+                    { StagedNote = GroupAccess.SharePointNotice(u, Page.Index) }))));
 
         foreach (var g in permissions.Groups)
         {
@@ -394,7 +395,7 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
                 [.. Direct(g.Members), .. addedHere],
                 Picker(g.Members.Select(m => m.Upn ?? "").Concat(spChanges.Select(c => c.Person.Address ?? "")),
                     u => Page.Pipeline!.Stage(new SetSiteGroupMember(site, Site.Url, g.Id, g.Role ?? g.Name, GroupAccess.Target(u),
-                        SetOneDriveAccess.LoginFor(u.UserPrincipalName), false, true)))));
+                        SetOneDriveAccess.LoginFor(u.UserPrincipalName), false, true) { StagedNote = GroupAccess.SharePointNotice(u, Page.Index) }))));
         }
         var everyone = permissions.Groups.SelectMany(g => g.Members).Any(m => m.Kind is PrincipalKind.Everyone or PrincipalKind.EveryoneExceptExternal);
         Summary = everyone ? "Open to the whole organization" : $"{permissions.Admins.Count} admin{(permissions.Admins.Count == 1 ? "" : "s")}, {permissions.Groups.Count} groups";

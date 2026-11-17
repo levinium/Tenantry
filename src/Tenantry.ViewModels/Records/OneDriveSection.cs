@@ -281,14 +281,15 @@ public sealed partial class OneDriveSection : RecordSection, IDisposable
         var listed = (_admins ?? []).Select(a => a.UserPrincipalName).OfType<string>()
             .Concat(PendingAccess().Select(p => p.Person.Address).OfType<string>())
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return GroupAccess.People(_index).Where(o => o.Id != _user.Id && !listed.Contains(o.Address ?? ""));
+        return GroupAccess.SitePeople(_index).Where(o => o.Id != _user.Id && !listed.Contains(o.Address ?? ""));
     }
 
     void GiveAccess(PickOption option)
     {
         if (!CanGrant || Drive is not { } drive || option.Address is not { Length: > 0 } upn)
             return;
-        _pipeline!.Stage(new SetOneDriveAccess(Target, drive.Url, drive.SiteId, option.Target("user"), SetOneDriveAccess.LoginFor(upn), false, true));
+        _pipeline!.Stage(new SetOneDriveAccess(Target, drive.Url, drive.SiteId, option.Target("user"), SetOneDriveAccess.LoginFor(upn), false, true)
+            { StagedNote = GroupAccess.SharePointNotice(_index.User(option.Id), _index) });
     }
 
     // ---- Pipeline ---------------------------------------------------------------------------
