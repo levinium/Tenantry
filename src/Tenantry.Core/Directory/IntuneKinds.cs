@@ -456,7 +456,8 @@ public static class IntuneKinds
             ["bodyText"] = new("Terms", Kind: SettingKind.LongText),
             ["acceptanceStatement"] = new("Acceptance Statement"),
         },
-        Creates: [new("new", "Terms and Conditions", "", J("""{"@odata.type":"#microsoft.graph.termsAndConditions","description":""}"""),
+        // Intune requires a version (1 for new terms): without it, "The field Version must be between 1 and 2147483647" (seen live).
+        Creates: [new("new", "Terms and Conditions", "", J("""{"@odata.type":"#microsoft.graph.termsAndConditions","description":"","version":1}"""),
             [new("displayName", "Name"), new("title", "Title"), new("bodyText", "Terms", SettingKind.LongText), new("acceptanceStatement", "Acceptance Statement", Default: "I accept these terms.")])]);
 
     public static readonly IntuneKind Notifications = new("notifications", "Notification Messages",
@@ -467,7 +468,9 @@ public static class IntuneKinds
             ["defaultLocale"] = new("Default Language"),
             ["brandingOptions"] = new("Branding", "Any of includeCompanyLogo, includeCompanyName, includeContactInformation, includeCompanyPortalLink, separated by commas."),
         },
-        Creates: [new("new", "Notification Message", "One message, in English.", J("""{"@odata.type":"#microsoft.graph.notificationMessageTemplate","defaultLocale":"en-us","brandingOptions":"includeCompanyLogo,includeCompanyName,includeContactInformation","roleScopeTagIds":["0"]}"""),
+        // No defaultLocale: Intune refuses a template that sets it (seen live) and takes it from the
+        // first message, which is added after the template as its own call.
+        Creates: [new("new", "Notification Message", "One message, in English.", J("""{"description":"","brandingOptions":"includeCompanyLogo,includeCompanyName,includeContactInformation","roleScopeTagIds":["0"]}"""),
             [new("displayName", "Name"), new("Then.subject", "Subject"), new("Then.messageTemplate", "Message", SettingKind.LongText)],
             ("localizedNotificationMessages", J("""{"locale":"en-us","isDefault":true}""")))]);
 

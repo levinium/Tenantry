@@ -183,6 +183,28 @@ public sealed class GraphClient
         }
     }
 
+    /// <summary>
+    /// The most telling part of Graph's error. Intune often says only "The request is invalid." on
+    /// top and the reason under innerError ("companyTerm.Version : The field Version must be between
+    /// 1 and 2147483647."); and some Intune services wrap their own error as JSON text whose only
+    /// content is "An error has occurred - Operation ID… - Activity ID…", said here in words with
+    /// the activity ID kept for Microsoft support.
+    /// </summary>
+    internal static string ErrorMessage(JsonElement error, string text)
+    {
+        var message = error.TryGetProperty("message", out var m) ? m.GetString() ?? "" : text;
+        if (error.TryGetProperty("innerError", out var inner) && inner.ValueKind == JsonValueKind.Object
+            && inner.TryGetProperty("message", out var im) && im.GetString() is { Length: > 0 } detail)
+            message = message.Length == 0 || message.Equals("The request is invalid.", StringComparison.OrdinalIgnoreCase)
+                ? detail.Trim() : $"{message} {detail.Trim()}";
+        if (message.TrimStart().StartsWith('{') && message.Contains("An error has occurred", StringComparison.Ordinal))
+        {
+            var activity = System.Text.RegularExpressions.Regex.Match(message, @"Activity ID: ([0-9a-fA-F-]{36})");
+            message = "Intune refused it without saying why." + (activity.Success ? $" (Activity ID for Microsoft support: {activity.Groups[1].Value}.)" : "");
+        }
+        return message;
+    }
+
     static async Task<GraphException> ToExceptionAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         var text = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -191,7 +213,7 @@ public sealed class GraphClient
             var error = JsonDocument.Parse(text).RootElement.GetProperty("error");
             return new GraphException(response.StatusCode,
                 error.TryGetProperty("code", out var c) ? c.GetString() : null,
-                error.TryGetProperty("message", out var m) ? m.GetString() ?? "" : text);
+                ErrorMessage(error, text));
         }
         catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException)
         {

@@ -36,6 +36,20 @@ public sealed class RiskTests
         Assert.EndsWith("…", MicrosoftReply.After("Why.", new InvalidOperationException(new string('a', 500))), StringComparison.Ordinal);
     }
 
+    [Theory]
+    // Intune's reason is under innerError (seen live).
+    [InlineData("""{"error":{"code":"","message":"The request is invalid.","innerError":{"message":"companyTerm.Version : The field Version must be between 1 and 2147483647.\r\n","date":"2026-11-17T17:59:27"}}}""",
+        "companyTerm.Version : The field Version must be between 1 and 2147483647.")]
+    // Some Intune services wrap an empty error as JSON text: said in words, with the activity ID kept.
+    [InlineData("""{"error":{"code":"BadRequest","message":"{\r\n  \"_version\": 3,\r\n  \"Message\": \"An error has occurred - Operation ID (for customer support): 00000000-0000-0000-0000-000000000000 - Activity ID: 327c2a65-8f42-4cc2-97ca-615cda99d0ca - Url: https://proxy.example/x\"\r\n}","innerError":{"date":"2026-11-17T17:59:29"}}}""",
+        "Intune refused it without saying why. (Activity ID for Microsoft support: 327c2a65-8f42-4cc2-97ca-615cda99d0ca.)")]
+    [InlineData("""{"error":{"code":"Forbidden","message":"Insufficient privileges.","innerError":{"date":"2026-11-17"}}}""", "Insufficient privileges.")]
+    public void Graph_errors_say_the_telling_part(string body, string message)
+    {
+        var error = System.Text.Json.JsonDocument.Parse(body).RootElement.GetProperty("error");
+        Assert.Equal(message, GraphClient.ErrorMessage(error, body));
+    }
+
     [Fact]
     public async Task Each_list_says_whether_it_needs_P2_or_a_permission()
     {
