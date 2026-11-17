@@ -77,6 +77,12 @@ public partial class DataListView : UserControl
             e.Handled = true;
         }, RoutingStrategies.Tunnel);
         Grid.ContextRequested += OnContextRequested;
+        // View chips that don't fit on the row are listed under More Views instead.
+        ChipViewsList.Loaded += (_, _) =>
+        {
+            if (ChipViewsList.ItemsPanelRoot is ChipRow row)
+                row.HiddenChanged += (_, _) => _vm?.SetHiddenChips(row.Hidden.OfType<SavedViewItem>().ToArray());
+        };
         // On a narrow toolbar the display tools drop their labels; on a very narrow one every tool
         // does. Tooltips still name each one, and the left group wraps rather than overflowing.
         Toolbar.SizeChanged += (_, e) =>

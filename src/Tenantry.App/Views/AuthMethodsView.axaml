@@ -10,16 +10,16 @@
   <!-- Sign-in methods and the policy's settings on the left; the chosen one's editor on the right. -->
   <DockPanel>
     <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-      <StackPanel Orientation="Horizontal" Spacing="10">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
         <Button Command="{Binding ReadCommand}" ToolTip.Tip="Read the sign-in methods from Entra again">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
             <TextBlock Text="Refresh" />
           </StackPanel>
         </Button>
-        <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+        <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
                    Text="Which ways people can sign in and prove who they are, and who each one is for. Changes go to Pending Changes." />
-      </StackPanel>
+      </Grid>
       <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
         <Panel Width="18" Height="18" VerticalAlignment="Center">
           <Ellipse Classes="spintrack" />

@@ -26,7 +26,7 @@ public sealed partial class RuleRow(InboxRule rule, bool enabled, string? pendin
     Action<bool> setEnabled, Action toggleDelete) : ObservableObject
 {
     public string Name => rule.Name;
-    public string Description => rule.Description;
+    public string Description => rule.Summary;
     public bool CanEdit => canEdit && !deleting;
     public bool CanDelete => canEdit;
     public string? PendingText => pendingText;

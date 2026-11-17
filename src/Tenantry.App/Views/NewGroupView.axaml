@@ -113,7 +113,7 @@
         <views:AddButton DataContext="{Binding OwnerPicker}" Text="Add an Owner" HorizontalAlignment="Left" Hint="Choose from the list, or type to narrow it." />
       </StackPanel>
       <StackPanel Spacing="6" IsVisible="{Binding ShowMembers}">
-        <TextBlock Classes="label" Text="{Binding MembersTitle}" />
+        <TextBlock Classes="label" Text="{Binding MembersTitle, Converter={x:Static conv:Capitals.Instance}}" />
         <ItemsControl ItemsSource="{Binding Members}" ItemTemplate="{StaticResource PersonChip}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>

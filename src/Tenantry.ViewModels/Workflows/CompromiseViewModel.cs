@@ -167,7 +167,7 @@ public sealed partial class CompromiseViewModel : ObservableObject
                     if (!rule.Enabled || Suspicion(rule) is not { } suspicion)
                         continue;
                     lock (findings)
-                        findings.Add(new Finding(name, $"Mailbox Rule {RuleName(rule.Name)} {suspicion.What}", rule.Description,
+                        findings.Add(new Finding(name, $"Mailbox Rule {RuleName(rule.Name)} {suspicion.What}", rule.Summary,
                             new SetInboxRuleEnabled(target, rule.Identity, rule.Name, true, false), "Turn This Rule Off", isOn: suspicion.Likely));
                 }
             }));

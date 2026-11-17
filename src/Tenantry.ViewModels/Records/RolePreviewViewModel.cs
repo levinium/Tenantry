@@ -5,7 +5,7 @@ using Tenantry.ViewModels.Lists;
 namespace Tenantry.ViewModels.Records;
 
 /// <summary>A role in the preview pane: what it is, who holds it (the first few), and Open Role.</summary>
-public sealed partial class RolePreviewViewModel(RoleSummary role, Action<RoleSummary>? openRole)
+public sealed partial class RolePreviewViewModel(RoleSummary role, Action<RoleSummary>? openRole) : Lists.IOpensItself
 {
     const int Shown = 8;
 

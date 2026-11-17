@@ -135,11 +135,11 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
     /// <summary>The workflows for everyone selected (users only).</summary>
     public bool HasWorkflows => CanEdit && _workflows is not null;
 
-    string Who => _rows.Count == 1 ? "this person" : $"these {_rows.Count:N0} people";
+    string Who => _rows.Count == 1 ? "1 Person" : $"{_rows.Count:N0} People";
 
     public string OffboardText => $"Offboard {Who}…";
 
-    public string RespondText => $"Respond to Compromise ({Who})…";
+    public string RespondText => $"Respond to Compromise for {Who}…";
 
     [RelayCommand]
     void Offboard() => _workflows?.Offboard(_rows.Cast<UserSummary>().ToArray());

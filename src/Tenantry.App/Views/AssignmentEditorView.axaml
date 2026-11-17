@@ -21,7 +21,7 @@
                 <TextBlock Text="{Binding Text}" TextWrapping="Wrap" VerticalAlignment="Center" />
                 <c:Badge Text="{Binding StateText}" Kind="Warning" IsVisible="{Binding HasState}" ToolTip.Tip="Waiting in Pending Changes" />
               </StackPanel>
-              <Button Grid.Column="2" Content="{Binding ActionText}" Command="{Binding DoCommand}" ToolTip.Tip="{Binding ActionTip}"
+              <Button Grid.Column="2" Classes="danger-outline quiet" Classes.undo="{Binding HasState}" Content="{Binding ActionText}" Command="{Binding DoCommand}" ToolTip.Tip="{Binding ActionTip}"
                       IsVisible="{Binding $parent[ItemsControl].((it:AssignmentEditor)DataContext).CanEdit}" />
             </Grid>
           </Border>

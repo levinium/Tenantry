@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:ic="using:FluentIcons.Avalonia"
@@ -21,7 +22,7 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="ms:RulePickerGroup">
             <StackPanel Spacing="1" Margin="0,6,0,4">
-              <TextBlock Classes="label" Text="{Binding Title}" Margin="10,0,0,4" />
+              <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" Margin="10,0,0,4" />
               <ItemsControl ItemsSource="{Binding Items}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="ms:RulePickerItem">

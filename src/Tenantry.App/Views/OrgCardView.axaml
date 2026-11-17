@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:org="using:Tenantry.ViewModels.Organization"
              xmlns:it="using:Tenantry.ViewModels.Intune"
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
@@ -9,8 +10,8 @@
              x:Class="Tenantry.App.Views.OrgCardView"
              x:DataType="org:OrgObjectCard">
   <!-- One organization item: its settings edited in place, what it only shows, what is read under it, its actions, its children (a team's channels), and Delete. -->
-  <Border Classes="card">
-    <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch">
+  <Border Classes="card itemcard">
+    <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch" Classes.single="{Binding IsSingle}">
       <Expander.Header>
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
           <StackPanel Spacing="2">
@@ -27,7 +28,7 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="ms:SettingGroup">
               <StackPanel Spacing="6" Margin="0,0,0,8">
-                <TextBlock Classes="label" Text="{Binding Title}" />
+                <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" />
                 <ItemsControl ItemsSource="{Binding Rows}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="ms:SettingRow">
@@ -56,7 +57,7 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="org:OrgExtraLines">
               <StackPanel Spacing="4" Margin="0,0,0,8">
-                <TextBlock Classes="label" Text="{Binding Title}" />
+                <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" />
                 <TextBlock Classes="muted" Text="None." IsVisible="{Binding IsEmpty}" />
                 <ItemsControl ItemsSource="{Binding Lines}">
                   <ItemsControl.ItemTemplate>

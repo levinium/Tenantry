@@ -5,6 +5,7 @@
              xmlns:ed="using:Tenantry.ViewModels.Editing"
              xmlns:views="using:Tenantry.App.Views"
              xmlns:c="using:Tenantry.App.Controls"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.CompliancePoliciesView"
              x:DataType="it:CompliancePoliciesViewModel">
@@ -54,7 +55,7 @@
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
               <TextBlock Classes="caption" Text="Noncompliant after" VerticalAlignment="Center" />
               <TextBox Text="{Binding NewGraceDays}" Width="60" />
-              <TextBlock Classes="caption" Text="days" VerticalAlignment="Center" />
+              <TextBlock Classes="caption" Text="{Binding NewGraceDays, Converter={x:Static conv:DayWord.Instance}}" VerticalAlignment="Center" />
             </StackPanel>
           </Grid>
           <TextBlock Classes="error" Text="{Binding AddProblem}" IsVisible="{Binding HasAddProblem}" TextWrapping="Wrap" />
@@ -86,7 +87,7 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="it:CompliancePolicyCard">
-            <Border Classes="card">
+            <Border Classes="card itemcard">
               <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch">
                 <Expander.Header>
                   <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
@@ -114,7 +115,7 @@
                     <ItemsControl.ItemTemplate>
                       <DataTemplate x:DataType="ms:SettingGroup">
                         <StackPanel Spacing="6">
-                          <TextBlock Classes="label" Text="{Binding Title}" />
+                          <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" />
                           <ItemsControl ItemsSource="{Binding Rows}">
                             <ItemsControl.ItemTemplate>
                               <DataTemplate x:DataType="ms:SettingRow">
@@ -153,9 +154,9 @@
                                 <TextBlock Grid.Column="1" Classes="caption" Text="after" VerticalAlignment="Center" />
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
                                   <TextBox Text="{Binding DaysText}" Width="60" c:EditCommit.Commit="{Binding CommitDaysCommand}" IsEnabled="{Binding $parent[ItemsControl].((it:CompliancePolicyCard)DataContext).CanEdit}" />
-                                  <TextBlock Classes="caption" Text="days" VerticalAlignment="Center" />
+                                  <TextBlock Classes="caption" Text="{Binding DaysText, Converter={x:Static conv:DayWord.Instance}}" VerticalAlignment="Center" />
                                 </StackPanel>
-                                <Button Grid.Column="3" Classes="danger-outline" Content="Remove" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}"
+                                <Button Grid.Column="3" Classes="danger-outline quiet" Content="Remove" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}"
                                         ToolTip.Tip="Stop taking this step (added to Pending Changes)" />
                               </Grid>
                               <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsEmail}">

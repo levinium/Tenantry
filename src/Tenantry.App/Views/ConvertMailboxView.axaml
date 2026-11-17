@@ -27,8 +27,9 @@
       </CheckBox>
       <TextBlock Classes="caption" Text="{Binding GroupLicensesText}" IsVisible="{Binding HasGroupLicenses}" TextWrapping="Wrap" Margin="28,0,0,0" />
       <CheckBox IsChecked="{Binding BlockSignIn}">
-        <TextBlock TextWrapping="Wrap" Text="Also block sign-in to the account (Microsoft's advice: nobody signs in to a shared mailbox directly)" />
+        <TextBlock TextWrapping="Wrap" Text="Also Block Sign-In" />
       </CheckBox>
+      <TextBlock Classes="caption" Text="Microsoft's advice: nobody signs in to a shared mailbox directly." TextWrapping="Wrap" Margin="28,-6,0,0" />
     </StackPanel>
 
     <TextBlock Classes="caption" TextWrapping="Wrap"

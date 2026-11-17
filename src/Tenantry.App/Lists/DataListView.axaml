@@ -74,17 +74,21 @@
         </Button>
       </Grid>
 
-      <!-- Views: pinned views as chips (plus the current one), the rest under More views.
-           Few chips, so the row fits; in a narrow window it wraps rather than scrolls. -->
-      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,0,0,12">
-        <TextBlock Classes="label" Text="VIEWS" VerticalAlignment="Top" Margin="0,7,0,0" />
-        <WrapPanel Grid.Column="1" ItemSpacing="8" LineSpacing="8">
-          <ItemsControl ItemsSource="{Binding ChipViews}">
+      <!-- Views: pinned views as chips (plus the current one) on one line, the rest under More
+           Views. Chips that don't fit join More Views rather than wrapping onto a line alone. -->
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10" Margin="0,0,0,12">
+        <TextBlock Classes="label" Text="VIEWS" VerticalAlignment="Center" />
+          <ItemsControl Grid.Column="1" x:Name="ChipViewsList" ItemsSource="{Binding ChipViews}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
-                <WrapPanel ItemSpacing="8" LineSpacing="8" />
+                <c:ChipRow Spacing="8" />
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
+            <ItemsControl.Styles>
+              <Style Selector="ContentPresenter" x:DataType="lists:SavedViewItem">
+                <Setter Property="c:ChipRow.Keep" Value="{Binding IsCurrent}" />
+              </Style>
+            </ItemsControl.Styles>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="lists:SavedViewItem">
                 <Button Classes="chip" Classes.selected="{Binding IsCurrent}"
@@ -100,7 +104,7 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <Button x:Name="MoreViewsButton" Classes="chip quiet" IsVisible="{Binding HasMoreViews}"
+          <Button Grid.Column="2" x:Name="MoreViewsButton" Classes="chip quiet" IsVisible="{Binding HasMoreViews}"
                   ToolTip.Tip="Other views; pin any of them from Manage views">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock Text="{Binding MoreViewsText}" />
@@ -127,8 +131,7 @@
               </Flyout>
             </Button.Flyout>
           </Button>
-        </WrapPanel>
-        <Button Grid.Column="2" Classes="link" VerticalAlignment="Top" Margin="0,3,0,0" Command="{Binding OpenViewsPanelCommand}"
+        <Button Grid.Column="3" Classes="link" VerticalAlignment="Center" Command="{Binding OpenViewsPanelCommand}"
                 Content="Manage Views" ToolTip.Tip="Pin, unpin, apply or delete views" />
       </Grid>
 
@@ -488,7 +491,7 @@
                     </ListBox>
                     <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding NeedsDays}">
                       <TextBox Width="90" Text="{Binding DaysText}" />
-                      <TextBlock VerticalAlignment="Center" Text="days" />
+                      <TextBlock VerticalAlignment="Center" Text="{Binding DaysText, Converter={x:Static conv:DayWord.Instance}}" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding NeedsRange}">
                       <CalendarDatePicker SelectedDate="{Binding From}" PlaceholderText="From" Width="170" />
@@ -841,7 +844,7 @@
     <Border Grid.Column="1" x:Name="PreviewPane" Classes="card" Width="420" Margin="4,16,8,12" Padding="0" IsVisible="{Binding IsPaneVisible}">
       <DockPanel>
         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="16,12,8,8">
-          <TextBlock Classes="label" VerticalAlignment="Center" Text="{Binding PaneTitle}" />
+          <TextBlock Classes="label" VerticalAlignment="Center" Text="{Binding PaneTitle, Converter={x:Static conv:Capitals.Instance}}" />
           <Button Grid.Column="1" Command="{Binding ExpandPreviewCommand}" IsVisible="{Binding ShowOpenRecord}"
                   IsEnabled="{Binding CanExpandPreview}" ToolTip.Tip="Open the full record in a tab">
             <StackPanel Orientation="Horizontal" Spacing="6">

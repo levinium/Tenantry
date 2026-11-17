@@ -8,7 +8,7 @@ using Tenantry.ViewModels.Lists;
 namespace Tenantry.ViewModels.Records;
 
 /// <summary>A policy in the preview pane: its state and the policy in words, and Open Policy.</summary>
-public sealed partial class CaPolicyPreviewViewModel(CaPolicyRow row, Action<CaPolicyRow>? open)
+public sealed partial class CaPolicyPreviewViewModel(CaPolicyRow row, Action<CaPolicyRow>? open) : Lists.IOpensItself
 {
     public CaPolicyRow Row => row;
     public string Name => row.Policy.Name;

@@ -53,7 +53,7 @@
                   <c:Badge Grid.Column="1" Text="{Binding StateText}" Kind="{Binding StateKind}" VerticalAlignment="Center" />
                   <Button Grid.Column="2" Content="{Binding SwitchText}" Command="{Binding SwitchCommand}" IsEnabled="{Binding CanEdit}" VerticalAlignment="Center"
                           ToolTip.Tip="Turn copying on or off (added to Pending Changes)" />
-                  <Button Grid.Column="3" Classes="danger-outline" Content="{Binding RemoveText}" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
+                  <Button Grid.Column="3" Classes="danger-outline quiet" Content="{Binding RemoveText}" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
                           VerticalAlignment="Center" ToolTip.Tip="Stop copying and remove the rule (added to Pending Changes)" />
                 </Grid>
               </Border>

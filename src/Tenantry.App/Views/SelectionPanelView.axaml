@@ -51,7 +51,7 @@
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="rec:SummaryLine">
           <Grid ColumnDefinitions="96,*" ColumnSpacing="8">
-            <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Classes="factname" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,1,0,0" TextWrapping="Wrap" />
             <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
           </Grid>
         </DataTemplate>
@@ -103,7 +103,7 @@
           <DataTemplate x:DataType="rec:MixedField">
             <StackPanel Spacing="3">
               <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
-                <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Center" />
+                <TextBlock Classes="label" Text="{Binding Label, Converter={x:Static conv:Capitals.Instance}}" VerticalAlignment="Center" />
                 <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" />
                 <Button Grid.Column="2" Classes="rowaction" Command="{Binding ClearForEveryoneCommand}" IsVisible="{Binding CanClear}"
                         ToolTip.Tip="Clear this for everyone selected (added to Pending Changes)">

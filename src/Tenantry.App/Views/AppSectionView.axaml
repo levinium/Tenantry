@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:rec="using:Tenantry.ViewModels.Records"
              xmlns:views="using:Tenantry.App.Views"
              xmlns:c="using:Tenantry.App.Controls"
@@ -127,7 +128,7 @@
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="rec:AppField">
                           <StackPanel Spacing="4" MaxWidth="640" HorizontalAlignment="Left">
-                            <TextBlock Classes="label" Text="{Binding Label}" />
+                            <TextBlock Classes="label" Text="{Binding Label, Converter={x:Static conv:Capitals.Instance}}" />
                             <TextBox Text="{Binding Text}" PlaceholderText="{Binding Placeholder}" AcceptsReturn="{Binding Multiline}" TextWrapping="Wrap"
                                      MinWidth="420" IsReadOnly="{Binding !CanEdit}" c:EditCommit.Commit="{Binding CommitCommand}" />
                             <TextBlock Classes="caption" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" Foreground="{DynamicResource BadgeWarningFg}" />
@@ -271,7 +272,7 @@
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="rec:SummaryLine">
                     <Grid ColumnDefinitions="170,*" ColumnSpacing="12">
-                      <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                      <TextBlock Classes="factname" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,1,0,0" TextWrapping="Wrap" />
                       <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
                     </Grid>
                   </DataTemplate>
@@ -328,7 +329,7 @@
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
                           <Button Classes="outline" Content="{Binding EditText}" Command="{Binding EditCommand}" IsVisible="{Binding HasEdit}" ToolTip.Tip="{Binding EditTip}" />
                           <Button Classes="outline" Content="{Binding AltText}" Command="{Binding AltCommand}" IsVisible="{Binding HasAlt}" ToolTip.Tip="{Binding AltTip}" />
-                          <Button Classes="danger-outline" Classes.undo="{Binding IsUndo}" Content="{Binding ActionText}" Command="{Binding DoCommand}" IsVisible="{Binding HasAction}"
+                          <Button Classes="danger-outline quiet" Classes.undo="{Binding IsUndo}" Content="{Binding ActionText}" Command="{Binding DoCommand}" IsVisible="{Binding HasAction}"
                                   ToolTip.Tip="{Binding ActionTip}" />
                         </StackPanel>
                       </Grid>

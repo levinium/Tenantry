@@ -20,7 +20,7 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="rec:SummaryLine">
               <Grid ColumnDefinitions="170,*" ColumnSpacing="12">
-                <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                <TextBlock Classes="factname" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,1,0,0" TextWrapping="Wrap" />
                 <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
               </Grid>
             </DataTemplate>

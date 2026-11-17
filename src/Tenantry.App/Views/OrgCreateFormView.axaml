@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:org="using:Tenantry.ViewModels.Organization"
              xmlns:it="using:Tenantry.ViewModels.Intune"
              xmlns:dir="using:Tenantry.Core.Directory"
@@ -25,7 +26,7 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="it:CreateFieldRow">
             <StackPanel Spacing="3" MaxWidth="720" HorizontalAlignment="Left">
-              <TextBlock Classes="label" Text="{Binding Label}" />
+              <TextBlock Classes="label" Text="{Binding Label, Converter={x:Static conv:Capitals.Instance}}" />
               <TextBox Text="{Binding Text}" IsVisible="{Binding IsText}" PlaceholderText="{Binding Placeholder}" MinWidth="420" />
               <TextBox Text="{Binding Text}" IsVisible="{Binding IsLong}" PlaceholderText="{Binding Placeholder}" AcceptsReturn="True" MinHeight="70" MaxHeight="240" MinWidth="560" />
               <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding Choice}" IsVisible="{Binding IsChoice}" MinWidth="320" />

@@ -397,7 +397,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <TextBlock Text="Keep items for" VerticalAlignment="Center" />
                   <TextBox Text="{Binding HoldDaysDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" Width="90" PlaceholderText="Always" />
-                  <TextBlock Text="days" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding HoldDaysDraft, Converter={x:Static conv:DayWord.Instance}}" VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBox Text="{Binding HoldNoteDraft, UpdateSourceTrigger=LostFocus}" c:EditCommit.EnterUpdates="True" PlaceholderText="Note for the person (optional), e.g. the matter it's for" />
               </StackPanel>
@@ -550,7 +550,7 @@
                       <c:Badge Grid.Column="1" Text="{Binding PendingText}" Kind="Info" IsVisible="{Binding HasPending}" VerticalAlignment="Center" />
                       <Button Grid.Column="2" Content="{Binding BlockText}" Command="{Binding ToggleBlockCommand}" IsEnabled="{Binding CanEdit}"
                               ToolTip.Tip="{Binding BlockTip}" VerticalAlignment="Center" />
-                      <Button Grid.Column="3" Content="Remove" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
+                      <Button Grid.Column="3" Classes="danger-outline quiet" Content="Remove" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
                               ToolTip.Tip="Forget this device; it can set up sync again unless blocked (added to Pending Changes). Press again to undo."
                               VerticalAlignment="Center" />
                       <Button Grid.Column="4" Classes="danger-outline" IsEnabled="{Binding CanEdit}" VerticalAlignment="Center" ToolTip.Tip="Wipe options">

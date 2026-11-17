@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:it="using:Tenantry.ViewModels.Intune"
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
              xmlns:dir="using:Tenantry.Core.Directory"
@@ -57,7 +58,7 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="it:CreateFieldRow">
                 <StackPanel Spacing="3" MaxWidth="720" HorizontalAlignment="Left">
-                  <TextBlock Classes="label" Text="{Binding Label}" />
+                  <TextBlock Classes="label" Text="{Binding Label, Converter={x:Static conv:Capitals.Instance}}" />
                   <TextBox Text="{Binding Text}" IsVisible="{Binding IsText}" PlaceholderText="{Binding Placeholder}" MinWidth="420" />
                   <TextBox Text="{Binding Text}" IsVisible="{Binding IsLong}" PlaceholderText="{Binding Placeholder}" AcceptsReturn="True" MinHeight="90" MaxHeight="300" MinWidth="560"
                            FontFamily="Cascadia Mono, Consolas, Menlo, monospace" FontSize="12" />
@@ -74,7 +75,7 @@
         </StackPanel>
       </Border>
 
-      <TextBox c:SearchClear.IsOn="True" Text="{Binding FilterText}" PlaceholderText="Find by name or kind" Width="480" HorizontalAlignment="Left" />
+      <TextBox c:SearchClear.IsOn="True" Text="{Binding FilterText}" PlaceholderText="Find by name or kind" Width="480" HorizontalAlignment="Left" IsVisible="{Binding ShowFilter}" />
       <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
         <Panel Width="16" Height="16" VerticalAlignment="Center">
           <Ellipse Classes="spintrack" />
@@ -97,7 +98,7 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="it:IntuneObjectCard">
-            <Border Classes="card">
+            <Border Classes="card itemcard">
               <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch">
                 <Expander.Header>
                   <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
@@ -118,7 +119,7 @@
                     <ItemsControl.ItemTemplate>
                       <DataTemplate x:DataType="ms:SettingGroup">
                         <StackPanel Spacing="6" Margin="0,0,0,8">
-                          <TextBlock Classes="label" Text="{Binding Title}" />
+                          <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" />
                           <ItemsControl ItemsSource="{Binding Rows}">
                             <ItemsControl.ItemTemplate>
                               <DataTemplate x:DataType="ms:SettingRow">

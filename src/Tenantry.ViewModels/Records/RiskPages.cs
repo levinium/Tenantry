@@ -23,7 +23,7 @@ public sealed partial class RiskButton(string text, string tip, bool isDanger, A
 
 /// <summary>A risky person, detection or app in the preview pane: its flags, facts, what was detected, and what can be done.</summary>
 public sealed partial class RiskPreviewViewModel(string name, string? subtitle, IReadOnlyList<HealthChip> badges, IReadOnlyList<SummaryLine> facts,
-    IReadOnlyList<SummaryLine> detections, IReadOnlyList<RiskButton> buttons, string? pending, string? openText, Action? open)
+    IReadOnlyList<SummaryLine> detections, IReadOnlyList<RiskButton> buttons, string? pending, string? openText, Action? open) : Lists.IOpensItself
 {
     public string Name => name;
     public string? Subtitle => subtitle;

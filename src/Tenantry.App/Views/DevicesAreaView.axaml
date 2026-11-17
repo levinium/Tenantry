@@ -57,16 +57,16 @@
     <!-- Autopilot: read live, with Refresh; why it can't be read when it can't -->
     <DockPanel IsVisible="{Binding ShowAutopilot}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshAutopilotCommand}" ToolTip.Tip="Read the Autopilot devices from Intune again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
                      Text="Windows devices registered to set themselves up for the organization when first turned on, or after an Autopilot reset." />
-        </StackPanel>
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasAutopilotNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />

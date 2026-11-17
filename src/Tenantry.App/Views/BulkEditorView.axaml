@@ -21,7 +21,7 @@
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="ed:BulkAction">
           <StackPanel Spacing="4">
-          <TextBlock Classes="label" Text="{Binding GroupHeading}" IsVisible="{Binding HasGroupHeading}" Margin="2,8,0,0" />
+          <TextBlock Classes="label" Text="{Binding GroupHeading, Converter={x:Static conv:Capitals.Instance}}" IsVisible="{Binding HasGroupHeading}" Margin="2,8,0,0" />
           <Border Classes="bulkrow" Classes.open="{Binding IsSelected}">
             <StackPanel>
               <Button Classes="bulkhead" Command="{Binding $parent[ItemsControl].((ed:BulkEditorViewModel)DataContext).ToggleCommand}" CommandParameter="{Binding}"

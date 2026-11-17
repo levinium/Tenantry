@@ -1791,6 +1791,10 @@ static void DragHandle(MainWindow window, string listName, int index, double dy)
 
 void Render(object page, string name, int width = 1440, int height = 900, Action<MainWindow>? during = null)
 {
+    // TENANTRY_SHOTS=users,device- saves only the screens whose names start with one of these (all
+    // still render: later screens build on what earlier ones did).
+    var skip = Environment.GetEnvironmentVariable("TENANTRY_SHOTS") is { Length: > 0 } only
+        && !only.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Any(p => name.StartsWith(p, StringComparison.Ordinal));
     var shell = new ShellViewModel(connector);
     shell.ShowPage(page);
     var window = new MainWindow { Width = width, Height = height, DataContext = shell };
@@ -1805,6 +1809,11 @@ void Render(object page, string name, int width = 1440, int height = 900, Action
             Thread.Sleep(25);
             Settle();
         }
+    }
+    if (skip)
+    {
+        window.Close();
+        return;
     }
     using var frame = window.CaptureRenderedFrame()
         ?? throw new InvalidOperationException($"No frame rendered for {name}");

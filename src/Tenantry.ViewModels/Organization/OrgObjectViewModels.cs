@@ -56,6 +56,9 @@ public sealed partial class OrgObjectCard : ObservableObject
     public ChangeTarget Target { get; }
     public string Name => Item.Name;
 
+    /// <summary>The page's only object (a tenant setting): shown open, without a heading repeating the page's.</summary>
+    public bool IsSingle => _kind.Single;
+
     public string? Subtitle => _kind.SubtitleOf is { } of ? of(Item.Raw) : _kind.SubtitleProperty is { } p && OrgPath.Get(Item.Raw, p) is { ValueKind: JsonValueKind.String } s && s.GetString() is { Length: > 0 } text
         ? (p is "status" or "membershipType" or "category" ? Display.TitleCase(SettingsCatalog.Words(text)) : text) : null;
 

@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:rec="using:Tenantry.ViewModels.Records"
              xmlns:ed="using:Tenantry.ViewModels.Editing"
              xmlns:views="using:Tenantry.App.Views"
@@ -33,7 +34,7 @@
     <!-- A list of people: heading, what it does, the people, Add -->
     <DataTemplate DataType="rec:MailPeopleList">
       <StackPanel Spacing="6">
-        <TextBlock Classes="label" Text="{Binding Title}" />
+        <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" />
         <TextBlock Classes="caption" Text="{Binding Description}" TextWrapping="Wrap" />
         <TextBlock Classes="muted" Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}" />
         <ItemsControl ItemsSource="{Binding Rows}">

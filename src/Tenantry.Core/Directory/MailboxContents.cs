@@ -17,6 +17,28 @@ public sealed record InboxRule(
 {
     /// <summary>Forwards or redirects mail anywhere: the classic sign of a compromised account.</summary>
     public bool Forwards => ForwardsTo.Count > 0;
+
+    /// <summary>
+    /// What the rule does in one sentence, from Exchange's description ("If the message: … Take the
+    /// following actions: …"): "When a message includes 'invoice' in the subject: delete the message."
+    /// </summary>
+    public string Summary => Sentence(Description);
+
+    public static string Sentence(string? description)
+    {
+        // Only Exchange's own layout is rewritten; anything else shows as it came.
+        if (description is null || !description.Contains("Take the following action", StringComparison.OrdinalIgnoreCase))
+            return (description ?? "").Trim();
+        var (conditions, exceptions, actions) = MailFlowRule.ParseDescription(description);
+        var when = conditions.Count == 0 || conditions is ["(all messages)"] ? "Every message" : "When a message " + string.Join(" and ", conditions.Select(Lower));
+        var except = exceptions.Count == 0 ? "" : ", except when it " + string.Join(" or ", exceptions.Select(Lower));
+        var then = actions.Count == 0 ? "" : ": " + string.Join(", then ", actions.Select(Lower));
+        var sentence = when + except + then;
+        return sentence.EndsWith('.') ? sentence : sentence + ".";
+    }
+
+    /// <summary>Exchange sometimes starts each part with a capital ("Is received from…"); mid-sentence it doesn't.</summary>
+    static string Lower(string part) => part.Length > 1 && char.IsUpper(part[0]) && !char.IsUpper(part[1]) ? char.ToLowerInvariant(part[0]) + part[1..] : part;
 }
 
 /// <summary>Someone's access to a mailbox folder. "Default" (everyone in the organization) and "Anonymous" are Exchange's own entries.</summary>

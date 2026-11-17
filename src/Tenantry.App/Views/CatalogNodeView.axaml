@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:it="using:Tenantry.ViewModels.Intune"
              xmlns:dir="using:Tenantry.Core.Directory"
              xmlns:views="using:Tenantry.App.Views"
@@ -37,7 +38,7 @@
         </ComboBox>
         <TextBox Text="{Binding Text}" IsVisible="{Binding IsSimple}" Width="240" PlaceholderText="{Binding Placeholder}" c:EditCommit.Commit="{Binding CommitTextCommand}" />
       </Panel>
-      <Button Grid.Column="3" Classes="danger-outline" Content="Remove" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}" VerticalAlignment="Center"
+      <Button Grid.Column="3" Classes="danger-outline quiet" Content="Remove" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}" VerticalAlignment="Center"
               ToolTip.Tip="Stop setting this (added to Pending Changes)" />
     </Grid>
 
@@ -58,7 +59,7 @@
             <Border Classes="levelrow" Margin="0,0,0,6">
               <StackPanel Spacing="4">
                 <Grid ColumnDefinitions="*,Auto">
-                  <TextBlock Classes="label" Text="{Binding Title}" VerticalAlignment="Center" />
+                  <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" VerticalAlignment="Center" />
                   <Button Grid.Column="1" Classes="danger-outline" Content="Remove Item" Command="{Binding RemoveCommand}" IsVisible="{Binding CanEdit}"
                           ToolTip.Tip="Take this item out (added to Pending Changes)" />
                 </Grid>

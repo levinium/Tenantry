@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:rec="using:Tenantry.ViewModels.Records"
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:views="using:Tenantry.App.Views"
@@ -28,7 +29,7 @@
     </Border>
 
     <StackPanel Spacing="4">
-      <TextBlock Classes="label" Text="{Binding OwnerLabel}" />
+      <TextBlock Classes="label" Text="{Binding OwnerLabel, Converter={x:Static conv:Capitals.Instance}}" />
       <Button Classes="link" Content="{Binding OwnerText}" Command="{Binding OpenOwnerCommand}" IsVisible="{Binding CanOpenOwner}" HorizontalAlignment="Left"
               ToolTip.Tip="Open their record" />
       <TextBlock Text="{Binding OwnerText}" IsVisible="{Binding !CanOpenOwner}" />
@@ -43,7 +44,7 @@
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="rec:SummaryLine">
           <Grid ColumnDefinitions="120,*" ColumnSpacing="8">
-            <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Classes="factname" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,1,0,0" TextWrapping="Wrap" />
             <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
           </Grid>
         </DataTemplate>

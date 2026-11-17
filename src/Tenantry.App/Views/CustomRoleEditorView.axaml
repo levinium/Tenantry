@@ -61,7 +61,7 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="rec:PermissionChoice">
                 <StackPanel Spacing="2" Margin="0,2">
-                  <TextBlock Classes="label" Text="{Binding Heading}" IsVisible="{Binding HasHeading}" Margin="0,8,0,2" />
+                  <TextBlock Classes="label" Text="{Binding Heading, Converter={x:Static conv:Capitals.Instance}}" IsVisible="{Binding HasHeading}" Margin="0,8,0,2" />
                   <CheckBox IsChecked="{Binding IsChecked}" Click="OnPermissionClick" ToolTip.Tip="Shift-click to tick or untick everything since the last one">
                     <StackPanel Spacing="1">
                       <StackPanel Orientation="Horizontal" Spacing="6">

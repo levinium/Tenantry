@@ -27,7 +27,7 @@
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="rec:SummaryLine">
           <Grid ColumnDefinitions="120,*" ColumnSpacing="8">
-            <TextBlock Classes="label" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <TextBlock Classes="factname" Text="{Binding Label}" VerticalAlignment="Top" Margin="0,1,0,0" TextWrapping="Wrap" />
             <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
           </Grid>
         </DataTemplate>

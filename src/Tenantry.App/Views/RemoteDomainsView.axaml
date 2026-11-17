@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
              xmlns:views="using:Tenantry.App.Views"
              xmlns:c="using:Tenantry.App.Controls"
@@ -63,7 +64,7 @@
                     <SelectableTextBlock Classes="h3" Text="{Binding Title}" />
                     <TextBlock Classes="caption" Text="{Binding Subtitle}" />
                   </StackPanel>
-                  <Button Grid.Column="1" Classes="danger-outline" Content="{Binding RemoveText}" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}"
+                  <Button Grid.Column="1" Classes="danger-outline quiet" Content="{Binding RemoveText}" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}"
                           VerticalAlignment="Top" ToolTip.Tip="Remove this domain's own settings: the default ones apply to it again (added to Pending Changes)" />
                 </Grid>
                 <ItemsControl ItemsSource="{Binding Groups}">
@@ -76,7 +77,7 @@
                     <DataTemplate x:DataType="ms:SettingGroup">
                       <Border>
                         <StackPanel Spacing="6">
-                          <TextBlock Classes="label" Text="{Binding Title}" />
+                          <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" />
                           <ItemsControl ItemsSource="{Binding Rows}">
                             <ItemsControl.ItemTemplate>
                               <DataTemplate x:DataType="ms:SettingRow">

@@ -54,16 +54,16 @@
     <!-- Conditional Access: read live, with Refresh -->
     <DockPanel IsVisible="{Binding ShowPolicies}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshPoliciesCommand}" ToolTip.Tip="Read Conditional Access from Entra again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
                      Text="Rules every sign-in must meet: who, to which apps, from where, and what they require." />
-        </StackPanel>
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasCaNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -316,16 +316,16 @@
     <!-- App registrations and enterprise apps (8c): read live together, with Refresh -->
     <DockPanel IsVisible="{Binding ShowRegistrations}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshAppsCommand}" ToolTip.Tip="Read apps from Entra again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
                      Text="Apps defined in this organization: how they sign in (secrets and certificates) and what they ask to do." />
-        </StackPanel>
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasAppsNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -341,16 +341,16 @@
     </DockPanel>
     <DockPanel IsVisible="{Binding ShowEnterpriseApps}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshAppsCommand}" ToolTip.Tip="Read apps from Entra again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
                      Text="Every app people here can sign in to: who has access, and what they or an admin allowed it to do." />
-        </StackPanel>
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasAppsNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -367,15 +367,15 @@
     <!-- Identity Protection (8d-2): read together, with Refresh; P2 or a permission may be missing -->
     <DockPanel IsVisible="{Binding ShowRiskyUsers}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="People Identity Protection thinks may be compromised. Confirm or dismiss to teach it; risk-based policies act on the level." />
-        </StackPanel>
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="People Identity Protection thinks may be compromised. Confirm or dismiss to teach it; risk-based policies act on the level." />
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasRiskNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -390,15 +390,15 @@
       </ContentControl>
     </DockPanel>    <DockPanel IsVisible="{Binding ShowRiskDetections}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Each sign-in or account event that raised someone's risk, and why." />
-        </StackPanel>
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Each sign-in or account event that raised someone's risk, and why." />
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasRiskNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -413,15 +413,15 @@
       </ContentControl>
     </DockPanel>    <DockPanel IsVisible="{Binding ShowRiskyApps}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Apps (service principals) whose sign-ins or credentials look compromised." />
-        </StackPanel>
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Apps (service principals) whose sign-ins or credentials look compromised." />
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasRiskNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -437,15 +437,15 @@
     </DockPanel>    <!-- eDiscovery (8f-1): cases and searches, read live from Purview together, with Refresh -->
     <DockPanel IsVisible="{Binding ShowCases}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshEDiscoveryCommand}" ToolTip.Tip="Read cases and searches from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Cases group the searches and holds for one matter, and the people who work on it. Open a case to search, hold content or add members. Purview asks you to sign in once more the first time (as Exchange PowerShell does)." />
-        </StackPanel>
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Cases group the searches and holds for one matter, and the people who work on it. Open a case to search, hold content or add members. Purview asks you to sign in once more the first time (as Exchange PowerShell does)." />
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasEDiscoveryNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -461,15 +461,15 @@
     </DockPanel>
     <DockPanel IsVisible="{Binding ShowSearches}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshEDiscoveryCommand}" ToolTip.Tip="Read cases and searches from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Every content search, in a case or not. Open one to see what it found in each place, or run it again. Purview asks you to sign in once more the first time (as Exchange PowerShell does)." />
-        </StackPanel>
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Every content search, in a case or not. Open one to see what it found in each place, or run it again. Purview asks you to sign in once more the first time (as Exchange PowerShell does)." />
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasEDiscoveryNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -488,15 +488,15 @@
     <!-- Retention (8f-3): policies, labels, scopes and events, read live from Purview together, with Refresh -->
     <DockPanel IsVisible="{Binding ShowRetentionPolicies}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Policies keep content for a time, delete it after a time, or both; others publish labels for people to choose, or apply one. Purview asks you to sign in once more the first time." />
-        </StackPanel>
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Policies keep content for a time, delete it after a time, or both; others publish labels for people to choose, or apply one. Purview asks you to sign in once more the first time." />
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasRetentionNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -512,15 +512,15 @@
     </DockPanel>
     <DockPanel IsVisible="{Binding ShowRetentionLabels}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Labels people (or a policy) put on content to keep or delete it, or to mark it as a record. Publish a label with a policy so people can choose it." />
-        </StackPanel>
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Labels people (or a policy) put on content to keep or delete it, or to mark it as a record. Publish a label with a policy so people can choose it." />
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasRetentionNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -536,15 +536,15 @@
     </DockPanel>
     <DockPanel IsVisible="{Binding ShowAdaptiveScopes}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Users, groups or sites picked by a query; policies that use a scope follow it as things change." />
-        </StackPanel>
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Users, groups or sites picked by a query; policies that use a scope follow it as things change." />
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasRetentionNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -566,16 +566,16 @@
     </DockPanel>
     <DockPanel IsVisible="{Binding ShowRetentionEvents}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshRetentionCommand}" ToolTip.Tip="Read retention from Purview again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
                      Text="Labels can start their period when an event happens, such as a contract ending. Record the event here when it does." />
-        </StackPanel>
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasRetentionNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -604,16 +604,16 @@
     <!-- Admin roles: read live, with Refresh; what PIM can't show here -->
     <DockPanel IsVisible="{Binding ShowRoles}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding RefreshRolesCommand}" ToolTip.Tip="Read admin roles from Entra again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
                      Text="Who can administer what. Privileged roles can change security settings or reach everyone's data: keep them few." />
-        </StackPanel>
+        </Grid>
         <Border Classes="banner neutral" IsVisible="{Binding HasRolesNote}">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
@@ -631,16 +631,16 @@
     <Panel IsVisible="{Binding ShowMyRoles}">
     <ScrollViewer DataContext="{Binding MyRoles}" x:DataType="rec:MyRolesViewModel">
       <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Left" Margin="0,0,0,24">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding ReadAgainCommand}" ToolTip.Tip="Read your roles from Entra again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
                      Text="Roles you're eligible for stay off until you switch one on, for a few hours, when you need it." />
-        </StackPanel>
+        </Grid>
         <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
           <Panel Width="18" Height="18" VerticalAlignment="Center">
             <Ellipse Classes="spintrack" />
@@ -736,15 +736,15 @@
     <Panel IsVisible="{Binding ShowApprovals}">
     <ScrollViewer DataContext="{Binding Approvals}" x:DataType="rec:ApprovalsViewModel">
       <StackPanel Spacing="12" MaxWidth="980" HorizontalAlignment="Left" Margin="0,0,0,24">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <Button Command="{Binding ReadAgainCommand}" ToolTip.Tip="Read requests from Entra again">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
               <TextBlock Text="Refresh" />
             </StackPanel>
           </Button>
-          <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Requests to switch a role on that are waiting for your answer." />
-        </StackPanel>
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Requests to switch a role on that are waiting for your answer." />
+        </Grid>
         <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsLoading}">
           <Panel Width="18" Height="18" VerticalAlignment="Center">
             <Ellipse Classes="spintrack" />

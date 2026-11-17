@@ -27,6 +27,17 @@ public sealed class MailFlowRuleTests
         Assert.Equal(["Prepend the subject of the message with '[EXTERNAL] '"], actions);
     }
 
+    [Theory]
+    [InlineData("If the message:\n  includes 'invoice' in the subject\nTake the following actions:\n  delete the message",
+        "When a message includes 'invoice' in the subject: delete the message.")]
+    [InlineData("If the message:\n  (all messages)\nTake the following actions:\n  forward the message to 'someone@mail.example'",
+        "Every message: forward the message to 'someone@mail.example'.")]
+    [InlineData("If the message:\r\n\tIs received from 'Outside the organization'\r\nTake the following actions:\r\n\tMove the message to folder 'Junk'\r\n\tand\r\n\tMark it as read\r\nExcept if the message:\r\n\tIs sent to 'billing@contoso.example'\r\n",
+        "When a message is received from 'Outside the organization', except when it is sent to 'billing@contoso.example': move the message to folder 'Junk', then mark it as read.")]
+    [InlineData("Something Exchange wrote another way", "Something Exchange wrote another way")]
+    public void An_inbox_rule_reads_as_one_sentence(string description, string sentence) =>
+        Assert.Equal(sentence, InboxRule.Sentence(description));
+
     [Fact]
     public async Task Rules_read_their_state_mode_and_order()
     {

@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:pv="using:Tenantry.ViewModels.Purview"
              xmlns:it="using:Tenantry.ViewModels.Intune"
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
@@ -9,7 +10,7 @@
              x:Class="Tenantry.App.Views.PurviewCardView"
              x:DataType="pv:PurviewObjectCard">
   <!-- One Purview item: its settings edited in place, what it only shows, its rules (each this same card), and Delete. -->
-  <Border Classes="card">
+  <Border Classes="card itemcard">
     <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch">
       <Expander.Header>
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
@@ -28,7 +29,7 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="ms:SettingGroup">
               <StackPanel Spacing="6" Margin="0,0,0,8">
-                <TextBlock Classes="label" Text="{Binding Title}" />
+                <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" />
                 <ItemsControl ItemsSource="{Binding Rows}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="ms:SettingRow">

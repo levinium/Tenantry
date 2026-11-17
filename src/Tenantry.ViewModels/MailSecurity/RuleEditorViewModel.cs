@@ -142,8 +142,11 @@ public sealed partial class RuleEditorViewModel : TabViewModel, IDisposable
     public IReadOnlyList<RuleStarter> Starters => RuleStarters.All;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsReady))]
+    [NotifyPropertyChangedFor(nameof(IsReady), nameof(DoneText), nameof(ShowDiscard))]
     public partial bool ShowStarters { get; private set; }
+
+    /// <summary>Nothing to discard (or be done with) until a starter is chosen: the way out is Cancel.</summary>
+    public bool ShowDiscard => CanEdit && !ShowStarters;
 
     [RelayCommand]
     void Start(RuleStarter starter)
@@ -463,7 +466,7 @@ public sealed partial class RuleEditorViewModel : TabViewModel, IDisposable
     [NotifyPropertyChangedFor(nameof(DoneText))]
     public partial bool IsConfirmingClose { get; private set; }
 
-    public string DoneText => IsConfirmingClose ? "Close Anyway" : "Done";
+    public string DoneText => ShowStarters ? "Cancel" : IsConfirmingClose ? "Close Anyway" : "Done";
 
     public string ConfirmCloseText => IsNew
         ? "This rule has problems, so it isn't in Pending Changes yet. Closing now loses it."

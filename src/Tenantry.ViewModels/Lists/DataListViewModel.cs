@@ -1002,7 +1002,22 @@ public sealed partial class DataListViewModel : TabViewModel
     void UpdateViewGroups()
     {
         ChipViews = Views.Where(v => v.IsPinned || v.IsCurrent).ToArray();
-        MoreViews = Views.Where(v => !v.IsPinned && !v.IsCurrent).ToArray();
+        _chipsHidden = _chipsHidden.Where(ChipViews.Contains).ToArray();
+        MoreViews = [.. _chipsHidden, .. Views.Where(v => !v.IsPinned && !v.IsCurrent)];
+    }
+
+    IReadOnlyList<SavedViewItem> _chipsHidden = [];
+
+    /// <summary>
+    /// The chips that don't fit on the views row (the screen keeps them to one line): they're
+    /// listed first under More Views instead.
+    /// </summary>
+    public void SetHiddenChips(IReadOnlyList<SavedViewItem> hidden)
+    {
+        if (hidden.SequenceEqual(_chipsHidden))
+            return;
+        _chipsHidden = hidden;
+        MoreViews = [.. hidden.Where(ChipViews.Contains), .. Views.Where(v => !v.IsPinned && !v.IsCurrent)];
     }
 
     void SetCurrentView(SavedViewItem? view)
@@ -1026,6 +1041,7 @@ public sealed partial class DataListViewModel : TabViewModel
     // selected, so moving through the list previews each row in turn.
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowOpenRecord))]
     public partial object? PreviewModel { get; private set; }
 
     [ObservableProperty]
@@ -1133,7 +1149,7 @@ public sealed partial class DataListViewModel : TabViewModel
         }
     } = true;
 
-    public bool ShowOpenRecord => HasRecordPages && !HasSelection;
+    public bool ShowOpenRecord => HasRecordPages && !HasSelection && PreviewModel is not IOpensItself { CanOpen: true };
 
     [RelayCommand]
     public void OpenSelected()

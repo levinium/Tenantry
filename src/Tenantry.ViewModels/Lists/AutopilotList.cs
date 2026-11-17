@@ -65,7 +65,8 @@ public static class AutopilotList
             new() { Key = F.Serial, Header = "Serial Number", Cell = CellKind.Primary, MinWidth = 200, DefaultWidth = 230,
                 Text = d => d.Serial,
                 Subtitle = d => string.Join(' ', new[] { d.Manufacturer, d.Model }.Where(s => !string.IsNullOrEmpty(s)).Distinct()),
-                Initials = _ => "A" },
+                // The maker, so a mixed fleet reads at a glance (every row saying "A" told nothing).
+                Initials = d => Display.Initials(string.IsNullOrEmpty(d.Manufacturer) ? d.Serial : d.Manufacturer) },
             new() { Key = F.GroupTag, Header = "Group Tag", Cell = CellKind.Text, MinWidth = 130, DefaultWidth = 150, Text = d => d.GroupTag, EmptyText = "None" },
             new() { Key = F.Profile, Header = "Profile", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 200, Text = d => d.ProfileName },
             new() { Key = F.ProfileStatus, Header = "Profile Status", Cell = CellKind.Badge, MinWidth = 130, DefaultWidth = 140, Badge = ProfileBadge },

@@ -309,6 +309,9 @@ public sealed partial class IntuneObjectsViewModel : LivePage
     public bool IsEmpty => Cards.Count == 0 && IsLoaded && !HasError;
     public string EmptyText => _all.Count == 0 ? $"No {Kind.Title.ToLowerInvariant()} yet." : "Nothing matches.";
 
+    /// <summary>A search box only where there are enough to search (or one is already typed).</summary>
+    public bool ShowFilter => _all.Count > 5 || FilterText.Length > 0;
+
     [ObservableProperty]
     public partial string FilterText { get; set; } = "";
 
@@ -322,6 +325,7 @@ public sealed partial class IntuneObjectsViewModel : LivePage
             Cards.Add(c);
         OnPropertyChanged(nameof(IsEmpty));
         OnPropertyChanged(nameof(EmptyText));
+        OnPropertyChanged(nameof(ShowFilter));
     }
 
     protected override bool Concerns(ChangeOp change) => change is IntuneChange i && (i.Path.StartsWith(Kind.Collection, StringComparison.Ordinal)

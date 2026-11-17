@@ -444,7 +444,8 @@ public sealed partial class PurviewObjectsViewModel : LivePage
     public ObservableCollection<PurviewObjectCard> Cards { get; } = [];
     public bool IsEmpty => Cards.Count == 0 && IsLoaded && !HasError && !HasNote;
     public string EmptyText => _all.Count == 0 ? $"No {Kind.Title.ToLowerInvariant()} yet." : "Nothing matches.";
-    public bool ShowFilter => !Kind.Single;
+    /// <summary>A search box only where there are enough to search (or one is already typed).</summary>
+    public bool ShowFilter => !Kind.Single && (_all.Count > 5 || FilterText.Length > 0);
 
     /// <summary>Why Purview couldn't list them (licensing), above the list.</summary>
     [ObservableProperty]
@@ -466,6 +467,7 @@ public sealed partial class PurviewObjectsViewModel : LivePage
             Cards.Add(c);
         OnPropertyChanged(nameof(IsEmpty));
         OnPropertyChanged(nameof(EmptyText));
+        OnPropertyChanged(nameof(ShowFilter));
     }
 
     protected override bool Concerns(ChangeOp change) => change is PurviewChange p

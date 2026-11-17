@@ -2,6 +2,15 @@ using Tenantry.Core.Lists;
 
 namespace Tenantry.ViewModels.Lists;
 
+/// <summary>
+/// A preview with its own named Open button ("Open Policy", "Open Case"): the pane's generic Open
+/// Full Record would be a second way to do the same thing, so it steps aside.
+/// </summary>
+public interface IOpensItself
+{
+    bool CanOpen { get; }
+}
+
 /// <summary>A menu entry for a row's More button and right-click menu.</summary>
 public sealed record RowMenuItem(string Label, string Icon, Action? Run = null, string? CopyText = null, bool IsSeparator = false)
 {

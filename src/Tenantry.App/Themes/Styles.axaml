@@ -349,6 +349,31 @@
     <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
     <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
   </Style>
+  <!-- One item of a list (a policy, a label, a setting object) is a card that IS the expander:
+       its header and content sit straight in the card, with a line between, not in a second box. -->
+  <Style Selector="Border.card.itemcard">
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="Border.card.itemcard > Expander /template/ ToggleButton#ExpanderHeader">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="20,12" />
+    <Setter Property="MinHeight" Value="52" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.card.itemcard > Expander /template/ Border#ExpanderContent">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Divider}" />
+    <Setter Property="Padding" Value="20,16,20,20" />
+  </Style>
+  <!-- A page's only item (a tenant setting) sits open in its card, without a header repeating the page's own. -->
+  <Style Selector="Expander.single /template/ ToggleButton#ExpanderHeader">
+    <Setter Property="IsVisible" Value="False" />
+  </Style>
+  <Style Selector="Border.card.itemcard > Expander.single /template/ Border#ExpanderContent">
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
 
   <!-- A number box's arrow at its limit: faded, not the theme's grey box (a light square in dark mode). -->
   <Style Selector="ButtonSpinner RepeatButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
@@ -421,6 +446,19 @@
   <Style Selector="TextBlock.value, SelectableTextBlock.value">
     <Setter Property="FontSize" Value="14" />
     <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+  </Style>
+  <!-- Dates in a picker read as the rest of the app writes them ("10 Nov 2026"), not 11/10/2026,
+       which reads differently in different countries. -->
+  <Style Selector="CalendarDatePicker">
+    <Setter Property="SelectedDateFormat" Value="Custom" />
+    <Setter Property="CustomDateFormatString" Value="d MMM yyyy" />
+    <Setter Property="Watermark" Value="Choose a date" />
+  </Style>
+
+  <!-- The name beside a value in a list of facts ("Serial Number  PF5038425"): readable, quieter than the value. -->
+  <Style Selector="TextBlock.factname">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
   </Style>
   <Style Selector="SelectableTextBlock.code">
     <Setter Property="FontFamily" Value="Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace" />

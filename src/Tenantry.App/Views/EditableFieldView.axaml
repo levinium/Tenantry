@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:ed="using:Tenantry.ViewModels.Editing"
              xmlns:ic="using:FluentIcons.Avalonia"
              xmlns:c="using:Tenantry.App.Controls"
@@ -8,7 +9,7 @@
   <!-- A value with an Edit button; a staged change shows under it as pending, with an undo. -->
   <StackPanel Spacing="2">
     <Grid ColumnDefinitions="*,Auto">
-      <TextBlock Classes="label" Text="{Binding Caption}" VerticalAlignment="Center" />
+      <TextBlock Classes="label" Text="{Binding Caption, Converter={x:Static conv:Capitals.Instance}}" VerticalAlignment="Center" />
       <Button Grid.Column="1" Classes="rowaction" Padding="4" IsVisible="{Binding ShowEditButton}" IsEnabled="{Binding CanEdit}"
               Command="{Binding EditCommand}" ToolTip.Tip="{Binding EditTip}" ToolTip.ShowOnDisabled="True">
         <ic:FluentIcon Icon="Edit" FontSize="14" />

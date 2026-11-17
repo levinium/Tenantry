@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
              xmlns:views="using:Tenantry.App.Views"
              xmlns:c="using:Tenantry.App.Controls"
@@ -47,7 +48,7 @@
           <DataTemplate x:DataType="ms:SettingGroup">
             <Border Classes="card">
               <StackPanel Spacing="6">
-                <TextBlock Classes="label" Text="{Binding Title}" />
+                <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" />
                 <ItemsControl ItemsSource="{Binding Rows}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="ms:SettingRow">

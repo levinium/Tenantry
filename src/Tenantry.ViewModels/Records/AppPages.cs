@@ -121,7 +121,7 @@ public sealed class AppSection(string key, string title, string icon, Func<Cance
 
 /// <summary>An app in the preview pane: what it is, its flags, a few facts, and a button to open its page.</summary>
 public sealed partial class AppPreviewViewModel(string name, string? subtitle, IReadOnlyList<HealthChip> badges, IReadOnlyList<SummaryLine> facts, string openText, Action? open,
-    IReadOnlyList<PageButton>? buttons = null)
+    IReadOnlyList<PageButton>? buttons = null) : Lists.IOpensItself
 {
     /// <summary>More buttons beside Open (Show PowerShell on a change log entry).</summary>
     public IReadOnlyList<PageButton> Buttons => buttons ?? [];

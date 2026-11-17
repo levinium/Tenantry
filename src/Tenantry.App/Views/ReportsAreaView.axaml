@@ -30,16 +30,16 @@
     <Grid>
 
     <DockPanel IsVisible="{Binding ShowReports}">
-      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,8">
         <Button Command="{Binding RefreshCommand}" ToolTip.Tip="Count again from the local copy">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
             <TextBlock Text="Refresh" />
           </StackPanel>
         </Button>
-        <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+        <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
                    Text="Counts from the local copy, kept current as it syncs. Open List shows the matching people, groups, devices or sites, ready to filter, change or export." />
-      </StackPanel>
+      </Grid>
       <ScrollViewer>
         <ContentControl Content="{Binding Reports}" HorizontalAlignment="Left" Margin="0,0,0,24" />
       </ScrollViewer>
@@ -56,16 +56,16 @@
     </Panel>
 
     <DockPanel IsVisible="{Binding ShowChangeLog}">
-      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,8">
         <Button Command="{Binding RefreshCommand}" ToolTip.Tip="Read the change log again">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
             <TextBlock Text="Refresh" />
           </StackPanel>
         </Button>
-        <TextBlock Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+        <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
                    Text="Every change Tenantry has tried in this tenant from this computer, and what happened. Kept encrypted on this computer only." />
-      </StackPanel>
+      </Grid>
       <ContentControl Content="{Binding ChangeLog}">
         <ContentControl.DataTemplates>
           <listviews:ListViewCache />

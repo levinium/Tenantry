@@ -19,8 +19,8 @@ public sealed partial class AuthenticatorSetupViewModel(string name, string sign
     public string Link => SecurityInfoLink;
 
     public string Intro =>
-        $"Microsoft doesn't let an admin add the Authenticator app for someone: {name} scans its QR code on their own phone. " +
-        "Tenantry makes them a Temporary Access Pass to sign in with, then shows the steps and a code their phone can scan to get started.";
+        $"Microsoft doesn't let an admin add the Authenticator app for someone, so {name} sets it up on their own phone. " +
+        "Tenantry makes them a Temporary Access Pass to sign in with, and shows the steps and a QR code their phone can scan to get started.";
 
     public string SignInName => signInName;
 
@@ -61,7 +61,7 @@ public sealed partial class AuthenticatorSetupViewModel(string name, string sign
         "Scan the QR code with the phone's camera. It opens Microsoft's Security info page.",
         $"Sign in as {signInName}. When asked, enter the Temporary Access Pass above.",
         "Choose Add sign-in method, then Microsoft Authenticator, and follow along. On the phone, tap \"Pair your account to the app by clicking this link\".",
-        "Approve the test notification in Authenticator. That's it: it shows in their sign-in methods.",
+        "Approve the test notification in Authenticator. The app then appears in their sign-in methods.",
     ];
 
     [ObservableProperty]

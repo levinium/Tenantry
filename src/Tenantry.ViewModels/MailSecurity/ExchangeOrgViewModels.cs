@@ -116,7 +116,8 @@ public sealed partial class SettingRow : ObservableObject
     /// <summary>"days", "MB": shown in the number box.</summary>
     public string? Unit => Def.Unit;
 
-    public bool HasUnit => !string.IsNullOrEmpty(Def.Unit);
+    /// <summary>Not beside Never ("Never days").</summary>
+    public bool HasUnit => !string.IsNullOrEmpty(Def.Unit) && !NumberText.Trim().Equals("never", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Microsoft writes "never" as the largest whole number (2147483647, as for password expiry):
@@ -155,6 +156,7 @@ public sealed partial class SettingRow : ObservableObject
     public partial SettingChoice? Choice { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnit))]
     public partial string NumberText { get; set; }
 
     [ObservableProperty]

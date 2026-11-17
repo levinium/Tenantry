@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
              xmlns:wf="using:Tenantry.ViewModels.Workflows"
              xmlns:views="using:Tenantry.App.Views"
              xmlns:ic="using:FluentIcons.Avalonia"
@@ -10,7 +11,7 @@
     <!-- One section of the checklist: its heading, then a ticked or unticked row per step. -->
     <DataTemplate x:Key="SectionTemplate" x:DataType="wf:WorkflowSection">
       <StackPanel Spacing="6">
-        <TextBlock Classes="label" Text="{Binding Title}" />
+        <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" />
         <ItemsControl ItemsSource="{Binding Steps}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>

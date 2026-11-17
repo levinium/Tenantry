@@ -50,7 +50,7 @@
                 <c:Badge Text="Dynamic" Kind="Info" IsVisible="{Binding IsDynamic}" />
                 <c:Badge Text="{Binding PendingText}" Kind="Warning" IsVisible="{Binding HasPending}" />
               </WrapPanel>
-              <Button Grid.Column="2" Classes="danger-outline" Classes.undo="{Binding HasPending}" Content="{Binding ToggleText}" Command="{Binding ToggleCommand}"
+              <Button Grid.Column="2" Classes="danger-outline quiet" Classes.undo="{Binding HasPending}" Content="{Binding ToggleText}" Command="{Binding ToggleCommand}"
                       IsEnabled="{Binding CanChange}" ToolTip.Tip="{Binding Tip}" ToolTip.ShowOnDisabled="True" VerticalAlignment="Center" />
             </Grid>
           </Border>
