@@ -100,6 +100,32 @@ public sealed class OneDriveActivityTests
     }
 
     [Fact]
+    public async Task A_OneDrive_Graph_hides_from_an_admin_is_read_from_the_admin_site()
+    {
+        // Graph answers 403 to an admin who isn't one of the drive's owners (seen live).
+        var http = new FakeHttp()
+            .On(HttpMethod.Get, "/sites/root", Root)
+            .On(HttpMethod.Get, "/users/u3/drive", """{"error":{"code":"accessDenied","message":"Access denied"}}""", HttpStatusCode.Forbidden)
+            .On(HttpMethod.Get, "/users/u3?", """{"userPrincipalName":"cy@contoso.example"}""")
+            .Once(HttpMethod.Post, "ProcessQuery",
+                """[{"SchemaVersion":"15.0.0.0","ErrorInfo":null},2,{"IsNull":false},3,"https://contoso-my.sharepoint.com/personal/cy_contoso_example/"]""")
+            .Once(HttpMethod.Post, "ProcessQuery", """
+                [{"SchemaVersion":"15.0.0.0","ErrorInfo":null},2,{"IsNull":false},4,{"IsNull":false},5,
+                 {"_ObjectType_":"Microsoft.Online.SharePoint.TenantAdministration.SiteProperties","Url":"https://contoso-my.sharepoint.com/personal/cy_contoso_example",
+                  "SiteId":"/Guid(a5c0b872-4f3a-4e7a-86e7-378b66fcdc4e)/","StorageUsage":950,"StorageMaximumLevel":1024,"StorageWarningLevel":900,
+                  "LockState":"Unlock","LastContentModifiedDate":"/Date(1794931640637)/"}]
+                """);
+        var records = new GraphUserRecords(Graph(http), new MemoryEntityStore(), sharePoint: SharePoint(http));
+
+        var drive = await records.GetOneDriveAsync("u3", Ct);
+
+        Assert.Null(drive.Unavailable);
+        Assert.Equal(("https://contoso-my.sharepoint.com/personal/cy_contoso_example", "a5c0b872-4f3a-4e7a-86e7-378b66fcdc4e", 950L * 1024 * 1024, 1024L * 1024 * 1024, true),
+            (drive.Value!.Url, drive.Value.SiteId, drive.Value.Used, drive.Value.Total, drive.Value.IsNearlyFull));
+        Assert.NotNull(drive.Value.LastChanged);
+    }
+
+    [Fact]
     public void Giving_someone_OneDrive_access_is_guarded_on_both_people()
     {
         var change = new SetOneDriveAccess(new ChangeTarget("user", "u2", "zz-tenantry-test-bo", "zz-tenantry-test-bo@contoso.example"), "url", "site",
