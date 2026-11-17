@@ -217,12 +217,23 @@ public sealed partial class NewUserViewModel : ObservableObject
     public PersonPicker CopyFrom { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasCopiedFrom), nameof(CopiedText))]
+    [NotifyPropertyChangedFor(nameof(HasCopiedFrom), nameof(CopiedText), nameof(ShowCopyPicker))]
     public partial string? CopiedFrom { get; private set; }
 
     public bool HasCopiedFrom => CopiedFrom is not null;
 
-    public string CopiedText => $"Copied from {CopiedFrom}: department, job title, office, manager, groups and licenses. Change anything below.";
+    public string CopiedText => "Their department, job title, office, manager, groups and licenses are filled in below. Change anything you like.";
+
+    /// <summary>Choosing someone else after a copy: the search box comes back.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowCopyPicker))]
+    public partial bool IsChangingCopy { get; private set; }
+
+    /// <summary>The search box shows until someone is copied; after that, their name with Change.</summary>
+    public bool ShowCopyPicker => !HasCopiedFrom || IsChangingCopy;
+
+    [RelayCommand]
+    void ChangeCopy() => IsChangingCopy = true;
 
     public PersonPicker ManagerPicker { get; }
 
@@ -306,6 +317,7 @@ public sealed partial class NewUserViewModel : ObservableObject
         if (_index.User(userId) is not { } person)
             return;
         CopiedFrom = person.DisplayName;
+        IsChangingCopy = false;
         Department = person.Department ?? "";
         JobTitle = person.JobTitle ?? "";
         // Copying from someone else replaces what the last copy brought (groups picked by hand stay).

@@ -16,7 +16,14 @@
     <!-- Copy from a colleague -->
     <StackPanel Spacing="6">
       <TextBlock Classes="label" Text="START FROM A COLLEAGUE (OPTIONAL)" />
-      <views:PersonPickerView DataContext="{Binding CopyFrom}" />
+      <views:PersonPickerView DataContext="{Binding CopyFrom}" IsVisible="{Binding #Root.((rec:NewUserViewModel)DataContext).ShowCopyPicker}" />
+      <Border Classes="valuerow" IsVisible="{Binding !ShowCopyPicker}">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+          <ic:FluentIcon Icon="PersonArrowRight" FontSize="16" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding CopiedFrom, StringFormat='Copied from {0}'}" />
+          <Button Grid.Column="2" Content="Change" Command="{Binding ChangeCopyCommand}" ToolTip.Tip="Start from someone else instead" />
+        </Grid>
+      </Border>
       <TextBlock Classes="caption" TextWrapping="Wrap" IsVisible="{Binding HasCopiedFrom}" Text="{Binding CopiedText}" />
     </StackPanel>
 

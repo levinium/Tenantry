@@ -434,9 +434,18 @@ public sealed record SetLicenseApps(ChangeTarget User, string SkuId, string SkuN
     public override bool IsNoChange => OldDisabled.ToHashSet().SetEquals(NewDisabled);
     public override ChangeOp Since(ChangeOp earlier) => earlier is SetLicenseApps e ? this with { OldDisabled = e.OldDisabled } : this;
 
-    string Describe(IReadOnlyList<string> disabled) => disabled.Count == 0
-        ? "All Apps On"
-        : "Off: " + string.Join(", ", disabled.Select(id => PlanNames.GetValueOrDefault(id, id)).Order(StringComparer.CurrentCulture));
+    /// <summary>
+    /// Only the apps this changes, each with its state ("Viva Engage Core On" → "Viva Engage Core
+    /// Off"), not every app that's off before and after, which left the reader to spot the difference.
+    /// </summary>
+    string Describe(IReadOnlyList<string> disabled)
+    {
+        var changed = OldDisabled.Except(NewDisabled).Concat(NewDisabled.Except(OldDisabled))
+            .Select(id => (Name: PlanNames.GetValueOrDefault(id, id), Off: disabled.Contains(id)))
+            .OrderBy(p => p.Name, StringComparer.CurrentCulture).ToArray();
+        return changed.Length == 0 ? (disabled.Count == 0 ? "All Apps On" : $"{disabled.Count} Off")
+            : string.Join(", ", changed.Select(p => $"{p.Name} {(p.Off ? "Off" : "On")}"));
+    }
 }
 
 /// <summary>Removes the user's assignment to an enterprise application.</summary>

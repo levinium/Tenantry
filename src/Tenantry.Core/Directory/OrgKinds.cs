@@ -765,6 +765,60 @@ public static class OrgKinds
         "Tag:AllOn", "Tag:AllOff", "Tag:RestrictedAnonymousAccess", "Tag:RestrictedAnonymousNoRecording", "Tag:Kiosk", "Tag:Default", "Tag:FirstLineWorker",
     };
 
+    /// <summary>
+    /// Teams policy settings that take one of a fixed set of values (Microsoft's Teams PowerShell
+    /// reference), in words. A policy's settings are built from what it has, so without this each
+    /// would be a text box holding Microsoft's own spelling ("EveryoneInCompanyExcludingGuests").
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, IReadOnlyList<(string Value, string Label)>> TeamsChoices =
+        new Dictionary<string, IReadOnlyList<(string Value, string Label)>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["AutoAdmittedUsers"] =
+            [
+                ("Everyone", "Everyone"), ("EveryoneInSameAndFederatedCompany", "People in the Organization and Trusted Organizations"),
+                ("EveryoneInCompany", "People in the Organization"), ("EveryoneInCompanyExcludingGuests", "People in the Organization, Not Guests"),
+                ("InvitedUsers", "People Who Were Invited"), ("OrganizerOnly", "Only the Organizer"),
+            ],
+            ["MeetingChatEnabledType"] = [("Enabled", "On"), ("EnabledExceptAnonymous", "On, Except for Anonymous People"), ("Disabled", "Off")],
+            ["DesignatedPresenterRoleMode"] =
+            [
+                ("EveryoneUserOverride", "Everyone"), ("EveryoneInSameAndFederatedCompanyUserOverride", "People in the Organization and Trusted Organizations"),
+                ("EveryoneInCompanyUserOverride", "People in the Organization"), ("OrganizerOnlyUserOverride", "Only the Organizer"),
+            ],
+            ["ScreenSharingMode"] = [("EntireScreen", "Entire Screen"), ("SingleApplication", "One App"), ("Disabled", "Off")],
+            ["LiveCaptionsEnabledType"] = [("DisabledUserOverride", "Off, Organizers Can Turn On"), ("Disabled", "Off")],
+            ["WhoCanRegister"] = [("Everyone", "Everyone"), ("EveryoneInCompany", "People in the Organization")],
+            ["BroadcastRecordingMode"] = [("AlwaysEnabled", "Always"), ("AlwaysDisabled", "Never"), ("UserOverride", "The Organizer Decides")],
+            ["BroadcastAttendeeVisibilityMode"] =
+            [
+                ("Everyone", "Everyone"), ("EveryoneInCompany", "People in the Organization"), ("InvitedUsersInCompany", "Invited People in the Organization"),
+                ("EveryoneInCompanyAndExternal", "People in the Organization and Outside It"), ("InvitedUsersInCompanyAndExternal", "Invited People, Inside and Outside"),
+            ],
+            ["GiphyRatingType"] = [("Strict", "Strict"), ("Moderate", "Moderate")],
+            ["BusyOnBusyEnabledType"] = [("Enabled", "Busy Signal"), ("Unanswered", "Treated as Unanswered"), ("UserOverride", "They Decide"), ("Disabled", "Off")],
+            ["MusicOnHoldEnabledType"] = [("Enabled", "On"), ("Disabled", "Off"), ("UserOverride", "They Decide")],
+            ["AllowVoicemail"] = [("AlwaysEnabled", "Always"), ("AlwaysDisabled", "Never"), ("UserOverride", "They Decide")],
+            ["AllowCallRedirect"] = [("Enabled", "On"), ("Disabled", "Off"), ("UserOverride", "They Decide")],
+        };
+
+    /// <summary>Plain names for the Teams settings above, where Microsoft's own name doesn't say it.</summary>
+    public static readonly IReadOnlyDictionary<string, string> TeamsLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["AutoAdmittedUsers"] = "Who Skips the Lobby",
+        ["MeetingChatEnabledType"] = "Meeting Chat",
+        ["DesignatedPresenterRoleMode"] = "Who Can Present",
+        ["ScreenSharingMode"] = "Screen Sharing",
+        ["LiveCaptionsEnabledType"] = "Live Captions",
+        ["WhoCanRegister"] = "Who Can Register",
+        ["BroadcastRecordingMode"] = "Recording",
+        ["BroadcastAttendeeVisibilityMode"] = "Who Can Watch",
+        ["GiphyRatingType"] = "GIF Content Rating",
+        ["BusyOnBusyEnabledType"] = "When They're Already on a Call",
+        ["MusicOnHoldEnabledType"] = "Music on Hold",
+        ["AllowVoicemail"] = "Voicemail",
+        ["AllowCallRedirect"] = "Call Redirect",
+    };
+
     static bool IsPreset(JsonElement p) => p.ValueKind == JsonValueKind.Object && p.TryGetProperty("Identity", out var id) && id.GetString() is { } name
         && (TeamsPresets.Contains(name) || name.StartsWith("Tag:Education_", StringComparison.OrdinalIgnoreCase));
 

@@ -128,17 +128,30 @@ public sealed partial class OrgObjectCard : ObservableObject
 
     /// <summary>A Teams policy's settings, from what it has: switches, numbers and text become settings; lists and objects are shown.</summary>
     static IReadOnlyList<OrgField> AutoFields(JsonElement raw) => raw.ValueKind != JsonValueKind.Object ? [] :
-        [.. raw.EnumerateObject().Where(p => !Housekeeping.Contains(p.Name)).Select(p => new OrgField(p.Name, Display.PropertyLabel(p.Name),
+        [.. raw.EnumerateObject().Where(p => !Housekeeping.Contains(p.Name)).Select(p => new OrgField(p.Name,
+            OrgKinds.TeamsLabels.GetValueOrDefault(p.Name) ?? Display.PropertyLabel(p.Name),
             p.Value.ValueKind switch
             {
                 JsonValueKind.True or JsonValueKind.False => SettingKind.OnOff,
                 JsonValueKind.Number => SettingKind.Number,
+                JsonValueKind.String or JsonValueKind.Null when OrgKinds.TeamsChoices.ContainsKey(p.Name) => SettingKind.Choice,
                 JsonValueKind.String or JsonValueKind.Null => SettingKind.Text,
                 _ => SettingKind.List,
             },
+            Choices: ChoicesFor(p),
             ReadOnly: p.Value.ValueKind is JsonValueKind.Object || p.Value.ValueKind == JsonValueKind.Array && p.Value.EnumerateArray().Any(e => e.ValueKind != JsonValueKind.String),
             Group: p.Name == "Description" ? "About" : "Settings"))
             .OrderBy(f => f.Group == "About" ? 0 : 1).ThenBy(f => f.Label, StringComparer.CurrentCultureIgnoreCase)];
+
+    /// <summary>A known Teams choice in words; a value Microsoft adds later stays choosable, in words too.</summary>
+    static IReadOnlyList<(string Value, string Label)>? ChoicesFor(JsonProperty p)
+    {
+        if (!OrgKinds.TeamsChoices.TryGetValue(p.Name, out var known))
+            return null;
+        return p.Value.ValueKind == JsonValueKind.String && p.Value.GetString() is { Length: > 0 } now && !known.Any(c => c.Value.Equals(now, StringComparison.OrdinalIgnoreCase))
+            ? [.. known, (now, Display.TitleCase(SettingsCatalog.Words(now)))]
+            : known;
+    }
 
     IReadOnlyList<OrgField> Fields => _kind.AutoFields ? AutoFields(Item.Raw) : _kind.Fields ?? [];
 

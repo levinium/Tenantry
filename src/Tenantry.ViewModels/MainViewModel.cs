@@ -797,7 +797,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     /// <summary>The status line: a clock time rather than "5 min ago", which would go stale on screen.</summary>
     public string SyncText =>
-        IsSyncing ? SyncStep ?? "Checking for changes…"
+        IsSyncing ? Display.KeepCountTogether(SyncStep ?? "Checking for changes…")
         : SyncError is not null ? "Couldn't update"
         : LastSyncedAt is { } at ? $"Updated {Display.Clock(at, _now())}"
         : "Not downloaded yet";

@@ -15,6 +15,13 @@ public enum BadgeKind
 /// <summary>Formatting shared by list and record pages, so the same value reads the same everywhere.</summary>
 public static class Display
 {
+    /// <summary>
+    /// Progress text ("Shared mailbox access: 5 of 13…") with its count joined by non-breaking
+    /// spaces, so a narrow line never wraps between "5" and "of 13".
+    /// </summary>
+    public static string KeepCountTogether(string text) =>
+        System.Text.RegularExpressions.Regex.Replace(text, @"(\d) of (\d)", "$1 of $2");
+
     /// <summary>"Ada Lovelace" → "AL"; single names and empty strings degrade gracefully.</summary>
     public static string Initials(string? name)
     {
