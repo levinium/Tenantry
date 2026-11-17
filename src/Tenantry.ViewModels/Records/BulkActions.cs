@@ -548,7 +548,7 @@ public static partial class BulkActions
             (_, _) => Task.FromResult(Removal(DeviceCommand.Retire)), isCaution: true, group: Remove));
         actions.Add(new("Wipe", "Erase it back to factory settings (company-owned devices only). You type its name to confirm before it's sent.", "Delete",
             (_, _) => Task.FromResult(Removal(DeviceCommand.Wipe)), isCaution: true, group: Remove));
-        actions.Add(new("Fresh Start", "Reinstall Windows and remove apps the manufacturer added; keep or remove the user's files. You type its name to confirm.", "ArrowReset",
+        actions.Add(new("Fresh Start", "Reinstall Windows and remove apps the manufacturer added; keep or remove the user's files. You'll type the device name to confirm.", "ArrowReset",
             (a, _) => Task.FromResult(Removal(DeviceCommand.FreshStart, windowsOnly: true, keepUserData: (bool)a.Choice!.Value)),
             choiceLabel: "User Files", choices: [new BulkChoice("Keep User Files", true), new BulkChoice("Remove User Files", false)], isCaution: true, group: Remove));
         actions.Add(new("Autopilot Reset", "Return Windows to a business-ready state: apps, settings and files removed, still joined and enrolled. You type its name to confirm.", "ArrowCounterclockwise",

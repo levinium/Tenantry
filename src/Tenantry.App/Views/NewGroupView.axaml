@@ -79,13 +79,13 @@
     <!-- Settings for this kind -->
     <StackPanel Spacing="8" IsVisible="{Binding IsMicrosoft365}">
       <TextBlock Classes="label" Text="PRIVACY" />
-      <RadioButton GroupName="privacy" IsChecked="{Binding IsPrivate}" Content="Private: Only Members See What's Inside (Recommended)" />
-      <RadioButton GroupName="privacy" IsChecked="{Binding !IsPrivate}" Content="Public: Anyone in the Organization Can Join and See It" />
+      <RadioButton GroupName="privacy" IsChecked="{Binding IsPrivate}" Content="Private: only members see what's inside (recommended)" />
+      <RadioButton GroupName="privacy" IsChecked="{Binding !IsPrivate}" Content="Public: anyone in the organization can join and see it" />
     </StackPanel>
     <StackPanel Spacing="8" IsVisible="{Binding IsSecurity}">
       <TextBlock Classes="label" Text="MEMBERSHIP" />
       <RadioButton GroupName="membership" IsChecked="{Binding !IsDynamic}" Content="Chosen: I Pick Who's In It" />
-      <RadioButton GroupName="membership" IsChecked="{Binding IsDynamic}" Content="By Rule: Entra Keeps It Up to Date (Needs Entra ID P1)" />
+      <RadioButton GroupName="membership" IsChecked="{Binding IsDynamic}" Content="By rule: Entra keeps it up to date (needs Entra ID P1)" />
       <StackPanel Spacing="4" Margin="28,0,0,0" IsVisible="{Binding IsDynamic}">
         <TextBox Text="{Binding MembershipRule}" PlaceholderText="(user.department -eq &quot;Finance&quot;)" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
         <TextBlock Classes="caption" TextWrapping="Wrap"
@@ -94,8 +94,8 @@
     </StackPanel>
     <StackPanel Spacing="8" IsVisible="{Binding IsDistribution}">
       <TextBlock Classes="label" Text="OPTIONS" />
-      <CheckBox IsChecked="{Binding OutsideSenders}" Content="Accept Email from Outside the Organization" />
-      <CheckBox IsChecked="{Binding AlsoSecurity}" Content="Also Use It to Give Access (a Mail-Enabled Security Group)" />
+      <CheckBox IsChecked="{Binding OutsideSenders}" Content="Accept email from outside the organization" />
+      <CheckBox IsChecked="{Binding AlsoSecurity}" Content="Also use it to give access (a mail-enabled security group)" />
     </StackPanel>
 
     <!-- People -->

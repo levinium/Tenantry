@@ -55,8 +55,8 @@
 
     <StackPanel Spacing="8" IsVisible="{Binding IsTeam}">
       <TextBlock Classes="label" Text="PRIVACY" />
-      <RadioButton GroupName="siteprivacy" IsChecked="{Binding IsPrivate}" Content="Private: Only Members See What's Inside (Recommended)" />
-      <RadioButton GroupName="siteprivacy" IsChecked="{Binding !IsPrivate}" Content="Public: Anyone in the Organization Can Join and See It" />
+      <RadioButton GroupName="siteprivacy" IsChecked="{Binding IsPrivate}" Content="Private: only members see what's inside (recommended)" />
+      <RadioButton GroupName="siteprivacy" IsChecked="{Binding !IsPrivate}" Content="Public: anyone in the organization can join and see it" />
     </StackPanel>
 
     <!-- Owners -->

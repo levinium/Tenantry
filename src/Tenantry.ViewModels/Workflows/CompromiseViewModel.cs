@@ -58,7 +58,7 @@ public sealed partial class CompromiseViewModel : ObservableObject
         [
             new("password", "Reset the Password", "A new password in this tenant's style, shown to you once after applying.", true),
             new("mustchange", "Ask Them to Change It When They Next Sign In", "They choose their own password once you've passed the new one on.", true),
-            new("reregister", "Require MFA to Be Registered Again", "Removes their sign-in methods (not the password), including any the attacker added.", true),
+            new("reregister", "Require MFA to Be Registered Again", "Removes their sign-in methods, including any the attacker added.", true),
             new("signout", "Sign Out Everywhere", "Ends every session, including the attacker's.", true),
             new("block", "Block Sign-In", "Until you've finished looking into it. Allow sign-in again from their page.", false),
         ];

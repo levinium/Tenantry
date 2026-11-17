@@ -40,7 +40,7 @@ public static class SiteSettings
         1 => "Specific People",
         2 => "People in the Organization",
         3 => "Anyone With the Link",
-        _ => "The Organization's Default",
+        _ => "Organization default",
     };
 
     /// <summary>DefaultLinkPermission: 0 the organization's default, 1 view, 2 edit.</summary>
@@ -48,10 +48,10 @@ public static class SiteSettings
     {
         1 => "View",
         2 => "Edit",
-        _ => "The Organization's Default",
+        _ => "Organization default",
     };
 
-    public static string GuestExpiryName(int? days) => days is { } d ? $"After {d:N0} Days" : "The Organization's Setting";
+    public static string GuestExpiryName(int? days) => days is { } d ? $"After {d:N0} Days" : "Organization setting";
 
     /// <summary>Megabytes as SharePoint counts them, in gigabytes or terabytes.</summary>
     public static string Storage(long mb) => mb >= 1024L * 1024 ? $"{mb / (1024.0 * 1024):0.##} TB" : $"{mb / 1024.0:0.##} GB";

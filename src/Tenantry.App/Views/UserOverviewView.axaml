@@ -47,8 +47,8 @@
           </StackPanel>
           <StackPanel Spacing="2">
             <TextBlock Classes="label" Text="LAST SIGN-IN" />
-            <TextBlock Classes="value" Text="{Binding LastSignInText}" />
-            <TextBlock Classes="caption" Text="{Binding LastSignInExact}" />
+            <TextBlock Classes="value" Text="{Binding LastSignInValue}" />
+            <TextBlock Classes="caption" Text="{Binding LastSignInCaption}" IsVisible="{Binding LastSignInCaption, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
           </StackPanel>
           <StackPanel Spacing="2">
             <TextBlock Classes="label" Text="ACCOUNT CREATED" />

@@ -392,7 +392,7 @@
             <TextBlock Classes="caption" Text="{Binding HoldNoteText}" IsVisible="{Binding HasHoldNote}" TextWrapping="Wrap" />
             <TextBlock Classes="pendingtext" Text="{Binding HoldPendingText}" IsVisible="{Binding HasHoldPending}" TextWrapping="Wrap" />
             <StackPanel Spacing="8" IsEnabled="{Binding CanEdit}">
-              <ToggleSwitch IsChecked="{Binding HoldOnDraft}" OnContent="Keep Everything (Hold On)" OffContent="No Hold" />
+              <ToggleSwitch IsChecked="{Binding HoldOnDraft}" OnContent="Hold On" OffContent="Hold Off" />
               <StackPanel Spacing="8" IsVisible="{Binding HoldOnDraft}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <TextBlock Text="Keep items for" VerticalAlignment="Center" />

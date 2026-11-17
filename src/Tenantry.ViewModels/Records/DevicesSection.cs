@@ -272,10 +272,10 @@ public sealed class ActivationRow(OfficeActivation activation)
     public string Product => activation.ProductName;
 
     public string ComputersText => activation.Computers == 0 ? "No computers"
-        : $"{activation.Computers} of {OfficeActivation.DeviceLimit} computers ({Platforms(("Windows", activation.Windows), ("Mac", activation.Mac))})";
+        : $"{activation.Computers} of {OfficeActivation.DeviceLimit} computers{Platforms(("Windows", activation.Windows), ("Mac", activation.Mac))}";
 
     public string MobileText => activation.Mobile == 0 ? "No phones or tablets"
-        : $"{activation.Mobile} phones or tablets ({Platforms(("iPhone and iPad", activation.Ios), ("Android", activation.Android), ("Windows Mobile", activation.Windows10Mobile))})";
+        : $"{activation.Mobile} {(activation.Mobile == 1 ? "phone or tablet" : "phones or tablets")}{Platforms(("iPhone and iPad", activation.Ios), ("Android", activation.Android), ("Windows Mobile", activation.Windows10Mobile))}";
 
     public bool HasComputerLimit => activation.Computers > 0 || activation.Mobile == 0;
 
@@ -291,8 +291,10 @@ public sealed class ActivationRow(OfficeActivation activation)
 
     public bool HasLast => LastText.Length > 0;
 
+    /// <summary>How they split by platform: ", all Windows" for one, " (Windows 3, Mac 1)" for several.</summary>
     static string Platforms(params (string Name, int Count)[] counts) =>
-        string.Join(", ", counts.Where(c => c.Count > 0).Select(c => $"{c.Name} {c.Count}"));
+        counts.Where(c => c.Count > 0).ToArray() is [var only] ? $", all {only.Name}"
+        : $" ({string.Join(", ", counts.Where(c => c.Count > 0).Select(c => $"{c.Name} {c.Count}"))})";
 }
 
 /// <summary>A device they signed in from (the sign-in log): what it is, which apps, when, and whether Entra knows it.</summary>
@@ -313,7 +315,7 @@ public sealed class SignedInRow(SignedInDevice device, DateTimeOffset now, bool 
 
     public bool HasApps => device.Apps.Count > 0;
 
-    public string LastText => $"Last signed in {Display.Relative(device.LastSeen, now)}";
+    public string LastText => $"Last signed in {Display.RelativeAfterVerb(device.LastSeen, now)}";
 
     public string Trust => device.Trust;
 

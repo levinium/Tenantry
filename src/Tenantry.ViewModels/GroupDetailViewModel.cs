@@ -191,9 +191,11 @@ public sealed partial class GroupDetailViewModel : TabViewModel, IDisposable
                     : "No members.";
             if (Group.IsMailbox)
                 return $"{Members.Count:N0} {(Members.Count == 1 ? "has" : "have")} access. Full access opens the mailbox; Send as and Send on behalf send from it.";
-            var parts = Members.GroupBy(m => m.TypeText)
-                .OrderByDescending(g => g.Count())
-                .Select(g => $"{g.Count():N0} {Plural(g.Key, g.Count())}");
+            var kinds = Members.GroupBy(m => m.TypeText).OrderByDescending(g => g.Count()).ToArray();
+            // All of one kind: "27 direct members, all users", not "27 direct members: 27 users".
+            if (kinds.Length == 1 && Members.Count > 1)
+                return $"{Members.Count:N0} direct members, all {Plural(kinds[0].Key, Members.Count)}";
+            var parts = kinds.Select(g => $"{g.Count():N0} {Plural(g.Key, g.Count())}");
             return $"{Members.Count:N0} direct {(Members.Count == 1 ? "member" : "members")}: {string.Join(", ", parts)}";
         }
     }

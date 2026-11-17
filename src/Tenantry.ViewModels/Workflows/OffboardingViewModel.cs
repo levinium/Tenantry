@@ -60,7 +60,7 @@ public sealed partial class OffboardingViewModel : ObservableObject
                 Step("hide", "Hide from the Address List", "They no longer show in Outlook's directory.", true),
                 Step("convert", "Convert the Mailbox to Shared", "Mail, calendar and contacts stay, and needs no license up to 50 GB.", true),
                 Step("licenses", "Remove Their Licenses",
-                    "Licenses assigned to them directly; after the conversion, so the mailbox is kept. Licenses that come from a group go when they leave the group.", true),
+                    "Removed after the mailbox is converted, so mail is kept. Licenses that come from a group go when they leave the group.", true),
                 Step("forward", "Forward Their Mail", "New mail goes to the person you choose below, and a copy stays in the mailbox.", false),
             ]),
             new("Hand Over",
@@ -197,7 +197,7 @@ public sealed partial class OffboardingViewModel : ObservableObject
     [ObservableProperty]
     public partial string ReplyText { get; set; } = DefaultReply;
 
-    public string ReplyHelp => "{name}, {first name}, {organization} and {manager} are filled in for each person; with no manager set, {manager} becomes the stand-in, or \"us\" if none is chosen.";
+    public string ReplyHelp => "{name}, {firstname}, {organization} and {manager} are filled in for each person. For someone with no manager, {manager} is the stand-in manager, or \"us\" if you haven't chosen one.";
 
     public PersonPicker ForwardPicker { get; }
 
@@ -215,7 +215,8 @@ public sealed partial class OffboardingViewModel : ObservableObject
     /// <summary>The reply for one person, with the placeholders filled in.</summary>
     public string ReplyFor(UserSummary person, string? managerName) => ReplyText
         .Replace("{name}", person.DisplayName, StringComparison.OrdinalIgnoreCase)
-        .Replace("{first name}", person.DisplayName.Split(' ')[0], StringComparison.OrdinalIgnoreCase)
+        .Replace("{firstname}", person.DisplayName.Split(' ')[0], StringComparison.OrdinalIgnoreCase)
+        .Replace("{first name}", person.DisplayName.Split(' ')[0], StringComparison.OrdinalIgnoreCase) // the earlier spelling
         .Replace("{organization}", _organization, StringComparison.OrdinalIgnoreCase)
         .Replace("{manager}", managerName ?? "us", StringComparison.OrdinalIgnoreCase);
 

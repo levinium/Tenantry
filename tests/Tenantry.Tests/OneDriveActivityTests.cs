@@ -282,7 +282,7 @@ public sealed class OneDriveActivityTests
         await tab.LoadAsync(Ct);
 
         var change = Assert.Single(tab.Changes);
-        Assert.Equal(("Member Bo", "Done"), (change.What, change.OutcomeText));
+        Assert.Equal(("Member of zz-tenantry-test-group", "Done"), (change.What, change.OutcomeText));
         var audit = Assert.Single(tab.Audit);
         Assert.Equal(("By Pat", true, true), (audit.Party, audit.Failed, audit.HasReason));
         Assert.Equal(("Teams", true), (tab.Apps[0].App, tab.Apps[0].IsActive));

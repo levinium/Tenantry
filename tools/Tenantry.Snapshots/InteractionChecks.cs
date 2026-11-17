@@ -640,7 +640,7 @@ static class InteractionChecks
             Expect(main.Pending!.Rows.Any(r => r.Change is SetGroupSetting { Setting: SetGroupSetting.DisplayName } s && s.New!.EndsWith("(renamed)", StringComparison.Ordinal)),
                 "the new name is in Pending Changes");
 
-            var byRule = window.GetVisualDescendants().OfType<RadioButton>().First(r => r.IsEffectivelyVisible && (r.Content as string ?? "").StartsWith("By Rule", StringComparison.Ordinal));
+            var byRule = window.GetVisualDescendants().OfType<RadioButton>().First(r => r.IsEffectivelyVisible && (r.Content as string ?? "").StartsWith("By rule", StringComparison.Ordinal));
             Click(window, byRule);
             Expect(settings.IsDynamicDraft, "By Rule chose a rule");
             var box = window.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(t => t.IsEffectivelyVisible && t.AcceptsReturn && t.DataContext == settings);

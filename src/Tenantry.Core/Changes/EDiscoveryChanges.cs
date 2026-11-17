@@ -231,7 +231,7 @@ public sealed record DeleteHold(ChangeTarget Hold, string Detail) : EdChange(Hol
     public override string Key => "delete";
     public override string Label => $"Hold \"{Hold.Name}\"";
     public override string Before => Detail;
-    public override string After => "Deleted: content it kept can be deleted again";
+    public override string After => "Deleted (content it kept can be deleted again)";
     public override bool IsCaution => true;
     public override string? ConfirmPhrase => Hold.Name;
     public override bool IsNoChange => false;

@@ -12,9 +12,9 @@
     <!-- Before the pass -->
     <StackPanel Spacing="12" IsVisible="{Binding IsStarting}">
       <StackPanel Orientation="Horizontal" Spacing="10">
-        <TextBlock Text="The pass lasts" VerticalAlignment="Center" />
+        <TextBlock Text="Valid For" VerticalAlignment="Center" />
         <ComboBox ItemsSource="{x:Static rec:AuthenticatorSetupViewModel.Lifetimes}" SelectedItem="{Binding Lifetime}" MinWidth="120" />
-        <CheckBox IsChecked="{Binding OneUse}" Content="for one sign-in only" VerticalAlignment="Center" />
+        <CheckBox IsChecked="{Binding OneUse}" Content="One Use Only" VerticalAlignment="Center" />
       </StackPanel>
       <TextBlock Classes="caption" TextWrapping="Wrap"
                  Text="The pass is made in Microsoft 365 as soon as you press the button below (it's logged in the Change Log; the pass itself is never stored)." />

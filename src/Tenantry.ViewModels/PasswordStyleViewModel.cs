@@ -236,11 +236,17 @@ public sealed partial class PasswordStyleViewModel : ObservableObject
         RowsChanged();
     }
 
-    /// <summary>The pattern's parts in words: "5 letters (at least 1 capital), then 3 digits…".</summary>
+    /// <summary>How pattern text is written; the codes themselves are in <see cref="PatternCodes"/>.</summary>
     public string PatternHelp =>
-        "Each part is a letter code and how many, in the order they appear in the password. " +
-        "L is letters, U capitals, l small letters, D digits, S symbols that are easy to type on a phone, P any symbol, A a letter or digit, and 'text' is that exact text. " +
+        "Each part is a code and how many, in the order they appear in the password. " +
         "D3 means three digits; D6-8 means six to eight. L5+1U means five letters with at least one capital.";
+
+    /// <summary>The pattern text's codes and what each stands for, shown as a small table.</summary>
+    public static IReadOnlyList<PatternCode> PatternCodes { get; } =
+    [
+        new("L", "Letters"), new("U", "Capital letters"), new("l", "Small letters"), new("D", "Digits"),
+        new("S", "Symbols that are easy to type on a phone"), new("P", "Any symbol"), new("A", "A letter or digit"), new("'text'", "That exact text"),
+    ];
 
     public int MinLength => PasswordStyle.MinLength;
     public int MaxLength => PasswordStyle.MaxLength;
@@ -323,3 +329,6 @@ public sealed partial class PasswordStyleViewModel : ObservableObject
     [RelayCommand]
     void UseDefault() => Load(PasswordStyle.Default);
 }
+
+/// <summary>One code of a password pattern and what it stands for.</summary>
+public sealed record PatternCode(string Code, string Meaning);

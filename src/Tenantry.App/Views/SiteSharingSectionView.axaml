@@ -38,7 +38,7 @@
       <StackPanel Spacing="10">
         <StackPanel Spacing="2">
           <TextBlock Classes="h3" Text="Sharing Links" />
-          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Links people made to share files and folders here, by who each lets in." />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Sharing links for files and folders on this site, grouped by who can use them." />
         </StackPanel>
         <TextBlock Classes="muted" Text="Nobody has shared anything here with a link." IsVisible="{Binding HasNoLinks}" />
         <ItemsControl ItemsSource="{Binding Links}">

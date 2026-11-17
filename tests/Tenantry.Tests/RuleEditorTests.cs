@@ -295,7 +295,7 @@ public sealed class RuleEditorTests
         Assert.Equal(2, devices.Count);
         Assert.Equal(("LAPTOP-1", "Entra Joined", at.AddDays(1)), (devices[0].Name, devices[0].Trust, devices[0].LastSeen));
         Assert.Equal(["Microsoft Teams", "Outlook"], devices[0].Apps);
-        Assert.Equal(("macOS device", "Not in Entra", false), (devices[1].Name, devices[1].Trust, devices[1].IsKnown));
+        Assert.Equal(("macOS Device", "Not in Entra", false), (devices[1].Name, devices[1].Trust, devices[1].IsKnown));
     }
 
     [Fact]
@@ -307,7 +307,7 @@ public sealed class RuleEditorTests
             new("OFFICE MOBILE APPS FOR OFFICE 365", null, 0, 0, 0, 2, 1, false),
         ];
         Assert.Equal((4, 3), (OfficeActivations.Computers(activations), OfficeActivations.Mobile(activations)));
-        Assert.Equal("Microsoft 365 Apps for business", activations[0].ProductName);
+        Assert.Equal("Microsoft 365 Apps for Business", activations[0].ProductName);
         var row = new Tenantry.ViewModels.Records.ActivationRow(activations[0]);
         Assert.True(row.IsNearLimit);
         Assert.Equal("4 of 5 computers (Windows 3, Mac 1)", row.ComputersText);

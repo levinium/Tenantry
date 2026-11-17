@@ -249,7 +249,7 @@ public sealed class SignInRow(SignInEvent e)
     public bool Succeeded => e.Succeeded;
     public string Status => e.Succeeded ? "Signed In" : "Failed";
     public BadgeKind StatusKind => e.Succeeded ? BadgeKind.Success : BadgeKind.Danger;
-    public string Detail => string.Join(" · ", new[] { e.Problem, e.ConditionalAccess, e.Detail }.Where(s => !string.IsNullOrEmpty(s)).Distinct());
+    public string Detail => string.Join(" · ", new[] { e.Problem, e.ConditionalAccess, e.DetailText }.Where(s => !string.IsNullOrEmpty(s)).Distinct());
     public string Client => e.ClientKind + (e.MultiFactor switch { true => " · multi-factor", false => " · password only", _ => "" });
     public bool IsLegacy => e.ClientKind.StartsWith("Legacy", StringComparison.Ordinal);
     public bool HasDetail => Detail.Length > 0;
@@ -567,7 +567,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
     public bool CanReregister => CanEdit && Removable.Any();
 
-    public string ReregisterText => IsReregisterPending ? "Undo Re-Register" : "Require Re-Register";
+    public string ReregisterText => IsReregisterPending ? "Undo Require MFA Again" : "Require MFA Again";
 
     public string ReregisterTip => !Removable.Any() && _methods is not null
         ? "They have no MFA methods to remove: they'll be asked to register MFA when a policy needs it."
@@ -591,7 +591,7 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
 
     public bool IsRevokePending => PendingFor("sessions") is not null;
 
-    public string RevokeText => IsRevokePending ? "Undo Revoke Sessions" : "Revoke Sessions";
+    public string RevokeText => IsRevokePending ? "Undo Sign Out Everywhere" : "Sign Out Everywhere";
 
     /// <summary>Entra's "Revoke sessions" (the record's "Sign out everywhere"): every app and browser asks them to sign in again.</summary>
     [RelayCommand]
@@ -1095,7 +1095,8 @@ public sealed partial class SecuritySection : RecordSection, IDisposable
         foreach (var consent in _consents ?? [])
         {
             var captured = consent;
-            Consents.Add(new RevocableRow(consent.AppName, string.Join(", ", consent.Scopes), PendingFor("consent:" + consent.GrantId) is not null, CanEdit,
+            Consents.Add(new RevocableRow(consent.AppName,
+                consent.ScopesInWords is { } words ? $"{words}.\n{string.Join(", ", consent.Scopes)}" : string.Join(", ", consent.Scopes), PendingFor("consent:" + consent.GrantId) is not null, CanEdit,
                 "Take back this app's access to their data (added to Pending Changes)", () => Toggle("consent:" + captured.GrantId,
                     () => new RevokeAppConsent(Target, captured.GrantId, captured.AppName))));
         }

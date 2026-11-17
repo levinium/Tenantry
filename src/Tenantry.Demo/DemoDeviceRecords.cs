@@ -21,7 +21,7 @@ public sealed partial class DemoUserRecords : IDeviceRecords
 
     public Task<IReadOnlyList<RecoveryKeyInfo>> GetRecoveryKeysAsync(string deviceId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<RecoveryKeyInfo>>(deviceId.StartsWith("dev-l-", StringComparison.Ordinal)
-            ? [new RecoveryKeyInfo($"key-{deviceId}", DateTimeOffset.UtcNow.AddDays(-120), "System drive")]
+            ? [new RecoveryKeyInfo($"key-{deviceId}", DateTimeOffset.UtcNow.AddDays(-120), "System Drive")]
             : []);
 
     public Task<string> RevealRecoveryKeyAsync(string keyId, CancellationToken cancellationToken = default)

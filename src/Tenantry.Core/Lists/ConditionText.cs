@@ -14,7 +14,7 @@ public static class ConditionText
             ChoiceCondition c when c.Include.Count > 0 && c.Exclude.Count > 0 =>
                 $"{Label(c.Field)}: {Join(c.Include)}, not {Join(c.Exclude)}",
             ChoiceCondition c when c.Include.Count > 0 => $"{Label(c.Field)}: {Join(c.Include)}",
-            ChoiceCondition c => $"{Label(c.Field)}: not {Join(c.Exclude)}",
+            ChoiceCondition c => $"{Label(c.Field)}: Not {Join(c.Exclude)}",
 
             TextCondition t => t.Op switch
             {

@@ -60,6 +60,15 @@ public sealed record SignInEvent(DateTimeOffset When, string App, string? Locati
         "Mobile Apps and Desktop clients" => "Apps and Desktop Clients",
         var other => $"Legacy: {other}",
     };
+
+    /// <summary>The log's detail in plain words, for the ones Entra words for engineers; others as they are.</summary>
+    public string? DetailText => Detail switch
+    {
+        "MFA requirement satisfied by claim in the token" => "MFA already done earlier in this session",
+        "MFA requirement satisfied by strong authentication" => "MFA done at this sign-in",
+        "MFA completed in Azure AD" or "MFA completed in Microsoft Entra ID" => "MFA done at this sign-in",
+        _ => Detail,
+    };
 }
 
 public enum SignInKind
@@ -86,7 +95,44 @@ public sealed record SignInQuery(int Days, SignInKind Kind = SignInKind.Interact
 public sealed record RoleHeld(string AssignmentId, string RoleName, string Scope);
 
 /// <summary>An app they let read their data on their own (a delegated consent).</summary>
-public sealed record AppConsent(string GrantId, string AppName, IReadOnlyList<string> Scopes);
+public sealed record AppConsent(string GrantId, string AppName, IReadOnlyList<string> Scopes)
+{
+    /// <summary>
+    /// What the scopes let the app do, in words, for the common ones ("Read and change their mail");
+    /// null when none of them is known. The scope names themselves stay the exact record.
+    /// </summary>
+    public string? ScopesInWords => Scopes.Select(s => Words.GetValueOrDefault(s)).OfType<string>().Distinct().ToArray() is { Length: > 0 } words
+        ? string.Join(", ", words.Select((w, i) => i == 0 ? w : char.ToLowerInvariant(w[0]) + w[1..])) + (words.Length < Scopes.Count ? ", and more" : "")
+        : null;
+
+    static readonly Dictionary<string, string> Words = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["User.Read"] = "Read their profile",
+        ["User.ReadBasic.All"] = "Read other people's basic profiles",
+        ["User.Read.All"] = "Read everyone's profiles",
+        ["Mail.Read"] = "Read their mail",
+        ["Mail.ReadBasic"] = "Read their mail (without the contents)",
+        ["Mail.ReadWrite"] = "Read and change their mail",
+        ["Mail.Send"] = "Send mail as them",
+        ["Calendars.Read"] = "Read their calendars",
+        ["Calendars.ReadWrite"] = "Read and change their calendars",
+        ["Contacts.Read"] = "Read their contacts",
+        ["Contacts.ReadWrite"] = "Read and change their contacts",
+        ["Files.Read"] = "Read their files",
+        ["Files.Read.All"] = "Read all files they can open",
+        ["Files.ReadWrite"] = "Read and change their files",
+        ["Files.ReadWrite.All"] = "Read and change all files they can open",
+        ["Sites.Read.All"] = "Read sites they can open",
+        ["Notes.Read"] = "Read their OneNote notebooks",
+        ["Notes.ReadWrite"] = "Read and change their OneNote notebooks",
+        ["Tasks.ReadWrite"] = "Read and change their tasks",
+        ["Chat.Read"] = "Read their Teams chats",
+        ["offline_access"] = "Keep access when they're not using it",
+        ["openid"] = "Sign them in",
+        ["profile"] = "See their name",
+        ["email"] = "See their email address",
+    };
+}
 
 public enum PolicyFit
 {

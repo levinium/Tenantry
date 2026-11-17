@@ -28,7 +28,7 @@
       <views:AddButton DataContext="{Binding Picker}" Text="Add to Group" VerticalAlignment="Top"
                        Hint="Choose a security group. It goes to Pending Changes."
                        IsVisible="{Binding #Root.((rec:DeviceGroupsSection)DataContext).CanEdit}" />
-      <views:ListSearchBox Grid.Column="2" Target="{Binding #GroupsList}" Placeholder="Search its groups" />
+      <views:ListSearchBox Grid.Column="2" Target="{Binding #GroupsList}" Placeholder="Search groups" />
     </Grid>
     </c:ReadableWidth>
     <TextBlock Classes="muted" Text="Not in any groups." IsVisible="{Binding HasNoGroups}" />

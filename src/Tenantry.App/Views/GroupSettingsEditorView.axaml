@@ -56,8 +56,8 @@
           </Grid>
           <TextBlock Classes="muted" Text="{Binding CurrentMembershipText}" TextWrapping="Wrap" />
           <StackPanel Spacing="6" IsEnabled="{Binding CanEdit}">
-            <RadioButton GroupName="membership" IsChecked="{Binding IsAssignedDraft}" Content="Assigned: Owners and Admins Choose the Members" />
-            <RadioButton GroupName="membership" IsChecked="{Binding IsDynamicDraft}" Content="By Rule: Entra Keeps It Up to Date (Needs Entra ID P1)" />
+            <RadioButton GroupName="membership" IsChecked="{Binding IsAssignedDraft}" Content="Assigned: owners and admins choose the members" />
+            <RadioButton GroupName="membership" IsChecked="{Binding IsDynamicDraft}" Content="By rule: Entra keeps it up to date (needs Entra ID P1)" />
           </StackPanel>
           <StackPanel Spacing="8" IsVisible="{Binding IsDynamicDraft}" IsEnabled="{Binding CanEdit}">
             <TextBox Text="{Binding RuleDraft}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64"
@@ -65,7 +65,7 @@
             <TextBlock Classes="caption" TextWrapping="Wrap"
                        Text="Entra's rule language, as in the Entra admin center. For example (user.department -eq &quot;Finance&quot;) -and (user.accountEnabled -eq true)." />
             <TextBlock Text="{Binding RuleProblem}" IsVisible="{Binding HasRuleProblem}" Foreground="{DynamicResource BadgeWarningFg}" TextWrapping="Wrap" />
-            <CheckBox IsChecked="{Binding PausedDraft}" Content="Pause the Rule (Members Stay as They Are Until It's Resumed)" />
+            <CheckBox IsChecked="{Binding PausedDraft}" Content="Pause the rule (members stay as they are until it's resumed)" />
           </StackPanel>
           <Border Classes="banner neutral" IsVisible="{Binding HasConvertNote}">
             <TextBlock TextWrapping="Wrap" Text="{Binding ConvertNote}" />

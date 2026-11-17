@@ -38,7 +38,7 @@ public sealed partial class ConvertMailboxViewModel : ObservableObject
 
     public string Explanation => ToShared
         ? $"{_user.DisplayName}'s mailbox becomes a shared mailbox: its mail, calendar and contacts stay, and the people you give access to " +
-          "(Groups & access) can open it. A shared mailbox needs no license up to 50 GB."
+          "(Groups & Access) can open it. A shared mailbox needs no license up to 50 GB."
         : $"{_user.DisplayName}'s shared mailbox becomes a user mailbox again, one person's own. It needs a license that includes Exchange Online.";
 
     public string ActionText => ToShared ? "Convert to a Shared Mailbox" : "Convert to a User Mailbox";

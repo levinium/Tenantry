@@ -434,7 +434,11 @@ public sealed record SetLicenseApps(ChangeTarget User, string SkuId, string SkuN
 {
     public override ChangeTarget Target => User;
     public override string Key => "apps:" + SkuId;
-    public override string Label => $"{SkuName} Apps";
+    // One app changing: named in the label, so each side is just On or Off; an app named like its
+    // license isn't named twice ("Exchange Online (Plan 1) App: On → Off").
+    public override string Label => Single is { } plan
+        ? (string.Equals(plan, SkuName, StringComparison.OrdinalIgnoreCase) ? $"{SkuName} App" : $"{plan} in {SkuName}")
+        : $"{SkuName} Apps";
     public override string Before => Describe(OldDisabled);
     public override string After => Describe(NewDisabled);
     public override bool IsCaution => NewDisabled.Except(OldDisabled).Any();
@@ -447,12 +451,17 @@ public sealed record SetLicenseApps(ChangeTarget User, string SkuId, string SkuN
     /// </summary>
     string Describe(IReadOnlyList<string> disabled)
     {
-        var changed = OldDisabled.Except(NewDisabled).Concat(NewDisabled.Except(OldDisabled))
-            .Select(id => (Name: PlanNames.GetValueOrDefault(id, id), Off: disabled.Contains(id)))
+        var changed = Changed.Select(id => (Name: PlanNames.GetValueOrDefault(id, id), Off: disabled.Contains(id)))
             .OrderBy(p => p.Name, StringComparer.CurrentCulture).ToArray();
         return changed.Length == 0 ? (disabled.Count == 0 ? "All Apps On" : $"{disabled.Count} Off")
+            : changed.Length == 1 ? (changed[0].Off ? "Off" : "On")
             : string.Join(", ", changed.Select(p => $"{p.Name} {(p.Off ? "Off" : "On")}"));
     }
+
+    IEnumerable<string> Changed => OldDisabled.Except(NewDisabled).Concat(NewDisabled.Except(OldDisabled));
+
+    /// <summary>The one app this changes, by name; null when it changes none or several.</summary>
+    string? Single => Changed.Take(2).ToArray() is [var id] ? PlanNames.GetValueOrDefault(id, id) : null;
 }
 
 /// <summary>Removes the user's assignment to an enterprise application.</summary>
@@ -494,7 +503,8 @@ public sealed record SetGroupMembership(ChangeTarget Group, ChangeTarget Person,
 {
     public override ChangeTarget Target => Group;
     public override string Key => $"{Role}:{Person.Id}";
-    public override string Label => Role == GroupRole.Owner ? $"Owner {Person.Name}" : $"Member {Person.Name}";
+    // The row already names the group; the label names the person, and each side says what they are in it.
+    public override string Label => Person.Name;
     public override string Before => Old ? Role.ToString() : $"Not {Article} {Role}";
     public override string After => New ? Role.ToString() : "Removed";
     public override bool IsCaution => Old && !New;
@@ -563,7 +573,7 @@ public sealed record SetMailAlias(ChangeTarget User, string Address, bool Old, b
     public override ChangeTarget Target => User;
     public override string Key => "alias:" + Address.ToLowerInvariant();
     public override string Label => $"Email Address {Address}";
-    public override string Before => Old ? "One of their addresses" : "Not one of their addresses";
+    public override string Before => Old ? "Theirs" : "Not Theirs";
     public override string After => New ? "Added" : "Removed";
     public override bool IsCaution => Old && !New;
     public override bool IsNoChange => Old == New;
@@ -825,7 +835,7 @@ public sealed record SetMobileDevice(ChangeTarget User, string DeviceIdentity, s
 
     public override string After => Action switch
     {
-        DeviceAction.Wipe => "Wiped: erased back to factory settings",
+        DeviceAction.Wipe => "Wiped (erased back to factory settings)",
         DeviceAction.WipeAccountOnly => "Their work mail and data removed from it",
         DeviceAction.Block => "Blocked from syncing",
         DeviceAction.Unblock => "Allowed to sync",
@@ -963,6 +973,14 @@ public static class PhoneNumbers
     public static string Digits(string number) => new([.. number.Where(c => char.IsDigit(c) || c is '+' or 'x' or 'X')]);
 
     public static bool Same(string? a, string? b) => string.Equals(Digits(a ?? ""), Digits(b ?? ""), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// For reading: a North American number Graph keeps run together ("+1 2065551234") spaced like
+    /// the rest of the app's numbers ("+1 206 555 1234"); anything else as it is.
+    /// </summary>
+    public static string Display(string number) =>
+        Digits(number) is { Length: 12 } d && d.StartsWith("+1", StringComparison.Ordinal) && d.Skip(1).All(char.IsDigit)
+            ? $"+1 {d[2..5]} {d[5..8]} {d[8..]}" : number;
 }
 
 /// <summary>
@@ -1130,8 +1148,8 @@ public sealed record RunDeviceAction(ChangeTarget Device, DeviceCommand Command,
         DeviceCommand.Restart => "Restarts now",
         DeviceCommand.Lock => "Locks now",
         DeviceCommand.RotateLocalAdminPassword => "A new password",
-        DeviceCommand.Retire => "Retired: work data removed, no longer managed",
-        DeviceCommand.Wipe => "Wiped: erased back to factory settings",
+        DeviceCommand.Retire => "Retired (work data removed, no longer managed)",
+        DeviceCommand.Wipe => "Wiped (erased back to factory settings)",
         DeviceCommand.QuickScan => "Scans now (quick)",
         DeviceCommand.FullScan => "Scans now (full)",
         DeviceCommand.UpdateDefinitions => "The latest definitions",
@@ -1738,7 +1756,7 @@ public sealed record SetRolePolicyRule(ChangeTarget Role, string PolicyId, strin
 {
     public override ChangeTarget Target => Role;
     public override string Key => "rule:" + RuleId;
-    public override string Label => $"{Role.Name}: {SettingLabel}";
+    public override string Label => SettingLabel;
     public override string Before => Old;
     public override string After => New;
     public override bool IsCaution => Loosens;
@@ -1781,7 +1799,7 @@ public sealed record ReviewRoleRequest(ChangeTarget Request, string ApprovalId, 
 {
     public override ChangeTarget Target => Request;
     public override string Key => "review";
-    public override string Label => $"Request {Request.Name}";
+    public override string Label => "Activation Request";
     public override string Before => "Waiting for approval";
     public override string After => Approve ? "Approved" : "Denied";
     public override bool IsCaution => Approve;

@@ -1079,7 +1079,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         var subtitle = changes.Count == 1 ? changes[0].Target.Name : TenantName;
         ShowDialog(new Records.DialogViewModel(title, subtitle,
             new PowerShellScriptViewModel(script, HasPowerShell ? text => { CloseDialog(); OpenConsole(text); } : null),
-            "What Tenantry sends for this, as PowerShell. Tenantry also reads each change back to confirm it; that isn't shown."));
+            "What Tenantry sends for this, as PowerShell. Tenantry also checks each change afterward; those checks aren't shown here."));
     }
     // ---- Changes --------------------------------------------------------------------------
 

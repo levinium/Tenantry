@@ -92,7 +92,7 @@ public static class UserList
             new() { Key = F.Title, Header = "Job Title", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 210, Text = u => u.JobTitle },
             new() { Key = F.Status, Header = "Status", Cell = CellKind.Badge, MinWidth = 110, DefaultWidth = 120,
                 Badge = u => u.AccountEnabled ? (F.Active, BadgeKind.Success) : (F.Blocked, BadgeKind.Danger) },
-            new() { Key = F.Type, Header = "Type", Cell = CellKind.Badge, MinWidth = 140, DefaultWidth = 145,
+            new() { Key = F.Type, Header = "Type", Cell = CellKind.Badge, MinWidth = 140, DefaultWidth = 150,
                 Badge = TypeBadge },
             new() { Key = F.Licenses, Header = "Licenses", Cell = CellKind.Badges, MinWidth = 180, DefaultWidth = 250,
                 Badges = u => u.Licenses, EmptyText = F.Unlicensed },
@@ -104,7 +104,7 @@ public static class UserList
             new() { Key = F.SignInName, Header = "Sign-In Name", Cell = CellKind.Text, MinWidth = 220, DefaultWidth = 260, DefaultVisible = false, Text = u => u.UserPrincipalName },
             new() { Key = F.LicenseCount, Header = "License Count", Cell = CellKind.Number, MinWidth = 110, DefaultWidth = 120, DefaultVisible = false,
                 Number = u => u.Licenses.Count },
-            new() { Key = F.Mailbox, Header = "Mailbox", Cell = CellKind.Badge, MinWidth = 110, DefaultWidth = 120, DefaultVisible = false,
+            new() { Key = F.Mailbox, Header = "Mailbox", Cell = CellKind.Badge, MinWidth = 140, DefaultWidth = 150, DefaultVisible = false,
                 Badge = u => u.Mailbox is { } m ? (m.Type, m.Type == F.SharedMailbox ? BadgeKind.Info : BadgeKind.Neutral) : (F.NoMailbox, BadgeKind.Neutral) },
             new() { Key = F.Forwarding, Header = "Forwarding", Cell = CellKind.Badge, MinWidth = 150, DefaultWidth = 190, DefaultVisible = false,
                 Badge = u => u.Mailbox?.Forwarding switch

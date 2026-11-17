@@ -245,7 +245,7 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
         var devices = rows.Cast<DeviceSummary>().ToArray();
         var lines = new List<SummaryLine>
         {
-            new("Platforms", string.Join(" · ", devices.GroupBy(d => d.Platform).OrderByDescending(g => g.Count()).Select(g => $"{g.Count():N0} {g.Key}"))),
+            new("Platforms", string.Join(" · ", devices.GroupBy(d => d.Platform).OrderByDescending(g => g.Count()).Select(g => $"{g.Key} ({g.Count():N0})"))),
             new("Intune", Counts(devices.Select(d => d.IsManaged ? "managed" : "not managed"), nouns: false)),
         };
         var notCompliant = devices.Count(d => d.Compliant == false);
@@ -282,7 +282,7 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
         var kinds = groups.GroupBy(g => g.Kind).OrderByDescending(k => k.Count()).Select(k => $"{k.Count():N0} {KindWord(k.Key, k.Count())}");
         var lines = new List<SummaryLine> { new("Kinds", string.Join(" · ", kinds)) };
         var withPeople = groups.Sum(g => g.Members.Count);
-        lines.Add(new("People", $"{withPeople:N0} members or people with access in all"));
+        lines.Add(new("People", $"{withPeople:N0} {(withPeople == 1 ? "person" : "people")} in total (members or with access)"));
         var ownerless = groups.Count(g => !g.IsMailbox && g.OwnerList.Count == 0);
         if (ownerless > 0)
             lines.Add(new("Owners", $"{ownerless:N0} {(ownerless == 1 ? "has" : "have")} no owner"));

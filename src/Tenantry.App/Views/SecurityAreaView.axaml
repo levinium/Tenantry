@@ -208,8 +208,8 @@
                      FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
             <CheckBox IsChecked="{Binding Trusted}" IsVisible="{Binding IsIp}" Content="Trusted (policies that leave out trusted places skip it)" />
             <StackPanel Spacing="6" IsVisible="{Binding !IsIp}">
-              <CheckBox IsChecked="{Binding IncludeUnknown}" Content="Include Addresses No Country Can Be Found For" />
-              <CheckBox IsChecked="{Binding ByGps}" Content="Judge by the Authenticator App's GPS (Not the IP Address)" />
+              <CheckBox IsChecked="{Binding IncludeUnknown}" Content="Include addresses no country can be found for" />
+              <CheckBox IsChecked="{Binding ByGps}" Content="Judge by the Authenticator app's GPS (not the IP address)" />
             </StackPanel>
             <ItemsControl ItemsSource="{Binding Problems}" IsVisible="{Binding HasProblems}">
               <ItemsControl.ItemTemplate>

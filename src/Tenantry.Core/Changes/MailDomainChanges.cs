@@ -73,7 +73,7 @@ public sealed record ReviewSubmission(ChangeTarget Reporter, string SubmissionId
     public override string Key => "review:" + SubmissionId;
     public override string Label => $"Report of \"{Subject}\"";
     public override string Before => "Not reviewed";
-    public override string After => "Reviewed: " + Verdict switch { "notSpam" => "no threat found", "junk" => "spam", _ => Verdict };
+    public override string After => "Reviewed (" + Verdict switch { "notSpam" => "no threat found", "junk" => "spam", _ => Verdict } + ")";
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;
 }
