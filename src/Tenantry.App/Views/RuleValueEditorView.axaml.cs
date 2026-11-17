@@ -1,12 +1,19 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Tenantry.ViewModels.MailSecurity;
 
 namespace Tenantry.App.Views;
 
 public partial class RuleValueEditorView : UserControl
 {
-    public RuleValueEditorView() => InitializeComponent();
+    public RuleValueEditorView()
+    {
+        InitializeComponent();
+        // On the way down: the box handles Backspace itself (even when empty), so a bubbling
+        // handler never hears it.
+        EntryBox.AddHandler(KeyDownEvent, OnEntryKeyDown, RoutingStrategies.Tunnel);
+    }
 
     /// <summary>
     /// Enter adds the typed entry as a chip (so does a comma, in the view model); Backspace in an empty

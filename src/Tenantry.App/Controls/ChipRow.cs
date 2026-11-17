@@ -39,6 +39,7 @@ public sealed class ChipRow : Panel
     public event EventHandler? HiddenChanged;
 
     readonly HashSet<Control> _shown = [];
+    readonly HashSet<Control> _offEnd = [];
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -81,7 +82,16 @@ public sealed class ChipRow : Panel
         var x = 0.0;
         foreach (var child in Children)
         {
-            if (_shown.Contains(child))
+            // A chip off the end is out of sight but still there: keep Tab, clicks and copying off it.
+            // Only chips this row turned off are turned back on, and without a local value, so a
+            // chip's own IsEnabled binding still rules it.
+            var shown = _shown.Contains(child);
+            if (!shown && _offEnd.Add(child))
+                child.SetCurrentValue(IsEnabledProperty, false);
+            else if (shown && _offEnd.Remove(child))
+                child.SetCurrentValue(IsEnabledProperty, true);
+            child.Classes.Set(ScreenText.Skip, !shown);
+            if (shown)
             {
                 child.Arrange(new Rect(x, (finalSize.Height - child.DesiredSize.Height) / 2, child.DesiredSize.Width, child.DesiredSize.Height));
                 x += child.DesiredSize.Width + Spacing;

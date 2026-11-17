@@ -77,11 +77,16 @@ public partial class DataListView : UserControl
             e.Handled = true;
         }, RoutingStrategies.Tunnel);
         Grid.ContextRequested += OnContextRequested;
-        // View chips that don't fit on the row are listed under More Views instead.
+        // View chips that don't fit on the row are listed under More Views instead. Loaded comes
+        // again each time the list's tab is shown, so the row is followed once, not once per visit.
         ChipViewsList.Loaded += (_, _) =>
         {
-            if (ChipViewsList.ItemsPanelRoot is ChipRow row)
-                row.HiddenChanged += (_, _) => _vm?.SetHiddenChips(row.Hidden.OfType<SavedViewItem>().ToArray());
+            if (ChipViewsList.ItemsPanelRoot is not ChipRow row || row == _chipRow)
+                return;
+            if (_chipRow is not null)
+                _chipRow.HiddenChanged -= OnChipsHidden;
+            _chipRow = row;
+            row.HiddenChanged += OnChipsHidden;
         };
         // On a narrow toolbar the display tools drop their labels; on a very narrow one every tool
         // does. Tooltips still name each one, and the left group wraps rather than overflowing.
@@ -144,6 +149,14 @@ public partial class DataListView : UserControl
     }
 
     void OnColumnsChanged(object? sender, EventArgs e) => RebuildColumns();
+
+    ChipRow? _chipRow;
+
+    void OnChipsHidden(object? sender, EventArgs e)
+    {
+        if (sender is ChipRow row)
+            _vm?.SetHiddenChips(row.Hidden.OfType<SavedViewItem>().ToArray());
+    }
 
     /// <summary>
     /// False while the list is off screen (another tab is showing) and until it has settled

@@ -41,14 +41,25 @@ public static partial class CopyAnywhere
         InputElement.PointerWheelChangedEvent.AddClassHandler<TopLevel>((_, _) => HideHover(), RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 
-    /// <summary>Puts text on the clipboard and hands it to the system straight away.</summary>
-    public static async Task CopyAsync(Visual anchor, string text)
+    /// <summary>
+    /// Puts text on the clipboard and hands it to the system straight away. False when it couldn't
+    /// (no window, or another app holding the clipboard), so nothing says "Copied" that wasn't.
+    /// </summary>
+    public static async Task<bool> CopyAsync(Visual anchor, string text)
     {
         if (TopLevel.GetTopLevel(anchor)?.Clipboard is not { } clipboard)
-            return;
-        await clipboard.SetTextAsync(text);
-        // An unflushed clipboard on Windows blocks other apps' paste until this app exits.
-        await clipboard.FlushAsync();
+            return false;
+        try
+        {
+            await clipboard.SetTextAsync(text);
+            // An unflushed clipboard on Windows blocks other apps' paste until this app exits.
+            await clipboard.FlushAsync();
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     // ---- Right-click ------------------------------------------------------------------------
@@ -94,10 +105,10 @@ public static partial class CopyAnywhere
         foreach (var (label, text) in choices)
         {
             var item = new MenuItem { Header = label, Icon = new FluentIcon { Icon = Icon.Copy, FontSize = 14 } };
-            item.Click += (_, _) =>
+            item.Click += async (_, _) =>
             {
-                _ = CopyAsync(target, text);
-                ShowCopied(target);
+                if (await CopyAsync(target, text))
+                    ShowCopied(target);
             };
             menu.Items.Add(item);
         }
@@ -254,9 +265,10 @@ public static partial class CopyAnywhere
         };
         AutomationProperties.SetName(button, "Copy");
         ToolTip.SetTip(button, "Copy");
-        button.Click += (_, _) =>
+        button.Click += async (_, _) =>
         {
-            _ = CopyAsync(text, ScreenText.TextOf(text).Trim());
+            if (!await CopyAsync(text, ScreenText.TextOf(text).Trim()))
+                return;
             icon.Icon = Icon.Checkmark;
             ToolTip.SetTip(button, "Copied");
         };

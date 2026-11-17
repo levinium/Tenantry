@@ -43,6 +43,18 @@ public partial class ListSearchBox : UserControl
 
     public ListSearchBox() => InitializeComponent();
 
+    /// <summary>
+    /// A view is reused for the next record of its kind (another person's preview): a search typed
+    /// over the last one's list is dropped, not applied to the new list. A box bound to a view
+    /// model follows that model instead.
+    /// </summary>
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (Target is not null && !string.IsNullOrEmpty(Text))
+            Text = "";
+    }
+
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
@@ -74,7 +86,7 @@ public partial class ListSearchBox : UserControl
         if (Target is not { } list)
             return;
         // Shown while there is something to search, or something typed (so it can be cleared).
-        IsVisible = list.ItemCount > 0 || Text.Length > 0;
+        IsVisible = list.ItemCount > 0 || !string.IsNullOrEmpty(Text);
         var words = Words();
         foreach (var container in list.GetRealizedContainers())
             container.IsVisible = words.Length == 0 || Matches(list.ItemFromContainer(container), words);
@@ -82,7 +94,7 @@ public partial class ListSearchBox : UserControl
     }
 
     void UpdateNoMatch() =>
-        NoMatch.IsVisible = Target is { } list && Text.Trim().Length > 0 && list.ItemCount > 0 && !list.GetRealizedContainers().Any(c => c.IsVisible);
+        NoMatch.IsVisible = Target is { } list && Words().Length > 0 && list.ItemCount > 0 && !list.GetRealizedContainers().Any(c => c.IsVisible);
 
     string[] Words() => (Text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
 

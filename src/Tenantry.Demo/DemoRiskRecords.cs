@@ -26,7 +26,8 @@ public sealed partial class DemoUserRecords : IRiskRecords
             ("medium", "atRisk", null, 20),
             ("low", "atRisk", null, 50),
             ("high", "confirmedCompromised", "Admin confirmed user compromised", 120),
-            ("medium", "dismissed", "Admin dismissed all risk for user", 300),
+            // Dismissing drops the level to none, as Graph reports it (and as ApplyRisk below does).
+            ("none", "dismissed", "Admin dismissed all risk for user", 300),
         ];
         _riskyUsers = [.. people.Select((p, i) => new RiskyUser(p.Id, p.DisplayName, p.UserPrincipalName, shape[i].Level, shape[i].State, shape[i].Detail,
             now.AddHours(-shape[i].Hours)))];
