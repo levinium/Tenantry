@@ -16,6 +16,8 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
         // Every pop-up closes when a button inside it is clicked (see FlyoutDismiss).
         Controls.FlyoutDismiss.Register();
+        // Right-click any text to copy it, its section or the whole pane; point at an address to copy it.
+        Controls.CopyAnywhere.Register();
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -28,7 +30,7 @@ public partial class App : Application
             var window = new MainWindow { DataContext = shell };
             window.RememberPlacement(new WindowPlacementStore());
             Platform.OpenUrl = url => _ = window.Launcher.LaunchUriAsync(new Uri(url));
-            Platform.CopyText = text => _ = CopyAsync(window, text);
+            Platform.CopyText = text => _ = Controls.CopyAnywhere.CopyAsync(window, text);
             Platform.SaveCsv = (name, csv) => SaveCsvAsync(window, name, csv);
             Platform.SaveFile = (name, type, extension, bytes) => SaveFileAsync(window, name, type, extension, bytes);
             Platform.OpenCsv = () => OpenCsvAsync(window);
@@ -144,14 +146,5 @@ public partial class App : Application
         await using var stream = await file.OpenWriteAsync();
         await stream.WriteAsync(bytes);
         return true;
-    }
-
-    static async Task CopyAsync(MainWindow window, string text)
-    {
-        if (window.Clipboard is not { } clipboard)
-            return;
-        await clipboard.SetTextAsync(text);
-        // Hand it to the OS now: an unflushed clipboard on Windows blocks other apps' paste.
-        await clipboard.FlushAsync();
     }
 }

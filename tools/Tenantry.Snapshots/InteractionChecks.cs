@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -256,6 +257,79 @@ static class InteractionChecks
             for (var i = 0; i < 10; i++)
                 Settle();
             Expect(!mail.Reports.HasProblems && mail.Reports.Reports.Count == before + 1, "with a sender the report is asked for");
+            window.Close();
+        });
+
+        Check("Copying: right-clicking a trace step offers the step, its section and the whole preview, laid out as they read; pointing at the sender shows a copy button that copies it; Ctrl+C in a list copies the ticked rows as a table", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "trace");
+            Settle();
+            Click(window, FindButton(window, b => b.Command == mail.SearchTraceCommand && b.IsEffectivelyVisible));
+            for (var i = 0; i < 50 && mail.Trace.IsLoading; i++)
+                Settle();
+            mail.Trace.PreviewRow(mail.Trace.Rows.Cast<TracedMessage>().First(m => m.Status == "Failed"));
+            for (var i = 0; i < 20; i++)
+                Settle();
+            var preview = (Tenantry.ViewModels.MailSecurity.TracePreviewViewModel)mail.Trace.PreviewModel!;
+            Expect(preview.Steps.Count >= 2, "the message has steps");
+            var view = window.GetVisualDescendants().OfType<Tenantry.App.Views.TracePreviewView>().First(v => v.IsEffectivelyVisible);
+            var step = preview.Steps[0];
+            var eventText = view.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text == step.Event && t.IsEffectivelyVisible);
+
+            var choices = Tenantry.App.Controls.CopyAnywhere.ChoicesFor(eventText);
+            string Choice(string label) => choices.SingleOrDefault(c => c.Label == label).Text
+                ?? throw new InvalidOperationException($"no {label} in [{string.Join(", ", choices.Select(c => c.Label))}]");
+            Expect(choices[0].Label == $"Copy “{step.Event}”" && choices[0].Text == step.Event, $"the first choice copies the step's own words, not {choices[0].Label}");
+            var item = Choice("Copy This Item");
+            Expect(item.StartsWith(step.When + "\t" + step.Event, StringComparison.Ordinal), $"the step copies its time and event on one line: {item}");
+            Expect(!step.HasDetail || item.Contains("\n" + step.Detail, StringComparison.Ordinal), $"…and its detail on the next: {item}");
+            var section = Choice("Copy This Section");
+            Expect(section.StartsWith("WHAT HAPPENED TO IT\n", StringComparison.Ordinal) && preview.Steps.All(s => section.Contains(s.When + "\t" + s.Event, StringComparison.Ordinal)),
+                $"the section copies its heading and every step: {section}");
+            var all = Choice("Copy Everything Here");
+            Expect(all.Contains("FROM: " + preview.Sender, StringComparison.Ordinal) && all.Contains(preview.Subject, StringComparison.Ordinal) && all.Contains(section, StringComparison.Ordinal),
+                $"everything here has the subject, From: sender and the steps: {all}");
+            Expect(!all.Contains("Everything from This Sender", StringComparison.Ordinal), "buttons' own words aren't copied");
+
+            // A real right-click opens the menu (the event is answered).
+            var answered = false;
+            window.AddHandler(InputElement.ContextRequestedEvent, (_, e) => answered = e.Handled, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+            eventText.BringIntoView();
+            Settle();
+            var at = eventText.TranslatePoint(new Point(4, eventText.Bounds.Height / 2), window)!.Value;
+            at = new Point(Math.Round(at.X), Math.Round(at.Y));
+            window.MouseMove(at);
+            window.MouseDown(at, MouseButton.Right);
+            window.MouseUp(at, MouseButton.Right);
+            Settle();
+            Expect(answered, "right-clicking the step opened the copy menu");
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Settle();
+
+            // Pointing at the sender's address shows a copy button at its end, which copies it.
+            var sender = view.GetVisualDescendants().OfType<SelectableTextBlock>().First(t => t.Text == preview.Sender);
+            var over = sender.TranslatePoint(new Point(3, sender.Bounds.Height / 2), window)!.Value;
+            window.MouseMove(new Point(Math.Round(over.X), Math.Round(over.Y)));
+            Settle();
+            var copy = window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Classes.Contains("copyhover"));
+            Expect(copy is not null, "pointing at the address shows a copy button");            Click(window, copy!);
+            var copied = window.Clipboard!.TryGetTextAsync().GetAwaiter().GetResult();
+            Expect(copied == preview.Sender, $"the button copied the address, not '{copied}'");
+
+            // Ctrl+C in a list: two ticked rows as a table with headers.
+            mail.Trace.SelectedRows = mail.Trace.Rows.Take(2).ToArray();
+            Settle();
+            var grid = window.GetVisualDescendants().OfType<DataGrid>().First(g => g.IsEffectivelyVisible && g.DataContext == mail.Trace);
+            grid.Focus();
+            Settle();
+            window.KeyPress(Key.C, RawInputModifiers.Control, PhysicalKey.C, "c");
+            Settle();
+            var table = window.Clipboard!.TryGetTextAsync().GetAwaiter().GetResult() ?? "";
+            var lines = table.Split('\n');
+            Expect(lines.Length == 3 && lines[0].Contains('\t'), $"Ctrl+C copied a header line and the two rows: {table}");
             window.Close();
         });
 
@@ -2897,6 +2971,9 @@ static class InteractionChecks
 
     static void Check(string name, Action body)
     {
+        // TENANTRY_CHECK=words runs only the checks whose names contain them.
+        if (Environment.GetEnvironmentVariable("TENANTRY_CHECK") is { Length: > 0 } only && !name.Contains(only, StringComparison.OrdinalIgnoreCase))
+            return;
         try
         {
             body();
@@ -3037,6 +3114,20 @@ static class InteractionChecks
 
     static void Click(TopLevel top, Control control, RawInputModifiers keys = RawInputModifiers.None)
     {
+        // A button only clicks when it's still under the pointer on release. One half cut off at the
+        // edge of a scrolling page scrolls into view when pressed (it takes focus) and misses the
+        // release, so it's brought into view first, as a person would scroll to it; and a page still
+        // settling moves it after it's aimed at, so wait until it stays put.
+        control.BringIntoView();
+        var before = control.TranslatePoint(default, top);
+        for (var i = 0; i < 20; i++)
+        {
+            Settle();
+            var now = control.TranslatePoint(default, top);
+            if (now == before)
+                break;
+            before = now;
+        }
         var exact = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), top)
             ?? throw new InvalidOperationException("control isn't on screen");
         // A mouse reports whole pixels.
@@ -3051,6 +3142,7 @@ static class InteractionChecks
         top.MouseMove(middle, keys);
         Settle();
         top.MouseDown(middle, MouseButton.Left, keys);
+        Settle();
         top.MouseUp(middle, MouseButton.Left, keys);
         Settle();
     }

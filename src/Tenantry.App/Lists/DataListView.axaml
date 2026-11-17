@@ -183,11 +183,24 @@
                 </Flyout>
               </Button.Flyout>
             </Button>
-            <Button Classes="tb quiet" Click="OnExport" ToolTip.Tip="Export: save the rows and columns shown as a CSV file (opens in Excel)">
+            <Button x:Name="ExportButton" Classes="tb quiet" ToolTip.Tip="Export: save the rows and columns shown as a CSV file, or copy them to paste into Excel or an email">
               <StackPanel Orientation="Horizontal" Spacing="7">
                 <ic:FluentIcon Icon="ArrowDownload" FontSize="16" />
                 <TextBlock Text="Export" />
               </StackPanel>
+              <Button.Flyout>
+                <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                  <MenuItem Header="Save as a CSV File…" Click="OnExport">
+                    <MenuItem.Icon><ic:FluentIcon Icon="ArrowDownload" FontSize="14" /></MenuItem.Icon>
+                  </MenuItem>
+                  <MenuItem Header="{Binding CopyAllText}" Click="OnCopyAll">
+                    <MenuItem.Icon><ic:FluentIcon Icon="Copy" FontSize="14" /></MenuItem.Icon>
+                  </MenuItem>
+                  <MenuItem Header="{Binding CopyTickedText}" Click="OnCopyTicked" IsVisible="{Binding HasSelection}">
+                    <MenuItem.Icon><ic:FluentIcon Icon="Copy" FontSize="14" /></MenuItem.Icon>
+                  </MenuItem>
+                </MenuFlyout>
+              </Button.Flyout>
             </Button>
             <Border Classes="vsep" IsVisible="{Binding HasPreview}" />
             <Button Classes="tb quiet" Classes.active="{Binding IsPreviewOpen}" IsVisible="{Binding HasPreview}"
@@ -801,7 +814,7 @@
         <Grid>
           <DataGrid x:Name="Grid" Theme="{StaticResource TopScrollDataGrid}"
                     IsReadOnly="True" CanUserSortColumns="False" CanUserResizeColumns="True" CanUserReorderColumns="True"
-                    FrozenColumnCount="3" SelectionMode="Extended" />
+                    FrozenColumnCount="3" SelectionMode="Extended" ClipboardCopyMode="None" />
           <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" MaxWidth="420">
             <ic:FluentIcon Icon="Search" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource TextMuted}" />
             <TextBlock Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Text="{Binding EmptyText}" />

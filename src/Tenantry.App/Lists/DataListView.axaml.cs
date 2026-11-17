@@ -44,6 +44,14 @@ public partial class DataListView : UserControl
                 e.Handled = true;
             }
         };
+        // Ctrl+C (⌘C on a Mac) copies the ticked rows as a table, or the selected row.
+        Grid.AddHandler(KeyDownEvent, (_, e) =>
+        {
+            if (e.Key != Key.C || (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) == 0 || _vm?.CopySelectionText() is not { } text)
+                return;
+            _ = CopyAnywhere.CopyAsync(this, text);
+            e.Handled = true;
+        }, RoutingStrategies.Tunnel);
         Grid.SelectionChanged += (_, _) =>
         {
             UpdateSelectAll();
@@ -668,7 +676,7 @@ public partial class DataListView : UserControl
             menu.Items.Add(Item(item.Label, item.Icon, () =>
             {
                 if (item.CopyText is { } text)
-                    _ = CopyAsync(text);
+                    _ = CopyAnywhere.CopyAsync(this, text);
                 else
                     item.Run?.Invoke();
             }));
@@ -676,14 +684,16 @@ public partial class DataListView : UserControl
         return menu;
     }
 
-    async Task CopyAsync(string text)
+    void OnCopyAll(object? sender, RoutedEventArgs e)
     {
-        if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
-            return;
-        await clipboard.SetTextAsync(text);
-        // Hand the data to the OS now; an unflushed Avalonia clipboard on Windows blocks other
-        // apps' copy and paste until this app exits (found in TrispotQR).
-        await clipboard.FlushAsync();
+        if (_vm is not null)
+            _ = CopyAnywhere.CopyAsync(this, _vm.TableText(_vm.Rows));
+    }
+
+    void OnCopyTicked(object? sender, RoutedEventArgs e)
+    {
+        if (_vm is not null)
+            _ = CopyAnywhere.CopyAsync(this, _vm.TableText(_vm.SelectedRows));
     }
 
     // Menu rows run their action and close their menu.

@@ -428,6 +428,28 @@
     <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
   </Style>
 
+  <!-- Copying (Controls/CopyAnywhere): selectable text uses the app-wide right-click menu, which
+       offers the selection first and then the value, its section and the whole pane. -->
+  <Style Selector="SelectableTextBlock">
+    <Setter Property="ContextFlyout" Value="{x:Null}" />
+  </Style>
+  <!-- The copy button that appears at the end of an address, ID or name being pointed at. -->
+  <Style Selector="Button.copyhover">
+    <Setter Property="Padding" Value="4" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="Border.copiednote">
+    <Setter Property="Background" Value="{DynamicResource TextPrimary}" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="Border.copiednote > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource CardBg}" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+
   <!-- Avatars: initials in a tinted circle. -->
   <Style Selector="Border.avatar">
     <Setter Property="Width" Value="36" />

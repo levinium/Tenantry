@@ -86,8 +86,13 @@ public sealed partial class DataListViewModel : TabViewModel
     // ---- Rows and counts ------------------------------------------------------------------
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CountText), nameof(IsEmpty), nameof(SelectAllTip), nameof(PreviewPrompt), nameof(AllRowsTicked), nameof(AllTickedText))]
+    [NotifyPropertyChangedFor(nameof(CountText), nameof(IsEmpty), nameof(SelectAllTip), nameof(PreviewPrompt), nameof(AllRowsTicked), nameof(AllTickedText), nameof(CopyAllText))]
     public partial IReadOnlyList<object> Rows { get; private set; }
+
+    /// <summary>The Export menu's copy entries: every row shown, or only the ticked ones.</summary>
+    public string CopyAllText => Rows.Count == 1 ? "Copy the Row as a Table" : $"Copy All {Rows.Count:N0} Rows as a Table";
+
+    public string CopyTickedText => $"Copy the {SelectedRows.Count:N0} Ticked Rows as a Table";
 
     /// <summary>What the empty preview pane says: pick a row, or that there's nothing to pick yet.</summary>
     public string PreviewPrompt => Rows.Count == 0 ? "Nothing to show yet: once the list has rows, choose one to see its details here." : "Select a row to see its details here.";
@@ -100,7 +105,7 @@ public sealed partial class DataListViewModel : TabViewModel
     /// <summary>Every checked row (the grid's selection); the preview follows <see cref="SelectedRow"/>.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectionCount), nameof(HasSelection), nameof(IsPaneVisible), nameof(PaneTitle), nameof(CanExpandPreview), nameof(ShowOpenRecord),
-        nameof(AllRowsTicked), nameof(AllTickedText))]
+        nameof(AllRowsTicked), nameof(AllTickedText), nameof(CopyTickedText))]
     public partial IReadOnlyList<object> SelectedRows { get; set; } = [];
 
     public int SelectionCount => SelectedRows.Count;
@@ -1151,6 +1156,8 @@ public sealed partial class DataListViewModel : TabViewModel
             items.AddRange(actions);
         }
         items.Add(RowMenuItem.Separator);
+        if (SelectedRows.Count > 1 && SelectedRows.Contains(row))
+            items.Add(new RowMenuItem(CopyTickedText, "Copy", CopyText: TableText(SelectedRows)));
         items.Add(new RowMenuItem("Copy Row", "Copy", CopyText: RowText(row)));
         foreach (var c in Columns.Where(c => c.IsVisible))
         {
@@ -1164,6 +1171,44 @@ public sealed partial class DataListViewModel : TabViewModel
     }
 
     string RowText(object row) => string.Join('\t', Columns.Where(c => c.IsVisible).Select(c => c.Cell == CellKind.Primary ? c.Text(row) ?? "" : c.Plain(row)));
+
+    /// <summary>
+    /// Rows as a table to paste into Excel or an email: the visible columns' headers, then one
+    /// tab-separated line per row. A name column's address gets its own column when any row has one.
+    /// </summary>
+    public string TableText(IEnumerable<object> rows)
+    {
+        var list = rows as IReadOnlyCollection<object> ?? rows.ToArray();
+        var columns = Columns.Where(c => c.IsVisible).ToArray();
+        var details = columns.Where(c => c.Cell == CellKind.Primary && list.Any(r => !string.IsNullOrEmpty(c.Subtitle(r)))).ToHashSet();
+        var text = new System.Text.StringBuilder();
+        var headers = new List<string>();
+        foreach (var c in columns)
+        {
+            headers.Add(c.Header);
+            if (details.Contains(c))
+                headers.Add(c.Header + " (detail)");
+        }
+        text.Append(string.Join('\t', headers.Select(TableCell)));
+        foreach (var row in list)
+        {
+            var cells = new List<string>();
+            foreach (var c in columns)
+            {
+                cells.Add(c.Cell == CellKind.Primary ? c.Text(row) ?? "" : c.Plain(row));
+                if (details.Contains(c))
+                    cells.Add(c.Subtitle(row) ?? "");
+            }
+            text.Append('\n').Append(string.Join('\t', cells.Select(TableCell)));
+        }
+        return text.ToString();
+    }
+
+    /// <summary>What Ctrl+C copies: the ticked rows as a table, or the one selected row.</summary>
+    public string? CopySelectionText() =>
+        SelectedRows.Count > 1 ? TableText(SelectedRows) : SelectedRow is { } row ? RowText(row) : null;
+
+    static string TableCell(string value) => Inert(value.Replace("\r\n", " ").Replace('\n', ' ').Replace('\t', ' '));
 
     /// <summary>The rows on screen, visible columns in order, as CSV (RFC 4180 quoting).</summary>
     public void ExportCsv(TextWriter writer)
