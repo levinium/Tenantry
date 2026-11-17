@@ -73,6 +73,48 @@ public sealed partial class GraphUserRecords : IOrgObjectRecords, IUsageReportRe
         return path;
     }
 
+    /// <summary>Tenant ID → its name and default domain, once looked up (they rarely change).</summary>
+    readonly System.Collections.Concurrent.ConcurrentDictionary<string, (string Name, string? Domain)?> _tenants = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Other organizations' settings name them only by tenant ID: each is looked up for its name
+    /// and default domain (needs CrossTenantInformation.ReadBasic.All). One that can't be looked
+    /// up, or a refusal before that permission is granted, keeps showing its ID.
+    /// </summary>
+    async Task<List<JsonElement>> NameTenantsAsync(List<JsonElement> rows, string idProperty, CancellationToken cancellationToken)
+    {
+        using var gate = new SemaphoreSlim(4);
+        var named = await Task.WhenAll(rows.Select(async row =>
+        {
+            if (Plain(row, idProperty) is not { } id || !Guid.TryParse(id, out _))
+                return row;
+            if (!_tenants.TryGetValue(id, out var found))
+            {
+                await gate.WaitAsync(cancellationToken);
+                try
+                {
+                    var info = await graph.GetAsync($"tenantRelationships/findTenantInformationByTenantId(tenantId='{id}')", cancellationToken);
+                    found = Plain(info, "displayName") is { Length: > 0 } name ? (name, Plain(info, "defaultDomainName")) : null;
+                }
+                catch (GraphException)
+                {
+                    found = null;
+                }
+                finally
+                {
+                    gate.Release();
+                }
+                _tenants[id] = found;
+            }
+            if (found is not { } tenant || System.Text.Json.Nodes.JsonNode.Parse(row.GetRawText()) is not System.Text.Json.Nodes.JsonObject copy)
+                return row;
+            copy[OrgKinds.TenantName] = tenant.Name;
+            copy[OrgKinds.TenantDomain] = tenant.Domain;
+            return JsonDocument.Parse(copy.ToJsonString()).RootElement.Clone();
+        }));
+        return [.. named];
+    }
+
     static string? Plain(JsonElement e, string name) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var v)
         && v.ValueKind is JsonValueKind.String or JsonValueKind.Number ? v.ToString() : null;
 
@@ -105,6 +147,8 @@ public sealed partial class GraphUserRecords : IOrgObjectRecords, IUsageReportRe
                 rows.Add(root);
             if (kind.Where is { } where)
                 rows = [.. rows.Where(where)];
+            if (kind.NamesTenants)
+                rows = await NameTenantsAsync(rows, kind.IdProperty, cancellationToken);
             var items = rows.Select(r =>
             {
                 var id = Plain(r, kind.IdProperty) ?? "";

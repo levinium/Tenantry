@@ -191,4 +191,24 @@ public sealed class OrganizationSettingsTests
         Assert.Equal("displayName", usage.List.Columns[0].Key);
         Assert.DoesNotContain(usage.List.Columns, c => c.Key == "reportRefreshDate");
     }
+
+    [Fact]
+    public async Task Cross_tenant_partners_are_named_by_a_lookup_and_keep_their_ID_when_it_fails()
+    {
+        const string known = "11111111-1111-1111-1111-111111111111", unknown = "22222222-2222-2222-2222-222222222222";
+        var http = new FakeHttp()
+            .On(HttpMethod.Get, "crossTenantAccessPolicy/partners", $$"""{"value":[{"tenantId":"{{known}}"},{"tenantId":"{{unknown}}"}]}""")
+            .On(HttpMethod.Get, $"tenantId='{known}'", """{"tenantId":"x","displayName":"Fabrikam","defaultDomainName":"fabrikam.example"}""")
+            .On(HttpMethod.Get, $"tenantId='{unknown}'", """{"error":{"code":"Forbidden","message":"Insufficient privileges."}}""", System.Net.HttpStatusCode.Forbidden);
+        var records = new GraphUserRecords(new GraphClient(http.Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore());
+
+        var read = await records.GetOrgObjectsAsync(OrgKinds.CrossTenantPartners, cancellationToken: TestContext.Current.CancellationToken);
+
+        var named = read.Items.Single(i => i.Id == known);
+        Assert.Equal("Fabrikam", named.Name);
+        Assert.Equal($"fabrikam.example · {known}", OrgKinds.CrossTenantPartners.SubtitleOf!(named.Raw));
+        var plain = read.Items.Single(i => i.Id == unknown);
+        Assert.Equal(unknown, plain.Name);
+        Assert.Null(OrgKinds.CrossTenantPartners.SubtitleOf!(plain.Raw));
+    }
 }

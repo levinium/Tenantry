@@ -86,7 +86,7 @@ public sealed record OrgKind(string Key, string Title, string About, string List
     Func<JsonElement, bool>? ReadOnlyWhen = null, Func<JsonElement, bool>? KeepWhen = null, IReadOnlyList<OrgAction>? Actions = null,
     IReadOnlyList<OrgExtra>? Extras = null, string? Children = null, bool ReadEach = false, string Noun = "item", string? SubtitleProperty = null,
     string? Needs = null, string? ReadOnlyText = null, Func<JsonElement, string?>? NameOf = null, Func<JsonElement, bool>? Where = null, bool OneOnly = false,
-    Func<JsonElement, string?>? SubtitleOf = null)
+    Func<JsonElement, string?>? SubtitleOf = null, bool NamesTenants = false)
 {
     public string Collection => ListUrl.Split('?')[0];
 
@@ -219,6 +219,15 @@ public static class OrgPath
 public static class OrgKinds
 {
     static JsonObject J(string json) => JsonNode.Parse(json)!.AsObject();
+
+    /// <summary>
+    /// Where a tenant's own name and default domain are put beside its settings once looked up
+    /// (<see cref="OrgKind.NamesTenants"/>). Only shown, never sent back: writes re-read the item.
+    /// </summary>
+    public const string TenantName = "_tenantName", TenantDomain = "_tenantDomain";
+
+    static string? TenantText(JsonElement e, string property) =>
+        e.ValueKind == JsonValueKind.Object && e.TryGetProperty(property, out var v) && v.ValueKind == JsonValueKind.String && v.GetString() is { Length: > 0 } s ? s : null;
 
     static bool Is(JsonElement e, string property, string value) =>
         e.ValueKind == JsonValueKind.Object && e.TryGetProperty(property, out var p) && string.Equals(p.ToString(), value, StringComparison.OrdinalIgnoreCase);
@@ -460,9 +469,12 @@ public static class OrgKinds
         "policies/crossTenantAccessPolicy/default", Single: true, Noun: "defaults", NameOf: _ => "Cross-Tenant Defaults", Fields: CrossTenantFields(false));
 
     public static readonly OrgKind CrossTenantPartners = new("crosstenantpartners", "Cross-Tenant Organizations",
-        "Organizations with their own settings, which replace the defaults for them. Each is named by its tenant ID.",
+        "Organizations with their own settings, which replace the defaults for them.",
         "policies/crossTenantAccessPolicy/partners", NameProperty: "tenantId", IdProperty: "tenantId", CanDelete: true, Noun: "organization",
-        Fields: CrossTenantFields(true),
+        Fields: CrossTenantFields(true), NamesTenants: true,
+        NameOf: r => TenantText(r, TenantName) ?? TenantText(r, "tenantId"),
+        SubtitleOf: r => TenantText(r, TenantName) is null ? null
+            : string.Join(" · ", new[] { TenantText(r, TenantDomain), TenantText(r, "tenantId") }.OfType<string>()),
         Creates: [new("new", "Organization", "Settings for one other organization, starting from the defaults.", J("{}"), [new("tenantId", "Their Tenant ID", Placeholder: "00000000-0000-0000-0000-000000000000")], NameField: "tenantId")]);
 
     public static readonly OrgKind GroupSettings = new("groupsettings", "Microsoft 365 Groups",

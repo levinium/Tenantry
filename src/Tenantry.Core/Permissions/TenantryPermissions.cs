@@ -127,6 +127,9 @@ public static class TenantryPermissions
         "OrganizationalBranding.ReadWrite.All",
         "Policy.ReadWrite.Authorization",
         "Policy.ReadWrite.CrossTenantAccess",
+        // Cross-tenant partners are listed by tenant ID only; this looks up each one's name and
+        // domain (tenantRelationships/findTenantInformationByTenantId).
+        "CrossTenantInformation.ReadBasic.All",
         "Policy.ReadWrite.ExternalIdentities",
         "Policy.ReadWrite.ConsentRequest",
         "Policy.ReadWrite.PermissionGrant",
@@ -221,6 +224,7 @@ public static class TenantryPermissions
         "eDiscovery.Download.Read" => "downloading eDiscovery exports",
         "user_impersonation" => "Teams policies and organization-wide Teams settings",
         "ServiceHealth.Read.All" => "service health",
+        "CrossTenantInformation.ReadBasic.All" => "naming the other organizations in cross-tenant settings",
         "ServiceMessage.Read.All" => "the Message Center",
         "ServiceMessageViewpoint.Write" => "marking Message Center posts read, archived or favorite",
         "OnPremDirectorySynchronization.ReadWrite.All" => "Entra Connect sync status and settings",
