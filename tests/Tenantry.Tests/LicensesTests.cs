@@ -88,7 +88,7 @@ public class LicensesTests
 
         tab.Licenses.Single(l => l.Name == "Microsoft 365 E3").Apps.Single(a => a.Name == "Viva Engage Core").IsOn = false;
         var apps = Assert.Single(pipeline.Pending.OfType<SetLicenseApps>());
-        Assert.Equal("Microsoft 365 E3 Apps: Viva Engage Core On → Viva Engage Core Off", apps.Summary);
+        Assert.Equal("Viva Engage Core in Microsoft 365 E3: On → Off", apps.Summary);
         Assert.True(apps.IsCaution);
 
         tab.Licenses.Single(l => l.Name == "Microsoft 365 E3").RemoveCommand.Execute(null);

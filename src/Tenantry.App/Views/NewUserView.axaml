@@ -53,7 +53,7 @@
     <!-- Password -->
     <StackPanel Spacing="8">
       <TextBlock Classes="label" Text="PASSWORD" />
-      <RadioButton GroupName="newpassword" IsChecked="{Binding Generate}" Content="Create One for Me, in This Tenant's Password Style (Shown Once After Applying)" />
+      <RadioButton GroupName="newpassword" IsChecked="{Binding Generate}" Content="Create one for me, in this tenant's password style (shown once after applying)" />
       <RadioButton GroupName="newpassword" IsChecked="{Binding TypeOwn}" Content="Let Me Type a Password" />
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" MaxWidth="360" HorizontalAlignment="Left" Margin="28,0,0,0" IsVisible="{Binding TypeOwn}">
         <TextBox Text="{Binding Password}" PasswordChar="•" RevealPassword="{Binding ShowPassword}" PlaceholderText="Password" />
@@ -64,8 +64,8 @@
           </Panel>
         </ToggleButton>
       </Grid>
-      <CheckBox IsChecked="{Binding MustChange}" Content="Make Them Choose Their Own Password When They First Sign In (Recommended)" />
-      <CheckBox IsChecked="{Binding SignInAllowed}" Content="Let Them Sign In Straight Away" />
+      <CheckBox IsChecked="{Binding MustChange}" Content="Make them choose their own password when they first sign in (recommended)" />
+      <CheckBox IsChecked="{Binding SignInAllowed}" Content="Let them sign in straight away" />
     </StackPanel>
 
     <!-- Licenses -->

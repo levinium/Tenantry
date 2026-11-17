@@ -57,6 +57,13 @@ public static class Display
         };
     }
 
+    /// <summary>
+    /// <see cref="Relative"/> to follow a verb: "Last signed in 3 days ago", but "Last signed in on
+    /// 9 Jul 2026" once it's a date.
+    /// </summary>
+    public static string RelativeAfterVerb(DateTimeOffset? when, DateTimeOffset now) =>
+        Relative(when, now) is var text && when is { } w && text == w.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture) ? "on " + text : text;
+
     /// <summary>"at 10:42 AM" today; "Oct 19, 10:42 AM" on another day. Local time.</summary>
     public static string Clock(DateTimeOffset when, DateTimeOffset now)
     {

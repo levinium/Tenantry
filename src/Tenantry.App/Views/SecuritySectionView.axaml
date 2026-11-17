@@ -46,7 +46,7 @@
         <StackPanel Spacing="8">
           <TextBlock Text="Add a Hardware Token" FontWeight="SemiBold" />
           <TextBlock Classes="caption" TextWrapping="Wrap"
-                     Text="From the token and the file its vendor sends. Microsoft's preview feature: hardware tokens must be turned on in Security &amp; Compliance, Authentication Methods. After applying, activate it with the code it shows." />
+                     Text="Enter the details from the token and the file its vendor sends. Microsoft's preview feature: hardware tokens must be turned on in Security &amp; Compliance, Authentication Methods. After applying, activate it with the code it shows." />
           <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
             <TextBlock Classes="label" Text="SERIAL NUMBER" VerticalAlignment="Center" />
             <TextBox Grid.Column="1" Text="{Binding Serial}" Width="320" HorizontalAlignment="Left" />
@@ -222,9 +222,9 @@
           <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="12">
             <TextBlock Classes="h3" Text="1" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Top" />
             <StackPanel Grid.Column="1" Spacing="2">
-              <TextBlock Text="Revoke Sessions" FontWeight="SemiBold" />
+              <TextBlock Text="Sign Out Everywhere" FontWeight="SemiBold" />
               <TextBlock Classes="caption" TextWrapping="Wrap"
-                         Text="Signs them out of every app, browser and device, so anything still signed in has to sign in again. Same as Sign Out Everywhere." />
+                         Text="Signs them out of every app, browser and device, so anything still signed in has to sign in again. Entra calls this Revoke Sessions." />
             </StackPanel>
             <Button Grid.Column="2" Classes="danger-outline quiet" Classes.undo="{Binding IsRevokePending}" Content="{Binding RevokeText}"
                     Command="{Binding ToggleRevokeSessionsCommand}" IsEnabled="{Binding CanEdit}" VerticalAlignment="Center" Width="190" HorizontalContentAlignment="Center" />
@@ -235,7 +235,7 @@
           <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="12">
             <TextBlock Classes="h3" Text="2" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Top" />
             <StackPanel Grid.Column="1" Spacing="2">
-              <TextBlock Text="Require Re-Register Multi-Factor Authentication" FontWeight="SemiBold" />
+              <TextBlock Text="Require MFA to Be Registered Again" FontWeight="SemiBold" />
               <TextBlock Classes="caption" TextWrapping="Wrap"
                          Text="Removes their MFA methods (Authenticator, phones, passkeys…) but keeps the password. They set MFA up again at their next sign-in." />
             </StackPanel>
@@ -408,7 +408,7 @@
             <TextBlock Classes="h3" Text="Apps They've Given Access to Their Data" VerticalAlignment="Center" />
           </StackPanel>
           <TextBlock Classes="caption" TextWrapping="Wrap"
-                     Text="Apps they agreed could act for them, with what each may do. An unfamiliar app reading mail is a common sign of a phishing consent." />
+                     Text="Apps they agreed could act for them, with what each may do. An unfamiliar app reading mail is a common sign of consent phishing." />
           <TextBlock Classes="muted" Text="No apps." IsVisible="{Binding HasNoConsents}" />
           <c:ReadableWidth>
           <ItemsControl ItemsSource="{Binding Consents}">
@@ -447,7 +447,7 @@
         </StackPanel>
         <TextBlock Classes="caption" TextWrapping="Wrap"
                    Text="Which policies cover them, judged on who each includes and excludes (them, their groups, their roles). Apps, locations and devices then decide when a policy acts." />
-        <CheckBox IsChecked="{Binding ShowAllPolicies}" Content="Also Show Policies That Don't Apply to Them" />
+        <CheckBox IsChecked="{Binding ShowAllPolicies}" Content="Also show policies that don't apply to them" />
         <TextBlock Classes="muted" Text="Reading the policies…" IsVisible="{Binding PoliciesLoading}" />
         <TextBlock Classes="error" Text="{Binding PoliciesError}" IsVisible="{Binding HasPoliciesError}" TextWrapping="Wrap" />
         <TextBlock Classes="caption" Text="{Binding PoliciesSummary}" />

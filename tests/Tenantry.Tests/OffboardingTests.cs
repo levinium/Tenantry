@@ -175,5 +175,7 @@ public sealed class OffboardingTests
 
         Assert.Equal("Pat has left Contoso; write to Sam Ortiz.", workflow.ReplyFor(person, "Sam Ortiz"));
         Assert.Equal("Pat has left Contoso; write to us.", workflow.ReplyFor(person, null));
+        workflow.ReplyText = "{firstname} has left.";
+        Assert.Equal("Pat has left.", workflow.ReplyFor(person, null));
     }
 }

@@ -315,8 +315,9 @@ public sealed partial class MailSection
     public bool IsOnHold => Settings?.HoldOn ?? false;
 
     public string HoldText => Settings is not { } s ? ""
-        : !s.HoldOn ? "Off"
-        : $"On{(s.HoldSince is { } since ? $" since {since.ToLocalTime():d MMM yyyy}" : "")}{(s.HoldBy is { } by ? $", set by {by}" : "")}. Keeps every item {(s.HoldDays is { } d ? $"for {d:N0} days" : "indefinitely")}, even ones they delete.";
+        // Like the archive: the switch below says On or Off; this line adds only what it can't.
+        : !s.HoldOn ? "Turning it on keeps every item in their mailbox, even ones they delete, until the hold is lifted."
+        : $"{(s.HoldSince is { } since ? $"On hold since {since.ToLocalTime():d MMM yyyy}" : "On hold")}{(s.HoldBy is { } by ? $", set by {by}" : "")}. Keeps every item {(s.HoldDays is { } d ? $"for {d:N0} days" : "indefinitely")}, even ones they delete.";
 
     public string? HoldNoteText => Settings?.HoldNote is { } note ? $"Note: {note}" : null;
 

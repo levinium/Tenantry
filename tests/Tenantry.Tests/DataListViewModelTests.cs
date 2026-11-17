@@ -66,7 +66,7 @@ public class DataListViewModelTests
         list.ApplyFilter();
 
         Assert.DoesNotContain("Grace", Names(list));
-        Assert.Equal("Status: not Blocked", list.Pills.Single().Text);
+        Assert.Equal("Status: Not Blocked", list.Pills.Single().Text);
         Assert.Equal("All Users (changed)", list.CurrentViewName);
 
         list.Pills.Single().RemoveCommand.Execute(null);
@@ -98,7 +98,7 @@ public class DataListViewModelTests
         list.SearchText = "dept:it -status:blocked";
 
         Assert.Equal(["Alan", "Linus"], Names(list));
-        Assert.Equal("Filtering: Department: it · Status: not blocked", list.SearchUnderstood);
+        Assert.Equal("Filtering: Department: it · Status: Not blocked", list.SearchUnderstood);
         Assert.Empty(list.Pills);
 
         list.SearchText = "signin:soon";

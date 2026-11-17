@@ -104,7 +104,7 @@ public sealed record SetGroupAddress(ChangeTarget Group, GroupKind Kind, string 
 {
     public override string Key => "address:" + Address.ToLowerInvariant();
     public override string Label => $"Email Address {Address}";
-    public override string Before => Old ? "One of its addresses" : "Not one of its addresses";
+    public override string Before => Old ? "The Group's" : "Not the Group's";
     public override string After => New ? "Added" : "Removed";
     public override bool IsCaution => Old && !New;
     public override bool IsNoChange => Old == New;

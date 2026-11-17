@@ -183,7 +183,7 @@ public sealed class GroupAccessTests
         var remove = new SetGroupMembership(Group, Ada, "user", GroupRole.Owner, false, true, false);
         var add = new SetMailboxAccess(Shared, Bo, MailboxRight.SendAs, false, true);
 
-        Assert.Equal("Owner zz-tenantry-test-ada: Owner → Removed", remove.Summary);
+        Assert.Equal("zz-tenantry-test-ada: Owner → Removed", remove.Summary);
         Assert.True(remove.IsCaution);
         Assert.Equal("Send As for zz-tenantry-test-bo: Not Allowed → Allowed", add.Summary);
         Assert.False(add.IsCaution);

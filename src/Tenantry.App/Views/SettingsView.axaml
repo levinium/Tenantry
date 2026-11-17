@@ -93,13 +93,13 @@
 
           <StackPanel Grid.Row="2" Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="Read Automatic Replies" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBlock Classes="caption" TextWrapping="Wrap" Text="For the Automatic reply on view. One read per mailbox, in the background." />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Used by the Automatic Replies view. One read per mailbox, in the background." />
           </StackPanel>
           <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{x:Static vm:SettingsViewModel.MailboxDetailsOptions}" SelectedItem="{Binding MailboxDetails}" MinWidth="320" VerticalAlignment="Center" />
 
           <StackPanel Grid.Row="3" Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="Read Mailbox Sizes" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBlock Classes="caption" TextWrapping="Wrap" Text="For the Mailbox nearly full view. Sizes change slowly, so less often is fine. One read per mailbox, in the background." />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Used by the Mailbox Nearly Full view. Sizes change slowly, so less often is fine. One read per mailbox, in the background." />
           </StackPanel>
           <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{x:Static vm:SettingsViewModel.MailboxSizesOptions}" SelectedItem="{Binding MailboxSizes}" MinWidth="320" VerticalAlignment="Center" />
         </Grid>
@@ -117,7 +117,7 @@
         <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="12">
           <StackPanel Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="Add New Events" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Only what's new each time, in the background." />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Only what's new, in the background." />
           </StackPanel>
           <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:SettingsViewModel.LogsOptions}" SelectedItem="{Binding Logs}" MinWidth="320" VerticalAlignment="Center" />
 
@@ -129,7 +129,7 @@
 
           <StackPanel Grid.Row="2" Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="Non-Interactive Sign-Ins" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Apps and devices renewing their sign-in on their own: many times the rest, so kept 30 days." />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Sign-ins apps and devices make on their own. There are many more of these, so they're kept 30 days." />
           </StackPanel>
           <ToggleSwitch Grid.Row="2" Grid.Column="1" IsChecked="{Binding BackgroundSignIns}" OnContent="Keep for 30 Days" OffContent="Off" VerticalAlignment="Center" />
         </Grid>
@@ -175,8 +175,8 @@
 
       <!-- Simple or a pattern -->
       <StackPanel Spacing="6">
-        <RadioButton GroupName="passwordmode" IsChecked="{Binding UseSimple}" Content="Simple: Choose a Length and Which Kinds of Characters" />
-        <RadioButton GroupName="passwordmode" IsChecked="{Binding UsePattern}" Content="Pattern: Spell Out the Format, Part by Part, in Order" />
+        <RadioButton GroupName="passwordmode" IsChecked="{Binding UseSimple}" Content="Simple: choose a length and which kinds of characters" />
+        <RadioButton GroupName="passwordmode" IsChecked="{Binding UsePattern}" Content="Pattern: spell out the format, part by part, in order" />
       </StackPanel>
 
       <!-- What they'll look like -->
@@ -222,7 +222,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasCount}" VerticalAlignment="Center">
                       <NumericUpDown Value="{Binding Count}" Minimum="1" Maximum="64" Increment="1" FormatString="0" Width="110" ToolTip.Tip="How many" />
                       <TextBlock Classes="caption" Text="up to" VerticalAlignment="Center" />
-                      <NumericUpDown Value="{Binding UpTo}" Minimum="1" Maximum="64" Increment="1" FormatString="0" Width="150" PlaceholderText="Same"
+                      <NumericUpDown Value="{Binding UpTo}" Minimum="1" Maximum="64" Increment="1" FormatString="0" Width="150" PlaceholderText="Same as minimum"
                                      ToolTip.Tip="Leave empty for exactly that many; fill it in for a range, like 6 up to 8" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasLetterRules}" VerticalAlignment="Center">
@@ -261,8 +261,19 @@
           <TextBox Text="{Binding PatternText}" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" FontSize="15" MaxWidth="480" HorizontalAlignment="Left" MinWidth="320" />
           <TextBlock Classes="error" Text="{Binding PatternTextProblem}" IsVisible="{Binding HasPatternTextProblem}" TextWrapping="Wrap" />
           <TextBlock Classes="caption" Text="{Binding PatternHelp}" TextWrapping="Wrap" />
+          <!-- The codes as a small table: each code in the pattern font, beside what it stands for. -->
+          <ItemsControl ItemsSource="{x:Static vm:PasswordStyleViewModel.PatternCodes}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:PatternCode">
+                <Grid ColumnDefinitions="64,*">
+                  <TextBlock Classes="caption" Text="{Binding Code}" FontFamily="Cascadia Mono,Consolas,Menlo,monospace" />
+                  <TextBlock Grid.Column="1" Classes="caption" Text="{Binding Meaning}" TextWrapping="Wrap" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </StackPanel>
-        <CheckBox Content="Leave Out Characters That Look Alike (0 and O, 1 and l, 5 and S)" IsChecked="{Binding AvoidLookAlikes}" />
+        <CheckBox Content="Leave out characters that look alike (0 and O, 1 and l, 5 and S)" IsChecked="{Binding AvoidLookAlikes}" />
       </StackPanel>
 
       <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="14" IsVisible="{Binding UseSimple}">
@@ -281,7 +292,7 @@
         <StackPanel Grid.Row="2" Spacing="2" VerticalAlignment="Center">
           <TextBlock Text="Numbers" FontWeight="SemiBold" />
         </StackPanel>
-        <CheckBox Grid.Row="2" Grid.Column="1" Content="Include Numbers (0–9)" IsChecked="{Binding Numbers}" VerticalAlignment="Center" />
+        <CheckBox Grid.Row="2" Grid.Column="1" Content="Include numbers (0–9)" IsChecked="{Binding Numbers}" VerticalAlignment="Center" />
 
         <StackPanel Grid.Row="3" Spacing="2" VerticalAlignment="Center">
           <TextBlock Text="Symbols" FontWeight="SemiBold" />
@@ -293,8 +304,8 @@
           <TextBlock Text="Easier to Read Out" FontWeight="SemiBold" />
         </StackPanel>
         <StackPanel Grid.Row="4" Grid.Column="1" Spacing="8">
-          <CheckBox Content="Split Into Groups of Four with Dashes, Like Kp7r-Xw3n" IsChecked="{Binding Groups}" />
-          <CheckBox Content="Leave Out Characters That Look Alike (0 and O, 1 and l, 5 and S)" IsChecked="{Binding AvoidLookAlikes}" />
+          <CheckBox Content="Split into groups of four with dashes, like Kp7r-Xw3n" IsChecked="{Binding Groups}" />
+          <CheckBox Content="Leave out characters that look alike (0 and O, 1 and l, 5 and S)" IsChecked="{Binding AvoidLookAlikes}" />
         </StackPanel>
       </Grid>
 

@@ -100,7 +100,7 @@ public sealed class SubmissionTests
         preview.ReviewCommand.Execute("phishing");
         preview.ReviewCommand.Execute("notSpam");
         var review = (ReviewSubmission)Assert.Single(pipeline.Pending);
-        Assert.Equal(("notSpam", "Reviewed: no threat found"), (review.Verdict, review.After));
+        Assert.Equal(("notSpam", "Reviewed (no threat found)"), (review.Verdict, review.After));
         Assert.Null(WriteGuard.Refusal(review, testMode: true));
 
         var admins = new SubmissionPreviewViewModel(report with { ByUser = false }, pipeline, Availability.Yes);

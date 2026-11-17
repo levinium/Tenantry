@@ -109,7 +109,7 @@
         <TextBlock Grid.Column="1" Classes="h3" Text="{Binding AccessHeading}" VerticalAlignment="Center" />
       </Grid>
       <TextBlock Classes="caption" TextWrapping="Wrap"
-                 Text="Full access opens the mailbox in Outlook. Send as sends as the mailbox; Send on behalf sends marked &quot;on behalf of&quot;. New people start with Full access." />
+                 Text="Full access opens the mailbox in Outlook. Send as: mail looks like it came from the mailbox. Send on behalf: mail shows &quot;on behalf of&quot;. New people start with Full access." />
       <c:ReadableWidth>
       <StackPanel Spacing="10">
       <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">

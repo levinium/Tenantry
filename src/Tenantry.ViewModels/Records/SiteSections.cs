@@ -338,7 +338,7 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
             : p.Kind == PrincipalKind.GroupOwners ? "The group's owners" : null)).ToList();
         foreach (var add in adminChanges.Where(c => c.New && !permissions.Admins.Any(a => string.Equals(a.Login, c.Login, StringComparison.OrdinalIgnoreCase))))
             adminRows.Add(Adding(PersonFromTarget(add.Person), add));
-        Groups.Add(new SiteGroupCard("Site Admins", "Full control, including over permissions and settings. They see everything in it.", adminRows,
+        Groups.Add(new SiteGroupCard("Site Admins", "Full control, including permissions and settings. They see everything in it.", adminRows,
             Picker(permissions.Admins.Select(a => a.Upn ?? "").Concat(adminChanges.Select(c => c.Person.Address ?? "")),
                 u => Page.Pipeline!.Stage(new SetSiteAdmin(site, Site.Url, GroupAccess.Target(u), SetOneDriveAccess.LoginFor(u.UserPrincipalName), false, true)
                     { StagedNote = GroupAccess.SharePointNotice(u, Page.Index) }))));

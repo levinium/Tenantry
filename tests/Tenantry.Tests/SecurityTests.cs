@@ -387,7 +387,7 @@ public sealed class SecurityTests
 
         Assert.IsType<RevokeSessions>(pipeline.Pending[0]);
         Assert.Equal(["a1", "p1"], pipeline.Pending.OfType<RemoveAuthMethod>().Select(m => m.MethodId).Order());
-        Assert.Equal(("Undo Revoke Sessions", "Undo Re-Register"), (tab.RevokeText, tab.ReregisterText));
+        Assert.Equal(("Undo Sign Out Everywhere", "Undo Require MFA Again"), (tab.RevokeText, tab.ReregisterText));
         // The record's own Sign out everywhere follows the same pending change.
         Assert.Equal("Undo Sign Out Everywhere", page.SignOutText);
 

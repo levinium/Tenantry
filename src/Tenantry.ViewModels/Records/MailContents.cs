@@ -620,7 +620,7 @@ public sealed partial class MailSection
     public bool IsSharedMailbox => _user.Mailbox?.Type == "Shared";
 
     public string MailboxTypeText => IsSharedMailbox
-        ? "Shared mailbox: people get access from Groups & access, and it needs no license up to 50 GB."
+        ? "Shared mailbox: people get access from Groups & Access, and it needs no license up to 50 GB."
         : "User mailbox: this person's own mail.";
 
     public string ConvertText => IsSharedMailbox ? "Convert to a User Mailbox…" : "Convert to a Shared Mailbox…";

@@ -188,7 +188,7 @@
                   <TextBlock Classes="label" Text="RUNS" />
                   <ComboBox ItemsSource="{x:Static ms:RuleEditorViewModel.OrderChoices}" SelectedItem="{Binding Order}" HorizontalAlignment="Stretch" />
                 </StackPanel>
-                <CheckBox Grid.Column="1" IsChecked="{Binding TurnOn}" Content="Turn the Rule On When It's Saved" VerticalAlignment="Bottom" />
+                <CheckBox Grid.Column="1" IsChecked="{Binding TurnOn}" Content="Turn the rule on when it's saved" VerticalAlignment="Bottom" />
               </Grid>
               <Border Classes="banner warning" IsVisible="{Binding IsEnforcing}">
                 <TextBlock TextWrapping="Wrap" Text="Enforce acts on real mail as soon as the rule is saved. Try it in Test mode first and check the matches in message trace." />

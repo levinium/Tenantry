@@ -116,9 +116,9 @@ public sealed partial class GraphUserRecords : IDeviceRecords
         await foreach (var k in graph.GetAllAsync($"informationProtection/bitlocker/recoveryKeys?$filter=deviceId eq '{deviceId}'", cancellationToken))
             keys.Add(new RecoveryKeyInfo(Text(k, "id") ?? "", When(k, "createdDateTime"), Text(k, "volumeType") switch
             {
-                "operatingSystemVolume" => "System drive",
-                "fixedDataVolume" => "Data drive",
-                "removableDataVolume" => "Removable drive",
+                "operatingSystemVolume" => "System Drive",
+                "fixedDataVolume" => "Data Drive",
+                "removableDataVolume" => "Removable Drive",
                 _ => "Drive",
             }));
         return keys.OrderByDescending(k => k.Created ?? DateTimeOffset.MinValue).ToArray();

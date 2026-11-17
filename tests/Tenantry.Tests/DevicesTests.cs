@@ -106,7 +106,7 @@ public sealed class DevicesTests
                 new("o1", "d1", "m1", "zz-tenantry-test-laptop", "Windows", "11", "Lenovo", "T14", "PF1", "Entra Joined", true, true, true, null, null, "Primary user", "Company-owned"),
             ]));
         public Task<IReadOnlyList<RecoveryKeyInfo>> GetRecoveryKeysAsync(string deviceId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<RecoveryKeyInfo>>([new RecoveryKeyInfo("k1", null, "System drive")]);
+            Task.FromResult<IReadOnlyList<RecoveryKeyInfo>>([new RecoveryKeyInfo("k1", null, "System Drive")]);
         public Task<string> RevealRecoveryKeyAsync(string keyId, CancellationToken cancellationToken = default)
         {
             Reveals++;

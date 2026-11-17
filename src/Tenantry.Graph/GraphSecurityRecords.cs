@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using Tenantry.Core.Changes;
 using Tenantry.Core.Directory;
 
 namespace Tenantry.Graph;
@@ -31,7 +32,7 @@ public sealed partial class GraphUserRecords : ISecurityRecords
             var (segment, kind) = MethodTypes.TryGetValue(type, out var known) ? known : ("", type.Replace("#microsoft.graph.", "").Replace("AuthenticationMethod", ""));
             var detail = type switch
             {
-                "#microsoft.graph.phoneAuthenticationMethod" => $"{Text(m, "phoneNumber")} ({Text(m, "phoneType") switch { "alternateMobile" => "alternate", "office" => "office", _ => "mobile" }})",
+                "#microsoft.graph.phoneAuthenticationMethod" => $"{PhoneNumbers.Display(Text(m, "phoneNumber") ?? "")} ({Text(m, "phoneType") switch { "alternateMobile" => "alternate", "office" => "office", _ => "mobile" }})",
                 "#microsoft.graph.emailAuthenticationMethod" => Text(m, "emailAddress"),
                 "#microsoft.graph.temporaryAccessPassAuthenticationMethod" => Text(m, "methodUsabilityReason") is { } reason ? Words(reason) : null,
                 _ => Text(m, "displayName") ?? Text(m, "model"),

@@ -19,12 +19,12 @@ public sealed record OfficeActivation(string Product, DateOnly? LastActivated, i
 
     public int Total => Computers + Mobile;
 
-    /// <summary>"Microsoft 365 Apps for business", "Office mobile apps".</summary>
+    /// <summary>"Microsoft 365 Apps for Business", "Office Mobile Apps".</summary>
     public string ProductName => Product.ToUpperInvariant() switch
     {
-        "MICROSOFT 365 APPS FOR BUSINESS" => "Microsoft 365 Apps for business",
-        "MICROSOFT 365 APPS FOR ENTERPRISE" => "Microsoft 365 Apps for enterprise",
-        "OFFICE MOBILE APPS FOR OFFICE 365" => "Office mobile apps",
+        "MICROSOFT 365 APPS FOR BUSINESS" => "Microsoft 365 Apps for Business",
+        "MICROSOFT 365 APPS FOR ENTERPRISE" => "Microsoft 365 Apps for Enterprise",
+        "OFFICE MOBILE APPS FOR OFFICE 365" => "Office Mobile Apps",
         "PROJECT FOR OFFICE 365" or "PROJECT ONLINE DESKTOP CLIENT" => "Project",
         "VISIO PRO FOR OFFICE 365" or "VISIO ONLINE PLAN 2" => "Visio",
         _ => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(Product.ToLowerInvariant()),
@@ -93,7 +93,7 @@ public static class SignedInDevices
                 var latest = g.MaxBy(s => s.When);
                 var known = latest.DeviceId is { Length: > 0 };
                 var name = g.Select(s => s.Name).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n))
-                           ?? (latest.Os is { Length: > 0 } os ? $"{os} device" : "Unknown device");
+                           ?? (latest.Os is { Length: > 0 } os ? $"{os} Device" : "Unknown Device");
                 return new SignedInDevice(known ? latest.DeviceId : null, name, latest.Os, Family(latest.Browser) is { Length: > 0 } b ? b : null,
                     g.Select(s => s.App).Where(a => a.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.CurrentCulture).ToArray(),
                     latest.When, TrustName(latest.TrustType, known), latest.Compliant, latest.Managed, latest.Location);

@@ -154,7 +154,14 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     /// <summary>Two or more passwords (a bulk reset): copy all of them at once.</summary>
     public bool HasManyReveals => Reveals.Count > 1;
 
-    public string RevealsHeader => $"{Reveals.Count:N0} new {RevealNoun(Reveals.Count == 1)}. Shown once and never stored: copy or save now, then pass on securely.";
+    // Passwords from an earlier apply stay until closed, so the count can be more than the last apply made: say so.
+    public string RevealsHeader =>
+        $"{Reveals.Count:N0} new {RevealNoun(Reveals.Count == 1)}"
+        + (_earlierReveals > 0 && _earlierReveals < Reveals.Count ? $" ({_earlierReveals:N0} from an earlier apply)" : "")
+        + ". Shown once and never stored: copy or save now, then pass on securely.";
+
+    /// <summary>How many of <see cref="Reveals"/> were already there before the last apply.</summary>
+    int _earlierReveals;
 
     /// <summary>What the secrets are, in words: one kind by its name, a mix as "passwords and codes".</summary>
     string RevealNoun(bool one)
@@ -342,7 +349,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
     bool _resultSucceeded;
 
     public string ApplyText =>
-        IsConfirming ? $"Confirm: {CautionCount} {(CautionCount == 1 ? "Change Takes" : "Changes Take")} Something Away"
+        IsConfirming ? $"Confirm {CautionCount} {(CautionCount == 1 ? "Change That Takes" : "Changes That Take")} Something Away"
         : Count == 1 ? "Apply 1 Change"
         : $"Apply {Count} Changes";
 
@@ -366,6 +373,7 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         try
         {
             var results = await _pipeline.ApplyAsync();
+            _earlierReveals = Reveals.Count;
             foreach (var (change, result) in results.Where(r => r.Result.Reveal is not null))
                 Reveals.Add(new RevealRow(change switch
                     {

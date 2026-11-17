@@ -53,14 +53,14 @@ public sealed partial class AuthenticatorSetupViewModel(string name, string sign
     /// <summary>The pass is made: the QR code, the pass and the steps.</summary>
     public bool IsReady => Pass is not null;
 
-    public string PassNote => $"Valid {Lifetime.ToLowerInvariant()}{(OneUse ? ", for one sign-in" : "")}. Shown here once and never stored; it's gone when this closes.";
+    public string PassNote => $"Valid {Lifetime.ToLowerInvariant()}{(OneUse ? ", for one sign-in" : "")}. Shown once, never stored: gone when this closes.";
 
     public IReadOnlyList<string> Steps =>
     [
         "On their phone, install Microsoft Authenticator from the App Store or Google Play.",
         "Scan the QR code with the phone's camera. It opens Microsoft's Security info page.",
         $"Sign in as {signInName}. When asked, enter the Temporary Access Pass above.",
-        "Choose Add sign-in method, then Microsoft Authenticator, and follow along. On the phone, tap \"Pair your account to the app by clicking this link\".",
+        "Choose Add sign-in method, then Microsoft Authenticator. On the phone, tap \"Pair your account to the app by clicking this link\".",
         "Approve the test notification in Authenticator. The app then appears in their sign-in methods.",
     ];
 

@@ -180,8 +180,8 @@
           <Button Classes="danger-outline" Content="{Binding DenyText}" Command="{Binding DenyCommand}" IsVisible="{Binding CanDeny}"
                   ToolTip.Tip="Turns the request down: it stays in quarantine for every recipient (added to Pending Changes)" />
         </WrapPanel>
-        <CheckBox IsChecked="{Binding AllowSender}" Content="Also Allow This Sender from Now On" />
-        <CheckBox IsChecked="{Binding ReportFalsePositive}" Content="Tell Microsoft This Isn't Spam" IsVisible="{Binding CanReportFalsePositive}"
+        <CheckBox IsChecked="{Binding AllowSender}" Content="Also allow this sender from now on" />
+        <CheckBox IsChecked="{Binding ReportFalsePositive}" Content="Tell Microsoft this isn't spam" IsVisible="{Binding CanReportFalsePositive}"
                   ToolTip.Tip="Sends it to Microsoft as wrongly caught, to improve its filtering" />
       </StackPanel>
       <WrapPanel ItemSpacing="8" LineSpacing="8">

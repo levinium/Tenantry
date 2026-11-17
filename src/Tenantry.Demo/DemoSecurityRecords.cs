@@ -28,7 +28,7 @@ public sealed partial class DemoUserRecords : ISecurityRecords
                 methods.Add(m switch
                 {
                     "microsoftAuthenticatorPush" => new AuthMethod($"ma-{userId}", "microsoftAuthenticatorMethods", "Microsoft Authenticator", "iPhone 15", added, true),
-                    "mobilePhone" => Phone($"ph-mobile-{userId}", "mobile", $"+1 55501{random.Next(10000, 99999)}", added.AddDays(-30)),
+                    "mobilePhone" => Phone($"ph-mobile-{userId}", "mobile", $"+1 555555{random.Next(100, 9999):0000}", added.AddDays(-30)),
                     _ => new AuthMethod($"em-{userId}", "emailMethods", "Email (Password Reset)", person.Mail?.Replace("@", ".home@"), added, true,
                         Value: person.Mail?.Replace("@", ".home@")),
                 });
@@ -123,7 +123,7 @@ public sealed partial class DemoUserRecords : ISecurityRecords
     };
 
     static AuthMethod Phone(string id, string type, string number, DateTimeOffset? added) =>
-        new(id, "phoneMethods", "Phone", $"{number} ({type switch { "alternateMobile" => "alternate", "office" => "office", _ => "mobile" }})", added, true,
+        new(id, "phoneMethods", "Phone", $"{PhoneNumbers.Display(number)} ({type switch { "alternateMobile" => "alternate", "office" => "office", _ => "mobile" }})", added, true,
             Value: number, PhoneType: type);
 
     static bool Replaced(List<AuthMethod> list, string id, Func<AuthMethod, AuthMethod> change)

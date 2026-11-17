@@ -77,6 +77,15 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
     public string Email => User.Mail ?? "No mailbox address";
     public string LastSignInText => _row.LastSignInText;
     public string LastSignInExact => _row.LastSignInExact;
+
+    // Over 30 days ago the short form is already the date: show the date and time once, not the date twice.
+    bool SignInTextIsDate => User.LastSignIn is null || LastSignInExact.StartsWith(LastSignInText, StringComparison.Ordinal);
+
+    /// <summary>The Sign-In card's value: "3 days ago", or the date and time when that's all there is to say.</summary>
+    public string LastSignInValue => User.LastSignIn is not null && SignInTextIsDate ? LastSignInExact : LastSignInText;
+
+    /// <summary>The exact time under a relative value; null when the value already is it.</summary>
+    public string? LastSignInCaption => SignInTextIsDate ? null : LastSignInExact;
     public string CreatedText => User.CreatedAt.ToLocalTime().ToString("d MMM yyyy");
 
     public IReadOnlyList<string> Licenses => User.Licenses;
@@ -108,7 +117,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
                 if (User.LastSignIn is null)
                     chips.Add(new("Never Signed In", BadgeKind.Warning, "No sign-in recorded for this account."));
                 else if (_now - User.LastSignIn > TimeSpan.FromDays(90))
-                    chips.Add(new("Inactive 90+ Days", BadgeKind.Warning, $"Last signed in {LastSignInText}."));
+                    chips.Add(new("Inactive 90+ Days", BadgeKind.Warning, $"Last signed in {Display.RelativeAfterVerb(User.LastSignIn, _now)}."));
             }
             // From Entra's MFA registration report (synced; absent without Entra ID P1).
             if (isPerson && User.AccountEnabled && User.Security is { MfaRegistered: false } security)
@@ -308,7 +317,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         foreach (var name in new[]
                  {
                      nameof(User), nameof(Title), nameof(Initials), nameof(SecondaryText), nameof(StatusText), nameof(StatusKind),
-                     nameof(KindText), nameof(KindKind), nameof(Email), nameof(LastSignInText), nameof(LastSignInExact), nameof(CreatedText),
+                     nameof(KindText), nameof(KindKind), nameof(Email), nameof(LastSignInText), nameof(LastSignInExact), nameof(LastSignInValue), nameof(LastSignInCaption), nameof(CreatedText),
                      nameof(Licenses), nameof(HasLicenses), nameof(MailboxText), nameof(ForwardingText), nameof(Health), nameof(HasHealth),
                      nameof(SignInActionText), nameof(IsBlockAction), nameof(SignInActionTip), nameof(PendingSignInText), nameof(HasPendingSignIn),
                      nameof(CanResetPassword), nameof(ResetPasswordTip),

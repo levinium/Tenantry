@@ -10,7 +10,8 @@ namespace Tenantry.ViewModels.Records;
 public sealed class TenantryChangeRow(ChangeLogEntry entry)
 {
     public string When => entry.At.ToLocalTime().ToString("d MMM yyyy h:mm tt");
-    public string What => entry.Change.Label;
+    // A membership's label names the person (the group is its target): here, on the person, name the group.
+    public string What => entry.Change is SetGroupMembership m ? $"{m.Role} of {m.Group.Name}" : entry.Change.Label;
     public string Change => entry.Change is SecretViewed ? entry.Change.After : $"{entry.Change.Before} → {entry.Change.After}";
     public string Who => entry.Account;
     public string? Detail => entry.Detail;

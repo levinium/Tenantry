@@ -44,7 +44,7 @@
     <!-- Options -->
     <StackPanel Spacing="8">
       <TextBlock Classes="label" Text="OPTIONS" />
-      <CheckBox IsChecked="{Binding Hidden}" Content="Hide It from the Address List (It Can Still Be Mailed and Put on Lists)" />
+      <CheckBox IsChecked="{Binding Hidden}" Content="Hide it from the address list (it can still be mailed and put on lists)" />
     </StackPanel>
 
     <!-- Lists -->
