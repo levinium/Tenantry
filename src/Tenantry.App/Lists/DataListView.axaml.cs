@@ -176,6 +176,8 @@ public partial class DataListView : UserControl
 
     ChipRow? _chipRow;
 
+    readonly RowSource _rowSource = new();
+
     /// <summary>The toolbar width under which its tools were seen to wrap (labels drop below it).</summary>
     double _tinyBelow;
 
@@ -381,7 +383,12 @@ public partial class DataListView : UserControl
             Grid.ItemsSource = view;
         }
         else
-            Grid.ItemsSource = _vm.Rows;
+        {
+            // One collection kept on the grid, its contents swapped: the grid reuses its rows.
+            _rowSource.Show(_vm.Rows);
+            if (!ReferenceEquals(Grid.ItemsSource, _rowSource))
+                Grid.ItemsSource = _rowSource;
+        }
         Grid.SelectedItem = _vm.SelectedRow;
         _syncingSelection = false;
         ShowChecked();

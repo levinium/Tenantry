@@ -207,7 +207,9 @@ public sealed class TenantConnector : ITenantConnector
     /// <param name="premium">Act as a tenant with Entra ID P2 (PIM), for screenshots and checks of those pages.</param>
     public ConnectedTenant ConnectDemo(bool premium)
     {
-        var directory = new DemoTenantDirectory();
+        // TENANTRY_DEMO_USERS sizes the demo tenant, for checking speed at scale (250 by default).
+        var directory = int.TryParse(Environment.GetEnvironmentVariable("TENANTRY_DEMO_USERS"), out var size) && size > 0
+            ? new DemoTenantDirectory(userCount: size) : new DemoTenantDirectory();
         var records = new DemoUserRecords(directory, pim: premium);
         var passwordStyle = new MemoryPasswordStyleStore();
         var account = DemoUserRecords.Account;

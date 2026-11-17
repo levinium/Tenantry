@@ -260,6 +260,8 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Scale: the Users list opens, searches, sorts, groups and scrolls quickly", ScaleCheck);
+
         Check("Copying: right-clicking a trace step offers the step, its section and the whole preview, laid out as they read; pointing at the sender shows a copy button that copies it; Ctrl+C in a list copies the ticked rows as a table", () =>
         {
             var (window, main, _) = OpenList();
@@ -3001,6 +3003,50 @@ static class InteractionChecks
 
     /// <summary>The demo tenant, editable (Pending changes on, Test mode on), on its Users list.</summary>
     /// <param name="premium">The demo acting as a tenant with Entra ID P2 (PIM).</param>
+    /// <summary>
+    /// The Users list in a real window, timed: opening, typing a search, sorting, scrolling to the
+    /// end. With TENANTRY_DEMO_USERS=20000 this is the speed check at scale; every step after
+    /// opening must stay under a second there (each includes layout).
+    /// </summary>
+    static void ScaleCheck()
+    {
+        MainWindow? window = null;
+        MainViewModel? main = null;
+        double Step(string what, Action act)
+        {
+            // Layout is what the app does on each change; drawing here is the headless software
+            // renderer (a real window draws on the GPU), so it's shown apart and not judged.
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            act();
+            var own = sw.Elapsed.TotalMilliseconds;
+            Dispatcher.UIThread.RunJobs();
+            window?.UpdateLayout();
+            var ms = sw.Elapsed.TotalMilliseconds;
+            var draw = System.Diagnostics.Stopwatch.StartNew();
+            Settle();
+            Console.WriteLine($"      {what,-44} {ms,8:0} ms   (its own work {own:0} ms; drawing {draw.Elapsed.TotalMilliseconds:0} ms)");
+            return ms;
+        }
+        var steps = new List<double> { Step("open the Users list", () => (window, main, _) = OpenList()) };
+        var list = main!.Users;
+        Console.WriteLine($"      ({list.Rows.Count:N0} rows)");
+        foreach (var text in new[] { "a", "al", "ali", "alic" })
+            steps.Add(Step($"type \"{text}\"", () => list.SearchText = text));
+        steps.Add(Step("clear the search", () => list.SearchText = ""));
+        var dept = list.Columns.First(c => c.Field == Tenantry.Core.Directory.UserFields.Department);
+        steps.Add(Step("sort by department", () => list.SortColumnDescending(dept)));
+        steps.Add(Step("group by department", () => list.GroupByColumn(dept)));
+        steps.Add(Step("ungroup", () => list.SelectedGroup = list.GroupOptions[0]));
+        var grid = window!.GetVisualDescendants().OfType<DataGrid>().First(g => g.IsEffectivelyVisible);
+        steps.Add(Step("scroll to the last row", () => grid.ScrollIntoView(list.Rows[^1], null)));
+        steps.Add(Step("open the preview", () => { list.IsPreviewOpen = true; list.SelectedRow = list.Rows[^1]; }));
+        window!.Close();
+        // Opening builds the whole window (and, here, makes up the demo people) once; every step
+        // after it is what an admin waits for while working.
+        Expect(steps[0] < 8000, "the list opened in under eight seconds");
+        Expect(steps.Skip(1).All(s => s < 1000), "every step after opening took under a second");
+    }
+
     static (MainWindow Window, MainViewModel Main, ShellViewModel Shell) OpenList(bool premium = false)
     {
         var demo = new TenantConnector().ConnectDemo(premium);
