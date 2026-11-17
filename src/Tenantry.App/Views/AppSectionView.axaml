@@ -26,6 +26,7 @@
                 <TextBlock Classes="caption" Text="{Binding Caption}" IsVisible="{Binding HasCaption}" TextWrapping="Wrap" />
               </StackPanel>
               <!-- Above the rows: the card's form (an Add button, for lists) on the left, search on the right -->
+              <c:ReadableWidth>
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
               <views:ListSearchBox Grid.Column="1" Target="{Binding #CardRows}" Placeholder="Search this list" VerticalAlignment="Top" />
               <ContentControl Content="{Binding Form}" IsVisible="{Binding HasForm}" VerticalAlignment="Top">
@@ -263,6 +264,7 @@
                 </ContentControl.DataTemplates>
               </ContentControl>
               </Grid>
+              </c:ReadableWidth>
               <ItemsControl ItemsSource="{Binding FactLines}" IsVisible="{Binding HasFacts}">
                 <ItemsControl.ItemsPanel>
                   <ItemsPanelTemplate>

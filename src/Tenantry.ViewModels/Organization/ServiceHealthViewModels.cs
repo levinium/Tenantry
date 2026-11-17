@@ -336,7 +336,7 @@ public sealed partial class ServiceHealthViewModel : ObservableObject
         Issues = DataListViewModel.Create(ServiceHealthLists.Issues(i => new ServiceIssuePreviewViewModel(i, now)),
             async ct => (_read ??= await ReadAsync(ct)).Issues, row => Issues!.PreviewRow(row), listState, now);
         Issues.HasRecordPages = false;
-        Issues.PrimaryAction = new ListPrimaryAction("Refresh", "ArrowSync", true, "Read service health from Microsoft again", () => _ = Refresh());
+        Issues.SecondaryAction = new ListPrimaryAction("Refresh", "ArrowSync", true, "Read service health from Microsoft again", () => _ = Refresh());
         Issues.EmptyText = "No issues match. Microsoft keeps resolved issues here for about a month.";
     }
 
@@ -513,7 +513,7 @@ public sealed partial class MessageCenterViewModel : ObservableObject
         _records = records;
         Posts = DataListViewModel.Create(ServiceHealthLists.Posts(p => Opened(p, now)), LoadAsync, row => Posts!.PreviewRow(row), listState, now);
         Posts.HasRecordPages = false;
-        Posts.PrimaryAction = new ListPrimaryAction("Refresh", "ArrowSync", true, "Read Message Center from Microsoft again", () => _ = Refresh());
+        Posts.SecondaryAction = new ListPrimaryAction("Refresh", "ArrowSync", true, "Read Message Center from Microsoft again", () => _ = Refresh());
         Posts.EmptyText = "No posts match these filters.";
         Posts.SelectionPanel = (rows, uncheck) => new MessageSelectionViewModel(rows, uncheck, this);
     }

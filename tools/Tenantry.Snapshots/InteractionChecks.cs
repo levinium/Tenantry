@@ -871,8 +871,9 @@ static class InteractionChecks
             AddVia(window, tab.GroupPicker, "sg");
             Expect(main.Pending!.Count == 1 && tab.Groups.Count == before + 1, "the group was added, as a pending row");
 
-            var lists = window.GetVisualDescendants().OfType<Tenantry.App.Views.ListSearchBox>().Where(s => s.IsEffectivelyVisible).ToArray();
-            var search = lists.First(s => s.Target?.ItemsSource == tab.Groups);
+            var search = window.GetVisualDescendants().OfType<Tenantry.App.Views.ListSearchBox>().First(s => s.Target?.ItemsSource == tab.Groups);
+            // A short list is read at a glance: its search box stays hidden until there's more to search.
+            Expect(tab.Groups.Count > 8 || !search.IsVisible, "a short list has no search box");
             var rows = search.Target!.GetRealizedContainers().ToArray();
             var first = tab.Groups[0].Name;
             search.Text = first;

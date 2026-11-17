@@ -23,6 +23,27 @@ public partial class MainView : UserControl
                 _vm.PropertyChanged += OnViewModelChanged;
         };
 
+        // Open tabs shorten their names rather than wrap onto a second row; checked again as tabs
+        // open and close or the window widens.
+        Tabs.TemplateApplied += (_, e) =>
+        {
+            if (e.NameScope.Find<Control>("PART_ItemsPresenter") is not { } strip)
+                return;
+            var lastCount = -1;
+            var lastWidth = 0.0;
+            strip.SizeChanged += (_, s) =>
+            {
+                var count = Tabs.ItemCount;
+                if (Tabs.Classes.Contains("squeeze") && (count < lastCount || s.NewSize.Width > lastWidth + 40))
+                    Tabs.Classes.Set("squeeze", false);
+                lastCount = count;
+                lastWidth = s.NewSize.Width;
+                var row = Tabs.ContainerFromIndex(0)?.Bounds.Height ?? 0;
+                if (row > 0 && s.NewSize.Height > row * 1.5)
+                    Tabs.Classes.Set("squeeze", true);
+            };
+        };
+
         // The palette's keys: arrows move the highlight, Enter opens it, Esc closes. Tunnel, so
         // the TextBox doesn't swallow Up/Down/Enter first.
         PaletteBox.AddHandler(KeyDownEvent, (_, e) =>

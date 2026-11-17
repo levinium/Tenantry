@@ -20,20 +20,15 @@
     <DockPanel Grid.Column="0" Margin="8,16,8,12" MinWidth="360">
 
       <!-- Title, saving the view, and the list's main action -->
-      <Grid DockPanel.Dock="Top" ColumnSpacing="8" Margin="0,0,0,12">
-        <!-- The title always keeps some room: a narrow window must never leave the buttons with no name above the list. -->
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" MinWidth="170" />
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
-        <!-- Narrow windows cut the title short rather than drawing it under the buttons. -->
-        <DockPanel VerticalAlignment="Center" ClipToBounds="True">
-          <TextBlock DockPanel.Dock="Left" Classes="h2" Text="{Binding Title}" TextTrimming="CharacterEllipsis" MaxWidth="320" />
-          <TextBlock Classes="caption" VerticalAlignment="Center" Margin="10,3,0,0" Text="{Binding CountText}" TextTrimming="CharacterEllipsis" />
-        </DockPanel>
-        <Button Grid.Column="1" x:Name="SaveViewButton" Classes="outline" Classes.attention="{Binding IsModified}"
+      <!-- The title and count are shown whole; when the buttons don't fit beside them (a narrow
+           window, the preview open) they wrap onto a second row rather than cutting either. -->
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" ColumnSpacing="16" Margin="0,0,0,12">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Top" Margin="0,6,0,0">
+          <TextBlock Classes="h2" Text="{Binding Title}" TextTrimming="CharacterEllipsis" MaxWidth="320" />
+          <TextBlock Classes="caption" VerticalAlignment="Center" Margin="10,3,0,0" Text="{Binding CountText}" />
+        </StackPanel>
+        <WrapPanel Grid.Column="1" ItemsAlignment="End" ItemSpacing="8" LineSpacing="8">
+        <Button x:Name="SaveViewButton" Classes="outline" Classes.attention="{Binding IsModified}"
                 ToolTip.Tip="Save view: keep the current filters, sort, grouping and columns as a view you can come back to">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <ic:FluentIcon Icon="Save" FontSize="16" />
@@ -54,7 +49,7 @@
             </Flyout>
           </Button.Flyout>
         </Button>
-        <Button Grid.Column="2" Classes="outline" Command="{Binding RunSecondaryActionCommand}"
+        <Button Classes="outline" Command="{Binding RunSecondaryActionCommand}"
                 IsVisible="{Binding SecondaryAction, Converter={x:Static ObjectConverters.IsNotNull}}"
                 IsEnabled="{Binding SecondaryAction.IsEnabled, FallbackValue=False}"
                 ToolTip.Tip="{Binding SecondaryAction.Tip}" ToolTip.ShowOnDisabled="True">
@@ -63,7 +58,7 @@
             <TextBlock Text="{Binding SecondaryAction.Label}" />
           </StackPanel>
         </Button>
-        <Button Grid.Column="3" Classes="accent" Command="{Binding RunPrimaryActionCommand}"
+        <Button Classes="accent" Command="{Binding RunPrimaryActionCommand}"
                 IsVisible="{Binding PrimaryAction, Converter={x:Static ObjectConverters.IsNotNull}}"
                 IsEnabled="{Binding PrimaryAction.IsEnabled, FallbackValue=False}"
                 ToolTip.Tip="{Binding PrimaryAction.Tip}" ToolTip.ShowOnDisabled="True">
@@ -72,6 +67,7 @@
             <TextBlock Text="{Binding PrimaryAction.Label}" />
           </StackPanel>
         </Button>
+        </WrapPanel>
       </Grid>
 
       <!-- Views: pinned views as chips (plus the current one) on one line, the rest under More
@@ -215,7 +211,7 @@
             </Button>
           </StackPanel>
 
-          <WrapPanel ItemSpacing="2" LineSpacing="2">
+          <WrapPanel x:Name="LeftTools" ItemSpacing="2" LineSpacing="2">
             <Button x:Name="FilterButton" Classes="tb" Classes.active="{Binding HasFilters}" ToolTip.Tip="Filter: show only rows that match a field's values">
               <StackPanel Orientation="Horizontal" Spacing="7">
                 <ic:FluentIcon Icon="Filter" FontSize="16" />
@@ -818,6 +814,17 @@
           <DataGrid x:Name="Grid" Theme="{StaticResource TopScrollDataGrid}"
                     IsReadOnly="True" CanUserSortColumns="False" CanUserResizeColumns="True" CanUserReorderColumns="True"
                     FrozenColumnCount="3" SelectionMode="Extended" ClipboardCopyMode="None" />
+          <!-- More columns off to the right: the last visible one fades out instead of ending in a
+               cut word (shown from code while the table can scroll further right). -->
+          <Border x:Name="RightFade" IsVisible="False" IsHitTestVisible="False" Width="48" HorizontalAlignment="Right"
+                  Margin="0,0,12,0" Background="{DynamicResource CardBg}">
+            <Border.OpacityMask>
+              <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                <GradientStop Offset="0" Color="Transparent" />
+                <GradientStop Offset="1" Color="Black" />
+              </LinearGradientBrush>
+            </Border.OpacityMask>
+          </Border>
           <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" MaxWidth="420">
             <ic:FluentIcon Icon="Search" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource TextMuted}" />
             <TextBlock Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Text="{Binding EmptyText}" />

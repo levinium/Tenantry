@@ -41,6 +41,9 @@ public partial class ListSearchBox : UserControl
 
     IDisposable? _count;
 
+    /// <summary>A list this short is read at a glance: no search box over it.</summary>
+    const int ShowFrom = 8;
+
     public ListSearchBox() => InitializeComponent();
 
     /// <summary>
@@ -85,8 +88,8 @@ public partial class ListSearchBox : UserControl
     {
         if (Target is not { } list)
             return;
-        // Shown while there is something to search, or something typed (so it can be cleared).
-        IsVisible = list.ItemCount > 0 || !string.IsNullOrEmpty(Text);
+        // Shown over a list long enough to need it, or while something is typed (so it can be cleared).
+        IsVisible = list.ItemCount > ShowFrom || !string.IsNullOrEmpty(Text);
         var words = Words();
         foreach (var container in list.GetRealizedContainers())
             container.IsVisible = words.Length == 0 || Matches(list.ItemFromContainer(container), words);

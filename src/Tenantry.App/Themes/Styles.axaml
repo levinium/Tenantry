@@ -689,15 +689,15 @@
 
   <!-- Buttons by role -->
   <!-- A saved view has unsaved changes: the Save view button says so. -->
-  <!-- Unsaved view changes: the usual filled button, ringed in the accent colour. -->
+  <!-- Unsaved view changes: the button tinted in the accent colour (a ring read as a stuck focus outline). -->
   <Style Selector="Button.outline.attention">
-    <Setter Property="Background" Value="{DynamicResource ButtonBackground}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
-    <Setter Property="BorderThickness" Value="1.5" />
+    <Setter Property="Background" Value="{DynamicResource BadgeInfoBg}" />
+    <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
   <Style Selector="Button.outline.attention /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource ButtonBackground}" />
+    <Setter Property="Background" Value="{DynamicResource BadgeInfoBg}" />
   </Style>
   <Style Selector="Button.danger">
     <Setter Property="Background" Value="{DynamicResource DangerFill}" />
@@ -1185,6 +1185,11 @@
   <!-- Main tabs: hidden while the area's list is the only page open -->
   <Style Selector="TabControl.liststrip /template/ ItemsPresenter#PART_ItemsPresenter">
     <Setter Property="IsVisible" Value="False" />
+  </Style>
+
+  <!-- Many open tabs: their names shorten before a tab would wrap onto a second row (set from code). -->
+  <Style Selector="TabControl.squeeze TextBlock.tabtitle">
+    <Setter Property="MaxWidth" Value="110" />
   </Style>
 
   <!-- Search everything: the sidebar button that looks like a search box, and the Ctrl+K palette -->

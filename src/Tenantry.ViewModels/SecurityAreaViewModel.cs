@@ -66,9 +66,9 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public static IReadOnlyList<SecurityPageGroup> Sections { get; } =
     [
         new("access", "Access", "ShieldLock", Of("ca", "whatif", "locations", "strengths", "authmethods")),
-        new("rolesapps", "Roles & Apps", "PersonKey", Of("roles", "myroles", "approvals", "appregs", "enterprise", "deletedapps")),
+        new("rolesapps", "Roles & Apps", "PersonKey", Of("roles", "myroles", "approvals", "purviewroles", "appregs", "enterprise", "deletedapps")),
         new("threats", "Threats", "Warning", Of("riskyusers", "riskdetections", "riskyapps", "auditlog")),
-        new("compliance", "Compliance", "Briefcase", Of("cases", "searches", "retentionpolicies", "retentionlabels", "adaptivescopes", "retentionevents", "fileplan", "purviewroles")),
+        new("compliance", "Compliance", "Briefcase", Of("cases", "searches", "retentionpolicies", "retentionlabels", "adaptivescopes", "retentionevents", "fileplan")),
         new("protection", "Information Protection", "Tag", Of("labels", "labelpolicies", "autolabel", "infotypes", "keywords", "edm")),
         new("dlp", "Data Loss Prevention", "ShieldLock", Of("dlp", "dlpalerts", "endpointdlp")),
         new("risk", "Insider Risk", "PersonWarning", Of("insiderrisk", "commcompliance", "segments", "barriers")),

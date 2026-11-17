@@ -83,7 +83,7 @@ public sealed partial class UsageReportsViewModel : ObservableObject
             var rows = read.Rows.Select((r, i) => new UsageRow(i.ToString(CultureInfo.InvariantCulture), r)).ToArray();
             var list = DataListViewModel.Create(Definition(Report, read.Rows), _ => Task.FromResult<IReadOnlyList<UsageRow>>(rows), _ => { }, _listState, _now);
             list.HasRecordPages = false;
-            list.PrimaryAction = new ListPrimaryAction("Refresh", "ArrowSync", true, "Read the report from Microsoft again", () => _ = Load(force: true));
+            list.SecondaryAction = new ListPrimaryAction("Refresh", "ArrowSync", true, "Read the report from Microsoft again", () => _ = Load(force: true));
             list.EmptyText = "Microsoft has nothing for this period.";
             List = list;
             await list.LoadAsync();

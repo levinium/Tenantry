@@ -47,7 +47,7 @@
       </StackPanel>
 
       <!-- A sync running now (from here, the sidebar or the timer), and the background read -->
-      <Border Classes="banner info" IsVisible="{Binding HasLiveText}">
+      <Border Classes="banner neutral" IsVisible="{Binding HasLiveText}">
         <StackPanel Spacing="8">
           <StackPanel Orientation="Horizontal" Spacing="10">
             <ic:FluentIcon Classes="spin" Icon="ArrowSync" FontSize="16" Foreground="{DynamicResource Accent}" VerticalAlignment="Center">

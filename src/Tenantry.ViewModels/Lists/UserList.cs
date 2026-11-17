@@ -92,7 +92,7 @@ public static class UserList
             new() { Key = F.Title, Header = "Job Title", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 210, Text = u => u.JobTitle },
             new() { Key = F.Status, Header = "Status", Cell = CellKind.Badge, MinWidth = 110, DefaultWidth = 120,
                 Badge = u => u.AccountEnabled ? (F.Active, BadgeKind.Success) : (F.Blocked, BadgeKind.Danger) },
-            new() { Key = F.Type, Header = "Type", Cell = CellKind.Badge, MinWidth = 110, DefaultWidth = 120,
+            new() { Key = F.Type, Header = "Type", Cell = CellKind.Badge, MinWidth = 140, DefaultWidth = 145,
                 Badge = TypeBadge },
             new() { Key = F.Licenses, Header = "Licenses", Cell = CellKind.Badges, MinWidth = 180, DefaultWidth = 250,
                 Badges = u => u.Licenses, EmptyText = F.Unlicensed },

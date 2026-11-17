@@ -75,7 +75,7 @@
                     <RotateTransform />
                   </ic:FluentIcon.RenderTransform>
                 </ic:FluentIcon>
-                <TextBlock Classes="caption" Foreground="{DynamicResource TextMuted}" FontSize="11" TextTrimming="CharacterEllipsis"
+                <TextBlock Classes="caption" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis"
                            Text="{Binding BackgroundText}" VerticalAlignment="Center" />
               </DockPanel>
             </StackPanel>
@@ -401,7 +401,7 @@
           <DataTemplate x:DataType="vm:TabViewModel">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <!-- Long names are cut short (full name on hover), so more tabs fit on one row. -->
-              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
+              <TextBlock Classes="tabtitle" Text="{Binding Title}" VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
               <Button Classes="ghost" IsVisible="{Binding CanClose}" Padding="4" VerticalAlignment="Center"
                       ToolTip.Tip="Close"
                       Command="{Binding #Tabs.((vm:MainViewModel)DataContext).CloseTabCommand}"

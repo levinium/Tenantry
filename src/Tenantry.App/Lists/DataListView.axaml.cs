@@ -93,7 +93,31 @@ public partial class DataListView : UserControl
         Toolbar.SizeChanged += (_, e) =>
         {
             Toolbar.Classes.Set("narrow", e.NewSize.Width < 1000);
-            Toolbar.Classes.Set("tiny", e.NewSize.Width < 700);
+            Toolbar.Classes.Set("tiny", e.NewSize.Width < Math.Max(700, _tinyBelow));
+        };
+        // The tools also drop their labels whenever they'd otherwise wrap (a long sort or group
+        // name, the preview open), so one button never sits alone on a second line. Remembered
+        // per width, so it doesn't flicker between the two.
+        LeftTools.SizeChanged += (_, e) =>
+        {
+            if (Toolbar.Classes.Contains("tiny") || e.NewSize.Height <= FilterButton.Bounds.Height * 1.5)
+                return;
+            _tinyBelow = Toolbar.Bounds.Width + 1;
+            Toolbar.Classes.Set("tiny", true);
+        };
+        // A fade at the right edge while there are columns further right to scroll to.
+        Grid.TemplateApplied += (_, e) =>
+        {
+            if (e.NameScope.Find<Avalonia.Controls.Primitives.ScrollBar>("PART_HorizontalScrollbar") is not { } bar)
+                return;
+            void Update() => RightFade.IsVisible = bar.IsVisible && bar.Maximum - bar.Value > 1;
+            bar.PropertyChanged += (_, p) =>
+            {
+                if (p.Property == Avalonia.Controls.Primitives.RangeBase.ValueProperty
+                    || p.Property == Avalonia.Controls.Primitives.RangeBase.MaximumProperty || p.Property == IsVisibleProperty)
+                    Update();
+            };
+            Update();
         };
         // Freezing the name column only helps when there's room to scroll beside it. In a narrow
         // table it would eat most of the width and leave the scrollbar a stub, so only the row
@@ -151,6 +175,9 @@ public partial class DataListView : UserControl
     void OnColumnsChanged(object? sender, EventArgs e) => RebuildColumns();
 
     ChipRow? _chipRow;
+
+    /// <summary>The toolbar width under which its tools were seen to wrap (labels drop below it).</summary>
+    double _tinyBelow;
 
     void OnChipsHidden(object? sender, EventArgs e)
     {
@@ -335,7 +362,8 @@ public partial class DataListView : UserControl
         var count = Grid.SelectedItems.Count;
         var total = _vm?.Rows.Count ?? 0;
         // Checked when every row is, cleared when none is, and in between when only some are.
-        _selectAll.IsChecked = count == 0 ? false : count >= total ? true : null;
+        // One row on its own is the row being previewed, not a selection (as the list counts it).
+        _selectAll.IsChecked = count <= 1 && total > 1 ? false : count >= total ? true : null;
     }
 
     void UpdateItems()
