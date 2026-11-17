@@ -177,6 +177,8 @@ public partial class DataListView : UserControl
     ChipRow? _chipRow;
 
     readonly RowSource _rowSource = new();
+    DataGridCollectionView? _view;
+    object? _groupedBy;
 
     /// <summary>The toolbar width under which its tools were seen to wrap (labels drop below it).</summary>
     double _tinyBelow;
@@ -376,19 +378,21 @@ public partial class DataListView : UserControl
         // may reach the view model, or checked rows would be lost. The view model's selection is
         // put back afterwards.
         _syncingSelection = true;
-        if (_vm.IsGrouped)
+        // One view kept on the grid over one collection whose contents are swapped, grouped or
+        // not: the grid reuses its rows rather than building them all again.
+        _view ??= new DataGridCollectionView(_rowSource);
+        using (_view.DeferRefresh())
         {
-            var view = new DataGridCollectionView(_vm.Rows);
-            view.GroupDescriptions.Add(new KeyGroup(_vm));
-            Grid.ItemsSource = view;
-        }
-        else
-        {
-            // One collection kept on the grid, its contents swapped: the grid reuses its rows.
             _rowSource.Show(_vm.Rows);
-            if (!ReferenceEquals(Grid.ItemsSource, _rowSource))
-                Grid.ItemsSource = _rowSource;
+            var grouped = _vm.IsGrouped;
+            if (_view.GroupDescriptions.Count > 0 && (!grouped || !ReferenceEquals(_groupedBy, _vm.SelectedGroup)))
+                _view.GroupDescriptions.Clear();
+            if (grouped && _view.GroupDescriptions.Count == 0)
+                _view.GroupDescriptions.Add(new KeyGroup(_vm));
+            _groupedBy = grouped ? _vm.SelectedGroup : null;
         }
+        if (!ReferenceEquals(Grid.ItemsSource, _view))
+            Grid.ItemsSource = _view;
         Grid.SelectedItem = _vm.SelectedRow;
         _syncingSelection = false;
         ShowChecked();
