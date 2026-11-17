@@ -165,7 +165,7 @@ public static class RiskLists
             .Select(d => new SummaryLine(Risk.EventName(d.EventType), string.Join(" · ", new[] { Risk.LevelName(d.Level), Day(d.Detected), d.Location }.OfType<string>())))
             .ToArray() ?? [];
         var (level, kind) = LevelBadge(u.Level);
-        return new RiskPreviewViewModel(u.Name, u.Upn, [new HealthChip($"Risk {level}", kind, "Identity Protection's risk level"), new HealthChip(Risk.StateName(u.State), BadgeKind.Neutral, "Risk state")],
+        return new RiskPreviewViewModel(u.Name, u.Upn, [new HealthChip(level, kind, "Risk level"), new HealthChip(Risk.StateName(u.State), BadgeKind.Neutral, "Risk state")],
             [
                 new("Last Updated", Day(u.Updated)),
                 .. u.Detail is { } detail ? [new SummaryLine("Detail", detail)] : Array.Empty<SummaryLine>(),
@@ -175,7 +175,7 @@ public static class RiskLists
     }
 
     public static RiskPreviewViewModel DetectionPreview(RiskDetection d, Action<string>? openUser) =>
-        new(Risk.EventName(d.EventType), d.UserName, [new HealthChip($"Risk {LevelBadge(d.Level).Text}", LevelBadge(d.Level).Kind, "This detection's risk level")],
+        new(Risk.EventName(d.EventType), d.UserName, [new HealthChip(LevelBadge(d.Level).Text, LevelBadge(d.Level).Kind, "This detection's risk level")],
             [
                 new("Person", d.Upn ?? d.UserName),
                 new("Detected", Day(d.Detected)),
@@ -191,7 +191,7 @@ public static class RiskLists
     {
         var waiting = pipeline?.Pending.OfType<SetAppRisk>().FirstOrDefault(r => r.App.Id == a.Id);
         var (level, kind) = LevelBadge(a.Level);
-        return new RiskPreviewViewModel(a.Name, a.AppId, [new HealthChip($"Risk {level}", kind, "Identity Protection's risk level"), new HealthChip(Risk.StateName(a.State), BadgeKind.Neutral, "Risk state")],
+        return new RiskPreviewViewModel(a.Name, a.AppId, [new HealthChip(level, kind, "Risk level"), new HealthChip(Risk.StateName(a.State), BadgeKind.Neutral, "Risk state")],
             [new("Last Updated", Day(a.Updated)), .. a.Detail is { } detail ? [new SummaryLine("Detail", detail)] : Array.Empty<SummaryLine>()],
             [], Buttons(pipeline, canEdit, a.State == "atRisk", waiting, c => new SetAppRisk(AppTarget(a), c), "its"),
             waiting is null ? null : $"Pending: {waiting.After.ToLowerInvariant()}", openApp is null ? null : "Open App", openApp is null ? null : () => openApp(a.Id));

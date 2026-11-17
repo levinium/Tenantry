@@ -155,7 +155,7 @@
               <CheckBox IsChecked="{Binding ExcludeTrusted}" Content="Except Trusted Locations" />
               <views:ChipPickerView DataContext="{Binding ExcludeLocations}" />
             </StackPanel>
-            <TextBlock Classes="label" Text="KINDS OF APP" Margin="0,4,0,0" />
+            <TextBlock Classes="label" Text="CLIENT APPS" Margin="0,4,0,0" />
             <CheckBox IsChecked="{Binding AnyClientApp}" Content="Any App" />
             <StackPanel IsVisible="{Binding ClientAppsAreChosen}" Margin="16,0,0,0">
               <ItemsControl ItemsSource="{Binding ClientApps}">

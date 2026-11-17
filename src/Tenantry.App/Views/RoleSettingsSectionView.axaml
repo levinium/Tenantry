@@ -19,7 +19,7 @@
     <Border Classes="card" IsVisible="{Binding IsLoaded}">
       <StackPanel Spacing="10" IsEnabled="{Binding CanEdit}">
         <StackPanel Spacing="2">
-          <TextBlock Classes="h3" Text="Activating It" />
+          <TextBlock Classes="h3" Text="When Someone Activates" />
           <TextBlock Classes="caption" TextWrapping="Wrap" Text="When someone eligible switches the role on." />
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -31,7 +31,7 @@
         <CheckBox IsChecked="{Binding ActivationTicket}" Content="Needs a Ticket Number" />
         <CheckBox IsChecked="{Binding ApprovalRequired}" Content="Needs Approval" />
         <StackPanel Spacing="6" Margin="28,0,0,0" IsVisible="{Binding ApprovalRequired}">
-          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Approvers. With none, the Privileged Role Administrators approve." />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Choose approvers. If you add none, Privileged Role Administrators approve requests." />
           <views:AddButton DataContext="{Binding ApproverPicker}" Text="Add Approver" HorizontalAlignment="Left" />
           <ItemsControl ItemsSource="{Binding Approvers}">
             <ItemsControl.ItemsPanel>
@@ -60,7 +60,7 @@
     <Border Classes="card" IsVisible="{Binding IsLoaded}">
       <StackPanel Spacing="10" IsEnabled="{Binding CanEdit}">
         <StackPanel Spacing="2">
-          <TextBlock Classes="h3" Text="Giving It" />
+          <TextBlock Classes="h3" Text="When You Assign" />
           <TextBlock Classes="caption" TextWrapping="Wrap" Text="When an admin gives someone the role." />
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -72,7 +72,7 @@
           <ComboBox ItemsSource="{x:Static rec:RoleSettingsSection.AssignmentChoices}" SelectedItem="{Binding ActiveMax}" MinWidth="200" />
         </StackPanel>
         <CheckBox IsChecked="{Binding ActiveMfa}" Content="Needs MFA When Given as Active" />
-        <CheckBox IsChecked="{Binding ActiveJustification}" Content="Giving It Active Needs a Reason" />
+        <CheckBox IsChecked="{Binding ActiveJustification}" Content="Require a Reason for Active Assignments" />
       </StackPanel>
     </Border>
   </StackPanel>

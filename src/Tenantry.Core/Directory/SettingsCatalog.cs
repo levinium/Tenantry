@@ -91,7 +91,7 @@ public sealed record ConfigurationProfile(string Id, string Name, string? Descri
 public sealed record TemplateProfile(string Id, string Name, string? Description, string ODataType, DateTimeOffset? Modified, IReadOnlyList<IntuneAssignment> Assignments, JsonElement Raw)
 {
     /// <summary>"windows10GeneralConfiguration" → "Windows 10 General Configuration".</summary>
-    public string TypeText => SettingsCatalog.Words(ODataType.Replace("#microsoft.graph.", "", StringComparison.Ordinal));
+    public string TypeText => SettingsCatalog.TypeName(ODataType);
 }
 
 /// <summary>Words and Graph shapes for the settings catalog.</summary>
@@ -121,7 +121,59 @@ public static class SettingsCatalog
         ("androidEnterprise", "mdm", "Android Enterprise"),
     ];
 
-    /// <summary>"windows10EndpointProtectionConfiguration" → "Windows 10 Endpoint Protection Configuration".</summary>
+    /// <summary>Graph types whose split-up name isn't what Intune calls them.</summary>
+    static readonly Dictionary<string, string> KnownTypeNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["iosManagedAppProtection"] = "iOS App Protection",
+        ["androidManagedAppProtection"] = "Android App Protection",
+        ["windowsManagedAppProtection"] = "Windows App Protection",
+        ["targetedManagedAppConfiguration"] = "App Configuration",
+        ["win32LobApp"] = "Windows App (Win32)",
+        ["winGetApp"] = "WinGet App",
+        ["officeSuiteApp"] = "Microsoft 365 Apps",
+        ["webApp"] = "Web Link",
+        ["windowsWebApp"] = "Web Link",
+        ["iosStoreApp"] = "iOS Store App",
+        ["androidStoreApp"] = "Android Store App",
+        ["windowsMicrosoftEdgeApp"] = "Microsoft Edge",
+        ["macOSMicrosoftEdgeApp"] = "Microsoft Edge (macOS)",
+        ["macOSOfficeSuiteApp"] = "Microsoft 365 Apps (macOS)",
+        ["deviceEnrollmentLimitConfiguration"] = "Device Limit",
+        ["deviceEnrollmentPlatformRestrictionsConfiguration"] = "Device Platform Restrictions",
+        ["deviceEnrollmentPlatformRestrictionConfiguration"] = "Device Platform Restriction",
+        ["deviceEnrollmentWindowsHelloForBusinessConfiguration"] = "Windows Hello for Business",
+        ["windows10EnrollmentCompletionPageConfiguration"] = "Enrollment Status Page",
+        ["windowsUpdateForBusinessConfiguration"] = "Windows Update Ring",
+        ["azureADWindowsAutopilotDeploymentProfile"] = "Autopilot Profile (Entra Joined)",
+        ["activeDirectoryWindowsAutopilotDeploymentProfile"] = "Autopilot Profile (Hybrid Joined)",
+    };
+
+    /// <summary>
+    /// What Intune calls a Graph type ("#microsoft.graph.win32LobApp" → "Windows App (Win32)"): a
+    /// known name when there is one, else the type split into words.
+    /// </summary>
+    public static string TypeName(string? odataType)
+    {
+        var name = (odataType ?? "").Replace("#microsoft.graph.", "", StringComparison.Ordinal);
+        return name.Length == 0 ? "" : KnownTypeNames.TryGetValue(name, out var known) ? known : Words(name);
+    }
+
+    static readonly HashSet<string> MinorWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "a", "an", "and", "as", "at", "by", "for", "from", "in", "into", "of", "on", "or", "the", "to", "via", "with",
+    };
+
+    /// <summary>Words that keep their own capitals ("Ios" → "iOS").</summary>
+    static readonly Dictionary<string, string> Spellings = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ios"] = "iOS", ["ipados"] = "iPadOS", ["macos"] = "macOS", ["aad"] = "AAD", ["vpn"] = "VPN", ["wifi"] = "Wi-Fi",
+    };
+
+    /// <summary>
+    /// "windows10EndpointProtectionConfiguration" → "Windows 10 Endpoint Protection Configuration";
+    /// "windowsUpdateForBusinessConfiguration" → "Windows Update for Business Configuration";
+    /// "iosManagedAppProtection" → "iOS Managed App Protection"; "macOSCustomConfiguration" → "macOS Custom Configuration".
+    /// </summary>
     public static string Words(string name)
     {
         var words = new List<string>();
@@ -129,7 +181,9 @@ public static class SettingsCatalog
         for (var i = 0; i < name.Length; i++)
         {
             var c = name[i];
-            var split = i > 0 && (char.IsUpper(c) && !char.IsUpper(name[i - 1]) || char.IsDigit(c) && !char.IsDigit(name[i - 1]) && name[i - 1] != 'v');
+            var split = i > 0 && (char.IsUpper(c) && !char.IsUpper(name[i - 1])
+                || char.IsUpper(c) && char.IsUpper(name[i - 1]) && i + 1 < name.Length && char.IsLower(name[i + 1])
+                || char.IsDigit(c) && !char.IsDigit(name[i - 1]) && name[i - 1] != 'v');
             if (split && current.Length > 0)
             {
                 words.Add(current.ToString());
@@ -139,7 +193,19 @@ public static class SettingsCatalog
         }
         if (current.Length > 0)
             words.Add(current.ToString());
-        return string.Join(' ', words.Select(w => w.Length > 1 && w.All(char.IsUpper) ? w : char.ToUpperInvariant(w[0]) + w[1..]));
+        // Rejoin names the splitter broke apart: "mac OS" → "macOS", "Win 32" → "Win32".
+        for (var i = 0; i + 1 < words.Count; i++)
+            if (words[i].Equals("mac", StringComparison.OrdinalIgnoreCase) && words[i + 1] == "OS"
+                || words[i].Equals("win", StringComparison.OrdinalIgnoreCase) && words[i + 1] is "32" or "64")
+            {
+                words[i] += words[i + 1];
+                words.RemoveAt(i + 1);
+            }
+        return string.Join(' ', words.Select((w, i) =>
+            Spellings.TryGetValue(w, out var spelled) ? spelled
+            : i > 0 && i < words.Count - 1 && MinorWords.Contains(w) ? w.ToLowerInvariant()
+            : w.Length > 1 && w.All(char.IsUpper) ? w
+            : char.ToUpperInvariant(w[0]) + w[1..]));
     }
 
     public static string TemplateText(string? family) => family switch
@@ -234,7 +300,7 @@ public static class SettingsCatalog
                 : Option((string?)instance["choiceSettingValue"]?["value"]),
             CatalogKind.Simple => instance["simpleSettingValue"]?["value"]?.ToString() ?? "",
             CatalogKind.SimpleCollection => instance["simpleSettingCollectionValue"] is JsonArray { Count: > 0 } a
-                ? a.Count <= 3 ? string.Join(", ", a.Select(x => x?["value"]?.ToString())) : $"{a.Count} entries" : "None",
+                ? a.Count <= 3 ? string.Join(", ", a.Select(x => x?["value"]?.ToString())) : $"{a.Count:N0} entries" : "None",
             CatalogKind.ChoiceCollection => instance["choiceSettingCollectionValue"] is JsonArray { Count: > 0 } c ? string.Join(", ", c.Select(x => Option((string?)x?["value"]))) : "None",
             CatalogKind.GroupCollection => instance["groupSettingCollectionValue"] is JsonArray g ? $"{g.Count} {(g.Count == 1 ? "item" : "items")}" : "None",
             _ => "Set",

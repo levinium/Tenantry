@@ -35,7 +35,7 @@ public sealed partial class DemoUserRecords : IRetentionRecords
             new("pol-publish", "Finance labels", "Labels the finance team can choose.", true, RetentionPolicyKind.PublishLabels,
                 Where(RetentionPlaces.SharePoint, "https://northgate.sharepoint.example/sites/Finance"), None(), [], false, null, ["Financial record", "Invoice"], null,
                 "Success", false, now.AddDays(-150), now.AddDays(-30), "Avery Admin"),
-            new("pol-auto", "Label contracts", null, false, RetentionPolicyKind.AutoApplyLabel, Where(RetentionPlaces.SharePoint, EDiscovery.All), None(), [], false, null,
+            new("pol-auto", "Auto-Label Contracts", null, false, RetentionPolicyKind.AutoApplyLabel, Where(RetentionPlaces.SharePoint, EDiscovery.All), None(), [], false, null,
                 ["Contract"], "contract AND (signed OR executed)", "Pending", false, now.AddDays(-3), now.AddDays(-3), "Avery Admin"),
         ];
         _eventTypes =

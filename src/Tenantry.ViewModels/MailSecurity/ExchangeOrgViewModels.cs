@@ -55,6 +55,7 @@ public sealed partial class SettingRow : ObservableObject
             Choice = Choices.FirstOrDefault(c => c.Value.Equals(value, StringComparison.OrdinalIgnoreCase));
         NumberText = def.Kind == SettingKind.Number && read is not null ? NumberWords(read.GetValue<int>()) : "";
         TextValue = def.Kind is SettingKind.Text or SettingKind.LongText && read is JsonValue text && text.TryGetValue<string>(out var t) ? t
+            : def.Kind == SettingKind.Duration && read is JsonValue length && length.TryGetValue<string>(out var iso) ? IsoDuration.Words(iso)
             : def.Kind == SettingKind.Script && read is JsonValue script && script.TryGetValue<string>(out var b64) ? Decode(b64) : "";
         ListText = read is JsonArray items ? string.Join(Environment.NewLine, items.Select(i => i!.GetValue<string>())) : "";
         _loading = false;
@@ -66,7 +67,7 @@ public sealed partial class SettingRow : ObservableObject
 
     public bool IsList => Def.Kind == SettingKind.List;
 
-    public bool IsText => Def.Kind == SettingKind.Text;
+    public bool IsText => Def.Kind is SettingKind.Text or SettingKind.Duration;
 
     /// <summary>Several lines: long text, or a script.</summary>
     public bool IsLongText => Def.Kind is SettingKind.LongText or SettingKind.Script;
@@ -90,8 +91,23 @@ public sealed partial class SettingRow : ObservableObject
     public partial string TextValue { get; set; }
 
     [RelayCommand]
-    void CommitText() => Restage(Def.Kind == SettingKind.Script ? JsonValue.Create(Encode(TextValue))
-        : TextValue.Trim().Length == 0 ? null : JsonValue.Create(Def.Kind == SettingKind.LongText ? TextValue : TextValue.Trim()));
+    void CommitText()
+    {
+        if (Def.Kind == SettingKind.Duration && TextValue.Trim().Length > 0)
+        {
+            if (IsoDuration.Parse(TextValue) is not { } iso)
+            {
+                Problem = "A length of time, like 90 days or 12 hours.";
+                return;
+            }
+            Problem = null;
+            Restage(JsonValue.Create(iso));
+            return;
+        }
+        Problem = null;
+        Restage(Def.Kind == SettingKind.Script ? JsonValue.Create(Encode(TextValue))
+            : TextValue.Trim().Length == 0 ? null : JsonValue.Create(Def.Kind == SettingKind.LongText ? TextValue : TextValue.Trim()));
+    }
 
     [RelayCommand]
     void CommitList()
@@ -142,7 +158,8 @@ public sealed partial class SettingRow : ObservableObject
     public bool IsUnset => _read is null;
 
     /// <summary>The "not set" note, except where the empty box already says "Not configured".</summary>
-    public bool ShowUnsetText => IsUnset && !IsText;
+    /// A switch already shows Off, so a bare "Not set" beside it only adds noise.
+    public bool ShowUnsetText => IsUnset && !IsText && !(IsOnOff && _context.UnsetText is not null && Def.DefaultOn is null);
 
     public string UnsetText => _context.UnsetText
         ?? (Def.DefaultOn is { } d ? $"Not set: Microsoft's default ({(d ? "on" : "off")}) applies." : "Not set: Microsoft's default applies.");

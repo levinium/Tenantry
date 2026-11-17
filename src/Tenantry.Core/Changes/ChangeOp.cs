@@ -361,7 +361,7 @@ public sealed record CreateUser(
     {
         User.Address,
         Licenses.Count == 0 ? "No license" : string.Join(", ", Licenses.Select(l => l.Name)),
-        Groups.Count switch { 0 => null, 1 => $"In {Groups[0].Group.Name}", var n => $"In {n} groups" },
+        Groups.Count switch { 0 => null, 1 => $"In {Groups[0].Group.Name}", var n => $"In {n:N0} groups" },
         ManagerName is { } m ? $"Reports to {m}" : null,
         SignInAllowed ? null : "Sign-in blocked",
     }.OfType<string>());

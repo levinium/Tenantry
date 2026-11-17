@@ -35,7 +35,7 @@ namespace Tenantry.ViewModels.Records
         public static (string Text, BadgeKind Kind) PolicyBadge(RetentionPolicy p) =>
             p.IsPendingDeletion ? ("Being Deleted", BadgeKind.Neutral)
             : !p.Enabled ? (F.Off, BadgeKind.Neutral)
-            : p.Distribution is "Pending" ? ("Being Put in Place", BadgeKind.Info)
+            : p.Distribution is "Pending" ? ("Deploying", BadgeKind.Info)
             : p.Distribution is "Error" ? ("Not Everywhere", BadgeKind.Warning)
             : (F.On, BadgeKind.Success);
 
@@ -247,15 +247,14 @@ namespace Tenantry.ViewModels
         IReadOnlyList<AppCard> Overview() =>
         [
             .. Frozen is { } why && why != StillApplying ? [new AppCard("Can't Be Changed Here", why)] : Array.Empty<AppCard>(),
-            .. Policy.Distribution is "Pending" ? [new AppCard("Being Put in Place",
+            .. Policy.Distribution is "Pending" ? [new AppCard("Still Deploying",
                 $"{StillApplying} Until it finishes, the policy can't be changed, turned off or deleted; this can take a while. Open it again later to see.")] : Array.Empty<AppCard>(),
             new AppCard("Details", Facts:
             [
                 new("Kind", F.KindText(Policy.Kind)),
                 new("What It Does", Policy.WhatText),
-                new("Status", Policy.Enabled ? "On" : "Off"),
                 .. Policy.Comment is { } c ? [new SummaryLine("Description", c)] : Array.Empty<SummaryLine>(),
-                new("In Place", EDiscovery.DistributionText(Policy.Distribution)),
+                new("Deployed", EDiscovery.DistributionText(Policy.Distribution)),
                 new("Created", RetentionContext.Day(Policy.Created)),
                 new("Last Changed", Policy.ModifiedBy is { } by ? $"{RetentionContext.Day(Policy.Modified)} by {by}" : RetentionContext.Day(Policy.Modified)),
             ]),
@@ -492,7 +491,7 @@ namespace Tenantry.ViewModels
                 .. directory.EventsUnavailable is { } why ? [new AppCard("Events", why)] : Array.Empty<AppCard>(),
                 new AppCard("Event Types", "Labels can start their period when an event of one of these types is recorded, instead of when content was made or changed.",
                     Rows: typeRows, EmptyText: "None.",
-                    Form: _ctx.Editable ? new AppButtonForm("New Event Type", "Add a kind of event, like a contract ending.", "Added to Pending Changes",
+                    Form: _ctx.Editable ? new AppButtonForm("New Event Type", "", "Added to Pending Changes",
                         () => _ctx.ShowDialog("New Event Type", new NewEventTypeViewModel(_ctx.Pipeline!, directory.EventTypes.Select(t => t.Name), _ctx.CloseDialog))) : null),
                 new AppCard("Events", "Recording an event starts the retention period for content labeled for its type (and matching its asset IDs). It can't be undone.",
                     Rows: eventRows, EmptyText: "No events recorded.",

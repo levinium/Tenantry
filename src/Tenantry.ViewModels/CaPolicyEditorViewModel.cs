@@ -358,12 +358,12 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
 
     static readonly EditorChoice[] ControlNames =
     [
-        new("mfa", "Multifactor Authentication"),
-        new("compliantDevice", "A Compliant Device (Intune)"),
-        new("domainJoinedDevice", "A Hybrid-Joined Device"),
-        new("approvedApplication", "An Approved Client App"),
-        new("compliantApplication", "An App Protection Policy"),
-        new("passwordChange", "A Password Change"),
+        new("mfa", "MFA"),
+        new("compliantDevice", "Compliant Device (Intune)"),
+        new("domainJoinedDevice", "Hybrid-Joined Device"),
+        new("approvedApplication", "Approved Client App"),
+        new("compliantApplication", "App Protection Policy"),
+        new("passwordChange", "Password Change"),
     ];
 
     public IReadOnlyList<CheckOption> Controls { get; }
@@ -700,7 +700,7 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
         if (AppsAreChosen && !IncludeApps.HasItems)
             problems.Add("Choose the apps it covers.");
         if (!AnyClientApp && !ClientApps.Any(o => o.IsChecked))
-            problems.Add("Choose the kinds of app it covers, or any app.");
+            problems.Add("Choose the client apps it covers, or any app.");
         if (PlatformsAreChosen && !Platforms.Any(o => o.IsChecked))
             problems.Add("Choose the device platforms it covers.");
         if (LocationsAreChosen && !IncludeLocations.HasItems)
@@ -758,7 +758,7 @@ public sealed partial class CaPolicyEditorViewModel : TabViewModel, IDisposable
                 renamed ? $"Named \"{name}\"; {now}" : now, turnsOn, WasOn: _existing.State == "enabled");
         }
         _pipeline.Stage(_staged);
-        Status = "In Pending Changes; it changes when you apply them.";
+        Status = "Added to Pending Changes. Nothing changes until you apply.";
     }
 
     /// <summary>Taken out of Pending changes elsewhere (Undo there): forget it, so the next edit stages afresh.</summary>

@@ -367,7 +367,9 @@ public sealed partial class RuleEditorViewModel : TabViewModel, IDisposable
         foreach (var (heading, lines) in new[] { ("When", Conditions), ("Except When", Exceptions), ("Then", Actions) })
             foreach (var line in lines)
                 if (line.Problem is { } p)
-                    problems.Add($"{heading}, \"{line.Label}\": {p}.");
+                    // "Add recipients to the Bcc box: add at least one."
+                    problems.Add($"{(heading == "Except When" ? "Except when " + line.Label : line.Label.Length == 0 ? heading : char.ToUpperInvariant(line.Label[0]) + line.Label[1..])}: "
+                        + (p.Length == 0 ? "" : char.ToLowerInvariant(p[0]) + p[1..]) + ".");
         if (Actions.Count == 0)
             problems.Add("Add at least one action under Then.");
         foreach (var setting in Settings)

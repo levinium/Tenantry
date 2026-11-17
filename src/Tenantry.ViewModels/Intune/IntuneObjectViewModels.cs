@@ -29,12 +29,14 @@ public sealed partial class IntuneObjectCard : ObservableObject
         _kind = kind;
         _page = page;
         _raw = item.Raw;
-        Target = IntuneChange.TargetFor(kind.ItemUrl(item.Id), item.Name);
+        IsDefault = kind.DefaultWhen?.Invoke(item.Raw) == true;
+        // Intune names every default "All users and all devices"; the kind tells them apart.
+        Name = IsDefault && item.TypeText.Length > 0 ? $"Default {item.TypeText}" : item.Name;
+        Target = IntuneChange.TargetFor(kind.ItemUrl(item.Id), Name);
         IsReadOnly = kind.ReadOnlyWhen?.Invoke(item.Raw) == true;
         // A new app Microsoft is still preparing refuses changes (seen live: "PublishingState is not 'Published'").
         IsPreparing = item.Raw.ValueKind == JsonValueKind.Object && item.Raw.TryGetProperty("publishingState", out var state)
             && state.GetString() is "processing" or "notPublished";
-        IsDefault = kind.DefaultWhen?.Invoke(item.Raw) == true;
         var assignable = kind.Assign == AssignMode.Assign && !IsReadOnly && !IsDefault && !IsPreparing;
         Assignments = new AssignmentEditor(Target, kind.Title, item.Assignments, page.Pipeline, page.CanEdit && assignable, index, filters, kind.ForApps, kind.AssignProperty, kind.AssignItem);
         Build();
@@ -42,7 +44,7 @@ public sealed partial class IntuneObjectCard : ObservableObject
 
     public IntuneObject Item { get; }
     public ChangeTarget Target { get; }
-    public string Name => Item.Name;
+    public string Name { get; }
     public string TypeText => Item.TypeText;
     public bool HasType => Item.TypeText.Length > 0;
     public string? Description => Item.Description;
@@ -136,6 +138,7 @@ public sealed partial class IntuneObjectCard : ObservableObject
             {
                 JsonValueKind.True or JsonValueKind.False => SettingKind.OnOff,
                 JsonValueKind.Number when value.TryGetInt32(out _) => SettingKind.Number,
+                JsonValueKind.String when IsoDuration.IsIso(value.GetString()) => SettingKind.Duration,
                 JsonValueKind.String or JsonValueKind.Null => SettingKind.Text,
                 JsonValueKind.Array when value.EnumerateArray().All(x => x.ValueKind == JsonValueKind.String) => SettingKind.List,
                 _ => (SettingKind?)null,

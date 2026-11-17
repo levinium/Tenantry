@@ -118,7 +118,7 @@ public sealed class RuleEditorTests
         var editor = RuleEditorViewModel.New(pipeline, Availability.Yes, Rules, _ => { });
         editor.StartCommand.Execute(RuleStarters.All.Single(s => s.Title == "Copy Mail to Someone"));
 
-        Assert.Contains(editor.Problems, p => p.Contains("the recipient is", StringComparison.Ordinal));
+        Assert.Contains(editor.Problems, p => p.StartsWith("The recipient is: add at least one", StringComparison.Ordinal));
         Assert.Empty(pipeline.Pending);
 
         editor.Conditions[0].Main!.NewEntry = "pat@contoso.example";

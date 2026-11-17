@@ -199,7 +199,7 @@
                     <Button Command="{Binding ShowDevicesCommand}" HorizontalAlignment="Left" ToolTip.Tip="Each device's state under this policy">
                       <StackPanel Orientation="Horizontal" Spacing="6">
                         <ic:FluentIcon Icon="Laptop" FontSize="14" />
-                        <TextBlock Text="Devices" />
+                        <TextBlock Text="Device Status" />
                       </StackPanel>
                     </Button>
                     <StackPanel Spacing="4" IsVisible="{Binding DevicesShown}">

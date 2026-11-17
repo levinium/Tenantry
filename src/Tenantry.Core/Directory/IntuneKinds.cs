@@ -58,7 +58,7 @@ public sealed record IntuneKind(string Key, string Title, string About, string L
 /// <summary>An Intune object as read: its name, Graph type, assignments and every property.</summary>
 public sealed record IntuneObject(string Id, string Name, string? Description, string ODataType, DateTimeOffset? Modified, IReadOnlyList<IntuneAssignment> Assignments, JsonElement Raw)
 {
-    public string TypeText => ODataType.Length == 0 ? "" : SettingsCatalog.Words(ODataType.Replace("#microsoft.graph.", "", StringComparison.Ordinal));
+    public string TypeText => SettingsCatalog.TypeName(ODataType);
 }
 
 /// <summary>How an app's installs stand.</summary>
@@ -188,8 +188,8 @@ public static class IntuneKinds
         ["allowedOutboundClipboardSharingLevel"] = new("Copy and Paste To", Kind: SettingKind.Choice,
             Choices: [("allApps", "Any App"), ("managedAppsWithPasteIn", "Policy-Managed Apps, Paste In Allowed"), ("managedApps", "Policy-Managed Apps"), ("blocked", "Blocked")]),
         ["maximumPinRetries"] = new("PIN Attempts Before Reset", Min: 1, Max: 10),
-        ["periodOfflineBeforeAccessCheck"] = new("Recheck After Offline For", "A duration, like PT12H (12 hours)."),
-        ["periodOfflineBeforeWipeIsEnforced"] = new("Wipe Work Data After Offline For", "A duration, like P90D (90 days)."),
+        ["periodOfflineBeforeAccessCheck"] = new("Recheck Access After Offline", "A length of time, like 12 hours.", SettingKind.Duration),
+        ["periodOfflineBeforeWipeIsEnforced"] = new("Wipe Work Data After Offline", "A length of time, like 90 days.", SettingKind.Duration),
         ["minimumRequiredOsVersion"] = new("Minimum OS Version"),
         ["minimumRequiredAppVersion"] = new("Minimum App Version"),
         ["appDataEncryptionType"] = new("Encrypt Work Data", Kind: SettingKind.Choice,
@@ -332,7 +332,7 @@ public static class IntuneKinds
         Beta + "deviceManagement/deviceShellScripts?$expand=assignments", AssignProperty: "deviceManagementScriptAssignments",
         Labels: new Dictionary<string, PropertyLabel>
         {
-            ["executionFrequency"] = new("Run Every", "A duration, like PT1H; P0D runs once."),
+            ["executionFrequency"] = new("Run Every", "A length of time, like 1 hour. 0 days runs it once.", SettingKind.Duration),
             ["retryCount"] = new("Retries", Min: 0, Max: 3),
             ["blockExecutionNotifications"] = new("Hide Notifications"),
         },

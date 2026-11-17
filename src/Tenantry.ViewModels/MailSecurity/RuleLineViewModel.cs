@@ -115,7 +115,11 @@ public sealed record RulePickerItem(RulePartDef Def, bool IsUsed)
 }
 
 /// <summary>A heading in the add-a-part list ("The Sender") and its choices.</summary>
-public sealed record RulePickerGroup(string Title, IReadOnlyList<RulePickerItem> Items);
+public sealed record RulePickerGroup(string Title, IReadOnlyList<RulePickerItem> Items)
+{
+    /// <summary>No heading over a lone choice that already says the same ("Redirect the Message To" over "redirect the message to").</summary>
+    public bool HasTitle => !(Items.Count == 1 && Items[0].Label.TrimEnd('…', '.', ' ').Equals(Title.TrimEnd('…', '.', ' '), StringComparison.OrdinalIgnoreCase));
+}
 
 /// <summary>
 /// The add-a-condition (or exception, or action) list: everything Exchange Online offers, grouped as

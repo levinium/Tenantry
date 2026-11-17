@@ -191,6 +191,9 @@ public static class PurviewKinds
     static readonly (string, string)[] YesNo = [("true", "Yes"), ("false", "No")];
 
     /// <summary>A DLP or auto-labeling policy's mode: simulation first, on only by choice (Mark, 2026-11-12).</summary>
+    /// <summary>Purview's DistributionStatus in words.</summary>
+    static readonly (string, string)[] Distribution = [("Success", "Deployed"), ("Pending", "Deploying"), ("Error", "Not Deployed Everywhere")];
+
     static readonly (string, string)[] Modes =
     [
         ("TestWithoutNotifications", "Simulation"), ("TestWithNotifications", "Simulation with Policy Tips"), ("Enable", "On"), ("Disable", "Off"),
@@ -212,8 +215,8 @@ public static class PurviewKinds
         "sensitivity label", "Get-Label", "Set-Label", "New-Label", "Remove-Label", LabelActions: true,
         Fields:
         [
-            new("DisplayName", "Name People See", Parameter: "DisplayName"),
-            new("Tooltip", "Description for People", Help: "Shown when people pick a label.", Parameter: "Tooltip"),
+            new("DisplayName", "Display Name", Parameter: "DisplayName"),
+            new("Tooltip", "Description for Users", Help: "Shown when people pick a label.", Parameter: "Tooltip"),
             Comment("Description for Admins"),
             new("ContentType", "Applies To", Help: "What it can be put on (files, email, sites, groups, meetings)."),
             new("Priority", "Order", SettingKind.Number, "Higher numbers are more sensitive."),
@@ -226,7 +229,7 @@ public static class PurviewKinds
             new("ApplyWaterMarkingText", "Watermark Text", Parameter: "ApplyWaterMarkingText"),
             new("EncryptionEnabled", "Encrypt", SettingKind.OnOff, "Only the people it allows can open the content.", Parameter: "EncryptionEnabled", CautionOff: true),
             new("EncryptionProtectionType", "Who Decides Permissions", SettingKind.Choice, Parameter: "EncryptionProtectionType",
-                Choices: [("Template", "Set Here"), ("UserDefined", "The Person Applying It"), ("RemoveProtection", "Remove Encryption")]),
+                Choices: [("Template", "Set in This Label"), ("UserDefined", "The Person Applying It"), ("RemoveProtection", "Remove Encryption")]),
             new("EncryptionDoNotForward", "Do Not Forward (Email)", SettingKind.OnOff, Parameter: "EncryptionDoNotForward"),
             new("EncryptionContentExpiredOnDateInDaysOrNever", "Access Expires", Help: "\"Never\", or a number of days.", Parameter: "EncryptionContentExpiredOnDateInDaysOrNever"),
             new("SiteAndGroupProtectionEnabled", "Protect Sites and Groups", SettingKind.OnOff, Parameter: "SiteAndGroupProtectionEnabled"),
@@ -239,7 +242,7 @@ public static class PurviewKinds
         [
             new("label", "Sensitivity Label", "Marks nothing and encrypts nothing until you turn those on in its card. Publish it with a label policy so people can choose it.",
                 Fixed("""{}"""),
-                [new("Name", "Name"), new("DisplayName", "Name People See"), new("Tooltip", "Description for People"), new("Comment", "Description for Admins", Required: false),
+                [new("Name", "Name"), new("DisplayName", "Display Name"), new("Tooltip", "Description for Users"), new("Comment", "Description for Admins", Required: false),
                  new("ContentType", "Applies To", SettingKind.Choice, Choices: [("File, Email", "Files and Email"), ("Site, UnifiedGroup", "Sites and Groups"), ("File, Email, Site, UnifiedGroup", "Files, Email, Sites and Groups")], Default: "File, Email")]),
         ]);
 
@@ -254,7 +257,7 @@ public static class PurviewKinds
             Place("ModernGroup", "Microsoft 365 Groups (Sites and Groups Labels)"),
             new("Priority", "Order", SettingKind.Number),
             new("Mode", "State"),
-            new("DistributionStatus", "Put in Place"),
+            new("DistributionStatus", "Status", Choices: Distribution),
         ],
         Creates:
         [
@@ -278,7 +281,7 @@ public static class PurviewKinds
             Place("SharePoint", "SharePoint Sites", "Site addresses, or All."),
             Place("OneDrive", "OneDrive Accounts", "OneDrive addresses, or All."),
             new("Priority", "Order", SettingKind.Number),
-            new("DistributionStatus", "Put in Place"),
+            new("DistributionStatus", "Status", Choices: Distribution),
         ],
         Creates:
         [
@@ -314,15 +317,15 @@ public static class PurviewKinds
         Fields:
         [
             Comment(),
-            new("Mode", "Mode", SettingKind.Choice, "Simulation reports what it would do; On does it.", Parameter: "Mode", Choices: Modes, CautionValues: ["Enable"]),
-            Place("Exchange", "Email", "Purview takes All here, or nothing."),
+            new("Mode", "Mode", SettingKind.Choice, "Simulation only reports matches; On acts on them.", Parameter: "Mode", Choices: Modes, CautionValues: ["Enable"]),
+            Place("Exchange", "Email", "Email can only be All or none."),
             Place("SharePoint", "SharePoint Sites", "Site addresses, or All."),
             Place("OneDrive", "OneDrive Accounts", "OneDrive addresses, or All."),
             Place("Teams", "Teams Chats and Channels", "People and groups, or All."),
             Place("EndpointDlp", "Devices", "People and groups, or All (needs devices onboarded)."),
             new("ExchangeSenderMemberOf", "Only Email From Members Of", SettingKind.List, Parameter: "ExchangeSenderMemberOf", Value: PurviewValue.Names),
             new("Priority", "Order", SettingKind.Number),
-            new("DistributionStatus", "Put in Place"),
+            new("DistributionStatus", "Status", Choices: Distribution),
         ],
         Creates:
         [

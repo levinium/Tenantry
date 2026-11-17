@@ -438,7 +438,7 @@ public sealed partial class RoleSettingsSection : LiveSection
     }
 
     static string Approval(bool required, IEnumerable<RoleApprover> approvers) =>
-        !required ? "Not needed" : approvers.Any() ? "Needed from " + string.Join(", ", approvers.Select(a => a.Name)) : "Needed (from the Privileged Role Administrators)";
+        !required ? "Not required" : approvers.Any() ? "Required, by " + string.Join(", ", approvers.Select(a => a.Name)) : "Required, by Privileged Role Administrators";
 
     static string Expiry(TimeSpan? max) => max is { } m ? $"Up to {RolePolicyRules.Words(m)}" : "Permanent allowed";
 

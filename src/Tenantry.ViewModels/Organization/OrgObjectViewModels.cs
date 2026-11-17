@@ -23,6 +23,9 @@ public sealed partial class OrgActionButton(OrgAction action, OrgObjectCard card
 {
     public OrgAction Action { get; } = action;
     public string Description => Action.Done;
+
+    /// <summary>A safe action (Verify) is the main button; a disruptive one (Archive) is secondary.</summary>
+    public bool IsPrimary => !Action.Caution;
     public string Text => card.PendingAction(Action) ? $"Undo {Action.Title}" : Action.Title;
 
     [RelayCommand]
@@ -139,6 +142,7 @@ public sealed partial class OrgObjectCard : ObservableObject
                 _ => SettingKind.List,
             },
             Choices: ChoicesFor(p),
+            Unit: OrgKinds.TeamsUnits.GetValueOrDefault(p.Name),
             ReadOnly: p.Value.ValueKind is JsonValueKind.Object || p.Value.ValueKind == JsonValueKind.Array && p.Value.EnumerateArray().Any(e => e.ValueKind != JsonValueKind.String),
             Group: p.Name == "Description" ? "About" : "Settings"))
             .OrderBy(f => f.Group == "About" ? 0 : 1).ThenBy(f => f.Label, StringComparer.CurrentCultureIgnoreCase)];
@@ -213,6 +217,7 @@ public sealed partial class OrgObjectCard : ObservableObject
         null => "",
         JsonArray a => a.Count == 0 ? "" : string.Join(", ", a.Select(i => i?.ToString())),
         JsonValue v when field.Kind == SettingKind.OnOff && v.TryGetValue<bool>(out var on) => on ? "Yes" : "No",
+        JsonValue v when field.Kind == SettingKind.Duration => IsoDuration.Words(v.ToString()),
         JsonValue v when field.Choices?.FirstOrDefault(c => c.Value.Equals(v.ToString(), StringComparison.OrdinalIgnoreCase)).Label is { Length: > 0 } label => label,
         JsonValue v when field.Path.EndsWith("DateTime", StringComparison.Ordinal) && DateTimeOffset.TryParse(v.ToString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var d)
             => d.ToLocalTime().ToString("d MMM yyyy, h:mm tt", CultureInfo.CurrentCulture),
@@ -225,7 +230,7 @@ public sealed partial class OrgObjectCard : ObservableObject
         OrgValue.StringBool => JsonValue.Create(value is JsonValue v && v.TryGetValue<bool>(out var on) && on ? "true" : "false"),
         OrgValue.FirstOfList => value?.ToString() is { Length: > 0 } one ? new JsonArray(one) : new JsonArray(),
         // An emptied box clears the setting; a name/value pair keeps "" (Graph refuses null there).
-        _ when field.Kind is SettingKind.Text or SettingKind.LongText && string.IsNullOrWhiteSpace(value?.ToString()) => field.Path.Contains('[') ? JsonValue.Create("") : null,
+        _ when field.Kind is SettingKind.Text or SettingKind.LongText or SettingKind.Duration && string.IsNullOrWhiteSpace(value?.ToString()) => field.Path.Contains('[') ? JsonValue.Create("") : null,
         _ => value?.DeepClone(),
     };
 
