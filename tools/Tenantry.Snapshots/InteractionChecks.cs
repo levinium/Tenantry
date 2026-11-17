@@ -2284,7 +2284,7 @@ static class InteractionChecks
             for (var i = 0; i < 50 && page.Strengths.Count == 0; i++)
                 Settle();
             Expect(page.Strengths.Count == 3 && page.Strengths.All(s => s.TypeText == "Built-In"), "three built-in strengths");
-            Expect(page.Strengths.First().Methods.Contains("Password and Authenticator notification"), "methods read in words");
+            Expect(page.Strengths.First().Methods.Contains("Password and Authenticator Notification"), "methods read in words");
             window.Close();
         });
 

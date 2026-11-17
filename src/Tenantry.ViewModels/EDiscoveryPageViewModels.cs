@@ -79,7 +79,7 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
             var (text, kind) = EdLists.CaseBadge(Case);
             var chips = new List<HealthChip> { new(text, kind, Case.IsClosed ? "Its holds no longer keep anything" : "Open for work") };
             if (_last is { } d && d.Holds.Count(h => h.Enabled) is > 0 and var on)
-                chips.Add(new HealthChip($"{on} {(on == 1 ? "Hold" : "Holds")} On", BadgeKind.Info, "Content in their places can't be deleted for good"));
+                chips.Add(new HealthChip($"{on:N0} Active {(on == 1 ? "Hold" : "Holds")}", BadgeKind.Info, "Content in their places can't be deleted for good"));
             return chips;
         }
     }
@@ -161,6 +161,10 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
         return detail;
     }
 
+    /// <summary>"1 (active)", "3 (2 active)", "None".</summary>
+    static string HoldsText(int count, int active) =>
+        count == 0 ? "None" : active == count ? $"{count:N0} (active)" : $"{count:N0} ({active:N0} active)";
+
     async Task<IReadOnlyList<AppCard>> OverviewAsync(CancellationToken cancellationToken)
     {
         var detail = await DetailAsync(cancellationToken);
@@ -172,7 +176,7 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
             new("Last Changed", Case.ModifiedBy is { } by ? $"{EdContext.Day(Case.Modified)} by {by}" : EdContext.Day(Case.Modified)),
             .. Case.IsClosed ? [new SummaryLine("Closed", Case.ClosedBy is { } closer ? $"{EdContext.Day(Case.Closed)} by {closer}" : EdContext.Day(Case.Closed))] : Array.Empty<SummaryLine>(),
             new("Searches", $"{detail.Searches.Count:N0}"),
-            new("Holds", detail.Holds.Count == 0 ? "None" : $"{detail.Holds.Count:N0} ({detail.Holds.Count(h => h.Enabled):N0} on)"),
+            new("Holds", HoldsText(detail.Holds.Count, detail.Holds.Count(h => h.Enabled))),
             new("Members", $"{detail.Members.Count:N0}"),
         ];
         return
@@ -228,7 +232,7 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
                 h.Enabled ? new HealthChip("On", BadgeKind.Success, "Content in its places can't be deleted for good") : new HealthChip("Off", BadgeKind.Neutral, "It keeps nothing now"),
             };
             if (h.Enabled && h.Distribution is { } dist && dist != "Success")
-                badges.Add(new HealthChip(dist == "Pending" ? "Being Put in Place" : "Not Everywhere", dist == "Pending" ? BadgeKind.Info : BadgeKind.Warning,
+                badges.Add(new HealthChip(dist == "Pending" ? "Deploying" : "Not Everywhere", dist == "Pending" ? BadgeKind.Info : BadgeKind.Warning,
                     EDiscovery.DistributionText(dist)));
             var row = new AppRow
             {

@@ -107,8 +107,8 @@ public sealed partial class RulePreviewViewModel : ObservableObject, IDisposable
         Enum.GetValues<RuleMode>().Select(m => new Choice<RuleMode>(m, MailFlowRule.ModeName(m) + m switch
         {
             RuleMode.Enforce => " (Acts on Mail)",
-            RuleMode.Test => " (Only Records Matches)",
-            _ => " (Records Matches, Shows Senders a Tip)",
+            RuleMode.Test => " (Record Matches Only)",
+            _ => " (Record Matches, Show Senders a Tip)",
         })).ToArray();
 
     Choice<RuleMode> _mode;

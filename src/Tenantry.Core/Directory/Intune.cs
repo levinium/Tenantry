@@ -181,7 +181,7 @@ public static class CompliancePlatforms
         (AndroidAdmin, "Android Device Administrator"),
     ];
 
-    public static string Title(string odataType) => All.FirstOrDefault(p => p.ODataType == odataType).Title ?? odataType.Replace("#microsoft.graph.", "", StringComparison.Ordinal);
+    public static string Title(string odataType) => All.FirstOrDefault(p => p.ODataType == odataType).Title ?? SettingsCatalog.TypeName(odataType);
 
     static SettingDef S(string odataType, string group, string property, string label, string help = "", SettingKind kind = SettingKind.OnOff,
         (string, string)[]? choices = null, int min = 0, int max = int.MaxValue, string? unit = null, bool? caution = null) =>

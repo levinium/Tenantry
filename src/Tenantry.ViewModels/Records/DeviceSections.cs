@@ -312,7 +312,7 @@ public sealed partial class DeviceUsersSection(DeviceDetailViewModel page, IDire
             People.Add(new DevicePersonRow(user?.DisplayName ?? name ?? "Someone no longer in the directory", detail, roles, user, openUser));
         }
         Note = live.IntuneProblem;
-        Summary = People.Count switch { 0 => "Nobody", 1 => "1 person", var n => $"{n} people" };
+        Summary = People.Count switch { 0 => "Nobody", 1 => "1 person", var n => $"{n:N0} people" };
         OnPropertyChanged(nameof(HasNoPeople));
     }
 
@@ -661,7 +661,7 @@ public sealed partial class DeviceGroupsSection : DeviceSection, IDisposable
             Groups.Add(new DeviceGroupRow(join.Group.Name, false, true, true, CanEdit, "Undo adding it (takes it out of Pending Changes)",
                 () => Page.Pipeline!.Unstage(join), summary is not null && _openGroup is not null ? () => _openGroup(summary) : null));
         }
-        Summary = _groups.Count switch { 0 => "In no groups", 1 => "In 1 group", var n => $"In {n} groups" };
+        Summary = _groups.Count switch { 0 => "In no groups", 1 => "In 1 group", var n => $"In {n:N0} groups" };
         OnPropertyChanged(nameof(HasNoGroups));
     }
 

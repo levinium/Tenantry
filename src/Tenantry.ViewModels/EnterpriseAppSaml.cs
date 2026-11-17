@@ -168,7 +168,7 @@ public sealed partial class EnterpriseAppPageViewModel
         return new AppCard("SAML Signing Certificates", "Entra signs each sign-in with the active one; the app checks the signature.", Rows: rows,
             EmptyText: "No signing certificate yet.",
             Form: CanEdit && setup.CanConfigure && !adding
-                ? new AppButtonForm("New Certificate", "Make another for when the active one nears its end; make it active once the app trusts it.",
+                ? new AppButtonForm("New Certificate", "Before the active certificate expires, create a new one, give it to the app, then make it active.",
                     "Entra makes a new signing certificate, valid 3 years (added to Pending Changes)",
                     () => AddToPending(new AddSamlCertificate(Target, 3, MakeActive: setup.Certificates.Count == 0)))
                 : null);

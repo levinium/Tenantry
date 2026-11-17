@@ -14,7 +14,7 @@ public sealed partial class NewLicenseChoice(LicenseSku sku) : ObservableObject
 {
     public LicenseSku Sku { get; } = sku;
     public string Name => Sku.Name;
-    public string LeftText => Sku.Available switch { <= 0 => "None available", 1 => "1 left", var n => $"{n} left" };
+    public string LeftText => Sku.Available switch { <= 0 => "None available", 1 => "1 left", var n => $"{n:N0} left" };
     public bool IsAvailable => Sku.Available > 0;
 
     /// <summary>A license with none left can't be ticked (one already ticked, from a colleague, can be cleared).</summary>

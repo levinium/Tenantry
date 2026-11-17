@@ -161,7 +161,7 @@ public sealed record RetentionLabel(string Id, string Name, string? Comment, str
     public string WhatText => Action is null ? "Only classifies (keeps and deletes nothing)"
         : new RetentionSetting(Action, Days, BasedOn).Text;
 
-    public string KindText => Regulatory ? "Regulatory Record" : IsRecord ? "Record" : "Label";
+    public string KindText => Regulatory ? "Regulatory Record" : IsRecord ? "Record" : "Standard";
 }
 
 /// <summary>A query-based set of users, groups or sites that policies can use instead of chosen places.</summary>
@@ -220,7 +220,7 @@ public static class RetentionFields
     public static IReadOnlyList<Field<RetentionLabel>> Labels { get; } =
     [
         new() { Key = Name, Label = "Label", Kind = FieldKind.Text, Searchable = true, Text = l => l.Name },
-        new() { Key = Kind, Label = "Kind", Kind = FieldKind.Choice, ChoiceOrder = ["Label", "Record", "Regulatory Record"], Text = l => l.KindText },
+        new() { Key = Kind, Label = "Kind", Kind = FieldKind.Choice, ChoiceOrder = ["Standard", "Record", "Regulatory Record"], Text = l => l.KindText },
         new() { Key = What, Label = "What It Does", Kind = FieldKind.Text, Searchable = true, Text = l => l.WhatText },
         new() { Key = Modified, Label = "Last Changed", Kind = FieldKind.Date, Date = l => l.Modified },
     ];

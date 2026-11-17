@@ -70,23 +70,27 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <ItemsControl ItemsSource="{Binding Actions}" IsVisible="{Binding HasActions}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <WrapPanel ItemSpacing="8" LineSpacing="8" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="org:OrgActionButton">
-              <Button Classes="accent" Content="{Binding Text}" Command="{Binding RunCommand}" ToolTip.Tip="{Binding Description}" />
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <!-- The item's own actions and Delete together, above any children, so Delete never reads as deleting a child. -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <ItemsControl ItemsSource="{Binding Actions}" IsVisible="{Binding HasActions}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel ItemSpacing="8" LineSpacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="org:OrgActionButton">
+                <!-- Disruptive actions (Archive) are secondary; safe ones (Verify) are the main action. -->
+                <Button Classes.accent="{Binding IsPrimary}" Content="{Binding Text}" Command="{Binding RunCommand}" ToolTip.Tip="{Binding Description}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}" IsVisible="{Binding CanDelete}"
+                  ToolTip.Tip="Delete it (you type its name to confirm)" />
+        </StackPanel>
         <Panel IsVisible="{Binding HasChildren}">
           <views:OrgKindView DataContext="{Binding Children}" />
         </Panel>
-        <Button Classes="danger-outline" Content="{Binding DeleteText}" Command="{Binding DeleteCommand}" IsVisible="{Binding CanDelete}" HorizontalAlignment="Left"
-                ToolTip.Tip="Delete it (you type its name to confirm)" />
       </StackPanel>
     </Expander>
   </Border>

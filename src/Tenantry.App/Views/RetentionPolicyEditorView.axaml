@@ -102,9 +102,10 @@
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
       </ItemsControl>
+      <!-- Beside the Teams rows, which come last. -->
+      <TextBlock Classes="caption" TextWrapping="Wrap" Margin="0,-6,0,0"
+                 Text="Teams can't be combined with other places in one policy. Labels can't be published to or applied in Teams." />
       <CheckBox IsChecked="{Binding PublicFolders}" Content="Also public folders (all of them)" />
-      <TextBlock Classes="caption" TextWrapping="Wrap"
-                 Text="Teams messages need a policy of their own, and labels can't be published to or applied in them." />
     </StackPanel>
     <StackPanel Spacing="4" IsVisible="{Binding UsesScopes}">
       <ItemsControl ItemsSource="{Binding Scopes}">

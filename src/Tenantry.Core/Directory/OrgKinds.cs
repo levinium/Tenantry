@@ -528,15 +528,16 @@ public static class OrgKinds
         "The organization's domains: verification, the default for new people, password expiry, and the DNS records each needs.",
         "domains", NameProperty: "id", CanDelete: true, Noun: "domain",
         KeepWhen: d => True(d, "isInitial") || True(d, "isDefault"),
+        SubtitleOf: d => string.Join(" · ", new[] { True(d, "isVerified") ? "Verified" : "Not Verified", True(d, "isDefault") ? "Default" : null, True(d, "isInitial") ? "Initial" : null }.OfType<string>()),
         Fields:
         [
             new("isVerified", "Verified", ReadOnly: true),
             new("isDefault", "Default for New People", Caution: true, Help: "Only one domain is the default; choosing this one moves it."),
-            new("passwordValidityPeriodInDays", "Passwords Expire After", SettingKind.Number, "Type Never so passwords don't expire (Microsoft's recommendation).", Min: 14, Max: int.MaxValue, Unit: "days"),
+            new("passwordValidityPeriodInDays", "Passwords Expire After", SettingKind.Number, "A number of days, or Never so passwords don't expire (Microsoft's recommendation).", Min: 14, Max: int.MaxValue, Unit: "days"),
             new("passwordNotificationWindowInDays", "Warn Before Expiry", SettingKind.Number, Min: 1, Max: 30, Unit: "days"),
             new("authenticationType", "Sign-In", SettingKind.Text, ReadOnly: true),
             new("supportedServices", "Used For", SettingKind.List, ReadOnly: true),
-            new("isInitial", "The Initial onmicrosoft.com Domain", ReadOnly: true),
+            new("isInitial", "Initial Domain", ReadOnly: true),
         ],
         Extras:
         [
@@ -645,7 +646,7 @@ public static class OrgKinds
         [
             new("isViewingBeforeAcceptanceRequired", "Must Open Before Accepting"),
             new("isPerDeviceAcceptanceRequired", "Accept on Each Device"),
-            new("userReacceptRequiredFrequency", "Accept Again Every", SettingKind.Text, "Like P90D for 90 days; empty for never."),
+            new("userReacceptRequiredFrequency", "Accept Again Every", SettingKind.Duration, "Like 90 days. Empty for never."),
         ]);
 
     // ---- The rest (15f) -------------------------------------------------------------------------
@@ -817,6 +818,15 @@ public static class OrgKinds
         ["MusicOnHoldEnabledType"] = "Music on Hold",
         ["AllowVoicemail"] = "Voicemail",
         ["AllowCallRedirect"] = "Call Redirect",
+        ["NewMeetingRecordingExpirationDays"] = "Recordings Expire After",
+        ["AllowAnonymousUsersToJoinMeeting"] = "Allow Anonymous Users to Join a Meeting",
+        ["AllowAnonymousUsersToStartMeeting"] = "Allow Anonymous Users to Start a Meeting",
+    };
+
+    /// <summary>Units shown beside Teams numbers ("days").</summary>
+    public static readonly IReadOnlyDictionary<string, string> TeamsUnits = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["NewMeetingRecordingExpirationDays"] = "days",
     };
 
     static bool IsPreset(JsonElement p) => p.ValueKind == JsonValueKind.Object && p.TryGetProperty("Identity", out var id) && id.GetString() is { } name

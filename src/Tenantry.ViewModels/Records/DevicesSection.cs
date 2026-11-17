@@ -517,7 +517,7 @@ public sealed partial class DevicesSection : RecordSection, IDisposable
             {
                 0 => "No devices",
                 1 => "1 device",
-                var n => $"{n} devices",
+                var n => $"{n:N0} devices",
             } + (Devices.Any(d => d.Device.Compliant == false) ? " · one not compliant" : "");
         }
         catch (Exception e) when (e is not OperationCanceledException)

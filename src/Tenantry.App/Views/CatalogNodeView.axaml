@@ -60,7 +60,7 @@
               <StackPanel Spacing="4">
                 <Grid ColumnDefinitions="*,Auto">
                   <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" VerticalAlignment="Center" />
-                  <Button Grid.Column="1" Classes="danger-outline" Content="Remove Item" Command="{Binding RemoveCommand}" IsVisible="{Binding CanEdit}"
+                  <Button Grid.Column="1" Classes="danger-outline quiet" Content="Remove Item" Command="{Binding RemoveCommand}" IsVisible="{Binding CanEdit}"
                           ToolTip.Tip="Take this item out (added to Pending Changes)" />
                 </Grid>
                 <ItemsControl ItemsSource="{Binding Children}">

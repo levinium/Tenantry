@@ -113,10 +113,10 @@ public static class CaText
             parts.Add("guests and external users");
         var named = people.Where(p => p is not ("All" or "None" or "GuestsOrExternalUsers")).Select(p => Name(names.People, p)).ToArray();
         if (named.Length > 0)
-            parts.Add(named.Length <= 3 ? Join(named) : $"{named.Length} people");
+            parts.Add(named.Length <= 3 ? Join(named) : $"{named.Length:N0} people");
         var groups = Strings(users, $"{prefix}Groups").Select(g => Name(names.Groups, g)).ToArray();
         if (groups.Length > 0)
-            parts.Add(groups.Length <= 3 ? "members of " + Join(groups) : $"members of {groups.Length} groups");
+            parts.Add(groups.Length <= 3 ? "members of " + Join(groups) : $"members of {groups.Length:N0} groups");
         var roles = Strings(users, $"{prefix}Roles").Select(r => Name(names.Roles, r)).ToArray();
         if (roles.Length > 0)
             parts.Add(roles.Length <= 3 ? "holders of " + Join(roles) : $"holders of {roles.Length} admin roles");

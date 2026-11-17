@@ -57,6 +57,29 @@ public sealed class SettingsCatalogTests
         Assert.Equal("Windows 10 General Configuration", SettingsCatalog.Words("windows10GeneralConfiguration"));
     }
 
+    [Theory]
+    [InlineData("#microsoft.graph.iosManagedAppProtection", "iOS App Protection")]
+    [InlineData("#microsoft.graph.win32LobApp", "Windows App (Win32)")]
+    [InlineData("#microsoft.graph.windowsUpdateForBusinessConfiguration", "Windows Update Ring")]
+    [InlineData("#microsoft.graph.macOSCustomConfiguration", "macOS Custom Configuration")]
+    [InlineData("#microsoft.graph.iosGeneralDeviceConfiguration", "iOS General Device Configuration")]
+    [InlineData("#microsoft.graph.androidForWorkGeneralDeviceConfiguration", "Android for Work General Device Configuration")]
+    public void Graph_types_read_as_Intune_names(string type, string name) => Assert.Equal(name, SettingsCatalog.TypeName(type));
+
+    [Theory]
+    [InlineData("P90D", "90 days")]
+    [InlineData("PT12H", "12 hours")]
+    [InlineData("P1DT12H", "1 day 12 hours")]
+    public void Iso_durations_read_and_type_as_words(string iso, string words)
+    {
+        Assert.Equal(words, IsoDuration.Words(iso));
+        Assert.Equal(iso, IsoDuration.Parse(words));
+        Assert.Equal(iso, IsoDuration.Parse(iso));
+    }
+
+    [Fact]
+    public void Text_that_is_not_a_length_of_time_is_refused() => Assert.Null(IsoDuration.Parse("soon"));
+
     [Fact]
     public void Pending_Changes_names_the_settings_that_changed_were_added_or_removed()
     {
@@ -183,7 +206,7 @@ public sealed class SettingsCatalogTests
 
         var template = Assert.Single(page.Templates);
         var rows = template.Groups.SelectMany(g => g.Rows).ToArray();
-        Assert.Contains(rows, r => r.Label == "Lock Screen Timeout In Seconds" && r.IsNumber);
+        Assert.Contains(rows, r => r.Label == "Lock Screen Timeout in Seconds" && r.IsNumber);
         Assert.Contains(rows, r => r.Def.Parameter == "edgeHomepageUrls" && r.IsList);
     }
 }

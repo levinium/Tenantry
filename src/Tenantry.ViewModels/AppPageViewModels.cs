@@ -250,7 +250,7 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
             if (AppList.CredentialBadge(state) is { Text.Length: > 0 } badge)
                 chips.Add(new HealthChip(AppList.CredentialChip(state), badge.Kind, "Its client secrets and certificates"));
             if (App.Audience != "AzureADMyOrg")
-                chips.Add(new HealthChip(AppRegistration.AudienceText(App.Audience), BadgeKind.Info, "Who can sign in to it"));
+                chips.Add(new HealthChip(Display.TitleCase(AppRegistration.AudienceText(App.Audience).Replace(" and ", " + ", StringComparison.Ordinal)), BadgeKind.Info, "Who can sign in to it"));
             if (App.Owners.Count == 0)
                 chips.Add(new HealthChip("No Owners", BadgeKind.Neutral, "Only admins can manage it"));
             return chips;
@@ -268,7 +268,7 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
     protected override void OpenInAdminCenter() => Platform.OpenUrl(
         $"https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Overview/appId/{App.AppId}");
 
-    public override string DeleteText => "Delete App";
+    public override string DeleteText => "Delete App Registration";
     public override string DeleteTip => "Delete the app registration and its enterprise app (restorable for 30 days; you type its name to confirm)";
 
     protected override string DeleteDetail =>
@@ -372,8 +372,7 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
             new("Who Can Sign In", AppRegistration.AudienceText(App.Audience)),
             new("Created", Day(App.Created)),
             .. App.PublisherDomain is { } domain ? [new SummaryLine("Publisher Domain", domain)] : Array.Empty<SummaryLine>(),
-            new("Enterprise App", Enterprise is { } e ? e.IsEnabled ? "In this organization, sign-in on" : "In this organization, sign-in off" : "None (nobody here has used it yet)"),
-            .. App.Notes is { Length: > 0 } notes ? [new SummaryLine("Notes", notes)] : Array.Empty<SummaryLine>(),
+            new("Enterprise App", Enterprise is { } e ? e.IsEnabled ? "Exists here · Sign-in allowed" : "Exists here · Sign-in blocked" : "None (nobody here has used it yet)"),
         ];
         return
         [
@@ -406,7 +405,7 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
                 {
                     AppFields.Expired => [new HealthChip(AppFields.Expired, BadgeKind.Danger, "Sign-ins with it fail")],
                     AppFields.Soon => [new HealthChip(AppFields.Soon, BadgeKind.Warning, "Within 30 days")],
-                    _ => [new HealthChip("Current", BadgeKind.Success, "It works")],
+                    _ => [new HealthChip(AppFields.Current, BadgeKind.Success, "It works")],
                 },
             };
             return Removable(row, pending.OfType<RemoveAppCredential>().FirstOrDefault(r => r.KeyId == c.Id),
@@ -519,7 +518,7 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
             Pipeline?.Stage(new AddAppUserAssignment(Target, o.Target(o.Type), o.Type == "group" ? "Group" : "User", role?.Value ?? AppUserAssignment.DefaultAccess,
                 role?.Label ?? "Default Access"));
         }), [new EditorChoice(AppUserAssignment.DefaultAccess, "Default Access", "Plain access")]) { AddText = "Give Access" };
-        _enabled = new AppToggle("Sign-In On", "Off stops everyone signing in to it (and it signing in on its own).", app.IsEnabled, CanEdit, v => SetSetting("enabled", App.IsEnabled, v));
+        _enabled = new AppToggle("Sign-In On", "Turn off to stop anyone, including the app itself, from signing in.", app.IsEnabled, CanEdit, v => SetSetting("enabled", App.IsEnabled, v));
         _assignment = new AppToggle("Assignment Required", "Only the people and groups on Users & Groups can sign in.", app.AssignmentRequired, CanEdit,
             v => SetSetting("assignment", App.AssignmentRequired, v));
         _visible = new AppToggle("Visible to People", "Shown in My Apps and the Microsoft 365 app launcher to those with access.", app.IsVisible, CanEdit,

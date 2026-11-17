@@ -549,9 +549,9 @@ public sealed partial class ImportMembersViewModel(GroupSummary group, ChangePip
         var problems = Rows.Count(r => r.Outcome == ImportOutcome.Problem);
         Summary = string.Join(" · ", new[]
         {
-            adds == 0 ? null : adds == 1 ? "1 person to add" : $"{adds} people to add",
+            adds == 0 ? null : adds == 1 ? "1 person to add" : $"{adds:N0} people to add",
             Rows.Count(r => r.Outcome == ImportOutcome.NoChange) is var already and > 0 ? $"{already} already in" : null,
-            problems == 0 ? null : problems == 1 ? "1 row needs fixing" : $"{problems} rows need fixing",
+            problems == 0 ? null : problems == 1 ? "1 row needs fixing" : $"{problems:N0} rows need fixing",
         }.OfType<string>());
         Changed();
     }

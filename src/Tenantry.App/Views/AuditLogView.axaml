@@ -37,7 +37,7 @@
                 <CalendarDatePicker SelectedDate="{Binding StartDate}" HorizontalAlignment="Stretch" />
               </StackPanel>
               <StackPanel Grid.Column="1" Spacing="4">
-                <TextBlock Classes="label" Text="TO (INCLUDED)" />
+                <TextBlock Classes="label" Text="TO (INCLUSIVE)" />
                 <CalendarDatePicker SelectedDate="{Binding EndDate}" HorizontalAlignment="Stretch" />
               </StackPanel>
             </Grid>
@@ -48,9 +48,9 @@
             <StackPanel Spacing="4">
               <TextBlock Classes="label" Text="ACTIVITIES" />
               <TextBox Text="{Binding Activities}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"
-                       PlaceholderText="Any, or one per line, like FileAccessed or Set-Mailbox" />
+                       PlaceholderText="One per line, like FileAccessed" />
             </StackPanel>
-            <Expander Header="Record Types (Any Unless Ticked)" HorizontalAlignment="Stretch">
+            <Expander Header="Record Types (All If None Selected)" HorizontalAlignment="Stretch">
               <ItemsControl ItemsSource="{Binding RecordTypes}">
                 <ItemsControl.ItemsPanel>
                   <ItemsPanelTemplate>

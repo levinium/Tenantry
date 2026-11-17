@@ -96,7 +96,7 @@ public static class AppList
                 Text = a => a.Name, Subtitle = a => a.Publisher ?? a.AppId, Initials = a => Display.Initials(a.Name) },
             new() { Key = F.Source, Header = "From", Cell = CellKind.Text, MinWidth = 140, DefaultWidth = 160, Text = a => EnterpriseApp.SourceText(a.Source) },
             new() { Key = F.Enabled, Header = "Sign-In", Cell = CellKind.Badge, MinWidth = 100, DefaultWidth = 110,
-                Badge = a => a.IsEnabled ? ("", BadgeKind.Neutral) : (F.Off, BadgeKind.Warning) },
+                Badge = a => a.IsEnabled ? (F.On, BadgeKind.Neutral) : (F.Off, BadgeKind.Warning) },
             new() { Key = F.Assignment, Header = "Assignment", Cell = CellKind.Text, MinWidth = 110, DefaultWidth = 120, Text = a => a.AssignmentRequired ? F.Required : "" },
             new() { Key = F.Visible, Header = "Visible", Cell = CellKind.Text, MinWidth = 90, DefaultWidth = 100, Text = a => a.IsVisible ? "" : F.Hidden },
             new() { Key = F.Sso, Header = "Single Sign-On", Cell = CellKind.Text, MinWidth = 120, DefaultWidth = 130, Text = a => EnterpriseApp.SsoText(a.SsoMode) ?? "" },

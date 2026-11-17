@@ -130,13 +130,13 @@ public static class EDiscovery
 
     public static bool IsRunning(string status) => status is "Starting" or "InProgress";
 
-    /// <summary>"Success" → "On everywhere it should be"; anything else as Purview says it.</summary>
+    /// <summary>"Success" → "Everywhere"; anything else as Purview says it.</summary>
     public static string DistributionText(string? status) => status switch
     {
         null or "" => "Unknown",
-        "Success" => "In place everywhere",
-        "Pending" => "Still being put in place",
-        "Error" => "Couldn't be put in place everywhere",
+        "Success" => "Everywhere",
+        "Pending" => "Still deploying",
+        "Error" => "Not everywhere: some places failed",
         _ => status,
     };
 

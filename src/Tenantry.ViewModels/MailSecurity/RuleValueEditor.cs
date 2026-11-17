@@ -130,7 +130,7 @@ public sealed partial class RuleValueEditor : ObservableObject
         "sensitiveInfoTypes" => "Type one and press Enter",
         "headerName" => "Like X-Contoso-Checked",
         "dsnCode" => "5.7.1, or 5.7.900 to 5.7.999",
-        "html" => "Text or HTML. %%From%%, %%To%%, %%Subject%% and other tokens are filled in",
+        "html" => "Text or HTML. Placeholders like %%From%% and %%Subject%% are filled in for each message.",
         "address" => "pat@contoso.example",
         _ => "",
     };

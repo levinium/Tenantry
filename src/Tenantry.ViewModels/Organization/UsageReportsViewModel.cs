@@ -115,6 +115,45 @@ public sealed partial class UsageReportsViewModel : ObservableObject
     static DateTimeOffset? Date(JsonElement r, string name) => r.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
         && DateTimeOffset.TryParse(v.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var d) ? d : null;
 
+    /// <summary>Report fields whose split-up name reads badly.</summary>
+    static readonly Dictionary<string, string> KnownLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["isDeleted"] = "Deleted",
+        ["sendCount"] = "Sent",
+        ["receiveCount"] = "Received",
+        ["readCount"] = "Read",
+        ["lastActivityDate"] = "Last Active",
+        ["assignedProducts"] = "Licenses",
+        ["reportRefreshDate"] = "Report Date",
+        ["deletedDate"] = "Deleted On",
+        ["storageUsedInBytes"] = "Storage Used (Bytes)",
+        ["itemCount"] = "Items",
+    };
+
+    /// <summary>
+    /// A column's header from its report field: a known name, else the field in words without
+    /// "Is", "Count" or "Date" ("isLicensed" → "Licensed", "postCount" → "Post"), unless that would
+    /// read the same as another column.
+    /// </summary>
+    internal static string ColumnLabel(string name, IReadOnlyCollection<string> all)
+    {
+        if (KnownLabels.TryGetValue(name, out var known))
+            return known;
+        string Full(string n) => Display.TitleCase(SettingsCatalog.Words(n));
+        string Short(string n)
+        {
+            var words = Full(n).Split(' ').ToList();
+            if (words.Count > 1 && words[0] == "Is")
+                words.RemoveAt(0);
+            if (words.Count > 1 && words[^1] is "Count" or "Date")
+                words.RemoveAt(words.Count - 1);
+            return string.Join(' ', words);
+        }
+        var shortened = Short(name);
+        return all.Any(o => o != name && (KnownLabels.TryGetValue(o, out var k) ? k : Short(o)).Equals(shortened, StringComparison.OrdinalIgnoreCase))
+            ? Full(name) : shortened;
+    }
+
     /// <summary>The list for a report, its fields and columns from the properties its rows have.</summary>
     internal static ListDefinition<UsageRow> Definition(UsageReport report, IReadOnlyList<JsonElement> rows)
     {
@@ -125,7 +164,8 @@ public sealed partial class UsageReportsViewModel : ObservableObject
         FieldKind KindOf(string n) => n.EndsWith("Date", StringComparison.OrdinalIgnoreCase) || n.EndsWith("DateTime", StringComparison.OrdinalIgnoreCase) ? FieldKind.Date
             : sample.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.Number ? FieldKind.Number
             : sample.TryGetProperty(n, out var b) && b.ValueKind is JsonValueKind.True or JsonValueKind.False ? FieldKind.Choice : FieldKind.Text;
-        string Label(string n) => Display.TitleCase(SettingsCatalog.Words(n));
+        var labels = names.ToDictionary(n => n, n => ColumnLabel(n, names));
+        string Label(string n) => labels.TryGetValue(n, out var l) ? l : ColumnLabel(n, names);
         var fields = names.Select(n => KindOf(n) switch
         {
             FieldKind.Date => new Field<UsageRow> { Key = n, Label = Label(n), Kind = FieldKind.Date, Date = r => Date(r.Raw, n) },

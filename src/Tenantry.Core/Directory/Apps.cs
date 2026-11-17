@@ -222,7 +222,7 @@ public static class AppFields
     public const string Expired = "Expired";
     public const string Soon = "Expires Soon";
     public const string SomeExpired = "Some Expired";
-    public const string Current = "Current";
+    public const string Current = "Active";
     public const string NoCredentials = "None";
 
     public const string Ours = "This Organization";

@@ -197,11 +197,15 @@ public sealed partial class LocationsViewModel : ObservableObject
 /// <summary>An authentication strength as a card: what counts, in words, and which policies require it.</summary>
 public sealed class StrengthRow(AuthStrength strength, int usedBy)
 {
-    public string Name => strength.Name;
-    public string? Description => strength.Description;
+    /// <summary>Microsoft's built-in names in Title Case ("Multifactor authentication" → "Multifactor Authentication"); custom names as typed.</summary>
+    public string Name => strength.IsBuiltIn ? Display.TitleCase(strength.Name).Replace("-resistant", "-Resistant", StringComparison.Ordinal) : strength.Name;
+
+    /// <summary>Microsoft's descriptions capitalise "Passwordless" mid-sentence; lower-cased there.</summary>
+    public string? Description => strength.IsBuiltIn && strength.Description is { } d
+        ? System.Text.RegularExpressions.Regex.Replace(d, @"(?<=[^.!?]\s+|,\s*)Passwordless(?=\W)", "passwordless") : strength.Description;
     public bool HasDescription => !string.IsNullOrEmpty(strength.Description);
     public string TypeText => strength.IsBuiltIn ? "Built-In" : "Custom";
-    public IReadOnlyList<string> Methods => [.. strength.Combinations.Select(CaPlaces.Combination)];
+    public IReadOnlyList<string> Methods => [.. strength.Combinations.Select(c => Display.TitleCase(CaPlaces.Combination(c)))];
     public string UsedText => usedBy switch { 0 => "No policy requires it", 1 => "Required by 1 policy", var n => $"Required by {n} policies" };
 }
 

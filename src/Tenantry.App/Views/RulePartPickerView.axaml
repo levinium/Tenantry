@@ -22,7 +22,7 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="ms:RulePickerGroup">
             <StackPanel Spacing="1" Margin="0,6,0,4">
-              <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" Margin="10,0,0,4" />
+              <TextBlock Classes="label" Text="{Binding Title, Converter={x:Static conv:Capitals.Instance}}" Margin="10,0,0,4" IsVisible="{Binding HasTitle}" />
               <ItemsControl ItemsSource="{Binding Items}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="ms:RulePickerItem">

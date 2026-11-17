@@ -176,7 +176,7 @@
                     </StackPanel>
                     <!-- Who it reaches in the end, said as a sentence so it doesn't read as part of Leave Out. -->
                     <TextBlock Classes="caption" TextWrapping="Wrap" Margin="0,4,0,0">
-                      <Run Text="In all, it's for: " />
+                      <Run Text="Applies to: " />
                       <Run Text="{Binding WhoText}" FontWeight="SemiBold" />
                     </TextBlock>
                   </StackPanel>
