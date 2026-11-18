@@ -2,8 +2,8 @@ name: Packages
 
 # Installers for every platform, made with Velopack (vpk, pinned in .config/dotnet-tools.json).
 # - A push to main builds them as downloadable workflow artifacts (kept 14 days), no release.
-# - A version tag (v0.2.0) also publishes a GitHub pre-release with them; installed copies update
-#   themselves from it. Pre-release while builds are unsigned (SmartScreen and Gatekeeper warn).
+# - A version tag (v0.2.0) also publishes a GitHub release with them; installed copies update
+#   themselves from it. Builds are unsigned (SmartScreen and Gatekeeper warn; the README explains).
 on:
   push:
     branches: [main]
@@ -24,12 +24,12 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - name: Create pre-release
+      - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --prerelease --title "Tenantry ${GITHUB_REF_NAME#v}" --notes \
-            "Unsigned pre-release: Windows SmartScreen and macOS Gatekeeper will warn before the first run. Installed copies update themselves.
+          gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --title "Tenantry ${GITHUB_REF_NAME#v}" --notes \
+            "Unsigned build: Windows SmartScreen and macOS Gatekeeper will warn before the first run. Installed copies update themselves.
           Builds made from a release start with Test mode off: real users and groups can be changed."
 
   package:
@@ -109,4 +109,4 @@ jobs:
 
       - name: Add to the release
         if: startsWith(github.ref, 'refs/tags/v')
-        run: dotnet vpk upload github --repoUrl $env:REPO_URL --channel ${{ matrix.rid }} --tag $env:GITHUB_REF_NAME --merge --pre --publish --token ${{ github.token }} -o releases
+        run: dotnet vpk upload github --repoUrl $env:REPO_URL --channel ${{ matrix.rid }} --tag $env:GITHUB_REF_NAME --merge --publish --token ${{ github.token }} -o releases
