@@ -25,11 +25,44 @@ public sealed partial class GraphUserRecords : IRoleRecords
         e.Status is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden
         && ((e.Code ?? "").Contains("Premium", StringComparison.OrdinalIgnoreCase) || e.Message.Contains("onboarded to PIM", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>Every row of a collection, for reads that run side by side.</summary>
+    async Task<List<JsonElement>> AllRowsAsync(string path, CancellationToken cancellationToken)
+    {
+        var rows = new List<JsonElement>();
+        await foreach (var row in graph.GetAllAsync(path, cancellationToken))
+            rows.Add(row.Clone());
+        return rows;
+    }
+
+    /// <summary>
+    /// Role assignments: with PIM, the instances hold every active assignment (made through PIM or
+    /// not) with its end, and the eligible ones; without Entra ID P2, roleAssignments alone.
+    /// </summary>
+    async Task<(List<(JsonElement Row, RoleGrantKind Kind, bool ViaPim)> Rows, string? PimUnavailable)> AssignmentRowsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var active = AllRowsAsync("roleManagement/directory/roleAssignmentScheduleInstances?$expand=principal", cancellationToken);
+            var eligible = AllRowsAsync("roleManagement/directory/roleEligibilityScheduleInstances?$expand=principal", cancellationToken);
+            return ([.. (await active).Select(a => (a, RoleGrantKind.Active, true)), .. (await eligible).Select(a => (a, RoleGrantKind.Eligible, true))], null);
+        }
+        catch (GraphException e) when (NeedsPremium(e))
+        {
+            var plain = await AllRowsAsync("roleManagement/directory/roleAssignments?$expand=principal", cancellationToken);
+            return ([.. plain.Select(a => (a, RoleGrantKind.Active, false))], RoleDirectory.PimNeedsP2);
+        }
+    }
+
     public async Task<RoleDirectory> GetRolesAsync(CancellationToken cancellationToken = default)
     {
+        // Definitions, administrative units and assignments don't depend on each other: read them together.
+        var definitionsRead = AllRowsAsync($"{Beta}roleManagement/directory/roleDefinitions?$select=id,displayName,description,isBuiltIn,isEnabled,isPrivileged,rolePermissions",
+            cancellationToken);
+        var unitsRead = AllRowsAsync("directory/administrativeUnits?$select=id,displayName", cancellationToken);
+        var assignmentsRead = AssignmentRowsAsync(cancellationToken);
+
         var definitions = new List<AdminRole>();
-        await foreach (var d in graph.GetAllAsync($"{Beta}roleManagement/directory/roleDefinitions?$select=id,displayName,description,isBuiltIn,isEnabled,isPrivileged,rolePermissions",
-                           cancellationToken))
+        foreach (var d in await definitionsRead)
             definitions.Add(new AdminRole(Text(d, "id") ?? "", Text(d, "displayName") ?? "A role", Text(d, "description") ?? "",
                 Flag(d, "isBuiltIn") == true, Flag(d, "isPrivileged") == true, !d.TryGetProperty("isEnabled", out var on) || on.ValueKind != JsonValueKind.False,
                 d.TryGetProperty("rolePermissions", out var perms) && perms.ValueKind == JsonValueKind.Array
@@ -37,7 +70,7 @@ public sealed partial class GraphUserRecords : IRoleRecords
                     : []));
 
         var units = new List<AdminUnit>();
-        await foreach (var u in graph.GetAllAsync("directory/administrativeUnits?$select=id,displayName", cancellationToken))
+        foreach (var u in await unitsRead)
             units.Add(new AdminUnit(Text(u, "id") ?? "", Text(u, "displayName") ?? "An administrative unit"));
         var unitNames = units.ToDictionary(u => u.Id, u => u.Name, StringComparer.OrdinalIgnoreCase);
         string ScopeName(string scope) => scope == "/" ? "Organization"
@@ -68,38 +101,25 @@ public sealed partial class GraphUserRecords : IRoleRecords
                 string.Equals(Text(a, "assignmentType"), "Activated", StringComparison.OrdinalIgnoreCase));
         }
 
-        string? pimUnavailable = null;
-        try
-        {
-            // With PIM, the instances hold every active assignment (made through PIM or not) with its end, and the eligible ones.
-            await foreach (var a in graph.GetAllAsync("roleManagement/directory/roleAssignmentScheduleInstances?$expand=principal", cancellationToken))
-                grants.Add(Grant(a, RoleGrantKind.Active, viaPim: true));
-            await foreach (var a in graph.GetAllAsync("roleManagement/directory/roleEligibilityScheduleInstances?$expand=principal", cancellationToken))
-                grants.Add(Grant(a, RoleGrantKind.Eligible, viaPim: true));
-        }
-        catch (GraphException e) when (NeedsPremium(e))
-        {
-            pimUnavailable = RoleDirectory.PimNeedsP2;
-            grants.Clear();
-            await foreach (var a in graph.GetAllAsync("roleManagement/directory/roleAssignments?$expand=principal", cancellationToken))
-                grants.Add(Grant(a, RoleGrantKind.Active, viaPim: false));
-        }
+        var (assignmentRows, pimUnavailable) = await assignmentsRead;
+        foreach (var (row, kind, viaPim) in assignmentRows)
+            grants.Add(Grant(row, kind, viaPim));
 
-        // Some assignments are to roles the list leaves out (seen live: 4 apps' roles); read those one by one.
+        // Some assignments are to roles the list leaves out (seen live: 4 apps' roles); read those together.
         var known = definitions.Select(d => d.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var missing in grants.Select(g => g.RoleId).Where(id => !known.Contains(id)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray())
+        var hidden = await Task.WhenAll(grants.Select(g => g.RoleId).Where(id => !known.Contains(id)).Distinct(StringComparer.OrdinalIgnoreCase).Select(async missing =>
         {
             try
             {
                 var d = await graph.GetAsync($"roleManagement/directory/roleDefinitions/{missing}?$select=id,displayName,description,isBuiltIn", cancellationToken);
-                definitions.Add(new AdminRole(missing, Text(d, "displayName") ?? "A hidden role", Text(d, "description") ?? "", Flag(d, "isBuiltIn") != false, false, true, []));
+                return new AdminRole(missing, Text(d, "displayName") ?? "A hidden role", Text(d, "description") ?? "", Flag(d, "isBuiltIn") != false, false, true, []);
             }
             catch (GraphException e) when (e.Status is HttpStatusCode.NotFound or HttpStatusCode.BadRequest)
             {
-                definitions.Add(new AdminRole(missing, "A role Entra doesn't list", "", true, false, true, []));
+                return new AdminRole(missing, "A role Entra doesn't list", "", true, false, true, []);
             }
-            known.Add(missing);
-        }
+        }));
+        definitions.AddRange(hidden);
 
         var byRole = grants.ToLookup(g => g.RoleId, StringComparer.OrdinalIgnoreCase);
         return new RoleDirectory(

@@ -15,11 +15,20 @@ public sealed partial class GraphUserRecords : IAppRecords
 
     const string SpSelect = "id,appId,displayName,servicePrincipalType,accountEnabled,appRoleAssignmentRequired,tags,publisherName,verifiedPublisher,homepage,preferredSingleSignOnMode,notes,createdDateTime";
 
-    public async Task<AppDirectory> GetAppsAsync(CancellationToken cancellationToken = default)
+    public async Task<AppDirectory> GetAppsAsync(CancellationToken cancellationToken = default) =>
+        await GetAppsAsync(await GetRegistrationsAsync(cancellationToken), cancellationToken);
+
+    public async Task<IReadOnlyList<AppRegistration>> GetRegistrationsAsync(CancellationToken cancellationToken = default)
     {
         var registrations = new List<AppRegistration>();
         await foreach (var a in graph.GetAllAsync($"applications?$select={AppSelect}&$expand=owners($select=id,displayName,userPrincipalName)&$top=100", cancellationToken))
             registrations.Add(Registration(a));
+        return registrations;
+    }
+
+    /// <summary>The enterprise apps (Entra can take ten seconds or more for several hundred), with the registrations already read.</summary>
+    public async Task<AppDirectory> GetAppsAsync(IReadOnlyList<AppRegistration> registrations, CancellationToken cancellationToken = default)
+    {
         var ours = registrations.Select(r => r.AppId).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var enterprise = new List<EnterpriseApp>();

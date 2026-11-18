@@ -153,6 +153,17 @@ public interface IAppRecords
 {
     Task<AppDirectory> GetAppsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The app registrations alone: one quick read. Listing every enterprise app (service
+    /// principal) can take Entra ten seconds or more, so the App Registrations list doesn't wait for it.
+    /// </summary>
+    async Task<IReadOnlyList<AppRegistration>> GetRegistrationsAsync(CancellationToken cancellationToken = default) =>
+        (await GetAppsAsync(cancellationToken)).Registrations;
+
+    /// <summary>Everything, reusing registrations already read (so they aren't read twice).</summary>
+    Task<AppDirectory> GetAppsAsync(IReadOnlyList<AppRegistration> registrations, CancellationToken cancellationToken = default) =>
+        GetAppsAsync(cancellationToken);
+
     Task<AppRegistrationDetail> GetRegistrationDetailAsync(AppRegistration app, CancellationToken cancellationToken = default);
 
     Task<EnterpriseAppDetail> GetEnterpriseDetailAsync(EnterpriseApp app, CancellationToken cancellationToken = default);

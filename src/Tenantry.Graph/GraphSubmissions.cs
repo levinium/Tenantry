@@ -16,20 +16,21 @@ public sealed partial class GraphUserRecords : ISubmissionRecords
     public async Task<IReadOnlyList<ThreatSubmission>> GetSubmissionsAsync(CancellationToken cancellationToken = default)
     {
         var since = DateTimeOffset.UtcNow.AddDays(-30).ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
-        var found = new List<ThreatSubmission>();
-        foreach (var kind in new[] { "emailThreats", "urlThreats", "fileThreats" })
+        // The three kinds are separate reads, each slow (about 13 s seen live): read them side by side.
+        async Task<List<ThreatSubmission>> Read(string kind)
         {
-            if (found.Count >= MaxSubmissions)
-                break;
+            var some = new List<ThreatSubmission>();
             // No $top: some Microsoft collections answer that many and no next link (service health did).
             await foreach (var row in graph.GetAllAsync($"{Submissions}{kind}?$filter=createdDateTime ge {since}", cancellationToken))
             {
-                found.Add(ToSubmission(row));
-                if (found.Count >= MaxSubmissions)
+                some.Add(ToSubmission(row));
+                if (some.Count >= MaxSubmissions)
                     break;
             }
+            return some;
         }
-        return [.. found.OrderByDescending(s => s.Created)];
+        var kinds = await Task.WhenAll(Read("emailThreats"), Read("urlThreats"), Read("fileThreats"));
+        return [.. kinds.SelectMany(k => k).OrderByDescending(s => s.Created).Take(MaxSubmissions)];
     }
 
     internal static ThreatSubmission ToSubmission(JsonElement r)

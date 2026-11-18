@@ -54,32 +54,54 @@ public sealed partial class GraphUserRecords : IMailDomainRecords
     static int? Int(JsonElement r, string name) => r.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : null;
 }
 
-/// <summary>Mail records from DNS through the computer's own resolvers (DnsClient).</summary>
+/// <summary>
+/// Mail records from DNS through the computer's own resolvers (DnsClient). Some networks never pass
+/// on a "no such name" answer: each such lookup then waits out every resolver in turn (16 s or more
+/// seen live, for each missing DMARC or DKIM record). Real answers come in well under a second, so
+/// a domain's lookups get <see cref="Limit"/> together, and a lookup with no answer by then counts
+/// as no record. Only when none of them answers is the domain marked as unreadable.
+/// </summary>
 public sealed class SystemMailDns : IMailDnsLookup
 {
-    readonly LookupClient _client = new(new LookupClientOptions { UseCache = false, Timeout = TimeSpan.FromSeconds(5), Retries = 1, ThrowDnsErrors = false });
+    /// <summary>How long one domain's lookups may take, all together.</summary>
+    public static readonly TimeSpan Limit = TimeSpan.FromSeconds(3);
+
+    readonly LookupClient _client = new(new LookupClientOptions
+    {
+        UseCache = false, Timeout = Limit, Retries = 0, ThrowDnsErrors = false, ContinueOnDnsError = false, ContinueOnEmptyResponse = false,
+    });
 
     public async Task<MailDns> LookupAsync(string domain, CancellationToken cancellationToken = default)
     {
-        try
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        limit.CancelAfter(Limit);
+        async Task<IDnsQueryResponse?> Ask(string name, QueryType type)
         {
-            var mx = _client.QueryAsync(domain, QueryType.MX, cancellationToken: cancellationToken);
-            var txt = _client.QueryAsync(domain, QueryType.TXT, cancellationToken: cancellationToken);
-            var dmarc = _client.QueryAsync($"_dmarc.{domain}", QueryType.TXT, cancellationToken: cancellationToken);
-            var s1 = _client.QueryAsync($"selector1._domainkey.{domain}", QueryType.CNAME, cancellationToken: cancellationToken);
-            var s2 = _client.QueryAsync($"selector2._domainkey.{domain}", QueryType.CNAME, cancellationToken: cancellationToken);
-            await Task.WhenAll(mx, txt, dmarc, s1, s2);
-            static IEnumerable<string> Texts(IDnsQueryResponse r) => r.Answers.TxtRecords().Select(t => string.Concat(t.Text));
-            return new MailDns(
-                [.. (await mx).Answers.MxRecords().OrderBy(m => m.Preference).Select(m => m.Exchange.Value.TrimEnd('.'))],
-                [.. Texts(await txt).Where(t => t.StartsWith("v=spf1", StringComparison.OrdinalIgnoreCase))],
-                [.. Texts(await dmarc).Where(t => t.StartsWith("v=DMARC1", StringComparison.OrdinalIgnoreCase))],
-                (await s1).Answers.CnameRecords().FirstOrDefault()?.CanonicalName.Value.TrimEnd('.'),
-                (await s2).Answers.CnameRecords().FirstOrDefault()?.CanonicalName.Value.TrimEnd('.'));
+            try
+            {
+                return await _client.QueryAsync(name, type, cancellationToken: limit.Token);
+            }
+            catch (Exception e) when (e is DnsResponseException or OperationCanceledException or System.Net.Sockets.SocketException && !cancellationToken.IsCancellationRequested)
+            {
+                return null;
+            }
         }
-        catch (Exception e) when (e is DnsResponseException or OperationCanceledException { CancellationToken.IsCancellationRequested: false } or System.Net.Sockets.SocketException)
-        {
-            return new MailDns([], [], [], null, null, $"DNS didn't answer for {domain}: {e.Message}");
-        }
+        var mx = Ask(domain, QueryType.MX);
+        var txt = Ask(domain, QueryType.TXT);
+        var dmarc = Ask($"_dmarc.{domain}", QueryType.TXT);
+        var s1 = Ask($"selector1._domainkey.{domain}", QueryType.CNAME);
+        var s2 = Ask($"selector2._domainkey.{domain}", QueryType.CNAME);
+        var answers = await Task.WhenAll(mx, txt, dmarc, s1, s2);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (answers.All(a => a is null))
+            return new MailDns([], [], [], null, null,
+                $"DNS gave no answer for {domain} within {Limit.TotalSeconds:0} seconds: it may not be published, or this network doesn't pass the answer on.");
+        static IEnumerable<string> Texts(IDnsQueryResponse? r) => r?.Answers.TxtRecords().Select(t => string.Concat(t.Text)) ?? [];
+        return new MailDns(
+            [.. (answers[0]?.Answers.MxRecords() ?? []).OrderBy(m => m.Preference).Select(m => m.Exchange.Value.TrimEnd('.'))],
+            [.. Texts(answers[1]).Where(t => t.StartsWith("v=spf1", StringComparison.OrdinalIgnoreCase))],
+            [.. Texts(answers[2]).Where(t => t.StartsWith("v=DMARC1", StringComparison.OrdinalIgnoreCase))],
+            answers[3]?.Answers.CnameRecords().FirstOrDefault()?.CanonicalName.Value.TrimEnd('.'),
+            answers[4]?.Answers.CnameRecords().FirstOrDefault()?.CanonicalName.Value.TrimEnd('.'));
     }
 }

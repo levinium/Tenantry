@@ -157,7 +157,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
             };
         }
         Registrations = DataListViewModel.Create(AppList.Registrations(a => RegistrationPreview(a, now(), openRegistration), now),
-            async ct => (await ReadAppsAsync(ct))?.Registrations ?? [], row => openRegistration?.Invoke((AppRegistration)row), listState, now);
+            async ct => await ReadRegistrationsAsync(ct) ?? [], row => openRegistration?.Invoke((AppRegistration)row), listState, now);
         Registrations.EmptyText = "No app registrations match.";
         EnterpriseApps = DataListViewModel.Create(AppList.Enterprise(a => EnterprisePreview(a, openEnterprise)),
             async ct => (await ReadAppsAsync(ct))?.EnterpriseApps ?? [], row => openEnterprise?.Invoke((EnterpriseApp)row), listState, now);
@@ -368,7 +368,42 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     public bool HasAppsNote => AppsNote is not null;
 
-    /// <summary>One read serves both lists; Refresh starts a new one.</summary>
+    /// <summary>
+    /// The registrations come first, in one quick read, so App Registrations shows them at once;
+    /// the enterprise apps (a much slower read) follow on from them for Enterprise Apps and the
+    /// app pages. Each read serves every list that needs it; Refresh starts new ones.
+    /// </summary>
+    Task<IReadOnlyList<AppRegistration>?> ReadRegistrationsAsync(CancellationToken cancellationToken)
+    {
+        var registrations = _registrationsRead ??= ReadRegistrationsNowAsync(cancellationToken);
+        // Start the slow read now, in the background, so Enterprise Apps is ready sooner.
+        _ = ReadAppsAsync(CancellationToken.None);
+        return registrations;
+    }
+
+    Task<IReadOnlyList<AppRegistration>?>? _registrationsRead;
+
+    async Task<IReadOnlyList<AppRegistration>?> ReadRegistrationsNowAsync(CancellationToken cancellationToken)
+    {
+        if (_apps is null)
+        {
+            AppsNote = "Apps aren't available for this tenant.";
+            return null;
+        }
+        try
+        {
+            var registrations = await _apps.GetRegistrationsAsync(cancellationToken);
+            AppsNote = null;
+            return registrations;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            AppsNote = $"Couldn't read apps: {Friendly.Message(e)}";
+            _registrationsRead = null;
+            return null;
+        }
+    }
+
     Task<AppDirectory?> ReadAppsAsync(CancellationToken cancellationToken) => _appsRead ??= ReadAppsNowAsync(cancellationToken);
 
     async Task<AppDirectory?> ReadAppsNowAsync(CancellationToken cancellationToken)
@@ -380,7 +415,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         }
         try
         {
-            Apps = await _apps.GetAppsAsync(cancellationToken);
+            var registrations = await (_registrationsRead ??= ReadRegistrationsNowAsync(cancellationToken));
+            Apps = registrations is null ? await _apps.GetAppsAsync(cancellationToken) : await _apps.GetAppsAsync(registrations, cancellationToken);
             AppsNote = null;
             AppsRead?.Invoke(this, EventArgs.Empty);
             return Apps;
@@ -400,6 +436,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     async Task RefreshApps()
     {
         _appsRead = null;
+        _registrationsRead = null;
         await Task.WhenAll(Registrations.ReloadAsync(busyText: "Reading apps from Entra…"), EnterpriseApps.ReloadAsync(busyText: "Reading apps from Entra…"));
     }
 
