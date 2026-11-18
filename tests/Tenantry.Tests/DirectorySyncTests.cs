@@ -71,6 +71,13 @@ public class DirectorySyncTests
              "@odata.deltaLink":"{{Base}}contacts/delta?$deltatoken=cd1"}
             """)
         .On(HttpMethod.Get, "$deltatoken=cd1", """{"value":[],"@odata.deltaLink":"https://graph.microsoft.com/v1.0/contacts/delta?$deltatoken=cd1"}""")
+        // One enterprise app; its publisher comes from the ordinary list.
+        .On(HttpMethod.Get, "servicePrincipals/delta?$select", $$"""
+            {"value":[{"id":"sp1","appId":"a1","displayName":"Payroll","accountEnabled":true,"servicePrincipalType":"Application"}],
+             "@odata.deltaLink":"{{Base}}servicePrincipals/delta?$deltatoken=spd1"}
+            """)
+        .On(HttpMethod.Get, "$deltatoken=spd1", """{"value":[],"@odata.deltaLink":"https://graph.microsoft.com/v1.0/servicePrincipals/delta?$deltatoken=spd1"}""")
+        .On(HttpMethod.Get, "servicePrincipals?$select=id,publisherName", """{"value":[{"id":"sp1","publisherName":"Fabrikam"}]}""")
         .On(HttpMethod.Get, "deviceManagement/managedDevices?$select", """
             {"value":[
               {"id":"m1","deviceName":"LAPTOP-1","operatingSystem":"Windows","azureADDeviceId":"d-1","complianceState":"noncompliant","isEncrypted":true,
@@ -180,13 +187,15 @@ public class DirectorySyncTests
             .On(HttpMethod.Get, "devices/delta?$select", $$"""{"value":[{"id":"e1","deviceId":"d-1","displayName":"LAPTOP-1","trustType":"AzureAd"}],"@odata.deltaLink":"{{Base}}devices/delta?$deltatoken=dd1"}""")
             .On(HttpMethod.Get, "deviceManagement/managedDevices", """{"error":{"code":"Forbidden","message":"no Intune role"}}""", HttpStatusCode.Forbidden)
             .On(HttpMethod.Get, "informationProtection/bitlocker/recoveryKeys", """{"error":{"code":"Forbidden","message":"no role"}}""", HttpStatusCode.Forbidden)
-            .On(HttpMethod.Get, "contacts/delta", """{"error":{"code":"Authorization_RequestDenied","message":"no role"}}""", HttpStatusCode.Forbidden);
+            .On(HttpMethod.Get, "contacts/delta", """{"error":{"code":"Authorization_RequestDenied","message":"no role"}}""", HttpStatusCode.Forbidden)
+            .On(HttpMethod.Get, "servicePrincipals/delta", """{"error":{"code":"Authorization_RequestDenied","message":"no role"}}""", HttpStatusCode.Forbidden);
         var store = new MemoryEntityStore();
         var sync = new DirectorySync(Graph(http), store, now: () => Now);
 
         await sync.SyncAsync(cancellationToken: Ct);
 
         Assert.Contains(sync.Notes, n => n.StartsWith("Contacts weren't read", StringComparison.Ordinal));
+        Assert.Contains(sync.Notes, n => n.StartsWith("Enterprise apps weren't read ahead", StringComparison.Ordinal));
         var ada = (await new CachedTenantDirectory(store, "Contoso").GetUsersAsync(Ct)).Single();
         Assert.Null(ada.LastSignIn);
         Assert.NotNull(store.GetMark(DirectorySync.SignIns));

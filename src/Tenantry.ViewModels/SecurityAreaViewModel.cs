@@ -126,6 +126,26 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         InitEDiscovery(eDiscovery, pipeline, listState, now, openCase, openSearch, newCase, newSearch, cantEditEDiscovery);
         InitRetention(retention, pipeline, listState, now, retentionContext, openScope, cantEditRetention);
         _apps = apps;
+        if (apps is not null)
+        {
+            // The enterprise apps showed from the local copy while its changes were still coming:
+            // read them again (quietly) once they're in.
+            var ui = SynchronizationContext.Current;
+            apps.EnterpriseAppsChanged += (_, _) =>
+            {
+                void Again()
+                {
+                    if (!_appsShown)
+                        return;
+                    _appsRead = null;
+                    _ = EnterpriseApps?.ReloadAsync();
+                }
+                if (ui is null)
+                    Again();
+                else
+                    ui.Post(_ => Again(), null);
+            };
+        }
         _risk = risk;
         var riskEdit = pipeline is not null && canManageRisk?.IsAvailable == true;
         var riskAvailability = pipeline is null ? Availability.No("This tenant can't be edited") : canManageRisk ?? Availability.No("");

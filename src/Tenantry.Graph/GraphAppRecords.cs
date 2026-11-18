@@ -26,13 +26,51 @@ public sealed partial class GraphUserRecords : IAppRecords
         return registrations;
     }
 
-    /// <summary>The enterprise apps (Entra can take ten seconds or more for several hundred), with the registrations already read.</summary>
+    ServicePrincipalSync? _servicePrincipals;
+
+    /// <summary>How long Enterprise Apps waits for the copy's changes pull before showing the copy.</summary>
+    static readonly TimeSpan PullBudget = TimeSpan.FromSeconds(1.5);
+
+    public event EventHandler? EnterpriseAppsChanged;
+
+    /// <summary>The local copy of enterprise apps (kept up to date by the tenant's sync, and here).</summary>
+    ServicePrincipalSync ServicePrincipals => _servicePrincipals ??= new ServicePrincipalSync(graph, store);
+
+    /// <summary>
+    /// The enterprise apps, with the registrations already read. From the local copy once the
+    /// tenant's sync has made one, after pulling what changed since (about 0.1 s); otherwise read
+    /// live, which Entra can take ten seconds or more for several hundred.
+    /// </summary>
     public async Task<AppDirectory> GetAppsAsync(IReadOnlyList<AppRegistration> registrations, CancellationToken cancellationToken = default)
     {
         var ours = registrations.Select(r => r.AppId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-
+        if (ServicePrincipals.HasCopy)
+        {
+            // Changes only, usually one 0.1 s request. Sometimes (seen live, after a full pass) Entra
+            // answers with dozens of empty pages first: then the copy shows now, the pull finishes
+            // behind it, and EnterpriseAppsChanged says when there's more to show.
+            var pull = Task.Run(() => ServicePrincipals.PullAsync(cancellationToken: CancellationToken.None), CancellationToken.None);
+            if (await Task.WhenAny(pull, Task.Delay(PullBudget, cancellationToken)) != pull)
+                _ = pull.ContinueWith(t =>
+                {
+                    if (t.IsCompletedSuccessfully && t.Result > 0)
+                        EnterpriseAppsChanged?.Invoke(this, EventArgs.Empty);
+                    else
+                        _ = t.Exception;
+                }, TaskScheduler.Default);
+            else if (pull.IsFaulted)
+                _ = pull.Exception; // Offline or refused: the copy is still the best there is.
+            return new AppDirectory(registrations, [.. ServicePrincipals.Stored().Select(s => ToEnterprise(s, ours))]);
+        }
         var enterprise = new List<EnterpriseApp>();
         await foreach (var s in graph.GetAllAsync($"servicePrincipals?$select={SpSelect},appOwnerOrganizationId&$top=999", cancellationToken))
+            enterprise.Add(ToEnterprise(s, ours));
+        return new AppDirectory(registrations, enterprise);
+    }
+
+    /// <summary>An enterprise app as the lists show it: who makes it (ours, Microsoft's, someone else's) and its switches.</summary>
+    static EnterpriseApp ToEnterprise(JsonElement s, HashSet<string> ours)
+    {
         {
             var appId = Text(s, "appId") ?? "";
             var tags = s.TryGetProperty("tags", out var t) && t.ValueKind == JsonValueKind.Array ? t.EnumerateArray().Select(x => x.GetString()).OfType<string>().ToArray() : [];
@@ -41,12 +79,11 @@ public sealed partial class GraphUserRecords : IAppRecords
                 : owner is not null && EnterpriseApp.MicrosoftTenants.Contains(owner) ? AppSource.Microsoft
                 : AppSource.ThirdParty;
             var verified = s.TryGetProperty("verifiedPublisher", out var v) && v.ValueKind == JsonValueKind.Object ? Text(v, "displayName") : null;
-            enterprise.Add(new EnterpriseApp(Text(s, "id") ?? "", appId, Text(s, "displayName") ?? "An app", verified ?? Text(s, "publisherName"), verified is not null,
+            return new EnterpriseApp(Text(s, "id") ?? "", appId, Text(s, "displayName") ?? "An app", verified ?? Text(s, "publisherName"), verified is not null,
                 source, TypeName(Text(s, "servicePrincipalType")), !s.TryGetProperty("accountEnabled", out var on) || on.ValueKind != JsonValueKind.False,
                 s.TryGetProperty("appRoleAssignmentRequired", out var req) && req.ValueKind == JsonValueKind.True, !tags.Contains("HideApp"),
-                tags.Contains("WindowsAzureActiveDirectoryIntegratedApp"), When(s, "createdDateTime"), Text(s, "preferredSingleSignOnMode"), Text(s, "homepage"), Text(s, "notes")));
+                tags.Contains("WindowsAzureActiveDirectoryIntegratedApp"), When(s, "createdDateTime"), Text(s, "preferredSingleSignOnMode"), Text(s, "homepage"), Text(s, "notes"));
         }
-        return new AppDirectory(registrations, enterprise);
     }
 
     static string TypeName(string? type) => type switch

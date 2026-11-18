@@ -143,6 +143,7 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                 store.SetMark(GroupFieldsMark, new SyncMark(GroupSelect, _now()));
                 changed += await SyncContactsAsync(notes, scope, progress, cancellationToken);
                 changed += await SyncDevicesAsync(notes, scope, progress, cancellationToken);
+                changed += await SyncEnterpriseAppsAsync(notes, scope, progress, cancellationToken);
                 if (Due(ManagedDevices, scope))
                     changed += await SyncManagedDevicesAsync(notes, progress, cancellationToken);
                 if (Due(RecoveryKeys, scope))
@@ -226,6 +227,8 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                 new("Contacts", "Outside addresses in the address list (changes only)", store.GetMark(Contacts)?.SyncedAt, changes),
                 new("Licenses", "The tenant's licenses and how many are left", store.GetMark(Skus)?.SyncedAt, changes),
                 new("Devices", "Devices registered or joined in Entra (changes only)", store.GetMark(Devices)?.SyncedAt, changes),
+                new("Enterprise Apps", "Every enterprise app and its switches (changes only); publisher names less often",
+                    store.GetMark(ServicePrincipalSync.DeltaMark)?.SyncedAt, changes),
                 new("Intune Devices", "Compliance, encryption, primary user and check-ins of the devices Intune manages", store.GetMark(ManagedDevices)?.SyncedAt, details),
                 new("SharePoint Sites and OneDrives", "Every site and OneDrive: storage, owner, sharing, lock and archive state", store.GetMark(Sites)?.SyncedAt, details),
                 new("BitLocker Keys Backed Up", "Which devices have a recovery key backed up (never the keys themselves)", store.GetMark(RecoveryKeys)?.SyncedAt, details),
@@ -250,6 +253,29 @@ public sealed partial class DirectorySync(GraphClient graph, IEntityStore store,
                         : "Sign-ins, directory audits and Exchange admin actions, kept on this computer",
                     store.GetMark(LogsMark)?.SyncedAt, Every(s.LogsMinutes, "Off")));
             return areas;
+        }
+    }
+
+    ServicePrincipalSync? _servicePrincipals;
+
+    /// <summary>
+    /// Enterprise apps (service principals), changes only, so the Enterprise Apps page shows at once
+    /// (see <see cref="ServicePrincipalSync"/>). Publisher names on the slower schedule. No
+    /// permission to read them is a note, not a failed sync.
+    /// </summary>
+    async Task<int> SyncEnterpriseAppsAsync(List<string> notes, SyncScope scope, IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        _servicePrincipals ??= new ServicePrincipalSync(graph, store, _now);
+        try
+        {
+            progress?.Report("Checking enterprise apps for changes…");
+            return await _servicePrincipals.PullAsync(scope == SyncScope.StartOver,
+                scope == SyncScope.Changes ? TimeSpan.FromMinutes(Math.Max(1, Settings.DetailsMinutes)) : TimeSpan.Zero, progress, cancellationToken);
+        }
+        catch (GraphException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.BadRequest)
+        {
+            notes.Add(MicrosoftReply.After("Enterprise apps weren't read ahead: the Enterprise Apps page reads them when it opens.", e));
+            return 0;
         }
     }
 

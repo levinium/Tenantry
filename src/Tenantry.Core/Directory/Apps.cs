@@ -160,6 +160,12 @@ public interface IAppRecords
     async Task<IReadOnlyList<AppRegistration>> GetRegistrationsAsync(CancellationToken cancellationToken = default) =>
         (await GetAppsAsync(cancellationToken)).Registrations;
 
+    /// <summary>
+    /// Raised (on a worker thread) when enterprise apps were shown from the local copy before its
+    /// changes pull finished, and that pull then brought changes: read them again to show them.
+    /// </summary>
+    event EventHandler? EnterpriseAppsChanged { add { } remove { } }
+
     /// <summary>Everything, reusing registrations already read (so they aren't read twice).</summary>
     Task<AppDirectory> GetAppsAsync(IReadOnlyList<AppRegistration> registrations, CancellationToken cancellationToken = default) =>
         GetAppsAsync(cancellationToken);
