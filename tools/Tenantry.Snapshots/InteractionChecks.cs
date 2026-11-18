@@ -266,6 +266,7 @@ static class InteractionChecks
         Check("Scale: the Sites list keeps up", () => ScaleListCheck("sharepoint", m => m.SharePoint.Sites));
         Check("Scale: the OneDrives list keeps up", () => ScaleListCheck("sharepoint", m => m.SharePoint.OneDrives,
             m => m.SharePoint.SelectedPage = SharePointAreaViewModel.Pages.Single(p => p.Key == "onedrives")));
+        Check("Scale: record pages open quickly", ScaleRecordCheck);
 
         Check("Copying: right-clicking a trace step offers the step, its section and the whole preview, laid out as they read; pointing at the sender shows a copy button that copies it; Ctrl+C in a list copies the ticked rows as a table", () =>
         {
@@ -3166,6 +3167,103 @@ static class InteractionChecks
         Expect(steps[0] < 8000, "the list showed in under eight seconds");
         var slow = steps.Skip(1).Count(s => s >= 1000);
         Expect(slow == 0, $"every step after showing took under a second ({slow} did not)");
+    }
+
+    /// <summary>
+    /// The biggest records at scale: the largest group (page, Manage People, a member search),
+    /// the person in the most groups, a device, a site and a OneDrive, each tab in turn.
+    /// Under a second each.
+    /// </summary>
+    static void ScaleRecordCheck()
+    {
+        var (window, main, _) = OpenList();
+        var steps = new List<(string What, double Ms)>();
+        void Step(string what, Action act)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            act();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var ms = sw.Elapsed.TotalMilliseconds;
+            Settle();
+            Console.WriteLine($"      {what,-52} {ms,8:0} ms");
+            steps.Add((what, ms));
+        }
+        void Tabs(string who, IReadOnlyList<Tenantry.ViewModels.Records.RecordSection> sections, Action<Tenantry.ViewModels.Records.RecordSection> show)
+        {
+            foreach (var section in sections.Skip(1))
+                Step($"{who}: {section.Title} tab", () => show(section));
+        }
+        try
+        {
+            main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
+            main.Groups.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var groups = main.Groups.Rows.OfType<GroupSummary>().ToArray();
+            var biggest = groups.MaxBy(g => g.Members.Count)!;
+            Console.WriteLine($"      ({groups.Length:N0} groups; the largest has {biggest.Members.Count:N0} members)");
+            Step("open the largest group", () => main.OpenGroup(biggest));
+            var groupPage = (GroupDetailViewModel)main.SelectedTab!;
+            Step("its Manage People", () => groupPage.ManagePeopleCommand.Execute(null));
+            foreach (var text in new[] { "a", "al", "ali" })
+                Step($"search its members \"{text}\"", () => groupPage.People.MemberFilter = text);
+            Step("clear the member search", () => groupPage.People.MemberFilter = "");
+            // Only the rows in view are built; scrolling to the end of the popup builds the last.
+            var people = window.GetVisualDescendants().OfType<Tenantry.App.Views.GroupPeopleEditorView>().Last(v => v.IsEffectivelyVisible);
+            string?[] Names() => people.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible && t.Classes.Contains("caption"))
+                .Select(t => t.Text).ToArray();
+            var built = Names();
+            Expect(built.Length is > 0 and < 100, $"the popup built only the member rows in view ({built.Length})");
+            var scroller = people.FindAncestorOfType<ScrollViewer>()!;
+            Step("scroll the popup to the end", () => scroller.ScrollToEnd());
+            Settle();
+            var last = groupPage.People.Members[^1].Detail;
+            Expect(Names().Contains(last), "scrolled to the end, the last member row is built");
+            Step("close Manage People", main.CloseDialog);
+            var second = groups.Where(g => g != biggest).MaxBy(g => g.Members.Count)!;
+            Step($"open the next largest ({second.Members.Count:N0} members)", () => main.OpenGroup(second));
+
+            // The person in the most groups.
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var group in groups)
+                foreach (var member in group.Members)
+                    counts[member.Id] = counts.GetValueOrDefault(member.Id) + 1;
+            main.SelectedSection = main.Sections.Single(s => s.Key == "users");
+            Settle();
+            var busiest = main.Users.Rows.OfType<UserSummary>().MaxBy(u => counts.GetValueOrDefault(u.Id))!;
+            Console.WriteLine($"      (the busiest person is in {counts.GetValueOrDefault(busiest.Id):N0} groups)");
+            Step("open the person in the most groups", () => main.OpenUser(busiest));
+            var userPage = (UserDetailViewModel)main.SelectedTab!;
+            Tabs("person", userPage.Sections, s => userPage.SelectedSection = s);
+
+            main.SelectedSection = main.Sections.Single(s => s.Key == "devices");
+            main.Devices.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var device = main.Devices.Rows.OfType<DeviceSummary>().FirstOrDefault(d => d.IsManaged) ?? main.Devices.Rows.OfType<DeviceSummary>().First();
+            Step("open a device", () => main.OpenDevice(device));
+            var devicePage = (DeviceDetailViewModel)main.SelectedTab!;
+            Tabs("device", devicePage.Sections, s => devicePage.SelectedSection = s);
+
+            main.SelectedSection = main.Sections.Single(s => s.Key == "sharepoint");
+            main.SharePoint.Sites.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var site = main.SharePoint.Sites.Rows.OfType<SiteSummary>().First(s => s.Kind != SiteKind.OneDrive);
+            Step("open a site", () => main.OpenSite(site));
+            var sitePage = (SiteDetailViewModel)main.SelectedTab!;
+            Tabs("site", sitePage.Sections, s => sitePage.SelectedSection = s);
+            main.SharePoint.OneDrives.LoadAsync().GetAwaiter().GetResult();
+            Settle();
+            var drive = main.SharePoint.OneDrives.Rows.OfType<SiteSummary>().First();
+            Step("open a OneDrive", () => main.OpenSite(drive));
+            var drivePage = (SiteDetailViewModel)main.SelectedTab!;
+            Tabs("OneDrive", drivePage.Sections, s => drivePage.SelectedSection = s);
+        }
+        finally
+        {
+            window.Close();
+        }
+        var slow = steps.Where(s => s.Ms >= 1000).Select(s => $"{s.What} {s.Ms:0} ms").ToArray();
+        Expect(slow.Length == 0, $"every record step took under a second (slow: {string.Join("; ", slow)})");
     }
 
     static (MainWindow Window, MainViewModel Main, ShellViewModel Shell) OpenList(bool premium = false)

@@ -95,7 +95,14 @@
         <views:ListSearchBox Grid.Column="2" Text="{Binding MemberFilter}" Placeholder="Search members" IsVisible="{Binding ShowFilter}" />
       </Grid>
       <TextBlock Classes="muted" Text="No members." IsVisible="{Binding HasNoMembers}" />
-      <ItemsControl ItemsSource="{Binding Members}" />
+      <!-- Only the rows in view are built: a big group shows a hundred, and its search refills them a keystroke. -->
+      <ItemsControl ItemsSource="{Binding Members}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <VirtualizingStackPanel />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
       <TextBlock Classes="caption" Text="{Binding MoreMembersText}"
                  IsVisible="{Binding MoreMembersText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </StackPanel>

@@ -158,55 +158,79 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
         var words = MemberFilter.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         bool Matches(MemberRow r) => words.Length == 0
             || words.All(w => $"{r.Name} {r.Detail}".Contains(w, StringComparison.CurrentCultureIgnoreCase));
-        var all = Rows(_group.Members, GroupRole.Member, Matches).ToList();
-        foreach (var row in all.Take(MaxShown))
-            Members.Add(row);
-        if (all.Count > MaxShown)
-            MoreMembersText = $"Showing {MaxShown:N0} of {all.Count:N0}. Type in the box above to find someone.";
+        var all = Rows(_group.Members, GroupRole.Member, Matches, MaxShown, out var matched);
+        // The rows on screen are refilled in place: a search in a big group changes a hundred
+        // rows a keystroke, and the list keeps their controls instead of building them again.
+        for (var i = 0; i < all.Count; i++)
+            if (i < Members.Count)
+                Members[i] = all[i];
+            else
+                Members.Add(all[i]);
+        while (Members.Count > all.Count)
+            Members.RemoveAt(Members.Count - 1);
+        if (matched > MaxShown)
+            MoreMembersText = $"Showing {MaxShown:N0} of {matched:N0}. Type in the box above to find someone.";
         OnPropertyChanged(nameof(HasNoMembers));
     }
 
+    IReadOnlyList<PersonRow> Rows(IReadOnlyList<GroupMember> current, GroupRole role, Func<MemberRow, bool> include) =>
+        Rows(current, role, include, int.MaxValue, out _);
+
     /// <summary>
     /// Current owners or members (removals marked "Removing"), then people staged to be added
-    /// ("Adding"). People first, then groups, by name.
+    /// ("Adding"). People first, then groups, by name. Only the first <paramref name="limit"/>
+    /// become rows (a group can have tens of thousands); <paramref name="matched"/> counts them all.
     /// </summary>
-    IEnumerable<PersonRow> Rows(IReadOnlyList<GroupMember> current, GroupRole role, Func<MemberRow, bool> include)
+    IReadOnlyList<PersonRow> Rows(IReadOnlyList<GroupMember> current, GroupRole role, Func<MemberRow, bool> include, int limit, out int matched)
     {
-        var lastOwner =role == GroupRole.Owner ? GroupAccess.LastOwnerReason(_group, _pipeline) : null;
         var ids = current.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
-        var rows = new List<(MemberRow Row, PersonRow Person)>();
+        // Who matches, with how to make each one's row: made only for those shown.
+        var found = new List<(MemberRow Row, Func<PersonRow> Make)>();
+        string? lastOwner = null;
+        var lastOwnerRead = false;
         foreach (var member in current)
         {
             var row = GroupAccess.Describe(member, _index);
             if (!include(row))
                 continue;
-            var target = GroupAccess.PersonTarget(member, row);
-            var pending = _pipeline?.PendingFor(_group.Id, $"{role}:{member.Id}");
-            // Undoing a staged removal is always allowed; a new removal can't leave the group ownerless.
-            var locked = pending is null ? GroupAccess.LockedReason(_group, role) ?? lastOwner : null;
-            var tip = !CanEdit ? EditReason
-                : locked ?? (pending is not null ? "Undo: keep them" : $"Remove this {role.ToString().ToLowerInvariant()} (added to Pending Changes)");
-            rows.Add((row, new PersonRow(row, pending is not null ? "Removing" : null, CanEdit && locked is null, tip,
-                () => Toggle(pending, () => new SetGroupMembership(GroupAccess.Target(_group), target, member.Type, role, _group.IsExchangeManaged, true, false)),
-                Opener(row), showRemove: pending is not null || GroupAccess.LockedReason(_group, role) is null)));
+            found.Add((row, () =>
+            {
+                if (!lastOwnerRead)
+                {
+                    lastOwner = role == GroupRole.Owner ? GroupAccess.LastOwnerReason(_group, _pipeline) : null;
+                    lastOwnerRead = true;
+                }
+                var target = GroupAccess.PersonTarget(member, row);
+                var pending = _pipeline?.PendingFor(_group.Id, $"{role}:{member.Id}");
+                // Undoing a staged removal is always allowed; a new removal can't leave the group ownerless.
+                var locked = pending is null ? GroupAccess.LockedReason(_group, role) ?? lastOwner : null;
+                var tip = !CanEdit ? EditReason
+                    : locked ?? (pending is not null ? "Undo: keep them" : $"Remove this {role.ToString().ToLowerInvariant()} (added to Pending Changes)");
+                return new PersonRow(row, pending is not null ? "Removing" : null, CanEdit && locked is null, tip,
+                    () => Toggle(pending, () => new SetGroupMembership(GroupAccess.Target(_group), target, member.Type, role, _group.IsExchangeManaged, true, false)),
+                    Opener(row), showRemove: pending is not null || GroupAccess.LockedReason(_group, role) is null);
+            }));
         }
         foreach (var add in _pipeline?.Pending.OfType<SetGroupMembership>().Where(p => p.Group.Id == _group.Id && p.Role == role && p.New && !ids.Contains(p.Person.Id)) ?? [])
         {
             var row = GroupAccess.Describe(new GroupMember(add.Person.Id, add.PersonType), _index);
             if (include(row))
-                rows.Add((row, new PersonRow(row, "Adding", true, "Undo: don't add them", () => _pipeline!.Unstage(add), Opener(row))));
+                found.Add((row, () => new PersonRow(row, "Adding", true, "Undo: don't add them", () => _pipeline!.Unstage(add), Opener(row))));
         }
         if (role == GroupRole.Member)
             foreach (var made in _pipeline?.Pending.OfType<CreateContact>().Where(c => c.Lists.Any(l => l.Group.Id == _group.Id)) ?? [])
             {
                 var row = new MemberRow(made.Contact.Name, $"{made.Contact.Address} · New contact", "Contact", BadgeKind.Neutral, null, null);
                 if (include(row))
-                    rows.Add((row, new PersonRow(row, "Adding", true, "Undo: don't make this contact", () => _pipeline!.Unstage(made), null)));
+                    found.Add((row, () => new PersonRow(row, "Adding", true, "Undo: don't make this contact", () => _pipeline!.Unstage(made), null)));
             }
-        return rows
+        matched = found.Count;
+        return found
             .OrderBy(r => r.Row.TypeText switch { "User" => 0, "Group" => 1, _ => 2 })
             .ThenBy(r => r.Row.Name, StringComparer.CurrentCultureIgnoreCase)
-            .Select(r => r.Person);
+            .Take(limit)
+            .Select(r => r.Make())
+            .ToArray();
     }
 
     /// <summary>A mailbox's people, each with three rights as checkboxes; people staged to be given access follow.</summary>
