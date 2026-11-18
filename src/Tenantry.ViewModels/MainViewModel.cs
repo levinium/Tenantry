@@ -396,13 +396,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     public void OpenAppRegistration(AppRegistration app) =>
         OpenTab(t => t is AppRegistrationPageViewModel p && p.App.Id == app.Id,
             () => new AppRegistrationPageViewModel(app, SecurityArea.Apps ?? NoApps, _tenant.Records as IAppRecords, _index, OpenUser, OpenEnterpriseApp, _now,
-                _tenant.Changes, Evaluate(Capabilities.ManageApps)) { TenantryClientId = _tenant.ClientId });
+                _tenant.Changes, Evaluate(Capabilities.ManageApps), _tenant.TenantId) { TenantryClientId = _tenant.ClientId });
 
     /// <summary>Opens an enterprise app's page, or switches to it if it is already open.</summary>
     public void OpenEnterpriseApp(EnterpriseApp app) =>
         OpenTab(t => t is EnterpriseAppPageViewModel p && p.App.Id == app.Id,
             () => new EnterpriseAppPageViewModel(app, SecurityArea.Apps ?? NoApps, _tenant.Records as IAppRecords, _index, OpenUser, OpenGroup, OpenAppRegistration, _now,
-                _tenant.Changes, Evaluate(Capabilities.ManageApps)) { TenantryClientId = _tenant.ClientId });
+                _tenant.Changes, Evaluate(Capabilities.ManageApps), _tenant.TenantId) { TenantryClientId = _tenant.ClientId });
 
     /// <summary>Opens New App Registration as a popup.</summary>
     void NewApp()

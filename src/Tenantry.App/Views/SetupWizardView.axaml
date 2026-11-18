@@ -143,9 +143,9 @@
             </StackPanel>
             <TextBlock Classes="muted" TextWrapping="Wrap" Text="Tenantry signs in with them to check everything is in place." />
             <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" RowSpacing="10">
-              <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Tenant ID" />
+              <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="Directory (Tenant) ID" />
               <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding TenantIdInput}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
-              <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Application ID" />
+              <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Application (Client) ID" />
               <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ClientIdInput}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
             </Grid>
           </StackPanel>

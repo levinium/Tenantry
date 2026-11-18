@@ -258,7 +258,7 @@ public static class AppFields
     public static IReadOnlyList<Field<EnterpriseApp>> Enterprise { get; } =
     [
         new() { Key = Name, Label = "Name", Kind = FieldKind.Text, Searchable = true, Aliases = ["app"], Text = a => a.Name },
-        new() { Key = AppId, Label = "Application ID", Kind = FieldKind.Text, Searchable = true, Aliases = ["id"], Text = a => a.AppId },
+        new() { Key = AppId, Label = "Application (Client) ID", Kind = FieldKind.Text, Searchable = true, Aliases = ["id", "clientid", "appid"], Text = a => a.AppId },
         new() { Key = Publisher, Label = "Publisher", Kind = FieldKind.Text, Searchable = true, Text = a => a.Publisher },
         new() { Key = Source, Label = "From", Kind = FieldKind.Choice, ChoiceOrder = [Ours, Microsoft, ThirdParty], Text = a => EnterpriseApp.SourceText(a.Source) },
         new() { Key = Enabled, Label = "Sign-In", Kind = FieldKind.Choice, ChoiceOrder = [On, Off], Text = a => a.IsEnabled ? On : Off },

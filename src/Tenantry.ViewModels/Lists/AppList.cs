@@ -101,7 +101,7 @@ public static class AppList
             new() { Key = F.Visible, Header = "Visible", Cell = CellKind.Text, MinWidth = 90, DefaultWidth = 100, Text = a => a.IsVisible ? "" : F.Hidden },
             new() { Key = F.Sso, Header = "Single Sign-On", Cell = CellKind.Text, MinWidth = 120, DefaultWidth = 130, Text = a => EnterpriseApp.SsoText(a.SsoMode) ?? "" },
             new() { Key = F.Created, Header = "Created", Cell = CellKind.Date, MinWidth = 120, DefaultWidth = 130, Date = a => a.Created },
-            new() { Key = F.AppId, Header = "Application ID", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 290, DefaultVisible = false, Text = a => a.AppId },
+            new() { Key = F.AppId, Header = "Application (Client) ID", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 290, DefaultVisible = false, Text = a => a.AppId },
             new() { Key = F.Type, Header = "Type", Cell = CellKind.Text, MinWidth = 110, DefaultWidth = 130, DefaultVisible = false, Text = a => a.Type },
         ],
     };

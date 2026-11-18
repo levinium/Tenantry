@@ -84,8 +84,8 @@ public static class ManualSetupScript
         sb.AppendLine();
         sb.AppendLine("$tenantId = (Get-MgContext).TenantId");
         sb.AppendLine("Write-Host ''");
-        sb.AppendLine("Write-Host \"Tenant ID:      $tenantId\"");
-        sb.AppendLine("Write-Host \"Application ID: $($app.AppId)\"");
+        sb.AppendLine("Write-Host \"Directory (tenant) ID:   $tenantId\"");
+        sb.AppendLine("Write-Host \"Application (client) ID: $($app.AppId)\"");
         sb.AppendLine("Write-Host 'Paste both into Tenantry to finish.'");
         return sb.ToString();
     }

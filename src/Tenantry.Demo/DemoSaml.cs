@@ -6,7 +6,8 @@ namespace Tenantry.Demo;
 /// <summary>The demo's SAML: the old reporting tool signs in with SAML; Acme's is set up by its publisher; the rest have none.</summary>
 public sealed partial class DemoUserRecords
 {
-    const string DemoTenantId = "00000000-0000-4000-8000-00000000demo";
+    /// <summary>The demo tenant's ID (made up; also shown as its Directory (Tenant) ID).</summary>
+    public const string DemoTenantId = "00000000-0000-4000-8000-00000000demo";
 
     readonly Dictionary<string, SamlSetup> _saml = [];
 

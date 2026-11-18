@@ -27,7 +27,8 @@ public sealed record ConnectedTenant(
     Tenantry.Core.Changes.IPasswordStyleStore? PasswordStyle = null,
     Tenantry.Core.PowerShell.IChangeScripts? Scripts = null,
     Func<Tenantry.Core.PowerShell.IPowerShellSession>? PowerShell = null,
-    string? ClientId = null);
+    string? ClientId = null,
+    string? TenantId = null);
 
 /// <summary>The outcome of the automatic setup.</summary>
 public sealed record SetupOutcome(TenantProfile Profile, bool Reused, IReadOnlyList<string> Unresolved);

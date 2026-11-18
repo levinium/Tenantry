@@ -114,7 +114,8 @@ public sealed class TenantConnector : ITenantConnector
             PasswordStyle: passwordStyle,
             Scripts: new GraphChangeScripts(),
             PowerShell: () => new Tenantry.PowerShell.PwshSession((interactive, ct) => PowerShellSignInAsync(graph, tokens, purview, interactive, ct)),
-            ClientId: profile.ClientId);
+            ClientId: profile.ClientId,
+            TenantId: profile.TenantId);
     }
 
     /// <summary>
@@ -230,7 +231,8 @@ public sealed class TenantConnector : ITenantConnector
             Records: records,
             PasswordStyle: passwordStyle,
             Scripts: new GraphChangeScripts(),
-            PowerShell: () => new DemoPowerShellSession());
+            PowerShell: () => new DemoPowerShellSession(),
+            TenantId: DemoUserRecords.DemoTenantId);
     }
 
     public async Task<SetupOutcome> SetUpAutomaticallyAsync(IProgress<string> progress, CancellationToken cancellationToken = default)

@@ -427,7 +427,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
                 new Records.HealthChip(EnterpriseApp.SourceText(a.Source), a.Source == AppSource.ThirdParty ? BadgeKind.Info : BadgeKind.Neutral, "Who makes it"),
             ],
             [
-                new("Application ID", a.AppId),
+                new("Application (Client) ID", a.AppId),
                 new("Assignment", a.AssignmentRequired ? "Required" : "Not required"),
                 new("Visible to People", a.IsVisible ? "Yes" : "No"),
                 new("Single Sign-On", EnterpriseApp.SsoText(a.SsoMode) ?? "None"),

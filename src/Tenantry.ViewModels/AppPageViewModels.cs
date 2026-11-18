@@ -44,6 +44,11 @@ public abstract partial class AppPageViewModel : TabViewModel, IDisposable
     /// <summary>The app Tenantry signs in with in this tenant (its client ID), when known.</summary>
     public string? TenantryClientId { get; init; }
 
+    /// <summary>This tenant's ID, shown beside the client ID: connectors ask for both.</summary>
+    public string? TenantId { get; init; }
+
+    protected IEnumerable<SummaryLine> TenantFacts() => TenantId is { Length: > 0 } id ? [new SummaryLine("Directory (Tenant) ID", id)] : [];
+
     /// <summary>The app's application (client) ID.</summary>
     protected abstract string AppId { get; }
 
@@ -201,9 +206,10 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
     readonly SharedRead<AppRegistrationDetail> _detail = new();
 
     public AppRegistrationPageViewModel(AppRegistration app, AppDirectory directory, IAppRecords? records, IDirectoryIndex? index, Action<UserSummary>? openUser,
-        Action<EnterpriseApp>? openEnterprise, Func<DateTimeOffset> now, ChangePipeline? pipeline = null, Availability? canEdit = null)
+        Action<EnterpriseApp>? openEnterprise, Func<DateTimeOffset> now, ChangePipeline? pipeline = null, Availability? canEdit = null, string? tenantId = null)
         : base(records, index, openUser, now, pipeline, canEdit)
     {
+        TenantId = tenantId;
         App = app;
         _directory = directory;
         _openEnterprise = openEnterprise;
@@ -367,7 +373,8 @@ public sealed partial class AppRegistrationPageViewModel : AppPageViewModel
     {
         IReadOnlyList<SummaryLine> facts =
         [
-            new("Application ID", App.AppId),
+            new("Application (Client) ID", App.AppId),
+            .. TenantFacts(),
             new("Object ID", App.Id),
             new("Who Can Sign In", AppRegistration.AudienceText(App.Audience)),
             new("Created", Day(App.Created)),
@@ -497,9 +504,10 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
     IReadOnlyList<AppUserAssignment> _assignments = [];
 
     public EnterpriseAppPageViewModel(EnterpriseApp app, AppDirectory directory, IAppRecords? records, IDirectoryIndex? index, Action<UserSummary>? openUser,
-        Action<GroupSummary>? openGroup, Action<AppRegistration>? openRegistration, Func<DateTimeOffset> now, ChangePipeline? pipeline = null, Availability? canEdit = null)
+        Action<GroupSummary>? openGroup, Action<AppRegistration>? openRegistration, Func<DateTimeOffset> now, ChangePipeline? pipeline = null, Availability? canEdit = null, string? tenantId = null)
         : base(records, index, openUser, now, pipeline, canEdit)
     {
+        TenantId = tenantId;
         App = app;
         _directory = directory;
         _openRegistration = openRegistration;
@@ -543,7 +551,7 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
     public EnterpriseApp App { get; private set; }
 
     public override string Title => App.Name;
-    public override string Subtitle => App.Publisher is { } p ? $"{p}{(App.IsVerifiedPublisher ? " (verified publisher)" : "")}" : $"Application ID {App.AppId}";
+    public override string Subtitle => App.Publisher is { } p ? $"{p}{(App.IsVerifiedPublisher ? " (verified publisher)" : "")}" : $"Application (client) ID {App.AppId}";
     public override string Icon => "Apps";
     public override ChangeTarget Target => new(AppChange.Enterprise, App.Id, App.Name, null);
     protected override string AppId => App.AppId;
@@ -647,7 +655,8 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
     {
         IReadOnlyList<SummaryLine> facts =
         [
-            new("Application ID", App.AppId),
+            new("Application (Client) ID", App.AppId),
+            .. TenantFacts(),
             new("Object ID", App.Id),
             new("Publisher", App.Publisher is { } p ? $"{p}{(App.IsVerifiedPublisher ? " (verified by Microsoft)" : "")}" : "Not given"),
             new("From", EnterpriseApp.SourceText(App.Source)),

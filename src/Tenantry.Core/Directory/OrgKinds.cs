@@ -627,7 +627,7 @@ public static class OrgKinds
     public static readonly OrgKind ConsentRequests = new("consentrequests", "Apps People Asked For",
         "Apps people asked an admin to approve. Approve or deny them in the Entra admin center's admin consent requests.",
         "identityGovernance/appConsent/appConsentRequests", NameProperty: "appDisplayName", Write: OrgWrite.ReadOnly, Noun: "request", ReadOnlyText: "",
-        Fields: [new("appId", "App ID", SettingKind.Text, ReadOnly: true), new("pendingScopes", "Permissions Asked For", SettingKind.List, ReadOnly: true)]);
+        Fields: [new("appId", "Application (Client) ID", SettingKind.Text, ReadOnly: true), new("pendingScopes", "Permissions Asked For", SettingKind.List, ReadOnly: true)]);
 
     public static readonly OrgKind StagedRollout = new("stagedrollout", "Staged Rollout",
         "Moves chosen groups to cloud sign-in (password hash sync, pass-through) before the whole organization, for hybrid organizations.",
