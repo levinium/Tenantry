@@ -89,7 +89,7 @@ public sealed partial class MailSection : RecordSection, IDisposable
         if (data?.AutoReply.State is AutoReplyState.On or AutoReplyState.Scheduled)
             parts.Add("automatic reply on");
         if (data?.UsedFraction is { } used)
-            parts.Add($"{used:P0} used");
+            parts.Add($"{Display.Percent(used)} used");
         return string.Join(" · ", parts);
     }
 
@@ -214,7 +214,7 @@ public sealed partial class MailSection : RecordSection, IDisposable
 
     public bool IsNearlyFull => _data?.UsedFraction >= 0.9;
 
-    public string ItemsText => _data?.Items is { } items ? $"{items:N0} items · {_data.UsedFraction ?? 0:P0} used" : "";
+    public string ItemsText => _data?.Items is { } items ? $"{items:N0} items · {Display.Percent(_data.UsedFraction ?? 0)} used" : "";
 
     // ---- Addresses --------------------------------------------------------------------------
 

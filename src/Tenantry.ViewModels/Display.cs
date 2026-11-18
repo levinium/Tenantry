@@ -22,6 +22,12 @@ public static class Display
     public static string KeepCountTogether(string text) =>
         System.Text.RegularExpressions.Regex.Replace(text, @"(\d) of (\d)", "$1 of $2");
 
+    /// <summary>
+    /// 0.94 → "94%", the same on every computer. The "P0" format follows the computer's culture,
+    /// which on Linux (seen in CI) writes "94 %".
+    /// </summary>
+    public static string Percent(double fraction) => $"{Math.Round(fraction * 100):0}%";
+
     /// <summary>"Ada Lovelace" → "AL"; single names and empty strings degrade gracefully.</summary>
     public static string Initials(string? name)
     {

@@ -2,3 +2,9 @@
 # Entra's built-in Conditional Access Administrator role template ID: a public, documented
 # constant (learn.microsoft.com permissions reference), not a credential.
 118b8b14158074f84d7224110aa6c8d24e0283b4:src/Tenantry.Core/Capabilities/DirectoryRoles.cs:generic-api-key:18
+
+# A made-up certificate thumbprint in a unit test's sample service principal (no real certificate).
+5511004f77a5689a9c99dfca1417458da82b0416:tests/Tenantry.Tests/SamlTests.cs:generic-api-key:28
+# A made-up password the screenshot tool's demo shows after a reset (the same example as the
+# password settings' help text), never a real account's.
+df9e63c6be018c0928a99b61c7a900e71ac7a6cc:tools/Tenantry.Snapshots/Program.cs:generic-api-key:1337
