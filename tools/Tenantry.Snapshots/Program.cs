@@ -1680,6 +1680,9 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
     var settings = (SettingsViewModel)synced.Dialog!.Content;
     settings.SelectedArea = settings.SettingsAreas.Single(a => a.Key == "passwords");
     Render(synced, $"settings-passwords-{suffix}");
+    // Settings › Updates (an unpacked copy, as the snapshots run).
+    settings.SelectedArea = settings.SettingsAreas.Single(a => a.Key == "updates");
+    Render(synced, $"settings-updates-{suffix}");
     // A pattern, part by part (a made-up format).
     // A fresh Settings for it: earlier captures' windows stay bound to the first one and would push their radio buttons back.
     synced.OpenSettingsCommand.Execute(null);

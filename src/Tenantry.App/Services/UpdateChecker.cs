@@ -1,3 +1,4 @@
+using System.Reflection;
 using Avalonia.Threading;
 using Tenantry.ViewModels;
 using Velopack;
@@ -6,10 +7,11 @@ using Velopack.Sources;
 namespace Tenantry.App.Services;
 
 /// <summary>
-/// Looks for a newer release on GitHub when the app opens and every few hours, downloads it in the
-/// background, and offers a restart (<see cref="AppUpdate"/>). Only installed copies update: a
-/// development build or an unpacked folder does nothing. Releases are pre-releases while the builds
-/// are unsigned, so pre-releases are included.
+/// Looks for a newer release on GitHub when the app opens, every few hours, and whenever Settings'
+/// Check for Updates is clicked; downloads it in the background and offers a restart
+/// (<see cref="AppUpdate"/>). Only installed copies update: a development build or an unpacked
+/// folder does nothing. Releases are pre-releases while the builds are unsigned, so pre-releases
+/// are included.
 /// </summary>
 public static class UpdateChecker
 {
@@ -17,41 +19,74 @@ public static class UpdateChecker
 
     static readonly TimeSpan Every = TimeSpan.FromHours(4);
 
+    static UpdateManager? _manager;
+
+    /// <summary>One check at a time: the timer and the button share it.</summary>
+    static Task? _running;
+
     public static void Start()
     {
-        UpdateManager manager;
         try
         {
-            manager = new UpdateManager(new GithubSource(Repository, null, true));
+            var manager = new UpdateManager(new GithubSource(Repository, null, true));
             if (!manager.IsInstalled)
                 return;
+            _manager = manager;
         }
         catch (Exception)
         {
             return;
         }
-        _ = LoopAsync(manager);
+        AppUpdate.Current.Enable(CheckNowAsync);
+        _ = LoopAsync();
     }
 
-    static async Task LoopAsync(UpdateManager manager)
+    /// <summary>The version this build was given (a release's tag), without the commit suffix.</summary>
+    public static string RunningVersion()
     {
-        while (true)
+        var version = typeof(UpdateChecker).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "";
+        var plus = version.IndexOf('+');
+        return plus < 0 ? version : version[..plus];
+    }
+
+    static async Task LoopAsync()
+    {
+        while (!AppUpdate.Current.IsReady)
         {
-            try
-            {
-                if (await manager.CheckForUpdatesAsync() is { } update)
-                {
-                    await manager.DownloadUpdatesAsync(update);
-                    var version = update.TargetFullRelease.Version.ToString();
-                    Dispatcher.UIThread.Post(() => AppUpdate.Current.Ready(version, () => manager.ApplyUpdatesAndRestart(update.TargetFullRelease)));
-                    return;
-                }
-            }
-            catch (Exception)
-            {
-                // Offline, rate-limited or GitHub unreachable: try again later; updates never get in the way.
-            }
+            await CheckNowAsync();
             await Task.Delay(Every);
+        }
+    }
+
+    /// <summary>Checks now, or waits for the check already running.</summary>
+    static Task CheckNowAsync()
+    {
+        if (_running is { IsCompleted: false })
+            return _running;
+        return _running = CheckAsync();
+    }
+
+    static async Task CheckAsync()
+    {
+        if (_manager is not { } manager || AppUpdate.Current.IsReady)
+            return;
+        Dispatcher.UIThread.Post(AppUpdate.Current.Checking);
+        try
+        {
+            if (await manager.CheckForUpdatesAsync() is not { } update)
+            {
+                Dispatcher.UIThread.Post(() => AppUpdate.Current.UpToDate(DateTimeOffset.Now));
+                return;
+            }
+            var version = update.TargetFullRelease.Version.ToString();
+            Dispatcher.UIThread.Post(() => AppUpdate.Current.Downloading(version));
+            await manager.DownloadUpdatesAsync(update);
+            Dispatcher.UIThread.Post(() => AppUpdate.Current.Ready(version, () => manager.ApplyUpdatesAndRestart(update.TargetFullRelease)));
+        }
+        catch (Exception)
+        {
+            // Offline, rate-limited or GitHub unreachable: say so, and the timer tries again later.
+            Dispatcher.UIThread.Post(() => AppUpdate.Current.Failed(DateTimeOffset.Now));
         }
     }
 }

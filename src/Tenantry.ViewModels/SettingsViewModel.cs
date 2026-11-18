@@ -62,7 +62,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         TenantName = tenantName;
         Passwords = passwordStyle is null ? null : new PasswordStyleViewModel(passwordStyle);
-        SettingsAreas = Passwords is null ? [SyncArea] : [SyncArea, PasswordsArea];
+        SettingsAreas = Passwords is null ? [SyncArea, UpdatesArea] : [SyncArea, PasswordsArea, UpdatesArea];
         SelectedArea = SyncArea;
         _store = store;
         _sync = sync;
@@ -91,11 +91,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     static readonly SettingsArea PasswordsArea = new("passwords", "Passwords", "Password", "How Tenantry makes new passwords for this tenant");
 
+    static readonly SettingsArea UpdatesArea = new("updates", "Updates", "ArrowDownload", "Which version of Tenantry this is, and checking for a newer one");
+
+    public bool IsUpdatesArea => SelectedArea.Key == "updates";
+
+    /// <summary>The app's own update state (the same for every tenant).</summary>
+    public AppUpdate Updates => AppUpdate.Current;
+
     /// <summary>Settings' areas, down the left.</summary>
     public IReadOnlyList<SettingsArea> SettingsAreas { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSyncArea), nameof(IsPasswordsArea))]
+    [NotifyPropertyChangedFor(nameof(IsSyncArea), nameof(IsPasswordsArea), nameof(IsUpdatesArea))]
     public partial SettingsArea SelectedArea { get; set; }
 
     public bool IsSyncArea => SelectedArea.Key == "sync";

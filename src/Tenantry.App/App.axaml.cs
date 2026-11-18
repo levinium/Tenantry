@@ -18,6 +18,8 @@ public partial class App : Application
         Controls.FlyoutDismiss.Register();
         // Right-click any text to copy it, its section or the whole pane; point at an address to copy it.
         Controls.CopyAnywhere.Register();
+        // Settings › Updates shows it, installed or not.
+        AppUpdate.Current.Version = UpdateChecker.RunningVersion();
     }
 
     public override void OnFrameworkInitializationCompleted()

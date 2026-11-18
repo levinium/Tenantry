@@ -164,6 +164,48 @@
       </StackPanel>
     </StackPanel>
 
+    <!-- Updates: the same for every tenant -->
+    <StackPanel Grid.Column="2" Spacing="18" IsVisible="{Binding IsUpdatesArea}">
+      <StackPanel Spacing="4" DataContext="{Binding Updates}" x:DataType="vm:AppUpdate">
+        <TextBlock Classes="h2" Text="Updates" />
+        <TextBlock Classes="caption" TextWrapping="Wrap"
+                   Text="Tenantry checks for a newer version when it opens and every few hours, downloads it in the background, and then offers to restart into it." />
+      </StackPanel>
+      <StackPanel Spacing="12" DataContext="{Binding Updates}" x:DataType="vm:AppUpdate">
+        <Grid ColumnDefinitions="260,*" ColumnSpacing="16">
+          <TextBlock Text="This Version" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <SelectableTextBlock Grid.Column="1" Text="{Binding VersionText}" VerticalAlignment="Center" />
+        </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding CanUpdate}">
+          <Button Classes="accent" Command="{Binding CheckCommand}" IsVisible="{Binding !IsReady}"
+                  ToolTip.Tip="Look for a newer version now instead of waiting for the next check">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowDownload" FontSize="14" VerticalAlignment="Center" />
+              <TextBlock Text="Check for Updates" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button Classes="accent" Command="{Binding RestartCommand}" IsVisible="{Binding IsReady}"
+                  ToolTip.Tip="Install the new version and reopen Tenantry; anything not applied in Pending Changes is lost">
+            <TextBlock Text="{Binding ReadyText}" />
+          </Button>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasStatus}">
+          <ic:FluentIcon Classes="spin" Icon="ArrowSync" FontSize="16" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" IsVisible="{Binding IsChecking}">
+            <ic:FluentIcon.RenderTransform>
+              <RotateTransform />
+            </ic:FluentIcon.RenderTransform>
+          </ic:FluentIcon>
+          <TextBlock Text="{Binding Status}" VerticalAlignment="Center" TextWrapping="Wrap" />
+        </StackPanel>
+        <Border Classes="banner neutral" IsVisible="{Binding CannotUpdate}">
+          <StackPanel Spacing="10">
+            <TextBlock Text="{Binding CannotUpdateText}" TextWrapping="Wrap" />
+            <Button Content="Open the Releases Page" Command="{Binding OpenReleasesCommand}" HorizontalAlignment="Left" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </StackPanel>
+
     <!-- Passwords -->
     <Panel Grid.Column="2" IsVisible="{Binding IsPasswordsArea}">
     <StackPanel Spacing="18" DataContext="{Binding Passwords}" x:DataType="vm:PasswordStyleViewModel">

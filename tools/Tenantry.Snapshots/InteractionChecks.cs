@@ -1251,6 +1251,57 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Settings › Updates: shows this version; a copy not installed by the installer says where to get updates", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.OpenSettingsCommand.Execute(null);
+            Settle();
+            var settings = (SettingsViewModel)main.Dialog!.Content;
+            settings.SelectedArea = settings.SettingsAreas.Single(a => a.Key == "updates");
+            Settle();
+            Expect(settings.Updates.Version.Length > 0, $"the version is known ('{settings.Updates.VersionText}')");
+            Expect(window.GetVisualDescendants().OfType<SelectableTextBlock>().Any(t => t.Text == settings.Updates.VersionText && t.IsEffectivelyVisible), "the version shows");
+            // The checks run unpacked, as a development build does: no Check button, a note instead.
+            Expect(!settings.Updates.CanUpdate, "an unpacked copy can't update itself");
+            Expect(window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == settings.Updates.CannotUpdateText && t.IsEffectivelyVisible), "the note says so");
+            Expect(!window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == settings.Updates.CheckCommand && b.IsEffectivelyVisible), "no Check for Updates button");
+            var opened = new List<string>();
+            var before = Platform.OpenUrl;
+            Platform.OpenUrl = opened.Add;
+            try
+            {
+                Click(window, FindButton(window, b => b.Command == settings.Updates.OpenReleasesCommand));
+            }
+            finally
+            {
+                Platform.OpenUrl = before;
+            }
+            Expect(opened.SequenceEqual([AppUpdate.ReleasesPage]), $"Open the Releases Page opened it ({string.Join(", ", opened)})");
+            window.Close();
+        });
+
+        Check("Settings › Updates: Check for Updates runs a check once at a time and says what it found", () =>
+        {
+            var update = new AppUpdate();
+            var checks = 0;
+            var gate = new TaskCompletionSource();
+            update.Enable(async () =>
+            {
+                checks++;
+                update.Checking();
+                await gate.Task;
+                update.UpToDate(DateTimeOffset.Now);
+            });
+            Expect(update.CheckCommand.CanExecute(null), "Check for Updates is on once installed");
+            update.CheckCommand.Execute(null);
+            Expect(update.IsChecking && !update.CheckCommand.CanExecute(null), "while checking, the button is off");
+            gate.SetResult();
+            Settle();
+            Expect(checks == 1 && !update.IsChecking && update.Status!.StartsWith("You have the latest version", StringComparison.Ordinal), $"one check, then it says so ({update.Status})");
+            update.Ready("9.9.9", () => { });
+            Expect(update.IsReady && !update.CheckCommand.CanExecute(null) && update.ReadyText == "Update to 9.9.9", "with an update ready, the button offers the restart instead");
+        });
+
         Check("New User: the list's button opens the form; Add puts the new person in Pending Changes and closes it", () =>
         {
             var (window, main, _) = OpenList();
