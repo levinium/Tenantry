@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:c="using:Tenantry.App.Controls"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.MailDomainPreviewView"
+             x:DataType="ms:MailDomainRow">
+  <!-- A domain in the Email Authentication list: each check in words, the record to publish, and DKIM's buttons. -->
+  <StackPanel Spacing="14">
+    <StackPanel Spacing="4">
+      <SelectableTextBlock Classes="h3" Text="{Binding Name}" TextWrapping="Wrap" />
+      <WrapPanel ItemSpacing="8" LineSpacing="4">
+        <c:Badge Text="{Binding StateText}" Kind="{Binding StateKind}" />
+        <TextBlock Classes="caption" Text="{Binding Tags}" IsVisible="{Binding HasTags}" VerticalAlignment="Center" />
+      </WrapPanel>
+    </StackPanel>
+
+    <!-- DKIM is the one Exchange holds: set it up, switch it, rotate its keys here -->
+    <StackPanel Spacing="6">
+      <WrapPanel ItemSpacing="8" LineSpacing="8">
+        <Button Classes="accent" Content="{Binding CreateText}" Command="{Binding CreateKeysCommand}" IsVisible="{Binding CanCreateKeys}"
+                ToolTip.Tip="Create this domain's DKIM keys; then publish the two CNAME records it shows (added to Pending Changes)" />
+        <Button Classes="accent" Content="{Binding TurnOnText}" Command="{Binding TurnOnCommand}" IsVisible="{Binding ShowTurnOn}" IsEnabled="{Binding CanTurnOn}"
+                ToolTip.Tip="{Binding TurnOnTip}" ToolTip.ShowOnDisabled="True" />
+        <Button Content="{Binding RotateText}" Command="{Binding RotateCommand}" IsVisible="{Binding CanRotate}"
+                ToolTip.Tip="Switch to a new key; mail is signed with it after about four days (added to Pending Changes)" />
+        <Button Classes="danger-outline" Content="{Binding TurnOffText}" Command="{Binding TurnOffCommand}" IsVisible="{Binding ShowTurnOff}"
+                ToolTip.Tip="Stop signing mail from this domain (added to Pending Changes)" />
+      </WrapPanel>
+      <TextBlock Classes="caption" Text="{Binding RotateNote}" IsVisible="{Binding HasRotateNote}" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <ItemsControl ItemsSource="{Binding Checks}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="8" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="ms:DomainCheckRow">
+          <Border Classes="valuerow">
+            <StackPanel Spacing="4">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <c:Badge Grid.Column="1" Text="{Binding Summary}" Kind="{Binding Kind}" />
+              </Grid>
+              <TextBlock Classes="muted" Text="{Binding Detail}" TextWrapping="Wrap" />
+              <StackPanel Spacing="4" IsVisible="{Binding HasRecord}" Margin="0,4,0,0">
+                <TextBlock Classes="label" Text="{Binding RecordHeading, Converter={x:Static conv:Capitals.Instance}}" TextWrapping="Wrap" />
+                <Border Classes="valuerow">
+                  <SelectableTextBlock Classes="code" Text="{Binding Record}" TextWrapping="Wrap" />
+                </Border>
+                <Button Command="{Binding CopyCommand}" HorizontalAlignment="Left" ToolTip.Tip="Copy, to paste at the domain's DNS host">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <ic:FluentIcon Icon="Copy" FontSize="14" />
+                    <TextBlock Text="Copy" />
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

@@ -35,6 +35,7 @@ public sealed partial class GraphChangeExecutor
             new Dictionary<string, object?> { ["Identity"] = j.Rule.Name, ["Confirm"] = false })),
         CreateJournalRule j => PsScript.Exchange(Ps.Cmdlet("New-JournalRule", JournalParameters(j))),
         RemoveJournalRule j => PsScript.Exchange(Ps.Cmdlet("Remove-JournalRule", new Dictionary<string, object?> { ["Identity"] = j.Rule.Name, ["Confirm"] = false })),
+        RemoveConnector c => PsScript.Exchange(Ps.Cmdlet($"Remove-{c.Noun}", new Dictionary<string, object?> { ["Identity"] = c.Connector.Name, ["Confirm"] = false })),
         SetReportRouting r => PsScript.Exchange(Ps.Lines([.. RoutingCalls(r, r.Old.PolicyExists, r.Old.RuleExists).Select(c => Ps.Cmdlet(c.Cmdlet, c.Parameters))]),
             "The policy says what happens to reports; the rule names the reporting mailbox. Both have to agree."),
         ReviewSubmission r => PsScript.Graph(Ps.Graph("POST", $"{GraphUserRecords.Submissions}emailThreats/{r.SubmissionId}/review",

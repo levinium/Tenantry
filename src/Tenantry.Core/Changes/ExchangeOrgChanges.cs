@@ -76,6 +76,26 @@ public sealed record CreateJournalRule(ChangeTarget Rule, string Scope, string? 
     public override ChangeOp Since(ChangeOp earlier) => this;
 }
 
+/// <summary>
+/// Deletes a connector. Mail that went through it then goes straight to or from the internet (or
+/// is refused, for a partner that must use it), so the connector's name is typed to confirm.
+/// </summary>
+public sealed record RemoveConnector(ChangeTarget Connector, bool Inbound) : ChangeOp
+{
+    /// <summary>"InboundConnector" or "OutboundConnector", for the cmdlets.</summary>
+    public string Noun => Inbound ? "InboundConnector" : "OutboundConnector";
+
+    public override ChangeTarget Target => Connector;
+    public override string Key => "connectorremove";
+    public override string Label => "Connector";
+    public override string Before => Inbound ? "Receives mail into Microsoft 365" : "Sends mail out of Microsoft 365";
+    public override string After => "Deleted";
+    public override bool IsCaution => true;
+    public override string? ConfirmPhrase => Connector.Name;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
 public sealed record RemoveJournalRule(ChangeTarget Rule) : ChangeOp
 {
     public override ChangeTarget Target => Rule;

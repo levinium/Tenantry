@@ -429,6 +429,151 @@ public static class MailSecurityLists
         ],
     };
 
+    // ---- Email authentication ---------------------------------------------------------------
+
+    public static class A
+    {
+        public const string Domain = "domain";
+        public const string State = "state";
+        public const string Kind = "kind";
+        public const string Spf = "spf";
+        public const string Dkim = "dkim";
+        public const string Dmarc = "dmarc";
+        public const string Mx = "mx";
+
+        public const string Problem = "Needs Attention";
+        public const string Warning = "Could Be Better";
+        public const string Good = "All Good";
+
+        public const string Default = "Default Domain";
+        public const string Initial = "Microsoft's Initial Domain";
+        public const string Other = "Your Domain";
+    }
+
+    static string StateOf(CheckState state) => state switch { CheckState.Problem => A.Problem, CheckState.Warning => A.Warning, _ => A.Good };
+
+    static BadgeKind KindOf(CheckState state) => state switch
+    {
+        CheckState.Good => BadgeKind.Success,
+        CheckState.Warning => BadgeKind.Warning,
+        CheckState.Problem => BadgeKind.Danger,
+        _ => BadgeKind.Neutral,
+    };
+
+    static string DomainKind(MailDomain d) => d.IsDefault ? A.Default : d.IsInitial ? A.Initial : A.Other;
+
+    /// <summary>One check's state as the list shows it, by the name in its brackets ("Who May Send (SPF)"); empty when the domain has no such check.</summary>
+    static DomainCheck? CheckOf(MailDomain d, string name) => d.Checks.FirstOrDefault(c => c.Check.Contains($"({name})", StringComparison.OrdinalIgnoreCase));
+
+    static (string, BadgeKind) CheckBadge(MailDomain d, string name) => CheckOf(d, name) is { } c ? (c.Summary, KindOf(c.State)) : ("", BadgeKind.Neutral);
+
+    static string CheckWord(MailDomain d, string name) => CheckOf(d, name) is { } c ? StateOf(c.State) : "";
+
+    public static IReadOnlyList<Field<MailDomain>> DomainFields { get; } =
+    [
+        new() { Key = A.Domain, Label = "Domain", Kind = FieldKind.Text, Searchable = true, Aliases = ["name"], Text = d => d.Name },
+        new() { Key = A.State, Label = "Overall", Kind = FieldKind.Choice, ChoiceOrder = [A.Problem, A.Warning, A.Good], Aliases = ["status"], Text = d => StateOf(d.Worst) },
+        new() { Key = A.Kind, Label = "Kind", Kind = FieldKind.Choice, ChoiceOrder = [A.Default, A.Other, A.Initial], Text = DomainKind },
+        new() { Key = A.Spf, Label = "SPF", Kind = FieldKind.Choice, ChoiceOrder = [A.Problem, A.Warning, A.Good], Text = d => CheckWord(d, "SPF") },
+        new() { Key = A.Dkim, Label = "DKIM", Kind = FieldKind.Choice, ChoiceOrder = [A.Problem, A.Warning, A.Good], Text = d => CheckWord(d, "DKIM") },
+        new() { Key = A.Dmarc, Label = "DMARC", Kind = FieldKind.Choice, ChoiceOrder = [A.Problem, A.Warning, A.Good], Text = d => CheckWord(d, "DMARC") },
+        new() { Key = A.Mx, Label = "Mail Arrives (MX)", Kind = FieldKind.Choice, ChoiceOrder = [A.Problem, A.Warning, A.Good], Aliases = ["mx"], Text = d => CheckWord(d, "MX") },
+    ];
+
+    /// <summary>Problems first, then warnings, then the rest, each by name.</summary>
+    static readonly ListQuery WorstFirst = ListQuery.Empty with { Sort = [new SortLevel(A.State), new SortLevel(A.Domain)] };
+
+    public static IReadOnlyList<SavedView> DomainViews { get; } =
+    [
+        new("attention", A.Problem, WorstFirst with { Where = ConditionGroup.All(new ChoiceCondition(A.State, [A.Problem, A.Warning], [])) }, BuiltIn: true, Pinned: true),
+        new("good", A.Good, WorstFirst with { Where = ConditionGroup.All(new ChoiceCondition(A.State, [A.Good], [])) }, BuiltIn: true, Pinned: true),
+        new("all", "All Domains", WorstFirst, BuiltIn: true, Pinned: true),
+    ];
+
+    public static ListDefinition<MailDomain> Domains(Func<MailDomain, object> preview) => new()
+    {
+        Key = "mailauth",
+        Title = "Email Authentication",
+        Noun = "domains",
+        Fields = DomainFields,
+        Id = d => d.Name,
+        Views = DomainViews,
+        SearchHint = "Search domains… or try spf:\"needs attention\"",
+        Preview = preview,
+        Columns =
+        [
+            new() { Key = A.Domain, Header = "Domain", Cell = CellKind.Primary, MinWidth = 220, DefaultWidth = 280,
+                Text = d => d.Name, Subtitle = d => d.IsDefault || d.IsInitial ? DomainKind(d) : "", Initials = d => Display.Initials(d.Name) },
+            new() { Key = A.State, Header = "Overall", Cell = CellKind.Badge, MinWidth = 130, DefaultWidth = 150, Badge = d => (StateOf(d.Worst), KindOf(d.Worst)) },
+            new() { Key = A.Spf, Header = "SPF", Cell = CellKind.Badge, MinWidth = 120, DefaultWidth = 160, Badge = d => CheckBadge(d, "SPF") },
+            new() { Key = A.Dkim, Header = "DKIM", Cell = CellKind.Badge, MinWidth = 120, DefaultWidth = 160, Badge = d => CheckBadge(d, "DKIM") },
+            new() { Key = A.Dmarc, Header = "DMARC", Cell = CellKind.Badge, MinWidth = 120, DefaultWidth = 160, Badge = d => CheckBadge(d, "DMARC") },
+            new() { Key = A.Mx, Header = "Mail Arrives (MX)", Cell = CellKind.Badge, MinWidth = 130, DefaultWidth = 170, Badge = d => CheckBadge(d, "MX") },
+            new() { Key = A.Kind, Header = "Kind", Cell = CellKind.Text, MinWidth = 120, DefaultWidth = 170, DefaultVisible = false, Text = DomainKind },
+        ],
+    };
+
+    // ---- Connectors -------------------------------------------------------------------------
+
+    public static class N
+    {
+        public const string Name = "name";
+        public const string Direction = "direction";
+        public const string State = "state";
+        public const string With = "with";
+        public const string Changed = "changed";
+
+        public const string In = "Into Microsoft 365";
+        public const string Out = "Out of Microsoft 365";
+        public const string On = "On";
+        public const string Off = "Off";
+        public const string Own = "Your Own Mail Servers";
+        public const string Partner = "A Partner or Service";
+    }
+
+    static string WithOf(MailConnector c) => c.Kind == "OnPremises" ? N.Own : N.Partner;
+
+    public static IReadOnlyList<Field<MailConnector>> ConnectorFields { get; } =
+    [
+        new() { Key = N.Name, Label = "Name", Kind = FieldKind.Text, Searchable = true, Text = c => c.Name },
+        new() { Key = N.Direction, Label = "Direction", Kind = FieldKind.Choice, ChoiceOrder = [N.In, N.Out], Text = c => c.Direction },
+        new() { Key = N.State, Label = "State", Kind = FieldKind.Choice, ChoiceOrder = [N.On, N.Off], Aliases = ["status"], Text = c => c.Enabled ? N.On : N.Off },
+        new() { Key = N.With, Label = "Connects With", Kind = FieldKind.Choice, ChoiceOrder = [N.Own, N.Partner], Text = WithOf },
+        new() { Key = N.Changed, Label = "Changed", Kind = FieldKind.Date, Date = c => c.Changed },
+    ];
+
+    static readonly ListQuery ByDirection = ListQuery.Empty with { Sort = [new SortLevel(N.Direction), new SortLevel(N.Name)] };
+
+    public static IReadOnlyList<SavedView> ConnectorViews { get; } =
+    [
+        new("all", "All Connectors", ByDirection, BuiltIn: true, Pinned: true),
+        new("in", "Into Microsoft 365", ByDirection with { Where = ConditionGroup.All(new ChoiceCondition(N.Direction, [N.In], [])) }, BuiltIn: true, Pinned: true),
+        new("out", "Out of Microsoft 365", ByDirection with { Where = ConditionGroup.All(new ChoiceCondition(N.Direction, [N.Out], [])) }, BuiltIn: true, Pinned: true),
+        new("off", "Turned Off", ByDirection with { Where = ConditionGroup.All(new ChoiceCondition(N.State, [N.Off], [])) }, BuiltIn: true, Pinned: false),
+    ];
+
+    public static ListDefinition<MailConnector> Connectors(Func<MailConnector, object> preview) => new()
+    {
+        Key = "connectors",
+        Title = "Connectors",
+        Noun = "connectors",
+        Fields = ConnectorFields,
+        Id = c => $"{(c.Inbound ? "in" : "out")}|{c.Name}",
+        Views = ConnectorViews,
+        SearchHint = "Search connectors… or try state:off",
+        Preview = preview,
+        Columns =
+        [
+            new() { Key = N.Name, Header = "Connector", Cell = CellKind.Primary, MinWidth = 240, DefaultWidth = 320,
+                Text = c => c.Name, Subtitle = c => c.Comment ?? "", Initials = c => Display.Initials(c.Name) },
+            new() { Key = N.Direction, Header = "Direction", Cell = CellKind.Text, MinWidth = 150, DefaultWidth = 180, Text = c => c.Direction },
+            new() { Key = N.State, Header = "State", Cell = CellKind.Badge, MinWidth = 80, DefaultWidth = 100,
+                Badge = c => c.Enabled ? (N.On, BadgeKind.Success) : (N.Off, BadgeKind.Neutral) },
+            new() { Key = N.With, Header = "Connects With", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 190, Text = WithOf },
+            new() { Key = N.Changed, Header = "Changed", Cell = CellKind.Date, MinWidth = 110, DefaultWidth = 130, Date = c => c.Changed },
+        ],
+    };
+
     // ---- Message trace ----------------------------------------------------------------------
 
     public static class T

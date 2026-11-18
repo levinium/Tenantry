@@ -178,6 +178,10 @@ public sealed class ListEngine<T>
     {
         FieldKind.Date => (a, b) => Nullable.Compare(field.Date!(a), field.Date!(b)),
         FieldKind.Number => (a, b) => Nullable.Compare(field.Number!(a), field.Number!(b)),
+        // Choices with a set order ("Needs Attention, Could Be Better, All Good") sort in that order.
+        FieldKind.Choice when field.ChoiceOrder is { } order => (a, b) =>
+            IndexIn(order, field.Display(a)).CompareTo(IndexIn(order, field.Display(b))) is var byOrder and not 0
+                ? byOrder : StringComparer.CurrentCultureIgnoreCase.Compare(field.Display(a), field.Display(b)),
         _ => (a, b) => StringComparer.CurrentCultureIgnoreCase.Compare(field.Display(a), field.Display(b)),
     };
 }

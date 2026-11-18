@@ -78,6 +78,7 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SetJournalRuleEnabled), "setJournalRuleEnabled")]
 [JsonDerivedType(typeof(CreateJournalRule), "createJournalRule")]
 [JsonDerivedType(typeof(RemoveJournalRule), "removeJournalRule")]
+[JsonDerivedType(typeof(RemoveConnector), "removeConnector")]
 [JsonDerivedType(typeof(CreateThreatPolicy), "createThreatPolicy")]
 [JsonDerivedType(typeof(RemoveThreatPolicy), "removeThreatPolicy")]
 [JsonDerivedType(typeof(SetThreatRuleEnabled), "setThreatRuleEnabled")]

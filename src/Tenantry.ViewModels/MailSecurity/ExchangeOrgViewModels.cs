@@ -418,41 +418,119 @@ public sealed partial class RemoteDomainsViewModel : LivePage
 
 // ---- Connectors and accepted domains ------------------------------------------------------------
 
-/// <summary>A connector's card: what it does in sentences, and on or off.</summary>
-public sealed record ConnectorRow(MailConnector Connector, SettingRow Enabled)
+/// <summary>
+/// A connector's preview: what it does in sentences, the switch that turns it on or off, and
+/// Delete (staged; the connector's name is typed to confirm, since mail flow changes at once).
+/// </summary>
+public sealed partial class ConnectorPreviewViewModel : ObservableObject
 {
+    readonly ConnectorsViewModel _page;
+
+    internal ConnectorPreviewViewModel(MailConnector connector, ConnectorsViewModel page, SettingContext context)
+    {
+        Connector = connector;
+        _page = page;
+        var noun = connector.Inbound ? "InboundConnector" : "OutboundConnector";
+        var def = new SettingDef("", "enabled", "Turned On", connector.Inbound ? "Mail matching it is handled as it says." : "Mail matching it leaves through it.",
+            $"Get-{noun}", $"Set-{noun}", "Enabled", CautionWhen: false);
+        Enabled = new SettingRow(def, JsonValue.Create(connector.Enabled), context, page.Target(connector), connector.Name);
+    }
+
+    public MailConnector Connector { get; }
     public string Name => Connector.Name;
     public string Direction => Connector.Direction;
     public string? Comment => Connector.Comment;
     public bool HasComment => Connector.Comment is not null;
     public IReadOnlyList<string> Facts => Connector.Facts;
-    public string StateText => Connector.Enabled ? "On" : "Off";
-    public BadgeKind StateKind => Connector.Enabled ? BadgeKind.Success : BadgeKind.Neutral;
+    public string ChangedText => Connector.Changed is { } at ? $"Last changed {Display.Relative(at, DateTimeOffset.Now)}" : "";
+    public bool HasChanged => Connector.Changed is not null;
+
+    /// <summary>The on/off switch, staged like any other setting.</summary>
+    public SettingRow Enabled { get; }
+
+    public bool CanEdit => _page.CanEdit;
+
+    public string EditReason => _page.EditReason;
+
+    public bool IsRemovePending => _page.PendingRemove(Connector) is not null;
+
+    public string RemoveText => IsRemovePending ? "Undo Delete" : "Delete Connector";
+
+    public string RemoveTip => IsRemovePending ? "Keep this connector"
+        : Connector.Inbound ? "Delete it (added to Pending Changes; you type its name to confirm). Mail it handled is then treated like any other mail from the internet."
+        : "Delete it (added to Pending Changes; you type its name to confirm). Mail it sent then goes straight to the internet.";
+
+    [RelayCommand]
+    void Remove() => _page.ToggleRemove(Connector);
 }
 
-/// <summary>Connectors: how mail moves between Microsoft 365 and your own servers, partners or filtering services.</summary>
-public sealed partial class ConnectorsViewModel(IExchangeOrgRecords? records, ChangePipeline? pipeline, Availability canEdit) : LivePage(pipeline, canEdit)
+/// <summary>
+/// Connectors: how mail moves between Microsoft 365 and your own servers, partners or filtering
+/// services. One row a connector in the standard list; the preview turns one on or off, or deletes it.
+/// </summary>
+public sealed partial class ConnectorsViewModel : LivePage
 {
-    public ObservableCollection<ConnectorRow> Connectors { get; } = [];
+    readonly IExchangeOrgRecords? _records;
 
-    public bool IsEmpty => IsLoaded && Connectors.Count == 0;
+    public ConnectorsViewModel(IExchangeOrgRecords? records, ChangePipeline? pipeline, Availability canEdit, IListStateStore? listState = null, Func<DateTimeOffset>? now = null)
+        : base(pipeline, canEdit)
+    {
+        _records = records;
+        List = DataListViewModel.Create(MailSecurityLists.Connectors(c => new ConnectorPreviewViewModel(c, this, Context)), ReadAsync, _ => { }, listState, now);
+        List.PrimaryAction = null;
+        List.HasRecordPages = false;
+        List.SecondaryAction = new ListPrimaryAction("Refresh", "ArrowSync", true, "Read the connectors from Exchange again", () => _ = Refresh());
+        List.EmptyText = "No connectors: mail goes straight to and from the internet, which suits most organizations.";
+        if (pipeline is not null)
+            pipeline.Changed += (_, _) => List.RefreshPreview();
+    }
 
-    protected override bool Concerns(ChangeOp change) => change is SetExchangeSetting { SetCmdlet: "Set-InboundConnector" or "Set-OutboundConnector" };
+    /// <summary>The connectors, one row each.</summary>
+    public DataListViewModel List { get; }
+
+    IReadOnlyList<MailConnector> _connectors = [];
+
+    /// <summary>The connectors as last read (for checks).</summary>
+    public IReadOnlyList<MailConnector> Connectors => _connectors;
+
+    public bool IsEmpty => IsLoaded && _connectors.Count == 0;
+
+    protected override bool Concerns(ChangeOp change) => change is RemoveConnector or SetExchangeSetting { SetCmdlet: "Set-InboundConnector" or "Set-OutboundConnector" };
+
+    bool _listRead;
 
     protected override async Task LoadCoreAsync(CancellationToken cancellationToken)
     {
-        if (records is null)
-            return;
-        var connectors = await records.GetConnectorsAsync(cancellationToken);
-        Connectors.Clear();
-        foreach (var c in connectors)
+        if (!_listRead)
         {
-            var noun = c.Inbound ? "InboundConnector" : "OutboundConnector";
-            var def = new SettingDef("", "enabled", "Turned On", c.Inbound ? "Mail matching it is handled as it says." : "Mail matching it leaves through it.",
-                $"Get-{noun}", $"Set-{noun}", "Enabled", CautionWhen: false);
-            Connectors.Add(new ConnectorRow(c, new SettingRow(def, JsonValue.Create(c.Enabled), Context, new ChangeTarget("connector", c.Name, c.Name, null), c.Name)));
+            _listRead = true;
+            await List.LoadAsync(cancellationToken);
         }
+        else
+            await List.ReloadAsync(cancellationToken, busyText: "Reading from Exchange…");
         OnPropertyChanged(nameof(IsEmpty));
+    }
+
+    async Task<IReadOnlyList<MailConnector>> ReadAsync(CancellationToken cancellationToken)
+    {
+        if (_records is null)
+            return [];
+        _connectors = await _records.GetConnectorsAsync(cancellationToken);
+        return _connectors;
+    }
+
+    internal ChangeTarget Target(MailConnector c) => new("connector", c.Name, c.Name, null);
+
+    internal ChangeOp? PendingRemove(MailConnector c) => Context.Pipeline?.PendingFor(c.Name, "connectorremove");
+
+    internal void ToggleRemove(MailConnector c)
+    {
+        if (!CanEdit)
+            return;
+        if (PendingRemove(c) is { } pending)
+            Context.Pipeline!.Unstage(pending);
+        else
+            Context.Pipeline!.Stage(new RemoveConnector(Target(c), c.Inbound));
     }
 }
 

@@ -360,17 +360,61 @@ static class InteractionChecks
             for (var i = 0; i < 30 && !mail.Domains.IsLoaded; i++)
                 Settle();
             Settle();
-            var half = mail.Domains.Domains.Single(d => d.Name == "northgate-events.example");
+            var list = mail.Domains.List;
+            Expect(list.Rows.Count > 0 && list.Rows.All(r => r is MailDomain), $"the domains are rows in a list ({list.Rows.Count})");
+            // Search finds one domain among them.
+            list.SearchText = "events";
+            Settle();
+            Expect(list.Rows.Cast<MailDomain>().All(d => d.Name.Contains("events", StringComparison.Ordinal)) && list.Rows.Count >= 1, "search narrows to the matching domain");
+            list.SearchText = "";
+            list.ApplyView(list.Views.Single(v => v.View.Id == "all"));
+            Settle();
+            Tenantry.ViewModels.MailSecurity.MailDomainRow Preview(string name)
+            {
+                list.PreviewRow(list.Rows.Cast<MailDomain>().Single(d => d.Name == name));
+                Settle();
+                return (Tenantry.ViewModels.MailSecurity.MailDomainRow)list.PreviewModel!;
+            }
+            var half = Preview("northgate-events.example");
             var on = FindButton(window, b => b.Command == half.TurnOnCommand && b.IsEffectivelyVisible);
             Expect(!on.IsEnabled, "Turn Signing On is off until DNS shows the CNAMEs");
-            var parked = mail.Domains.Domains.Single(d => d.Name == "old-northgate.example");
+            var parked = Preview("old-northgate.example");
             Expect(!parked.CanCreateKeys, "a parked domain isn't offered DKIM");
-            var good = mail.Domains.Domains.Single(d => d.Name == "northgate.example");
+            var good = Preview("northgate.example");
             var rotate = FindButton(window, b => b.Command == good.RotateCommand && b.IsEffectivelyVisible);
             rotate.BringIntoView();
             Settle();
             Click(window, rotate);
             Expect(main.Pending.Rows.Any(r => r.Change is RotateDkimKeys), "Rotate Keys staged a rotation");
+            main.Pending.DiscardAllCommand.Execute(null);
+            window.Close();
+        });
+
+        Check("Connectors: one row each; the preview's switch turns one off, and Delete Connector stages a delete that needs its name typed", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "connectors");
+            for (var i = 0; i < 30 && !mail.Connectors.IsLoaded; i++)
+                Settle();
+            Settle();
+            var list = mail.Connectors.List;
+            Expect(list.Rows.Count == mail.Connectors.Connectors.Count && list.Rows.Count >= 2, $"each connector is a row ({list.Rows.Count})");
+            var relay = list.Rows.Cast<MailConnector>().First(c => c.Enabled);
+            list.PreviewRow(relay);
+            Settle();
+            var preview = (Tenantry.ViewModels.MailSecurity.ConnectorPreviewViewModel)list.PreviewModel!;
+            // The preview has the switch and no On/Off badge that looks like a button.
+            var pane = window.GetVisualDescendants().OfType<Tenantry.App.Views.ConnectorPreviewView>().Single(v => v.IsEffectivelyVisible);
+            Expect(pane.GetVisualDescendants().OfType<ToggleSwitch>().Count(t => t.IsEffectivelyVisible) == 1, "the preview has one on/off switch");
+            Expect(!pane.GetVisualDescendants().OfType<Tenantry.App.Controls.Badge>().Any(b => b.IsEffectivelyVisible && b.Text is "On" or "Off"), "no On/Off badge beside it");
+            var delete = FindButton(window, b => b.Command == preview.RemoveCommand && b.IsEffectivelyVisible);
+            Click(window, delete);
+            var staged = main.Pending!.Rows.Select(r => r.Change).OfType<RemoveConnector>().SingleOrDefault();
+            Expect(staged is not null && staged.ConfirmPhrase == relay.Name, $"Delete Connector staged a delete confirmed by typing '{relay.Name}'");
+            preview = (Tenantry.ViewModels.MailSecurity.ConnectorPreviewViewModel)list.PreviewModel!;
+            Expect(preview.RemoveText == "Undo Delete", $"the button now says Undo Delete ({preview.RemoveText})");
             main.Pending.DiscardAllCommand.Execute(null);
             window.Close();
         });

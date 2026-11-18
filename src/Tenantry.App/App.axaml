@@ -356,6 +356,12 @@
     <DataTemplate DataType="ms:SpoofPreviewViewModel">
       <views:SpoofPreviewView />
     </DataTemplate>
+    <DataTemplate DataType="ms:MailDomainRow">
+      <views:MailDomainPreviewView />
+    </DataTemplate>
+    <DataTemplate DataType="ms:ConnectorPreviewViewModel">
+      <views:ConnectorPreviewView />
+    </DataTemplate>
     <DataTemplate DataType="ms:ListEntryPreviewViewModel">
       <views:ListEntryPreviewView />
     </DataTemplate>

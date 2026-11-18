@@ -148,6 +148,11 @@ public sealed partial class GraphChangeExecutor
             ct => Read("Get-JournalRule", new(), ct), rows => !rows.Any(r => string.Equals(GraphUserRecords.StrOf(r, "Name"), change.Rule.Name, StringComparison.OrdinalIgnoreCase)),
             cancellationToken);
 
+    Task<ApplyResult> RemoveConnectorAsync(RemoveConnector change, CancellationToken cancellationToken) =>
+        RunCheckedAsync($"Remove-{change.Noun}", new() { ["Identity"] = change.Connector.Name, ["Confirm"] = false },
+            ct => Read($"Get-{change.Noun}", new(), ct), rows => !rows.Any(r => string.Equals(GraphUserRecords.StrOf(r, "Name"), change.Connector.Name, StringComparison.OrdinalIgnoreCase)),
+            cancellationToken);
+
     // ---- Threat policies (12f) ---------------------------------------------------------------------
 
     /// <summary>The policy, then the rule naming it and who it covers (as the portal makes both).</summary>

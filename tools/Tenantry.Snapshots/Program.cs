@@ -1028,6 +1028,22 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
             Settle();
             Render(editing, "mail-lists-light", height: 1200);
             editing.Pending.DiscardAllCommand.Execute(null);
+
+            // Email authentication: one row a domain, a domain's checks in the preview.
+            mailArea.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "domains");
+            for (var i = 0; i < 30 && !mailArea.Domains.IsLoaded; i++)
+                Settle();
+            mailArea.Domains.List.ApplyView(mailArea.Domains.List.Views.Single(v => v.View.Id == "all"));
+            mailArea.Domains.List.PreviewRow(mailArea.Domains.List.Rows.Cast<MailDomain>().First(d => d.Worst == CheckState.Problem));
+            Settle();
+            Render(editing, "mail-domains-light", height: 1000);
+            // Connectors: one row each, a connector's switch and Delete in the preview.
+            mailArea.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "connectors");
+            for (var i = 0; i < 30 && !mailArea.Connectors.IsLoaded; i++)
+                Settle();
+            mailArea.Connectors.List.PreviewRow(mailArea.Connectors.List.Rows.Cast<MailConnector>().First());
+            Settle();
+            Render(editing, "mail-connectors-light", height: 900);
             editing.SelectedSection = editing.Sections[0];
         }
 

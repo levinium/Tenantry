@@ -137,12 +137,12 @@ public sealed partial class MailSecurityViewModel : TabViewModel
             LoadTraceAsync, _ => { }, listState, _now);
         Reports = new TraceReportsViewModel(records, account, now);
         Blocked = new BlockedSendersViewModel(records as IMailDomainRecords, pipeline, canEdit, openPerson);
-        Domains = new MailDomainsViewModel(records as IMailDomainRecords, pipeline, canEdit);
+        Domains = new MailDomainsViewModel(records as IMailDomainRecords, pipeline, canEdit, listState, _now);
         Reported = new ReportedMessagesViewModel(records as ISubmissionRecords, pipeline, canEdit, listState, _now);
         var org = records as IExchangeOrgRecords;
         MailSettings = new OrgMailSettingsViewModel(org, pipeline, canEdit);
         RemoteDomains = new RemoteDomainsViewModel(org, pipeline, canEdit);
-        Connectors = new ConnectorsViewModel(org, pipeline, canEdit);
+        Connectors = new ConnectorsViewModel(org, pipeline, canEdit, listState, _now);
         AcceptedDomains = new AcceptedDomainsViewModel(org, pipeline, canEdit);
         Journal = new JournalRulesViewModel(org, pipeline, canEdit);
         var threats = records as IThreatPolicyRecords;
@@ -205,7 +205,7 @@ public sealed partial class MailSecurityViewModel : TabViewModel
     public DataListViewModel Rules { get; }
 
     /// <summary>Every list in the area, for preferences shared across lists.</summary>
-    public IEnumerable<DataListViewModel> Lists => [Quarantine, Trace, Entries, Rules, Reported.Submissions, Spoofed];
+    public IEnumerable<DataListViewModel> Lists => [Quarantine, Trace, Entries, Rules, Reported.Submissions, Spoofed, Domains.List, Connectors.List];
 
     public AddListEntriesViewModel AddEntries { get; }
 

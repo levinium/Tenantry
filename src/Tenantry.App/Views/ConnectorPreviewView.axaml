@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.ConnectorPreviewView"
+             x:DataType="ms:ConnectorPreviewViewModel">
+  <!-- A connector: what it does in sentences, its on/off switch, and Delete. -->
+  <StackPanel Spacing="14">
+    <StackPanel Spacing="4">
+      <SelectableTextBlock Classes="h3" Text="{Binding Name}" TextWrapping="Wrap" />
+      <TextBlock Classes="caption" Text="{Binding Direction}" />
+      <TextBlock Classes="caption" Text="{Binding ChangedText}" IsVisible="{Binding HasChanged}" />
+    </StackPanel>
+    <TextBlock Classes="muted" Text="{Binding Comment}" IsVisible="{Binding HasComment}" TextWrapping="Wrap" FontStyle="Italic" />
+
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label" Text="WHAT IT DOES" />
+      <ItemsControl ItemsSource="{Binding Facts}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,2">
+              <ic:FluentIcon Icon="ChevronRight" FontSize="12" VerticalAlignment="Top" Margin="0,3,0,0" />
+              <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+
+    <views:SettingRowView DataContext="{Binding Enabled}" />
+
+    <Button Classes="danger" HorizontalAlignment="Left" Command="{Binding RemoveCommand}" IsEnabled="{Binding CanEdit}"
+            ToolTip.Tip="{Binding RemoveTip}" ToolTip.ShowOnDisabled="True">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <ic:FluentIcon Icon="Delete" FontSize="14" VerticalAlignment="Center" />
+        <TextBlock Text="{Binding RemoveText}" VerticalAlignment="Center" />
+      </StackPanel>
+    </Button>
+  </StackPanel>
+</UserControl>

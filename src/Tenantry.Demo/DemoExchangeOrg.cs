@@ -44,14 +44,21 @@ public sealed partial class DemoUserRecords : IExchangeOrgRecords
     public Task<IReadOnlyList<RemoteDomain>> GetRemoteDomainsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<RemoteDomain>>([.. Remote()]);
 
-    public Task<IReadOnlyList<MailConnector>> GetConnectorsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<MailConnector>>(
+    List<MailConnector>? _connectors;
+
+    public Task<IReadOnlyList<MailConnector>> GetConnectorsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<MailConnector>>([.. Connectors()]);
+
+    List<MailConnector> Connectors() => _connectors ??=
     [
         new("Mail from the filtering service", true, true, "Partner", "All inbound mail passes the outside filter first",
             ["From a partner organization or service.", "Applies to mail from any domain.", "Sent from 4 IP addresses or ranges.", "Mail must arrive encrypted (TLS).",
              "Enhanced filtering looks past the filtering service in front of Microsoft 365, to the real sender."], DateTimeOffset.UtcNow.AddDays(-200)),
         new("Scanner relay", true, false, "OnPremises", null,
             ["From your organization's own mail servers.", "Sent from 1 IP address or range."], DateTimeOffset.UtcNow.AddDays(-30)),
-    ]);
+        new("Mail to the parts supplier", false, true, "Partner", "Their gateway insists on encrypted mail",
+            ["To a partner organization or service.", "Used for mail to supplier.example.", "Delivers by the recipient domain's MX record.", "Always encrypts, and checks the certificate is valid."],
+            DateTimeOffset.UtcNow.AddDays(-90)),
+    ];
 
     public Task<IReadOnlyList<SpoofedSender>> GetSpoofedSendersAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<SpoofedSender>>(
     [
@@ -82,6 +89,14 @@ public sealed partial class DemoUserRecords : IExchangeOrgRecords
         {
             case SetExchangeSetting s when s.Identity is null && Org().TryGetValue(s.GetCmdlet, out var row):
                 row[s.Parameter] = s.ExchangeValue?.DeepClone();
+                return new ApplyResult(ChangeOutcome.Applied);
+            case SetExchangeSetting s when s.SetCmdlet is "Set-InboundConnector" or "Set-OutboundConnector" && s.Parameter == "Enabled":
+                var ci = Connectors().FindIndex(x => x.Name == s.Identity);
+                if (ci >= 0 && s.ExchangeValue is JsonValue on && on.TryGetValue<bool>(out var enabled))
+                    _connectors![ci] = _connectors[ci] with { Enabled = enabled };
+                return new ApplyResult(ChangeOutcome.Applied);
+            case RemoveConnector r:
+                Connectors().RemoveAll(x => x.Name == r.Connector.Name && x.Inbound == r.Inbound);
                 return new ApplyResult(ChangeOutcome.Applied);
             case SetExchangeSetting s when s.SetCmdlet == "Set-RemoteDomain":
                 var i = Remote().FindIndex(d => d.Name == s.Identity);

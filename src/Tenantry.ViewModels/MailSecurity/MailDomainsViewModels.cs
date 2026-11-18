@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Tenantry.Core.Capabilities;
 using Tenantry.Core.Changes;
 using Tenantry.Core.Directory;
+using Tenantry.Core.Lists;
 using Tenantry.ViewModels.Lists;
 
 namespace Tenantry.ViewModels.MailSecurity;
@@ -264,30 +265,34 @@ public sealed partial class MailDomainRow : ObservableObject
 
 /// <summary>
 /// Email authentication for every domain the organization sends from: SPF, DKIM, DMARC and MX, read
-/// from Exchange and DNS and explained, with the records to publish. DKIM is set up and switched
-/// here (staged in Pending Changes); SPF, DMARC and MX live at the domain's DNS host, so Tenantry
-/// shows what to publish there.
+/// from Exchange and DNS and explained, with the records to publish. One row a domain in the
+/// standard list (search, views, sort); its preview has the checks and the DKIM buttons. DKIM is
+/// set up and switched here (staged in Pending Changes); SPF, DMARC and MX live at the domain's
+/// DNS host, so Tenantry shows what to publish there.
 /// </summary>
 public sealed partial class MailDomainsViewModel : ObservableObject
 {
     readonly IMailDomainRecords? _records;
     readonly Availability _canEdit;
+    IReadOnlyList<MailDomain> _domains = [];
 
-    public MailDomainsViewModel(IMailDomainRecords? records, ChangePipeline? pipeline, Availability canEdit)
+    public MailDomainsViewModel(IMailDomainRecords? records, ChangePipeline? pipeline, Availability canEdit, IListStateStore? listState = null, Func<DateTimeOffset>? now = null)
     {
         _records = records;
         Pipeline = pipeline;
         _canEdit = canEdit;
+        List = DataListViewModel.Create(MailSecurityLists.Domains(d => new MailDomainRow(d, this)), LoadAsync, _ => { }, listState, now);
+        List.PrimaryAction = null;
+        List.HasRecordPages = false;
+        List.SecondaryAction = new ListPrimaryAction("Check Again", "ArrowSync", true, "Read Exchange and DNS again (after publishing a record)", () => _ = Refresh());
+        List.EmptyText = "No domains match these filters.";
         if (pipeline is not null)
         {
-            pipeline.Changed += (_, _) =>
-            {
-                foreach (var d in Domains)
-                    d.Refresh();
-            };
+            // The preview's buttons say Undo once their change is staged.
+            pipeline.Changed += (_, _) => List.RefreshPreview();
             pipeline.Applied += (_, applied) =>
             {
-                if (applied.Any(c => c is DkimChange))
+                if (IsLoaded && applied.Any(c => c is DkimChange))
                     _ = Refresh();
             };
         }
@@ -299,57 +304,44 @@ public sealed partial class MailDomainsViewModel : ObservableObject
 
     public string EditReason => Pipeline is null ? "This tenant can't be edited" : _canEdit.Reason ?? "";
 
-    public ObservableCollection<MailDomainRow> Domains { get; } = [];
+    /// <summary>The domains, one row each.</summary>
+    public DataListViewModel List { get; }
+
+    /// <summary>The domains as last read (for checks and the summary).</summary>
+    public IReadOnlyList<MailDomain> Domains => _domains;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SummaryText))]
     public partial bool IsLoaded { get; private set; }
-
-    [ObservableProperty]
-    public partial bool IsLoading { get; private set; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasError))]
-    public partial string? Error { get; private set; }
-
-    public bool HasError => Error is not null;
 
     /// <summary>"3 of 10 domains need attention."</summary>
     public string SummaryText
     {
         get
         {
-            var own = Domains.Where(d => !d.Domain.IsInitial).ToArray();
-            var problems = own.Count(d => d.Domain.Worst == CheckState.Problem);
+            var own = _domains.Where(d => !d.IsInitial).ToArray();
+            var problems = own.Count(d => d.Worst == CheckState.Problem);
             return !IsLoaded ? "" : problems == 0 ? $"All {own.Length} domains are set up well."
-                : $"{problems} of {own.Length} domains need attention. Each problem says what to publish or switch on.";
+                : $"{problems} of {own.Length} domains need attention. Choose one to see what to publish or switch on.";
         }
     }
 
-    [RelayCommand]
+    /// <summary>Reads every domain from Exchange and DNS: the first time, then again on Check Again or after a DKIM change.</summary>
     public async Task Refresh()
     {
-        if (_records is null || IsLoading)
-            return;
-        IsLoading = true;
-        Error = null;
-        try
-        {
-            var domains = await _records.GetMailDomainsAsync();
-            Domains.Clear();
-            // Domains that need attention first.
-            foreach (var d in domains.OrderBy(d => d.IsInitial).ThenBy(d => d.Worst switch { CheckState.Problem => 0, CheckState.Warning => 1, _ => 2 }))
-                Domains.Add(new MailDomainRow(d, this));
-            IsLoaded = true;
-            OnPropertyChanged(nameof(SummaryText));
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            Error = $"Couldn't read the domains: {Friendly.Message(e)}";
-        }
-        finally
-        {
-            IsLoading = false;
-        }
+        if (!IsLoaded)
+            await List.LoadAsync();
+        else
+            await List.ReloadAsync(busyText: "Reading each domain from Exchange and DNS…");
+        IsLoaded = true;
+        OnPropertyChanged(nameof(SummaryText));
+    }
+
+    async Task<IReadOnlyList<MailDomain>> LoadAsync(CancellationToken cancellationToken)
+    {
+        if (_records is null)
+            return [];
+        _domains = await _records.GetMailDomainsAsync();
+        return _domains;
     }
 }

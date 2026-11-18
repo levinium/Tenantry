@@ -129,6 +129,7 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         SetJournalRuleEnabled j => await SetJournalRuleEnabledAsync(j, cancellationToken),
         CreateJournalRule j => await CreateJournalRuleAsync(j, cancellationToken),
         RemoveJournalRule j => await RemoveJournalRuleAsync(j, cancellationToken),
+        RemoveConnector c => await RemoveConnectorAsync(c, cancellationToken),
         SetSenderListed s => await SetSenderListedAsync(s, cancellationToken),
         AddListEntry a => await AddListEntryAsync(a, cancellationToken),
         RemoveListEntry r => await RemoveListEntryAsync(r, cancellationToken),
