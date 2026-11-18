@@ -25,12 +25,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         new("authmethods", "Authentication Methods", "Key"),
         new("locations", "Named Locations", "Location"),
         new("strengths", "Authentication Strengths", "ShieldKeyhole"),
-        new("appregs", "App Registrations", "AppFolder"),
-        new("enterprise", "Enterprise Apps", "Apps"),
-        new("deletedapps", "Deleted Apps", "Delete"),
         new("riskyusers", "Risky Users", "PersonWarning"),
         new("riskdetections", "Risk Detections", "Warning"),
-        new("riskyapps", "Risky Apps", "AppsListDetail"),
         new("auditlog", "Audit Log", "DocumentSearch"),
         new("cases", "eDiscovery Cases", "Briefcase"),
         new("searches", "Content Searches", "SearchSquare"),
@@ -66,8 +62,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public static IReadOnlyList<SecurityPageGroup> Sections { get; } =
     [
         new("access", "Access", "ShieldLock", Of("ca", "whatif", "locations", "strengths", "authmethods")),
-        new("rolesapps", "Roles & Apps", "PersonKey", Of("roles", "myroles", "approvals", "purviewroles", "appregs", "enterprise", "deletedapps")),
-        new("threats", "Threats", "Warning", Of("riskyusers", "riskdetections", "riskyapps", "auditlog")),
+        new("rolesapps", "Roles", "PersonKey", Of("roles", "myroles", "approvals", "purviewroles")),
+        new("threats", "Threats", "Warning", Of("riskyusers", "riskdetections", "auditlog")),
         new("compliance", "Compliance", "Briefcase", Of("cases", "searches", "retentionpolicies", "retentionlabels", "adaptivescopes", "retentionevents", "fileplan")),
         new("protection", "Information Protection", "Tag", Of("labels", "labelpolicies", "autolabel", "infotypes", "keywords", "edm")),
         new("dlp", "Data Loss Prevention", "ShieldLock", Of("dlp", "dlpalerts", "endpointdlp")),
@@ -301,7 +297,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowRoles), nameof(ShowMyRoles), nameof(ShowApprovals), nameof(ShowPolicies), nameof(ShowWhatIf), nameof(ShowLocations),
-        nameof(ShowStrengths), nameof(ShowRegistrations), nameof(ShowEnterpriseApps), nameof(ShowDeletedApps), nameof(ShowAuthMethods), nameof(ShowRiskyUsers), nameof(ShowRiskDetections), nameof(ShowRiskyApps), nameof(RiskNote), nameof(HasRiskNote), nameof(ShowAuditLog),
+        nameof(ShowStrengths), nameof(ShowAuthMethods), nameof(ShowRiskyUsers), nameof(ShowRiskDetections), nameof(RiskNote), nameof(HasRiskNote), nameof(ShowAuditLog),
         nameof(ShowCases), nameof(ShowSearches), nameof(ShowRetentionPolicies), nameof(ShowRetentionLabels), nameof(ShowAdaptiveScopes), nameof(ShowRetentionEvents),
         nameof(CurrentPurview), nameof(ShowPurview))]
     public partial MailSecurityPage SelectedPage { get; set; }
@@ -333,7 +329,10 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
 
     /// <summary>Why the shown risk page can't be read (no P2, a missing permission), above its list.</summary>
     public string? RiskNote => Risks is not { } r ? null
-        : ShowRiskyUsers ? r.UsersUnavailable : ShowRiskDetections ? r.DetectionsUnavailable : ShowRiskyApps ? r.AppsUnavailable : null;
+        : ShowRiskyUsers ? r.UsersUnavailable : ShowRiskDetections ? r.DetectionsUnavailable : null;
+
+    /// <summary>Why risky apps can't be listed, for the Apps area's Risky Apps page.</summary>
+    public string? RiskyAppsNote => Risks?.AppsUnavailable;
 
     public bool HasRiskNote => RiskNote is not null;
 
@@ -356,6 +355,7 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         }
         OnPropertyChanged(nameof(RiskNote));
         OnPropertyChanged(nameof(HasRiskNote));
+        OnPropertyChanged(nameof(RiskyAppsNote));
         return Risks;
     }
 
@@ -497,13 +497,9 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
     public bool ShowWhatIf => SelectedPage.Key == "whatif";
     public bool ShowLocations => SelectedPage.Key == "locations";
     public bool ShowStrengths => SelectedPage.Key == "strengths";
-    public bool ShowRegistrations => SelectedPage.Key == "appregs";
-    public bool ShowEnterpriseApps => SelectedPage.Key == "enterprise";
-    public bool ShowDeletedApps => SelectedPage.Key == "deletedapps";
     public bool ShowAuthMethods => SelectedPage.Key == "authmethods";
     public bool ShowRiskyUsers => SelectedPage.Key == "riskyusers";
     public bool ShowRiskDetections => SelectedPage.Key == "riskdetections";
-    public bool ShowRiskyApps => SelectedPage.Key == "riskyapps";
     public bool ShowAuditLog => SelectedPage.Key == "auditlog";
     public bool ShowMyRoles => SelectedPage.Key == "myroles";
     public bool ShowApprovals => SelectedPage.Key == "approvals";
@@ -525,19 +521,8 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         }
         if (ShowPolicies || ShowLocations || ShowStrengths)
             ReadPolicies();
-        if ((ShowRegistrations || ShowEnterpriseApps) && !_appsShown)
-        {
-            _appsShown = true;
-            _ = Registrations.LoadAsync();
-            _ = EnterpriseApps.LoadAsync();
-        }
-        if ((ShowRiskyUsers || ShowRiskDetections || ShowRiskyApps) && !_riskShown)
-        {
-            _riskShown = true;
-            _ = RiskyUsers.LoadAsync();
-            _ = RiskDetections.LoadAsync();
-            _ = RiskyApps.LoadAsync();
-        }
+        if ((ShowRiskyUsers || ShowRiskDetections) && !_riskShown)
+            ReadRisk();
         if (ShowAuditLog)
             AuditLog.Shown();
         EDiscoveryShown();
@@ -545,12 +530,37 @@ public sealed partial class SecurityAreaViewModel : TabViewModel
         CurrentPurview?.Shown();
         if (ShowAuthMethods)
             AuthMethodsPage.Shown();
-        if (ShowDeletedApps)
-            _ = DeletedAppsSection.LoadAsync();
         if (ShowMyRoles)
             MyRoles.Shown();
         if (ShowApprovals)
             Approvals.Shown();
+    }
+
+    /// <summary>The three risk lists share one read: the first page of them to show starts it.</summary>
+    void ReadRisk()
+    {
+        _riskShown = true;
+        _ = RiskyUsers.LoadAsync();
+        _ = RiskDetections.LoadAsync();
+        _ = RiskyApps.LoadAsync();
+    }
+
+    /// <summary>
+    /// A page of the Apps area showed (the lists live here): the apps are read the first time
+    /// either app list shows, Deleted Apps each time it does, and Risky Apps with the other risk lists.
+    /// </summary>
+    public void AppPageShown(string pageKey)
+    {
+        if (pageKey is "appregs" or "enterprise" && !_appsShown)
+        {
+            _appsShown = true;
+            _ = Registrations.LoadAsync();
+            _ = EnterpriseApps.LoadAsync();
+        }
+        if (pageKey == "deletedapps")
+            _ = DeletedAppsSection.LoadAsync();
+        if (pageKey == "riskyapps" && !_riskShown)
+            ReadRisk();
     }
 
     bool _movingSection;

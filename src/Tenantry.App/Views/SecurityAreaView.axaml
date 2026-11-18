@@ -316,57 +316,6 @@
     </ScrollViewer>
     </Panel>
 
-    <!-- App registrations and enterprise apps (8c): read live together, with Refresh -->
-    <DockPanel IsVisible="{Binding ShowRegistrations}">
-      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-          <Button Command="{Binding RefreshAppsCommand}" ToolTip.Tip="Read apps from Entra again">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
-              <TextBlock Text="Refresh" />
-            </StackPanel>
-          </Button>
-          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
-                     Text="Apps defined in this organization: how they sign in (secrets and certificates) and what they ask to do." />
-        </Grid>
-        <Border Classes="banner neutral" IsVisible="{Binding HasAppsNote}">
-          <StackPanel Orientation="Horizontal" Spacing="10">
-            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
-            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding AppsNote}" />
-          </StackPanel>
-        </Border>
-      </StackPanel>
-      <ContentControl Content="{Binding Registrations}">
-        <ContentControl.DataTemplates>
-          <listviews:ListViewCache />
-        </ContentControl.DataTemplates>
-      </ContentControl>
-    </DockPanel>
-    <DockPanel IsVisible="{Binding ShowEnterpriseApps}">
-      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-          <Button Command="{Binding RefreshAppsCommand}" ToolTip.Tip="Read apps from Entra again">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
-              <TextBlock Text="Refresh" />
-            </StackPanel>
-          </Button>
-          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
-                     Text="Apps people in this organization sign in to, who can use them, and what they're allowed to access." />
-        </Grid>
-        <Border Classes="banner neutral" IsVisible="{Binding HasAppsNote}">
-          <StackPanel Orientation="Horizontal" Spacing="10">
-            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
-            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding AppsNote}" />
-          </StackPanel>
-        </Border>
-      </StackPanel>
-      <ContentControl Content="{Binding EnterpriseApps}">
-        <ContentControl.DataTemplates>
-          <listviews:ListViewCache />
-        </ContentControl.DataTemplates>
-      </ContentControl>
-    </DockPanel>
     <!-- Identity Protection (8d-2): read together, with Refresh; P2 or a permission may be missing -->
     <DockPanel IsVisible="{Binding ShowRiskyUsers}">
       <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
@@ -410,29 +359,6 @@
         </Border>
       </StackPanel>
       <ContentControl Content="{Binding RiskDetections}">
-        <ContentControl.DataTemplates>
-          <listviews:ListViewCache />
-        </ContentControl.DataTemplates>
-      </ContentControl>
-    </DockPanel>    <DockPanel IsVisible="{Binding ShowRiskyApps}">
-      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-          <Button Command="{Binding RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
-              <TextBlock Text="Refresh" />
-            </StackPanel>
-          </Button>
-          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Apps (service principals) whose sign-ins or credentials look compromised." />
-        </Grid>
-        <Border Classes="banner neutral" IsVisible="{Binding HasRiskNote}">
-          <StackPanel Orientation="Horizontal" Spacing="10">
-            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
-            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding RiskNote}" />
-          </StackPanel>
-        </Border>
-      </StackPanel>
-      <ContentControl Content="{Binding RiskyApps}">
         <ContentControl.DataTemplates>
           <listviews:ListViewCache />
         </ContentControl.DataTemplates>
@@ -597,12 +523,6 @@
     <!-- Sign-in methods and security defaults (8d-1) -->
     <Panel IsVisible="{Binding ShowAuthMethods}">
       <views:AuthMethodsView DataContext="{Binding AuthMethodsPage}" />
-    </Panel>
-    <!-- Deleted app registrations: restore or delete for good -->
-    <Panel IsVisible="{Binding ShowDeletedApps}">
-      <ScrollViewer>
-        <ContentControl Content="{Binding DeletedAppsSection}" HorizontalAlignment="Left" Margin="0,0,0,24" />
-      </ScrollViewer>
     </Panel>
     <!-- Admin roles: read live, with Refresh; what PIM can't show here -->
     <DockPanel IsVisible="{Binding ShowRoles}">

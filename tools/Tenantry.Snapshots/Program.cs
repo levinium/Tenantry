@@ -1563,17 +1563,17 @@ foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         Render(premium, "powershell-script-light", height: 900);
         premium.CloseDialog();
         premium.CloseTab(console);
-        premium.SelectedSection = premium.Sections.Single(s => s.Key == "security");
+        premium.SelectedSection = premium.Sections.Single(s => s.Key == "apps");
         Settle();
 
         // Apps (8c-1): the registrations list, a registration's secrets, an enterprise app's permissions.
-        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
+        premium.AppsArea.Show("appregs");
         for (var i = 0; i < 20 && premium.SecurityArea.Registrations.Total == 0; i++)
             Settle();
         premium.SecurityArea.Registrations.SelectedRow =premium.SecurityArea.Registrations.Rows.Cast<AppRegistration>().First(r => r.Name == "Payroll Export");
         Settle();
         Render(premium, "apps-registrations-light", height: 900);
-        premium.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "enterprise");
+        premium.AppsArea.Show("enterprise");
         Settle();
         Render(premium, "apps-enterprise-light", height: 900);
         premium.OpenAppRegistration(premium.SecurityArea.Apps!.Registrations.First(r => r.Name == "Payroll Export"));

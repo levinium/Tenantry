@@ -1,0 +1,125 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:ms="using:Tenantry.ViewModels.MailSecurity"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:listviews="using:Tenantry.App.Lists"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:views="using:Tenantry.App.Views"
+             x:Class="Tenantry.App.Views.AppsAreaView"
+             x:DataType="vm:AppsAreaViewModel">
+  <DockPanel>
+    <!-- The area's pages on one row. -->
+    <Border DockPanel.Dock="Top" Margin="8,8,8,10" Background="{DynamicResource SubtleBg}" CornerRadius="8" Padding="6,2">
+      <TabStrip Classes="pagetabs" ItemsSource="{x:Static vm:AppsAreaViewModel.Pages}" SelectedItem="{Binding SelectedPage}">
+        <TabStrip.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel />
+          </ItemsPanelTemplate>
+        </TabStrip.ItemsPanel>
+        <TabStrip.ItemTemplate>
+          <DataTemplate x:DataType="ms:MailSecurityPage">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="14" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="13" />
+            </StackPanel>
+          </DataTemplate>
+        </TabStrip.ItemTemplate>
+      </TabStrip>
+    </Border>
+    <!-- One page shows at a time, filling the width. -->
+    <Grid>
+
+    <!-- App registrations and enterprise apps: the registrations first, the enterprise apps from the local copy, with Refresh -->
+    <DockPanel IsVisible="{Binding ShowRegistrations}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8" DataContext="{Binding Security}" x:DataType="vm:SecurityAreaViewModel">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+          <Button Command="{Binding RefreshAppsCommand}" ToolTip.Tip="Read apps from Entra again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="Apps defined in this organization: how they sign in (secrets and certificates) and what they ask to do." />
+        </Grid>
+        <Border Classes="banner neutral" IsVisible="{Binding HasAppsNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding AppsNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding Security.Registrations}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+
+    <DockPanel IsVisible="{Binding ShowEnterpriseApps}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8" DataContext="{Binding Security}" x:DataType="vm:SecurityAreaViewModel">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+          <Button Command="{Binding RefreshAppsCommand}" ToolTip.Tip="Read apps from Entra again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="Apps people in this organization sign in to, who can use them, and what they're allowed to access." />
+        </Grid>
+        <Border Classes="banner neutral" IsVisible="{Binding HasAppsNote}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding AppsNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding Security.EnterpriseApps}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+
+    <!-- Deleted app registrations: restore or delete for good -->
+    <Panel IsVisible="{Binding ShowDeletedApps}">
+      <ScrollViewer>
+        <ContentControl Content="{Binding Security.DeletedAppsSection}" HorizontalAlignment="Left" Margin="0,0,0,24" />
+      </ScrollViewer>
+    </Panel>
+
+    <!-- App consent: whether people can ask for an app, and the apps they asked for -->
+    <Panel IsVisible="{Binding ShowConsent}" Margin="8,0">
+      <views:OrgPageView DataContext="{Binding Consent}" />
+    </Panel>
+
+    <!-- Risky apps (Identity Protection, Entra ID P2): read with the other risk lists -->
+    <DockPanel IsVisible="{Binding ShowRiskyApps}">
+      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+          <Button Command="{Binding Security.RefreshRiskCommand}" ToolTip.Tip="Read Identity Protection again">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+              <TextBlock Text="Refresh" />
+            </StackPanel>
+          </Button>
+          <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" Text="Apps (service principals) whose sign-ins or credentials look compromised." />
+        </Grid>
+        <Border Classes="banner neutral" IsVisible="{Binding RiskyAppsNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <ic:FluentIcon Icon="Info" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding RiskyAppsNote}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <ContentControl Content="{Binding Security.RiskyApps}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+    </Grid>
+  </DockPanel>
+</UserControl>

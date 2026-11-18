@@ -105,7 +105,7 @@ public sealed class AppTests
         var opened = new List<object>();
         var area = new SecurityAreaViewModel(records, null, null, () => DateTimeOffset.UtcNow, _ => { }, null, null, apps: records,
             openRegistration: opened.Add, openEnterprise: opened.Add);
-        area.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
+        area.AppPageShown("appregs");
         for (var i = 0; i < 100 && (area.Registrations.Total == 0 || area.EnterpriseApps.Total == 0); i++)
             await Task.Delay(5, Ct);
         return (area, records, opened);

@@ -36,7 +36,6 @@ public sealed partial class OrganizationAreaViewModel : TabViewModel
         new("dirsync", "Entra Connect", "ArrowSync"),
         new("attributes", "Custom Attributes", "Tag"),
         new("deletedusers", "Deleted Users", "ArrowUndo"),
-        new("consent", "App Consent", "ShieldKeyhole"),
         new("signinpolicies", "Sign-In Policies", "LockClosed"),
         new("recommendations", "Recommendations", "Lightbulb"),
         new("governance", "Identity Governance", "PeopleCheckmark"),
@@ -54,7 +53,7 @@ public sealed partial class OrganizationAreaViewModel : TabViewModel
         new("billing", "Billing and Usage", "Receipt", Of("licenses", "subscriptions", "usage")),
         new("settings", "Settings", "Settings", Of("profile", "apps", "spsettings", "reportprivacy", "rooms", "iemode", "autopatch")),
         new("identity", "Identity", "PersonKey", Of("usersettings", "crosstenant", "groupsettings", "adminunits", "domains", "dirsync", "attributes", "deletedusers",
-            "consent", "signinpolicies", "recommendations", "governance")),
+            "signinpolicies", "recommendations", "governance")),
         new("teamsadmin", "Teams", "PeopleTeam", Of("teams", "teamsapps", "teamsmeetings", "teamsmessaging", "teamscalling", "teamsorg")),
     ];
 

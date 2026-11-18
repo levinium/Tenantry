@@ -1295,6 +1295,44 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Apps: its own sidebar area after Devices, with every app page; Security & Compliance keeps Roles, and Organization no App Consent", () =>
+        {
+            var (window, main, _) = OpenList(premium: true);
+            var order = main.Sections.Select(s => s.Key).ToList();
+            Expect(order.IndexOf("apps") == order.IndexOf("devices") + 1, $"Apps comes right after Devices ({string.Join(", ", order)})");
+            Expect(main.Sections.Single(s => s.Key == "apps").Title == "Apps", "the sidebar says Apps");
+            var roles = SecurityAreaViewModel.Sections.Single(s => s.Key == "rolesapps");
+            Expect(roles.Title == "Roles" && roles.Pages.All(p => p.Key is "roles" or "myroles" or "approvals" or "purviewroles"), "Security & Compliance › Roles holds only the roles pages");
+            Expect(SecurityAreaViewModel.Pages.All(p => p.Key is not ("appregs" or "enterprise" or "deletedapps" or "riskyapps")), "no app pages are left in Security & Compliance");
+            Expect(OrganizationAreaViewModel.Pages.All(p => p.Key != "consent"), "App Consent left Organization");
+
+            main.SelectedSection = main.Sections.Single(s => s.Key == "apps");
+            Settle();
+            Expect(main.SelectedTab == main.AppsArea, "choosing Apps shows the Apps area");
+            var tabs = window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStripItem>().Where(t => t.IsEffectivelyVisible && t.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage).ToList();
+            Expect(tabs.Select(t => ((Tenantry.ViewModels.MailSecurity.MailSecurityPage)t.DataContext!).Title)
+                .SequenceEqual(["App Registrations", "Enterprise Apps", "Deleted Apps", "App Consent", "Risky Apps"]), "one row of the five app pages");
+            for (var i = 0; i < 50 && main.AppsArea.Security.Registrations.Total == 0; i++)
+                Settle();
+            Expect(main.AppsArea.Security.Registrations.Total > 0, "App Registrations lists the apps");
+            foreach (var (key, what) in new[] { ("enterprise", "the enterprise apps"), ("deletedapps", "deleted apps"), ("consent", "app consent"), ("riskyapps", "risky apps") })
+            {
+                Click(window, tabs.Single(t => t.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage p && p.Key == key));
+                for (var i = 0; i < 20; i++)
+                    Settle();
+                var shown = key switch
+                {
+                    "consent" => window.GetVisualDescendants().OfType<Tenantry.App.Views.OrgPageView>().Any(v => v.IsEffectivelyVisible && v.DataContext == main.AppsArea.Consent),
+                    "deletedapps" => window.GetVisualDescendants().OfType<ContentControl>().Any(c => c.IsEffectivelyVisible && c.Content == main.AppsArea.Security.DeletedAppsSection),
+                    "enterprise" => main.AppsArea.Security.EnterpriseApps.Total > 0
+                                    && window.GetVisualDescendants().OfType<Tenantry.App.Lists.DataListView>().Any(v => v.IsEffectivelyVisible && v.DataContext == main.AppsArea.Security.EnterpriseApps),
+                    _ => window.GetVisualDescendants().OfType<Tenantry.App.Lists.DataListView>().Any(v => v.IsEffectivelyVisible && v.DataContext == main.AppsArea.Security.RiskyApps),
+                };
+                Expect(shown, $"the {key} page shows {what}");
+            }
+            window.Close();
+        });
+
         Check("Settings › Updates: shows this version; a copy not installed by the installer says where to get updates", () =>
         {
             var (window, main, _) = OpenList();
@@ -2121,7 +2159,7 @@ static class InteractionChecks
             var (window, main, _) = OpenList();
             main.Users.LoadAsync().GetAwaiter().GetResult();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection { Key: "security" }));
-            var area = main.SecurityArea;
+            var area = main.AppsArea.Security;
             Settle();
             // Security & Compliance pages sit in sections: show the one holding it first.
             main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "roles"));
@@ -2202,7 +2240,7 @@ static class InteractionChecks
             var (window, main, _) = OpenList(premium: true);
             main.SelectedSection = main.Sections.Single(s => s.Key == "security");
             Settle();
-            var area = main.SecurityArea;
+            var area = main.AppsArea.Security;
             // Security & Compliance pages sit in sections: show the one holding it first.
             main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "myroles"));
             Settle();
@@ -2264,7 +2302,7 @@ static class InteractionChecks
         {
             var (window, main, _) = OpenList(premium: true);
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is NavSection { Key: "security" }));
-            var area = main.SecurityArea;
+            var area = main.AppsArea.Security;
             for (var i = 0; i < 50 && area.Policies.Total == 0; i++)
                 Settle();
             Expect(area.ShowPolicies && area.Policies.Total > 0, "Conditional Access shows the policies");
@@ -2421,16 +2459,14 @@ static class InteractionChecks
         Check("App Registrations: the page tab reads the list; a name opens the app's page; its Secrets tab shows the expired secret; Open Enterprise App opens the other half", () =>
         {
             var (window, main, _) = OpenList();
-            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            main.SelectedSection = main.Sections.Single(s => s.Key == "apps");
             Settle();
-            // Security & Compliance pages sit in sections: show the one holding it first.
-            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "appregs" }));
-            var area = main.SecurityArea;
+            var area = main.AppsArea.Security;
             for (var i = 0; i < 50 && area.Registrations.Total == 0; i++)
                 Settle();
-            Expect(area.ShowRegistrations && area.Registrations.Total > 0, "App Registrations is showing with apps");
+            Expect(main.AppsArea.ShowRegistrations && area.Registrations.Total > 0, "App Registrations is showing with apps");
             var payroll = area.Registrations.Rows.Cast<AppRegistration>().First(r => r.Name == "Payroll Export");
             Click(window, FindButton(window, b => b.Classes.Contains("namelink") && ReferenceEquals(b.DataContext, payroll) && b.IsEffectivelyVisible));
             var page = main.SelectedTab as AppRegistrationPageViewModel;
@@ -2449,13 +2485,11 @@ static class InteractionChecks
         Check("Enterprise Apps: the page tab lists apps; a name opens its page; Permissions shows who consented, with their scopes", () =>
         {
             var (window, main, _) = OpenList();
-            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            main.SelectedSection = main.Sections.Single(s => s.Key == "apps");
             Settle();
-            // Security & Compliance pages sit in sections: show the one holding it first.
-            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "enterprise"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "enterprise" }));
-            var area = main.SecurityArea;
+            var area = main.AppsArea.Security;
             for (var i = 0; i < 50 && area.EnterpriseApps.Total == 0; i++)
                 Settle();
             var fabrikam = area.EnterpriseApps.Rows.Cast<EnterpriseApp>().FirstOrDefault(r => r.Name == "Fabrikam Whiteboard");
@@ -2477,9 +2511,9 @@ static class InteractionChecks
         Check("App page: Add Secret stages a secret; Remove on the expired one shows Undo; Delete App stages a delete that needs the name typed", () =>
         {
             var (window, main, _) = OpenList();
-            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
-            main.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
-            for (var i = 0; i < 50 && main.SecurityArea.Registrations.Total == 0; i++)
+            main.SelectedSection = main.Sections.Single(s => s.Key == "apps");
+            main.AppsArea.Show("appregs");
+            for (var i = 0; i < 50 && main.AppsArea.Security.Registrations.Total == 0; i++)
                 Settle();
             main.OpenAppRegistration(main.SecurityArea.Apps!.Registrations.Single(r => r.Name == "Payroll Export"));
             var page = (AppRegistrationPageViewModel)main.SelectedTab!;
@@ -2514,9 +2548,9 @@ static class InteractionChecks
         Check("App page editing: Add Redirect URI stages one; Add Permission finds and stages one; leaving the name box stages a rename", () =>
         {
             var (window, main, _) = OpenList();
-            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
-            main.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
-            for (var i = 0; i < 50 && main.SecurityArea.Registrations.Total == 0; i++)
+            main.SelectedSection = main.Sections.Single(s => s.Key == "apps");
+            main.AppsArea.Show("appregs");
+            for (var i = 0; i < 50 && main.AppsArea.Security.Registrations.Total == 0; i++)
                 Settle();
             main.OpenAppRegistration(main.SecurityArea.Apps!.Registrations.Single(r => r.Name == "Help Desk Bot"));
             for (var i = 0; i < 10; i++)
@@ -2564,9 +2598,9 @@ static class InteractionChecks
         Check("Single Sign-On tab: Set Up SAML shows the settings; filling identifier and reply URL stages SAML and a first certificate", () =>
         {
             var (window, main, _) = OpenList();
-            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
-            main.SecurityArea.SelectedPage = SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs");
-            for (var i = 0; i < 50 && main.SecurityArea.Registrations.Total == 0; i++)
+            main.SelectedSection = main.Sections.Single(s => s.Key == "apps");
+            main.AppsArea.Show("appregs");
+            for (var i = 0; i < 50 && main.AppsArea.Security.Registrations.Total == 0; i++)
                 Settle();
             main.OpenEnterpriseApp(main.SecurityArea.Apps!.EnterpriseApps.Single(e => e.Name == "Help Desk Bot"));
             Settle();
@@ -2594,15 +2628,13 @@ static class InteractionChecks
         Check("New App Registration: the list's button opens the form; Add stages it and closes; an enterprise app's switch stages a setting", () =>
         {
             var (window, main, _) = OpenList();
-            main.SelectedSection = main.Sections.Single(s => s.Key == "security");
+            main.SelectedSection = main.Sections.Single(s => s.Key == "apps");
             Settle();
-            // Security & Compliance pages sit in sections: show the one holding it first.
-            main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "appregs"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "appregs" }));
-            for (var i = 0; i < 50 && main.SecurityArea.Registrations.Total == 0; i++)
+            for (var i = 0; i < 50 && main.AppsArea.Security.Registrations.Total == 0; i++)
                 Settle();
-            Click(window, FindButton(window, b => b.Command == main.SecurityArea.Registrations.RunPrimaryActionCommand && b.IsEffectivelyVisible));
+            Click(window, FindButton(window, b => b.Command == main.AppsArea.Security.Registrations.RunPrimaryActionCommand && b.IsEffectivelyVisible));
             var form = main.Dialog?.Content as NewAppViewModel;
             Expect(form is not null, "the New App Registration popup opened");
             Settle();
@@ -2666,7 +2698,7 @@ static class InteractionChecks
             main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "riskyusers"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "riskyusers" }));
-            var area = main.SecurityArea;
+            var area = main.AppsArea.Security;
             for (var i = 0; i < 50 && area.RiskyUsers.Total == 0; i++)
                 Settle();
             Expect(area.RiskyUsers.Rows.Count == 3 && !area.HasRiskNote, "three people at risk, no note");
@@ -2779,7 +2811,7 @@ static class InteractionChecks
             main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "cases"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "cases" }));
-            var area = main.SecurityArea;
+            var area = main.AppsArea.Security;
             for (var i = 0; i < 20 && area.Cases.Total == 0; i++)
                 Settle();
             Expect(area.Cases.Total > 0, "the cases are listed");
@@ -2828,7 +2860,7 @@ static class InteractionChecks
             main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "searches"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "searches" }));
-            var area = main.SecurityArea;
+            var area = main.AppsArea.Security;
             for (var i = 0; i < 20 && area.Searches.Total == 0; i++)
                 Settle();
             main.OpenSearch(area.Searches.Rows.Cast<Tenantry.Core.Directory.EdSearch>().Single(s => s.Name == "Contract emails"));
@@ -2899,7 +2931,7 @@ static class InteractionChecks
             main.SecurityArea.SelectedSection = SecurityAreaViewModel.SectionOf(SecurityAreaViewModel.Pages.Single(p => p.Key == "retentionpolicies"));
             Settle();
             Click(window, window.GetVisualDescendants().OfType<ListBoxItem>().First(i => i.DataContext is Tenantry.ViewModels.MailSecurity.MailSecurityPage { Key: "retentionpolicies" }));
-            var area = main.SecurityArea;
+            var area = main.AppsArea.Security;
             for (var i = 0; i < 20 && area.RetentionPolicies.Total == 0; i++)
                 Settle();
             Expect(area.RetentionPolicies.Total > 0, "the policies are listed");

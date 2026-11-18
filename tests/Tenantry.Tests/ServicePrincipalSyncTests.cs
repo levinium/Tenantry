@@ -140,9 +140,9 @@ public sealed class ServicePrincipalSyncTests
         var graph = Graph(http);
         await new ServicePrincipalSync(graph, store).PullAsync(cancellationToken: Ct);
         // Entra takes its time over the changes (as with a run of empty pages), then sends one.
-        http.On(HttpMethod.Get, "$deltatoken=t1", _ =>
+        http.OnAsync(HttpMethod.Get, "$deltatoken=t1", async _ =>
         {
-            Thread.Sleep(2500);
+            await Task.Delay(5000);
             return FakeHttp.Json($$"""{"value":[{"id":"sp3","appId":"a3","displayName":"Timesheets"}],"@odata.deltaLink":"{{Base}}servicePrincipals/delta?$deltatoken=t2"}""");
         });
         var records = new GraphUserRecords(graph, store);
@@ -152,7 +152,8 @@ public sealed class ServicePrincipalSyncTests
 
         var apps = await ((IAppRecords)records).GetAppsAsync([], Ct);
 
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2.2), $"the copy showed without waiting ({clock.Elapsed.TotalSeconds:0.0} s)");
+        // The pull takes 5 s; the copy shows after the 1.5 s budget (headroom for a busy test machine).
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(4), $"the copy showed without waiting for the pull ({clock.Elapsed.TotalSeconds:0.0} s)");
         Assert.Equal(2, apps.EnterpriseApps.Count);
         await changed.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
         Assert.NotNull(store.Get(ServicePrincipalSync.Kind, "sp3"));

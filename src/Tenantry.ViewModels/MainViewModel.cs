@@ -229,6 +229,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         // Organization (15b-15f): the admin centers' settings, read live when first shown.
         Organization = new OrganizationAreaViewModel(tenant.ListState, _now, tenant.Records as IOrgObjectRecords, tenant.Changes,
             tenant.Changes is null ? Availability.No("This tenant can't be edited") : Evaluate(Capabilities.ManageOrganization), tenant.Records as IUsageReportRecords);
+        // Apps: the app lists (kept by the Security area) and Organization's App Consent, on their own pages.
+        AppsArea = new AppsAreaViewModel(SecurityArea, Organization.OrgPages.GetValueOrDefault("consent"));
         Reports.ChangeLog.FollowSharedPreferences(shared);
         Reports.SignIns.List.FollowSharedPreferences(shared);
         Reports.Audits.List.FollowSharedPreferences(shared);
@@ -241,6 +243,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             new NavSection("mail", "Mail & Security", MailSecurity is null ? "Mail & Security needs Exchange Online" : mailSecurity.Reason),
             new NavSection("sharepoint", "SharePoint & OneDrive", readUsers.Reason),
             new NavSection("devices", "Devices", readUsers.Reason),
+            new NavSection("apps", "Apps", readUsers.Reason),
             new NavSection("security", "Security & Compliance", readUsers.Reason),
             new NavSection("health", "Health", readUsers.Reason),
             new NavSection("organization", "Organization", readUsers.Reason),
@@ -343,6 +346,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
 
     /// <summary>The Security &amp; Compliance area's tab: Admin Roles (8a), as pages.</summary>
     public SecurityAreaViewModel SecurityArea { get; }
+
+    /// <summary>App registrations, enterprise apps, deleted apps, app consent and risky apps.</summary>
+    public AppsAreaViewModel AppsArea { get; }
 
     readonly Availability _manageRoles;
 
@@ -510,7 +516,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// <summary>Each sidebar entry's tab: a list, or an area with pages of its own.</summary>
     IEnumerable<(string Section, TabViewModel Tab)> AreaTabs =>
     [
-        ("users", Users), ("contacts", Contacts), ("groups", Groups), ("devices", DevicesArea), ("sharepoint", SharePoint), ("security", SecurityArea), ("health", Health), ("organization", Organization), ("reports", Reports),
+        ("users", Users), ("contacts", Contacts), ("groups", Groups), ("devices", DevicesArea), ("apps", AppsArea), ("sharepoint", SharePoint), ("security", SecurityArea), ("health", Health), ("organization", Organization), ("reports", Reports),
         .. MailSecurity is null ? Array.Empty<(string, TabViewModel)>() : [("mail", (TabViewModel)MailSecurity)],
     ];
 
@@ -922,6 +928,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         }
         if (value?.Key == "security")
             SecurityArea.Shown();
+        if (value?.Key == "apps")
+            AppsArea.Shown();
         if (value?.Key == "reports")
             Reports.Shown();
         if (value?.Key == "health")

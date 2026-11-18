@@ -34,7 +34,9 @@ public sealed class OrganizationSettingsTests
     public void Every_kind_is_whole_and_every_page_is_in_a_section()
     {
         Assert.Equal(OrgKinds.All.Count, OrgKinds.All.Select(k => k.Key).Distinct().Count());
-        var sectionPages = OrganizationAreaViewModel.Sections.SelectMany(s => s.Pages).Select(p => p.Key).ToHashSet();
+        // Every card page shows somewhere: in Organization's sections, or (App Consent) in the Apps area.
+        var sectionPages = OrganizationAreaViewModel.Sections.SelectMany(s => s.Pages).Select(p => p.Key)
+            .Concat(AppsAreaViewModel.Pages.Select(p => p.Key)).ToHashSet();
         Assert.All(OrgKinds.Pages.Keys, key => Assert.Contains(key, sectionPages));
         var shown = OrgKinds.Pages.Values.SelectMany(k => k).ToHashSet();
         foreach (var kind in OrgKinds.All)
@@ -47,7 +49,7 @@ public sealed class OrganizationSettingsTests
                 Assert.True(option.NameField.Length == 0 || option.Fields.Any(f => f.Path == option.NameField), $"{kind.Key}: New names it from a box it has");
             Assert.Equal(kind.Fields?.Count ?? 0, kind.Fields?.Select(f => f.Path).Distinct().Count() ?? 0);
         }
-        Assert.Equal(OrganizationAreaViewModel.Pages.Count, sectionPages.Count);
+        Assert.Equal(OrganizationAreaViewModel.Pages.Count, OrganizationAreaViewModel.Sections.SelectMany(x => x.Pages).Distinct().Count());
     }
 
     [Fact]

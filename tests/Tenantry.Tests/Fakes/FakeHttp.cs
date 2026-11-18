@@ -35,6 +35,18 @@ sealed class FakeHttp : HttpMessageHandler
     public FakeHttp On(HttpMethod method, string urlContains, string json, HttpStatusCode status = HttpStatusCode.OK) =>
         On(method, urlContains, _ => Json(json, status));
 
+    readonly List<(HttpMethod Method, string Contains, Func<SeenRequest, Task<HttpResponseMessage>> Respond)> _slowRoutes = [];
+
+    /// <summary>
+    /// Answers matching requests every time, after awaiting (a slow server): the wait holds no
+    /// thread, as a real network call doesn't. Tried before the other routes.
+    /// </summary>
+    public FakeHttp OnAsync(HttpMethod method, string urlContains, Func<SeenRequest, Task<HttpResponseMessage>> respond)
+    {
+        _slowRoutes.Add((method, urlContains, respond));
+        return this;
+    }
+
     /// <summary>Answers the next matching request only; later ones fall to later routes.</summary>
     public FakeHttp Once(HttpMethod method, string urlContains, Func<SeenRequest, HttpResponseMessage> respond)
     {
@@ -64,6 +76,9 @@ sealed class FakeHttp : HttpMessageHandler
         Requests.Add(seen);
 
         var url = Uri.UnescapeDataString(request.RequestUri!.ToString());
+        foreach (var slow in _slowRoutes)
+            if (slow.Method == request.Method && url.Contains(slow.Contains, StringComparison.Ordinal))
+                return await slow.Respond(seen);
         foreach (var route in _routes)
         {
             if (route.Method != request.Method || !url.Contains(route.Contains, StringComparison.Ordinal))
