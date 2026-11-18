@@ -52,30 +52,60 @@ public partial class DataListView : UserControl
             _ = CopyAnywhere.CopyAsync(this, text);
             e.Handled = true;
         }, RoutingStrategies.Tunnel);
+        // The grid's own selection is only the row being previewed; ticks are kept in _ticked.
         Grid.SelectionChanged += (_, _) =>
         {
-            UpdateSelectAll();
             if (_vm is null || _syncingSelection || !_onScreen)
                 return;
-            // The view model updates the preview pane from the selection, and the selection bar
-            // from every checked row.
             _syncingSelection = true;
             _vm.SelectedRow = Grid.SelectedItem;
-            _vm.SelectedRows = Grid.SelectedItems.Cast<object>().ToArray();
+            // With at most one row ticked, the row chosen is the one ticked (as before, a click on
+            // a row ticks its box); with several, choosing a row leaves the ticks alone.
+            if (_ticked.Count <= 1)
+            {
+                _ticked.Clear();
+                if (Grid.SelectedItem is { } chosen)
+                    _ticked.Add(chosen);
+                _vm.SelectedRows = TickedInOrder();
+                ShowTicks();
+            }
             _syncingSelection = false;
         };
-        // With several rows ticked, a plain click on a row would make the grid select only that
-        // row and untick the rest. Ticks change only by their checkboxes, Ctrl-click or Shift-click.
         Grid.AddHandler(PointerPressedEvent, (_, e) =>
         {
-            if (Grid.SelectedItems.Count < 2 || (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Shift | KeyModifiers.Meta)) != 0
-                || !e.GetCurrentPoint(Grid).Properties.IsLeftButtonPressed || e.Source is not Visual source)
+            if (!e.GetCurrentPoint(Grid).Properties.IsLeftButtonPressed || e.Source is not Visual source
+                || source.FindAncestorOfType<DataGridRow>(includeSelf: true) is not { } row || row.DataContext is not { } item)
                 return;
             // Buttons in a row (the name link, More actions, the checkbox itself) still work.
-            if (source.FindAncestorOfType<DataGridRow>(includeSelf: true) is null || source.FindAncestorOfType<Button>(includeSelf: true) is not null)
+            if (source.FindAncestorOfType<Button>(includeSelf: true) is not null || source.FindAncestorOfType<CheckBox>(includeSelf: true) is not null)
                 return;
+            var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+            if (shift || (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0)
+            {
+                // Ctrl-click ticks or unticks one row; Shift-click a range, as the checkboxes do.
+                ToggleChecked(item, shift);
+                e.Handled = true;
+            }
+            else if (_ticked.Count >= 2)
+                // A plain click with several rows ticked would otherwise only move the highlight;
+                // ticks change only by their checkboxes, Ctrl-click or Shift-click.
+                e.Handled = true;
+        }, RoutingStrategies.Tunnel);
+        // Ctrl+A (⌘A) ticks every row, as the header box does.
+        Grid.AddHandler(KeyDownEvent, (_, e) =>
+        {
+            if (e.Key != Key.A || (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) == 0 || _vm is null)
+                return;
+            SetAllTicked(true);
             e.Handled = true;
         }, RoutingStrategies.Tunnel);
+        // Rows on screen are followed, so a change of ticks redraws only those.
+        Grid.LoadingRow += (_, e) =>
+        {
+            _liveRows.Add(e.Row);
+            e.Row.Classes.Set("ticked", e.Row.DataContext is { } item && _ticked.Contains(item));
+        };
+        Grid.UnloadingRow += (_, e) => _liveRows.Remove(e.Row);
         Grid.ContextRequested += OnContextRequested;
         // View chips that don't fit on the row are listed under More Views instead. Loaded comes
         // again each time the list's tab is shown, so the row is followed once, not once per visit.
@@ -242,26 +272,67 @@ public partial class DataListView : UserControl
         }
     }
 
-    /// <summary>Puts the view model's checked rows into the grid (after Clear selection or a reload).</summary>
+    // ---- Ticks -----------------------------------------------------------------------------
+    // The list keeps its ticked rows itself rather than in the grid's selection. The grid's way,
+    // one SelectedItems.Add a row, searches the list for each row and compares the whole selection
+    // after each one (ticking half of 33,000 devices took 18 minutes), and in a grouped list it
+    // finds each row by counting through its group. Here a tick is a set lookup, and a change of
+    // ticks redraws only the rows on screen.
+
+    readonly HashSet<object> _ticked = new(ReferenceEqualityComparer.Instance);
+    readonly HashSet<DataGridRow> _liveRows = [];
+    readonly HashSet<CheckBox> _liveChecks = [];
+
+    /// <summary>How many rows are ticked (for the checks).</summary>
+    public int TickedCount => _ticked.Count;
+
+    public bool IsTicked(object row) => _ticked.Contains(row);
+
+    /// <summary>The ticked rows in the list's order, for the view model.</summary>
+    object[] TickedInOrder() =>
+        _ticked.Count == 0 ? [] : _vm is null ? [.. _ticked] : _vm.Rows.Where(_ticked.Contains).ToArray();
+
+    /// <summary>Redraws the rows and checkboxes on screen from the ticks, and the header box.</summary>
+    void ShowTicks()
+    {
+        foreach (var row in _liveRows)
+            row.Classes.Set("ticked", row.DataContext is { } item && _ticked.Contains(item));
+        foreach (var check in _liveChecks)
+            check.IsChecked = check.DataContext is { } item && _ticked.Contains(item);
+        UpdateSelectAll();
+    }
+
+    /// <summary>Takes the view model's checked rows (after Clear selection, a reload or a paste).</summary>
     void ShowChecked()
     {
         if (_vm is null)
             return;
+        _ticked.Clear();
+        _ticked.UnionWith(_vm.SelectedRows);
         _syncingSelection = true;
-        Grid.SelectedItems.Clear();
-        // A checked row the current filter hides (a count chip just narrowed the list) isn't in
-        // the grid's items, and the grid throws for one it doesn't hold: those are skipped.
-        var shown = ShownPositions();
-        var wanted = _vm.SelectedRows.Where(shown.ContainsKey).ToArray();
-        if (wanted.Length > 0 && wanted.Length == shown.Count)
-            Grid.SelectAll();
-        else if (!GridSelection.TrySet(Grid, wanted.Select(r => shown[r]), select: true))
-            foreach (var row in wanted)
-                Grid.SelectedItems.Add(row);
-        if (_vm.SelectedRows.Count == 0 && _vm.SelectedRow is { } single && shown.ContainsKey(single))
+        if (_vm.SelectedRow is { } single && ShownPositions().ContainsKey(single))
             Grid.SelectedItem = single;
         _syncingSelection = false;
-        UpdateSelectAll();
+        ShowTicks();
+    }
+
+    /// <summary>Ticks every row the list shows, or clears every tick (and the preview with it).</summary>
+    void SetAllTicked(bool tick)
+    {
+        if (_vm is null)
+            return;
+        _ticked.Clear();
+        if (tick)
+            _ticked.UnionWith(_vm.Rows);
+        _syncingSelection = true;
+        _vm.SelectedRows = TickedInOrder();
+        if (!tick)
+        {
+            _vm.SelectedRow = null;
+            Grid.SelectedItem = null;
+        }
+        _syncingSelection = false;
+        ShowTicks();
     }
 
     /// <summary>Each row the grid shows and its position there (grouped lists show rows group by group).</summary>
@@ -291,12 +362,10 @@ public partial class DataListView : UserControl
         _selectAll.Bind(ToolTip.TipProperty, new Binding(nameof(DataListViewModel.SelectAllTip)) { Source = _vm });
         _selectAll.Click += (_, e) =>
         {
-            if (Grid.SelectedItems.Count > 0 && Grid.SelectedItems.Count >= (_vm?.Rows.Count ?? 0))
-                Grid.SelectedItems.Clear();
-            else
-                Grid.SelectAll();
+            SetAllTicked(!(_ticked.Count > 0 && _ticked.Count >= (_vm?.Rows.Count ?? 0)));
             e.Handled = true;
         };
+        _liveChecks.Clear();
         return new DataGridTemplateColumn
         {
             Header = _selectAll,
@@ -307,11 +376,9 @@ public partial class DataListView : UserControl
             CellTemplate = new FuncDataTemplate<object>((_, _) =>
             {
                 var check = new CheckBox { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MinWidth = 0, Padding = new Thickness(0) };
-                check.Bind(Avalonia.Controls.Primitives.ToggleButton.IsCheckedProperty, new Binding(nameof(DataGridRow.IsSelected))
-                {
-                    RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(DataGridRow) },
-                    Mode = BindingMode.OneWay,
-                });
+                // Recycled with its row, so it follows the row it's on now.
+                _liveChecks.Add(check);
+                check.DataContextChanged += (_, _) => check.IsChecked = check.DataContext is { } item && _ticked.Contains(item);
                 ToolTip.SetTip(check, "Check to include this row when editing several at once. Shift-click checks or clears every row from the last one you clicked.");
                 // Click carries no key state, so Shift is read as the pointer goes down.
                 var shift = false;
@@ -337,45 +404,46 @@ public partial class DataListView : UserControl
     /// </summary>
     void ToggleChecked(object row, bool range)
     {
-        var check = !Grid.SelectedItems.Contains(row);
-        var rows = new List<object> { row };
+        var check = !_ticked.Contains(row);
+        IEnumerable<object> rows = [row];
         // In the order shown (grouped lists show rows group by group).
-        var shown = ShownPositions();
-        if (range && _checkAnchor is { } anchor && !ReferenceEquals(anchor, row)
-            && shown.TryGetValue(anchor, out var from) && shown.TryGetValue(row, out var to))
+        if (range && _checkAnchor is { } anchor && !ReferenceEquals(anchor, row))
         {
-            var (low, high) = (Math.Min(from, to), Math.Max(from, to));
-            rows = shown.Where(p => p.Value >= low && p.Value <= high).Select(p => p.Key).ToList();
+            var shown = ShownPositions();
+            if (shown.TryGetValue(anchor, out var from) && shown.TryGetValue(row, out var to))
+            {
+                var (low, high) = (Math.Min(from, to), Math.Max(from, to));
+                rows = shown.Where(p => p.Value >= low && p.Value <= high).Select(p => p.Key);
+            }
         }
         _checkAnchor = row;
+        if (check)
+            _ticked.UnionWith(rows);
+        else
+            _ticked.ExceptWith(rows);
 
-        _syncingSelection = true;
-        // Rows already in the wanted state are left alone by the grid, so the whole range goes at once.
-        if (!shown.TryGetValue(row, out _) || !GridSelection.TrySet(Grid, rows.Select(r => shown[r]), check))
-            foreach (var r in rows)
-            {
-                var isChecked = Grid.SelectedItems.Contains(r);
-                if (check && !isChecked)
-                    Grid.SelectedItems.Add(r);
-                else if (!check && isChecked)
-                    Grid.SelectedItems.Remove(r);
-            }
-        _syncingSelection = false;
         if (_vm is not null)
         {
             _syncingSelection = true;
-            _vm.SelectedRows = Grid.SelectedItems.Cast<object>().ToArray();
-            _vm.SelectedRow = Grid.SelectedItem;
+            _vm.SelectedRows = TickedInOrder();
+            // One row ticked is the one previewed; none ticked, nothing is. With several the
+            // pane shows the selection, and the highlighted row stays where it was.
+            if (_ticked.Count <= 1)
+            {
+                var single = _ticked.FirstOrDefault();
+                _vm.SelectedRow = single;
+                Grid.SelectedItem = single;
+            }
             _syncingSelection = false;
         }
-        UpdateSelectAll();
+        ShowTicks();
     }
 
     void UpdateSelectAll()
     {
         if (_selectAll is null)
             return;
-        var count = Grid.SelectedItems.Count;
+        var count = _ticked.Count;
         var total = _vm?.Rows.Count ?? 0;
         // Checked when every row is, cleared when none is, and in between when only some are.
         // One row on its own is the row being previewed, not a selection (as the list counts it).

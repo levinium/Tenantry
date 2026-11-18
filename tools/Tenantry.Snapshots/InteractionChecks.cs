@@ -810,9 +810,14 @@ static class InteractionChecks
             foreach (var row in rows.Take(3))
                 Click(window, row.GetVisualDescendants().OfType<CheckBox>().First());
             Expect(main.Users.SelectionCount == 3, $"three rows are ticked (got {main.Users.SelectionCount})");
-            // A plain text cell of the fourth row: not its name link or a button.
-            var cell = rows[3].GetVisualDescendants().OfType<DataGridCell>().Last(c => c.IsEffectivelyVisible && c.Bounds.Width > 0);
-            Click(window, cell);
+            // A text cell past the box, actions and name, whose middle is inside the table.
+            DataGridCell TextCell(int index) => grid.GetVisualDescendants().OfType<DataGridRow>().Where(r => r.IsEffectivelyVisible)
+                .OrderBy(r => r.TranslatePoint(default, grid)!.Value.Y).ElementAt(index)
+                .GetVisualDescendants().OfType<DataGridCell>().Where(c => c.IsEffectivelyVisible && c.Bounds.Width > 0)
+                .Select(c => (Cell: c, Middle: c.TranslatePoint(new Point(c.Bounds.Width / 2, 0), grid)!.Value.X))
+                .Where(c => c.Middle < grid.Bounds.Width - 20).OrderBy(c => c.Middle).Skip(3).First().Cell;
+            // A plain click on the fourth row's text: not its name link or a button.
+            Click(window, TextCell(3));
             Expect(main.Users.SelectionCount == 3, $"the plain click kept all three ticks (now {main.Users.SelectionCount})");
             Expect(!window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == main.Users.ClosePreviewCommand && b.IsEffectivelyVisible),
                 "the pane shows Clear Selection, not a ✕");
@@ -822,6 +827,27 @@ static class InteractionChecks
             Click(window, all);
             Expect(main.Users.SelectionCount == main.Users.Rows.Count && main.Users.AllRowsTicked, "the header box ticked every matching row");
             Expect(window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == main.Users.AllTickedText && t.IsEffectivelyVisible), "a banner says all are ticked");
+            Click(window, all);
+            Expect(main.Users.SelectionCount == 0, $"the header box again cleared every tick (left {main.Users.SelectionCount})");
+
+            // Ctrl-click and Shift-click on a row's text tick as the boxes do; Ctrl+A ticks all.
+            Click(window, TextCell(1), RawInputModifiers.Control);
+            Click(window, TextCell(3), RawInputModifiers.Control);
+            Expect(main.Users.SelectionCount == 2, $"Ctrl-click ticked two rows (got {main.Users.SelectionCount})");
+            Click(window, TextCell(6), RawInputModifiers.Shift);
+            var order = main.Users.Rows.ToList();
+            var ticked = main.Users.SelectedRows.Select(r => order.IndexOf(r)).Order().ToArray();
+            Expect(ticked.SequenceEqual([1, 3, 4, 5, 6]), $"Shift-click ticked from the last row clicked (got {string.Join(",", ticked)})");
+            var boxes = grid.GetVisualDescendants().OfType<DataGridRow>().Where(r => r.IsEffectivelyVisible)
+                .OrderBy(r => r.TranslatePoint(default, grid)!.Value.Y).Take(8)
+                .Select(r => r.GetVisualDescendants().OfType<CheckBox>().First().IsChecked == true && r.Classes.Contains("ticked")).ToArray();
+            Expect(boxes.SequenceEqual([false, true, false, true, true, true, true, false]), $"the ticked rows show checked and highlighted ({string.Join(",", boxes)})");
+            Click(window, TextCell(4), RawInputModifiers.Control);
+            Expect(main.Users.SelectionCount == 4, $"Ctrl-click on a ticked row unticked it (left {main.Users.SelectionCount})");
+            grid.Focus();
+            window.KeyPress(Key.A, RawInputModifiers.Control, PhysicalKey.A, "a");
+            Settle();
+            Expect(main.Users.SelectionCount == main.Users.Rows.Count, $"Ctrl+A ticked every row ({main.Users.SelectionCount})");
             window.Close();
         });
 
@@ -3102,24 +3128,33 @@ static class InteractionChecks
             Step("preview the last row", () => list.SelectedRow = list.Rows[^1]);
             if (list.Rows.OfType<GroupSummary>().MaxBy(g => g.Members.Count) is { } biggest)
                 Step($"preview the largest ({biggest.Members.Count:N0} members)", () => list.SelectedRow = biggest);
+            // The rows on screen show exactly the ticks: highlighted and their boxes checked.
+            void ShowsTicks(string when)
+            {
+                var shown = grid.GetVisualDescendants().OfType<DataGridRow>().Where(r => r.IsEffectivelyVisible && r.DataContext is not null).ToArray();
+                var wrong = shown.Count(r => r.Classes.Contains("ticked") != view.IsTicked(r.DataContext!)
+                    || r.GetVisualDescendants().OfType<CheckBox>().FirstOrDefault() is { } box && box.IsChecked != view.IsTicked(r.DataContext!));
+                Expect(shown.Length > 0 && wrong == 0, $"{when}: the rows on screen show their ticks ({wrong} of {shown.Length} wrong)");
+            }
             Step($"tick all {list.Rows.Count:N0}", () => list.SelectedRows = list.Rows);
+            Expect(view.TickedCount == list.Rows.Count, $"every row is ticked ({view.TickedCount:N0})");
+            ShowsTicks("all ticked");
             Step("untick all", () => list.SelectedRows = []);
-            Expect(grid.SelectedItems.Count <= 1, "untick left only the previewed row highlighted");
+            Expect(view.TickedCount == 0, "untick cleared every tick");
+            ShowsTicks("none ticked");
             Step($"tick half ({list.Rows.Count / 2:N0})", () => list.SelectedRows = list.Rows.Take(list.Rows.Count / 2).ToArray());
-            Expect(grid.SelectedItems.Count == list.Rows.Count / 2, $"the grid shows half ticked ({grid.SelectedItems.Count:N0})");
+            Expect(view.TickedCount == list.Rows.Count / 2, $"half are ticked ({view.TickedCount:N0})");
             Step("untick again", () => list.SelectedRows = []);
             if (list.GroupOptions.FirstOrDefault(g => g.Key is not null) is { } byGroup)
             {
                 list.SelectedGroup = byGroup;
                 Settle();
-                // Grouped, the grid finds each row by counting from the start of its group
-                // (Avalonia's DataGridCollectionViewGroupInternal.LeafAt), so ticking thousands of
-                // scattered rows grows with the square of the group size there: 4.5 s for 33,000 devices in a few big groups, about 40 ms for 3,000. Up to five seconds is allowed for these two.
-                Grouped(Step($"grouped: tick all {list.Rows.Count:N0}", () => list.SelectedRows = list.Rows));
+                Step($"grouped: tick all {list.Rows.Count:N0}", () => list.SelectedRows = list.Rows);
                 Step("grouped: untick all", () => list.SelectedRows = []);
                 var third = list.Rows.Where((_, i) => i % 3 == 0).ToArray();
-                Grouped(Step($"grouped: tick every third ({third.Length:N0})", () => list.SelectedRows = third));
-                Expect(grid.SelectedItems.Count == third.Length && third.All(r => grid.SelectedItems.Contains(r)), $"grouped, the grid shows every third ticked ({grid.SelectedItems.Count:N0})");
+                Step($"grouped: tick every third ({third.Length:N0})", () => list.SelectedRows = third);
+                Expect(view.TickedCount == third.Length && third.All(view.IsTicked), $"grouped, every third is ticked ({view.TickedCount:N0})");
+                ShowsTicks("grouped, every third");
                 Step("grouped: untick", () => list.SelectedRows = []);
                 list.SelectedGroup = list.GroupOptions[0];
             }
@@ -3127,11 +3162,6 @@ static class InteractionChecks
         finally
         {
             window.Close();
-        }
-        void Grouped(double ms)
-        {
-            steps.RemoveAt(steps.Count - 1);
-            Expect(ms < 5000, $"a grouped tick took under five seconds ({ms:0} ms)");
         }
         Expect(steps[0] < 8000, "the list showed in under eight seconds");
         var slow = steps.Skip(1).Count(s => s >= 1000);

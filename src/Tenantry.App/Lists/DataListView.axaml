@@ -813,7 +813,7 @@
         <Grid>
           <DataGrid x:Name="Grid" Theme="{StaticResource TopScrollDataGrid}"
                     IsReadOnly="True" CanUserSortColumns="False" CanUserResizeColumns="True" CanUserReorderColumns="True"
-                    FrozenColumnCount="3" SelectionMode="Extended" ClipboardCopyMode="None" />
+                    FrozenColumnCount="3" SelectionMode="Single" ClipboardCopyMode="None" />
           <!-- More columns off to the right: the last visible one fades out instead of ending in a
                cut word (shown from code while the table can scroll further right). -->
           <Border x:Name="RightFade" IsVisible="False" IsHitTestVisible="False" Width="48" HorizontalAlignment="Right"

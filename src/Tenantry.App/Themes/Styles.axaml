@@ -649,6 +649,14 @@
   <Style Selector="DataGrid.compact DataGridRow">
     <Setter Property="MinHeight" Value="34" />
   </Style>
+  <!-- Ticked rows (kept by the list, not the grid's selection) look like selected ones. -->
+  <Style Selector="DataGridRow.ticked /template/ Rectangle#BackgroundRectangle">
+    <Setter Property="Fill" Value="{DynamicResource DataGridRowSelectedUnfocusedBackgroundBrush}" />
+    <Setter Property="Opacity" Value="1" />
+  </Style>
+  <Style Selector="DataGridRow.ticked:pointerover /template/ Rectangle#BackgroundRectangle">
+    <Setter Property="Fill" Value="{DynamicResource DataGridRowSelectedHoveredUnfocusedBackgroundBrush}" />
+  </Style>
   <Style Selector="DataGridRowGroupHeader">
     <Setter Property="FontSize" Value="13" />
     <Setter Property="FontWeight" Value="SemiBold" />
