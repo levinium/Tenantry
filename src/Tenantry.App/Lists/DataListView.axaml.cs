@@ -135,20 +135,6 @@ public partial class DataListView : UserControl
             _tinyBelow = Toolbar.Bounds.Width + 1;
             Toolbar.Classes.Set("tiny", true);
         };
-        // A fade at the right edge while there are columns further right to scroll to.
-        Grid.TemplateApplied += (_, e) =>
-        {
-            if (e.NameScope.Find<Avalonia.Controls.Primitives.ScrollBar>("PART_HorizontalScrollbar") is not { } bar)
-                return;
-            void Update() => RightFade.IsVisible = bar.IsVisible && bar.Maximum - bar.Value > 1;
-            bar.PropertyChanged += (_, p) =>
-            {
-                if (p.Property == Avalonia.Controls.Primitives.RangeBase.ValueProperty
-                    || p.Property == Avalonia.Controls.Primitives.RangeBase.MaximumProperty || p.Property == IsVisibleProperty)
-                    Update();
-            };
-            Update();
-        };
         // Freezing the name column only helps when there's room to scroll beside it. In a narrow
         // table it would eat most of the width and leave the scrollbar a stub, so only the row
         // actions stay frozen then.

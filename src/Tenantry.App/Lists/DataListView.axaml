@@ -814,17 +814,6 @@
           <DataGrid x:Name="Grid" Theme="{StaticResource TopScrollDataGrid}"
                     IsReadOnly="True" CanUserSortColumns="False" CanUserResizeColumns="True" CanUserReorderColumns="True"
                     FrozenColumnCount="3" SelectionMode="Single" ClipboardCopyMode="None" />
-          <!-- More columns off to the right: the last visible one fades out instead of ending in a
-               cut word (shown from code while the table can scroll further right). -->
-          <Border x:Name="RightFade" IsVisible="False" IsHitTestVisible="False" Width="48" HorizontalAlignment="Right"
-                  Margin="0,0,12,0" Background="{DynamicResource CardBg}">
-            <Border.OpacityMask>
-              <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                <GradientStop Offset="0" Color="Transparent" />
-                <GradientStop Offset="1" Color="Black" />
-              </LinearGradientBrush>
-            </Border.OpacityMask>
-          </Border>
           <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" MaxWidth="420">
             <ic:FluentIcon Icon="Search" FontSize="32" HorizontalAlignment="Center" Foreground="{DynamicResource TextMuted}" />
             <TextBlock Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Text="{Binding EmptyText}" />
