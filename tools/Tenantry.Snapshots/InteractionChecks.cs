@@ -261,6 +261,11 @@ static class InteractionChecks
         });
 
         Check("Scale: the Users list opens, searches, sorts, groups and scrolls quickly", ScaleCheck);
+        Check("Scale: the Groups list keeps up", () => ScaleListCheck("groups", m => m.Groups));
+        Check("Scale: the Devices list keeps up", () => ScaleListCheck("devices", m => m.Devices));
+        Check("Scale: the Sites list keeps up", () => ScaleListCheck("sharepoint", m => m.SharePoint.Sites));
+        Check("Scale: the OneDrives list keeps up", () => ScaleListCheck("sharepoint", m => m.SharePoint.OneDrives,
+            m => m.SharePoint.SelectedPage = SharePointAreaViewModel.Pages.Single(p => p.Key == "onedrives")));
 
         Check("Copying: right-clicking a trace step offers the step, its section and the whole preview, laid out as they read; pointing at the sender shows a copy button that copies it; Ctrl+C in a list copies the ticked rows as a table", () =>
         {
@@ -3045,6 +3050,92 @@ static class InteractionChecks
         // after it is what an admin waits for while working.
         Expect(steps[0] < 8000, "the list opened in under eight seconds");
         Expect(steps.Skip(1).All(s => s < 1000), "every step after opening took under a second");
+    }
+
+    /// <summary>
+    /// The same timing for another list: shown from the sidebar, then searched, sorted, grouped,
+    /// scrolled, previewed (first, last and largest row) and every row ticked. Under a second each.
+    /// </summary>
+    static void ScaleListCheck(string section, Func<MainViewModel, Tenantry.ViewModels.Lists.DataListViewModel> pick, Action<MainViewModel>? page = null)
+    {
+        var (window, main, _) = OpenList();
+        var list = pick(main);
+        var steps = new List<double>();
+        double Step(string what, Action act)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            act();
+            var own = sw.Elapsed.TotalMilliseconds;
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var ms = sw.Elapsed.TotalMilliseconds;
+            var draw = System.Diagnostics.Stopwatch.StartNew();
+            Settle();
+            Console.WriteLine($"      {what,-44} {ms,8:0} ms   (its own work {own:0} ms; drawing {draw.Elapsed.TotalMilliseconds:0} ms)");
+            steps.Add(ms);
+            return ms;
+        }
+        try
+        {
+            Step("show the list", () =>
+            {
+                main.SelectedSection = main.Sections.Single(s => s.Key == section);
+                page?.Invoke(main);
+                list.LoadAsync().GetAwaiter().GetResult();
+            });
+            Console.WriteLine($"      ({list.Rows.Count:N0} rows)");
+            Expect(list.Rows.Count > 0, "the list has rows");
+            foreach (var text in new[] { "a", "al", "ali", "alic", "zzzz" })
+                Step($"type \"{text}\"", () => list.SearchText = text);
+            Step("clear the search", () => list.SearchText = "");
+            var sort = list.Columns.Where(c => c.CanSort).Skip(1).FirstOrDefault() ?? list.Columns.First(c => c.CanSort);
+            Step($"sort by {sort.Header}", () => list.SortColumnDescending(sort));
+            if (list.GroupOptions.FirstOrDefault(g => g.Key is not null) is { } group)
+            {
+                Step($"group by {group.Label}", () => list.SelectedGroup = group);
+                Step("ungroup", () => list.SelectedGroup = list.GroupOptions[0]);
+            }
+            var view = window.GetVisualDescendants().OfType<Tenantry.App.Lists.DataListView>().First(v => ReferenceEquals(v.DataContext, list) && v.IsEffectivelyVisible);
+            var grid = view.GetVisualDescendants().OfType<DataGrid>().First();
+            Step("scroll to the last row", () => grid.ScrollIntoView(list.Rows[^1], null));
+            Step("preview the first row", () => { list.IsPreviewOpen = true; list.SelectedRow = list.Rows[0]; });
+            Step("preview the last row", () => list.SelectedRow = list.Rows[^1]);
+            if (list.Rows.OfType<GroupSummary>().MaxBy(g => g.Members.Count) is { } biggest)
+                Step($"preview the largest ({biggest.Members.Count:N0} members)", () => list.SelectedRow = biggest);
+            Step($"tick all {list.Rows.Count:N0}", () => list.SelectedRows = list.Rows);
+            Step("untick all", () => list.SelectedRows = []);
+            Expect(grid.SelectedItems.Count <= 1, "untick left only the previewed row highlighted");
+            Step($"tick half ({list.Rows.Count / 2:N0})", () => list.SelectedRows = list.Rows.Take(list.Rows.Count / 2).ToArray());
+            Expect(grid.SelectedItems.Count == list.Rows.Count / 2, $"the grid shows half ticked ({grid.SelectedItems.Count:N0})");
+            Step("untick again", () => list.SelectedRows = []);
+            if (list.GroupOptions.FirstOrDefault(g => g.Key is not null) is { } byGroup)
+            {
+                list.SelectedGroup = byGroup;
+                Settle();
+                // Grouped, the grid finds each row by counting from the start of its group
+                // (Avalonia's DataGridCollectionViewGroupInternal.LeafAt), so ticking thousands of
+                // scattered rows grows with the square of the group size there: 4.5 s for 33,000 devices in a few big groups, about 40 ms for 3,000. Up to five seconds is allowed for these two.
+                Grouped(Step($"grouped: tick all {list.Rows.Count:N0}", () => list.SelectedRows = list.Rows));
+                Step("grouped: untick all", () => list.SelectedRows = []);
+                var third = list.Rows.Where((_, i) => i % 3 == 0).ToArray();
+                Grouped(Step($"grouped: tick every third ({third.Length:N0})", () => list.SelectedRows = third));
+                Expect(grid.SelectedItems.Count == third.Length && third.All(r => grid.SelectedItems.Contains(r)), $"grouped, the grid shows every third ticked ({grid.SelectedItems.Count:N0})");
+                Step("grouped: untick", () => list.SelectedRows = []);
+                list.SelectedGroup = list.GroupOptions[0];
+            }
+        }
+        finally
+        {
+            window.Close();
+        }
+        void Grouped(double ms)
+        {
+            steps.RemoveAt(steps.Count - 1);
+            Expect(ms < 5000, $"a grouped tick took under five seconds ({ms:0} ms)");
+        }
+        Expect(steps[0] < 8000, "the list showed in under eight seconds");
+        var slow = steps.Skip(1).Count(s => s >= 1000);
+        Expect(slow == 0, $"every step after showing took under a second ({slow} did not)");
     }
 
     static (MainWindow Window, MainViewModel Main, ShellViewModel Shell) OpenList(bool premium = false)

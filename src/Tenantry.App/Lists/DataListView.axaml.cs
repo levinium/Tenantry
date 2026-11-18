@@ -251,16 +251,27 @@ public partial class DataListView : UserControl
         Grid.SelectedItems.Clear();
         // A checked row the current filter hides (a count chip just narrowed the list) isn't in
         // the grid's items, and the grid throws for one it doesn't hold: those are skipped.
-        var shown = Grid.ItemsSource is System.Collections.IEnumerable items
-            ? new HashSet<object>(items.Cast<object>(), ReferenceEqualityComparer.Instance)
-            : [];
-        foreach (var row in _vm.SelectedRows)
-            if (shown.Contains(row))
+        var shown = ShownPositions();
+        var wanted = _vm.SelectedRows.Where(shown.ContainsKey).ToArray();
+        if (wanted.Length > 0 && wanted.Length == shown.Count)
+            Grid.SelectAll();
+        else if (!GridSelection.TrySet(Grid, wanted.Select(r => shown[r]), select: true))
+            foreach (var row in wanted)
                 Grid.SelectedItems.Add(row);
-        if (_vm.SelectedRows.Count == 0 && _vm.SelectedRow is { } single && shown.Contains(single))
+        if (_vm.SelectedRows.Count == 0 && _vm.SelectedRow is { } single && shown.ContainsKey(single))
             Grid.SelectedItem = single;
         _syncingSelection = false;
         UpdateSelectAll();
+    }
+
+    /// <summary>Each row the grid shows and its position there (grouped lists show rows group by group).</summary>
+    Dictionary<object, int> ShownPositions()
+    {
+        var positions = new Dictionary<object, int>(ReferenceEqualityComparer.Instance);
+        if (Grid.ItemsSource is System.Collections.IEnumerable items)
+            foreach (var row in items)
+                positions.TryAdd(row, positions.Count);
+        return positions;
     }
 
     // ---- Checkboxes (bulk edit) -------------------------------------------------------------
@@ -328,26 +339,27 @@ public partial class DataListView : UserControl
     {
         var check = !Grid.SelectedItems.Contains(row);
         var rows = new List<object> { row };
-        if (range && _checkAnchor is { } anchor && !ReferenceEquals(anchor, row))
+        // In the order shown (grouped lists show rows group by group).
+        var shown = ShownPositions();
+        if (range && _checkAnchor is { } anchor && !ReferenceEquals(anchor, row)
+            && shown.TryGetValue(anchor, out var from) && shown.TryGetValue(row, out var to))
         {
-            // In the order shown (grouped lists show rows group by group).
-            var shown = (Grid.ItemsSource as System.Collections.IEnumerable)?.Cast<object>().ToList() ?? [];
-            var from = shown.IndexOf(anchor);
-            var to = shown.IndexOf(row);
-            if (from >= 0 && to >= 0)
-                rows = shown.GetRange(Math.Min(from, to), Math.Abs(to - from) + 1);
+            var (low, high) = (Math.Min(from, to), Math.Max(from, to));
+            rows = shown.Where(p => p.Value >= low && p.Value <= high).Select(p => p.Key).ToList();
         }
         _checkAnchor = row;
 
         _syncingSelection = true;
-        foreach (var r in rows)
-        {
-            var isChecked = Grid.SelectedItems.Contains(r);
-            if (check && !isChecked)
-                Grid.SelectedItems.Add(r);
-            else if (!check && isChecked)
-                Grid.SelectedItems.Remove(r);
-        }
+        // Rows already in the wanted state are left alone by the grid, so the whole range goes at once.
+        if (!shown.TryGetValue(row, out _) || !GridSelection.TrySet(Grid, rows.Select(r => shown[r]), check))
+            foreach (var r in rows)
+            {
+                var isChecked = Grid.SelectedItems.Contains(r);
+                if (check && !isChecked)
+                    Grid.SelectedItems.Add(r);
+                else if (!check && isChecked)
+                    Grid.SelectedItems.Remove(r);
+            }
         _syncingSelection = false;
         if (_vm is not null)
         {
