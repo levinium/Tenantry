@@ -179,7 +179,12 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
-          <Button Classes="accent" HorizontalAlignment="Left" Content="Back to Tenants" Command="{Binding FinishCommand}" />
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Button Classes="accent" Content="{Binding OpenText}" Command="{Binding OpenTenantCommand}" IsVisible="{Binding CanOpenTenant}"
+                    ToolTip.Tip="Sign in to it and start; your browser is already signed in from setup" />
+            <Button Content="Cancel Sign-In" IsVisible="{Binding IsOpening}" Command="{Binding CancelRunCommand}" />
+            <Button Content="Back to Tenants" Command="{Binding FinishCommand}" IsVisible="{Binding !IsOpening}" />
+          </StackPanel>
         </StackPanel>
       </Border>
 

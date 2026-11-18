@@ -119,9 +119,12 @@ public sealed class MsalTokenSource : ITokenSource
                 return Remember(await deviceCode.ExecuteAsync(cancellationToken));
             }
 
+            // With the account already known (setup just signed in as it, or an earlier session),
+            // no account picker: the browser's own sign-in carries on by itself when it can, and
+            // asks only for what it must (a password, MFA). Otherwise the admin picks the account.
             var builder = _app.AcquireTokenInteractive(scopes).WithUseEmbeddedWebView(false);
-            builder = (_account ?? account) is { } known ? builder.WithAccount(known)
-                : _loginHint is not null ? builder.WithLoginHint(_loginHint)
+            builder = (_account ?? account) is { } known ? builder.WithAccount(known).WithPrompt(Prompt.NoPrompt)
+                : _loginHint is not null ? builder.WithLoginHint(_loginHint).WithPrompt(Prompt.NoPrompt)
                 : builder.WithPrompt(Prompt.SelectAccount);
             if (claims is not null)
                 builder = builder.WithClaims(claims);

@@ -252,6 +252,59 @@ public class ShellAndSetupTests
         Assert.Equal("Contoso is ready. The app registration was created.", wizard.DoneMessage);
     }
 
+    [Fact]
+    public async Task Automatic_setup_with_nothing_unresolved_opens_the_tenant_straight_away()
+    {
+        ConnectedTenant? opened = null;
+        var connector = new FakeConnector { OnSetup = (_, _) => Task.FromResult(new SetupOutcome(FakeConnector.Profile(), false, [])) };
+        var wizard = new SetupWizardViewModel(connector, () => { }, () => { }, t => opened = t);
+
+        wizard.ChooseAutomaticCommand.Execute(null);
+        await wizard.RunAutomaticCommand.ExecuteAsync(null);
+
+        Assert.NotNull(opened);
+        Assert.False(wizard.IsDone);
+    }
+
+    [Fact]
+    public async Task Automatic_setup_with_unresolved_permissions_stops_to_say_so_and_offers_open()
+    {
+        ConnectedTenant? opened = null;
+        var connector = new FakeConnector { OnSetup = (_, _) => Task.FromResult(new SetupOutcome(FakeConnector.Profile(), false, ["Microsoft Graph: X.Read"])) };
+        var wizard = new SetupWizardViewModel(connector, () => { }, () => { }, t => opened = t);
+
+        wizard.ChooseAutomaticCommand.Execute(null);
+        await wizard.RunAutomaticCommand.ExecuteAsync(null);
+
+        Assert.True(wizard.IsDone);
+        Assert.Null(opened);
+        Assert.Equal("Open Contoso", wizard.OpenText);
+        await wizard.OpenTenantCommand.ExecuteAsync(null);
+        Assert.NotNull(opened);
+    }
+
+    [Fact]
+    public async Task A_failed_open_after_setup_stays_on_the_summary_to_try_again()
+    {
+        var connector = new FakeConnector
+        {
+            OnManual = (_, _, _) => Task.FromResult(FakeConnector.Profile()),
+            OnConnect = (_, _) => throw new InvalidOperationException("sign-in was cancelled"),
+        };
+        var wizard = new SetupWizardViewModel(connector, () => { }, () => { }, _ => { })
+        {
+            TenantIdInput = "11111111-1111-1111-1111-111111111111",
+            ClientIdInput = "22222222-2222-2222-2222-222222222222",
+        };
+
+        await wizard.VerifyManualCommand.ExecuteAsync(null);
+
+        Assert.True(wizard.IsDone);
+        Assert.NotNull(wizard.Error);
+        Assert.True(wizard.OpenTenantCommand.CanExecute(null));
+        Assert.False(wizard.IsBusy);
+    }
+
     [Theory]
     [InlineData("", "", false)]
     [InlineData("not-a-guid", "11111111-1111-1111-1111-111111111111", false)]

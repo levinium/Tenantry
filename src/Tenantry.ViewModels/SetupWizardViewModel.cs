@@ -22,12 +22,15 @@ public sealed partial class SetupWizardViewModel : ObservableObject
     readonly ITenantConnector _connector;
     readonly Action _finished;
     readonly Action _cancelled;
+    readonly Action<ConnectedTenant>? _open;
 
-    public SetupWizardViewModel(ITenantConnector connector, Action finished, Action cancelled)
+    /// <param name="open">Opens the tenant once it's set up, so the admin goes straight in; null leaves them on the summary.</param>
+    public SetupWizardViewModel(ITenantConnector connector, Action finished, Action cancelled, Action<ConnectedTenant>? open = null)
     {
         _connector = connector;
         _finished = finished;
         _cancelled = cancelled;
+        _open = open;
         Step = SetupStep.Choose;
         TenantIdInput = "";
         ClientIdInput = "";
@@ -57,6 +60,49 @@ public sealed partial class SetupWizardViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string? DoneMessage { get; private set; }
+
+    /// <summary>The tenant just set up, to open from the summary.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanOpenTenant), nameof(OpenText))]
+    [NotifyCanExecuteChangedFor(nameof(OpenTenantCommand))]
+    public partial Tenantry.Core.Tenancy.TenantProfile? Profile { get; private set; }
+
+    public bool CanOpenTenant => Profile is not null && _open is not null;
+
+    public string OpenText => Profile is { } p ? $"Open {p.DisplayName}" : "Open the Tenant";
+
+    [ObservableProperty]
+    public partial bool IsOpening { get; private set; }
+
+    /// <summary>Signs in to the new tenant and opens it. The browser is already signed in from setup, so it usually asks nothing.</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenTenant))]
+    async Task OpenTenantAsync()
+    {
+        if (Profile is not { } profile || _open is null || IsOpening)
+            return;
+        IsOpening = true;
+        IsBusy = true;
+        Error = null;
+        Progress.Add($"Opening {profile.DisplayName}…");
+        _run = new CancellationTokenSource();
+        try
+        {
+            _open(await _connector.ConnectAsync(profile, _run.Token));
+        }
+        catch (Exception e)
+        {
+            // The summary stays, with Open to try again.
+            Error = Friendly.Message(e);
+            Step = SetupStep.Done;
+        }
+        finally
+        {
+            _run?.Dispose();
+            _run = null;
+            IsOpening = false;
+            IsBusy = false;
+        }
+    }
 
     /// <summary>What the automatic setup will change, shown before anything runs.</summary>
     public IReadOnlyList<string> AutomaticChanges { get; } =
@@ -133,7 +179,7 @@ public sealed partial class SetupWizardViewModel : ObservableObject
                 Unresolved.Add(u);
             OnPropertyChanged(nameof(HasUnresolved));
             DoneMessage = $"{outcome.Profile.DisplayName} is ready. The app registration was {(outcome.Reused ? "updated" : "created")}.";
-            Step = SetupStep.Done;
+            Profile = outcome.Profile;
         }
         catch (Exception e)
         {
@@ -144,6 +190,14 @@ public sealed partial class SetupWizardViewModel : ObservableObject
             _run.Dispose();
             _run = null;
             IsBusy = false;
+        }
+        // Straight in, unless something couldn't be granted: then the summary says what, with Open below it.
+        if (Profile is not null)
+        {
+            if (Unresolved.Count == 0 && _open is not null)
+                await OpenTenantAsync();
+            else
+                Step = SetupStep.Done;
         }
     }
 
@@ -157,7 +211,7 @@ public sealed partial class SetupWizardViewModel : ObservableObject
         {
             var profile = await _connector.AddManualAsync(TenantIdInput.Trim(), ClientIdInput.Trim(), _run.Token);
             DoneMessage = $"{profile.DisplayName} is ready. Sign-in with your app registration works.";
-            Step = SetupStep.Done;
+            Profile = profile;
         }
         catch (Exception e)
         {
@@ -168,6 +222,14 @@ public sealed partial class SetupWizardViewModel : ObservableObject
             _run.Dispose();
             _run = null;
             IsBusy = false;
+        }
+        // Verifying signed in with this registration already, so opening needs no second sign-in.
+        if (Profile is not null)
+        {
+            if (_open is not null)
+                await OpenTenantAsync();
+            else
+                Step = SetupStep.Done;
         }
     }
 

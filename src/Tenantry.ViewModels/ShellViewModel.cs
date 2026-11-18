@@ -80,7 +80,7 @@ public sealed partial class ShellViewModel : ObservableObject
         CurrentPage = NewWelcome();
     }
 
-    void ShowWizard() => CurrentPage = new SetupWizardViewModel(_connector, ShowWelcome, ShowWelcome);
+    void ShowWizard() => CurrentPage = new SetupWizardViewModel(_connector, ShowWelcome, ShowWelcome, Open);
 
     void Open(ConnectedTenant tenant)
     {
