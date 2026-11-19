@@ -79,7 +79,7 @@
                       <Border Classes="chip" ToolTip.Tip="{Binding ExtensionsText}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                           <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
-                          <Button Command="{Binding UntickCommand}" Padding="2" VerticalAlignment="Center" ToolTip.Tip="Don't look for this kind">
+                          <Button Command="{Binding UntickCommand}" Padding="2" Focusable="False" VerticalAlignment="Center" ToolTip.Tip="Don't look for this kind">
                             <ic:FluentIcon Icon="Dismiss" FontSize="10" />
                           </Button>
                         </StackPanel>
@@ -103,7 +103,7 @@
                       <Border Classes="chip">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                           <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
-                          <Button Command="{Binding RemoveCommand}" Padding="2" VerticalAlignment="Center" ToolTip.Tip="Don't look for this extension">
+                          <Button Command="{Binding RemoveCommand}" Padding="2" Focusable="False" VerticalAlignment="Center" ToolTip.Tip="Don't look for this extension">
                             <ic:FluentIcon Icon="Dismiss" FontSize="10" />
                           </Button>
                         </StackPanel>

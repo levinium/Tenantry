@@ -62,8 +62,29 @@ public sealed partial class ShellViewModel : ObservableObject
     public bool HasProblem => Problem is not null;
 
     /// <summary>An error no screen caught (the app's last-chance handler): said once, in plain words.</summary>
-    public void ShowProblem(Exception exception) =>
+    public void ShowProblem(Exception exception)
+    {
         Problem = $"Something went wrong: {Friendly.Message(exception)} Tenantry kept running; if it happens again, try the last step once more.";
+        // What Copy adds for whoever looks into it: the kind of error and where it came from (no data).
+        _problemDetail = $"{exception.GetType().FullName}: {exception.Message}{Environment.NewLine}" +
+                         string.Join(Environment.NewLine, (exception.StackTrace ?? "").Split('\n').Select(l => l.TrimEnd()).Where(l => l.Length > 0).Take(12));
+        ProblemCopied = false;
+    }
+
+    string? _problemDetail;
+
+    [ObservableProperty]
+    public partial bool ProblemCopied { get; private set; }
+
+    /// <summary>The message and its technical details, to paste into a report.</summary>
+    [RelayCommand]
+    void CopyProblem()
+    {
+        if (Problem is null)
+            return;
+        Platform.CopyText(_problemDetail is null ? Problem : $"{Problem}{Environment.NewLine}{Environment.NewLine}{_problemDetail}");
+        ProblemCopied = true;
+    }
 
     [RelayCommand]
     void DismissProblem() => Problem = null;

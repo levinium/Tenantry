@@ -12,7 +12,10 @@ public partial class FindFilesView : UserControl
         InitializeComponent();
         // Enter in the extensions box makes a badge; it doesn't start the search (Find Files is the default button).
         ExtensionBox.AddHandler(KeyDownEvent, OnExtensionKey, RoutingStrategies.Tunnel);
-        ExtensionBox.LostFocus += (_, _) => (DataContext as FindFilesViewModel)?.AddExtensionDraft();
+        // Leaving the box (Tab, a click elsewhere) makes the badge once focus has moved: changing the
+        // badges while Avalonia moves focus drew the next control's focus outline twice and threw
+        // "Border already has a visual parent AdornerLayer" (Mark, 2026-11-19).
+        ExtensionBox.LostFocus += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(() => (DataContext as FindFilesViewModel)?.AddExtensionDraft());
         // A comma or space turns what's before it into a badge: keep typing at the end of what's left.
         ExtensionBox.PropertyChanged += (_, e) =>
         {

@@ -1257,6 +1257,44 @@ static class InteractionChecks
             Click(window, Need("the .dwg badge's ×", b => b.Command == dwg.RemoveCommand && b.IsEffectivelyVisible));
             Settle();
             Expect(find.Extensions.Count == 1, "a badge's × takes it off");
+            // Mark, 2026-11-19: adding and removing badges in a row once broke ("Border already has a visual parent AdornerLayer").
+            for (var round = 0; round < 4; round++)
+            {
+                typed.Focus();
+                window.KeyTextInput($"x{round},y{round},");
+                Settle();
+                var first = find.Extensions[0];
+                Click(window, Need("a badge's ×", b => b.Command == first.RemoveCommand && b.IsEffectivelyVisible));
+                Settle();
+                typed.Focus();
+                window.KeyTextInput($"z{round}");
+                typed.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+                Settle();
+                var tick = find.Types[round];
+                tick.IsOn = true;
+                Settle();
+                Click(window, Need("a type chip's ×", b => b.Command == tick.UntickCommand && b.IsEffectivelyVisible));
+                Settle();
+            }
+            Expect(find.Extensions.Count == 9, $"badges kept up through adding and removing ({find.Extensions.Count})");
+            // From the keyboard (Mark, 2026-11-19: Tab out of the box once threw): Tab makes a badge once focus
+            // has moved, the badges' × aren't Tab stops, and Backspace in the empty box takes the last off.
+            for (var round = 0; round < 4; round++)
+            {
+                typed.Focus();
+                window.KeyTextInput($"k{round}");
+                window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+                window.KeyRelease(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+                Settle();
+                Expect(find.Extensions.Count == 10 && find.Extensions[^1].Text == $".k{round}" && find.ExtensionDraft.Length == 0,
+                    $"Tab out of the box makes a badge ({string.Join(" ", find.Extensions.Select(x => x.Text))})");
+                Expect(window.FocusManager?.GetFocusedElement() is not Button { Command: var c } || find.Extensions.All(x => x.RemoveCommand != c), "Tab doesn't stop on a badge's ×");
+                typed.Focus();
+                window.KeyPress(Key.Back, RawInputModifiers.None, PhysicalKey.Backspace, null);
+                window.KeyRelease(Key.Back, RawInputModifiers.None, PhysicalKey.Backspace, null);
+                Settle();
+            }
+            Expect(find.Extensions.Count == 9, $"badges kept up from the keyboard ({find.Extensions.Count})");
             Click(window, Need("Any Type", b => b.Command == find.ClearTypesCommand && b.IsEffectivelyVisible));
             Settle();
             Expect(find.Extensions.Count == 0 && !find.HasTypeFilter, "Any Type clears them");

@@ -12,9 +12,16 @@
        wrong unexpectedly (the app keeps running), until dismissed. -->
   <DockPanel>
   <Border DockPanel.Dock="Top" Classes="banner error" Margin="20,12,20,0" IsVisible="{Binding HasProblem}">
-    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-      <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Problem}" />
-      <Button Grid.Column="1" Content="Dismiss" Command="{Binding DismissProblemCommand}" VerticalAlignment="Center" />
+    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+      <SelectableTextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Problem}" />
+      <Button Grid.Column="1" Command="{Binding CopyProblemCommand}" VerticalAlignment="Center"
+              ToolTip.Tip="Copy the message and its technical details, to pass on">
+        <Panel>
+          <TextBlock Text="Copy" IsVisible="{Binding !ProblemCopied}" />
+          <TextBlock Text="Copied" IsVisible="{Binding ProblemCopied}" />
+        </Panel>
+      </Button>
+      <Button Grid.Column="2" Content="Dismiss" Command="{Binding DismissProblemCommand}" VerticalAlignment="Center" />
     </Grid>
   </Border>
   <ContentControl Content="{Binding CurrentPage}">

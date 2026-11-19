@@ -23,6 +23,40 @@ public class ShellAndSetupTests
     }
 
     [Fact]
+    public void An_unexpected_error_can_be_copied_with_its_details()
+    {
+        var shell = new ShellViewModel(new FakeConnector());
+        Exception error;
+        try
+        {
+            throw new InvalidOperationException("The control Border already has a visual parent.");
+        }
+        catch (InvalidOperationException e)
+        {
+            error = e;
+        }
+        shell.ShowProblem(error);
+        var copied = "";
+        var copy = Platform.CopyText;
+        Platform.CopyText = text => copied = text;
+        try
+        {
+            shell.CopyProblemCommand.Execute(null);
+        }
+        finally
+        {
+            Platform.CopyText = copy;
+        }
+
+        Assert.StartsWith(shell.Problem, copied);
+        Assert.Contains("System.InvalidOperationException: The control Border", copied);
+        Assert.Contains(nameof(An_unexpected_error_can_be_copied_with_its_details), copied);
+        Assert.True(shell.ProblemCopied);
+        shell.ShowProblem(error);
+        Assert.False(shell.ProblemCopied);
+    }
+
+    [Fact]
     public async Task Opening_a_tenant_shows_it_and_switching_returns_to_welcome()
     {
         var connector = new FakeConnector();
