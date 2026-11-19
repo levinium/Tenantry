@@ -263,6 +263,10 @@ public class FindFilesTests
         page.Types.Single(t => t.Type.Key == "excel").IsOn = true;
 
         Assert.True(page.IsSearchOpen);
+        // Nothing to fold back to before a search.
+        page.HideSearchCommand.Execute(null);
+        Assert.True(page.IsSearchOpen);
+        Assert.False(page.HasSearched);
         await page.FindCommand.ExecuteAsync(null);
 
         // The search folds to one line so the results get the room; Edit Search opens it again.
@@ -270,6 +274,13 @@ public class FindFilesTests
         Assert.Equal("Excel · in 2 places", page.SearchSummary);
         page.EditSearchCommand.Execute(null);
         Assert.True(page.IsSearchOpen);
+        // …and Hide Search folds it again, its line saying what's there now.
+        page.Types.Single(t => t.Type.Key == "pdf").IsOn = true;
+        page.HideSearchCommand.Execute(null);
+        Assert.False(page.IsSearchOpen);
+        Assert.Equal("Excel, PDF · in 2 places", page.SearchSummary);
+        page.EditSearchCommand.Execute(null);
+        page.Types.Single(t => t.Type.Key == "pdf").IsOn = false;
         Assert.All(page.Places, p => Assert.Equal(PlaceState.Done, p.State));
         var rows = page.Results.Rows.Cast<FoundFile>().ToArray();
         Assert.NotEmpty(rows);

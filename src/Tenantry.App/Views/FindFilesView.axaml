@@ -37,7 +37,16 @@
         </Button>
       </Grid>
       <StackPanel Spacing="10" IsVisible="{Binding IsSearchOpen}">
-        <TextBlock Classes="h3" Text="Search" />
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="h3" Text="Search" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Command="{Binding HideSearchCommand}" IsVisible="{Binding HasSearched}" VerticalAlignment="Center"
+                  ToolTip.Tip="Fold the search back to one line, to give the results the room">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="ChevronUp" FontSize="12" />
+              <TextBlock Text="Hide Search" />
+            </StackPanel>
+          </Button>
+        </Grid>
         <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
           <ComboBox ItemsSource="{x:Static vm:FindFilesViewModel.NameMatches}" SelectedItem="{Binding NameMatch}" MinWidth="190" VerticalAlignment="Center" />
           <TextBox Grid.Column="1" Text="{Binding NameText}" PlaceholderText="Part of the file name, for example budget" VerticalAlignment="Center" />

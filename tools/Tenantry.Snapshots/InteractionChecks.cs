@@ -1355,8 +1355,9 @@ static class InteractionChecks
             Click(window, Need("Edit Search", b => b.Command == find.EditSearchCommand && b.IsEffectivelyVisible));
             Settle();
             Expect(nameBox.IsEffectivelyVisible, "Edit Search opens it again");
-            find.IsSearchOpen = false;
+            Click(window, Need("Hide Search", b => b.Command == find.HideSearchCommand && b.IsEffectivelyVisible));
             Settle();
+            Expect(!nameBox.IsEffectivelyVisible && !find.IsSearchOpen, "Hide Search folds it back to one line");
             var lockedRow = find.Places.Single(p => p.Site.Id == locked.Id);
             Expect(lockedRow.IsNoAccess, "the locked site says it can't be seen inside");
             Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == lockedRow.AddMeCommand && b.IsEffectivelyVisible), "…with Add Me and Search");

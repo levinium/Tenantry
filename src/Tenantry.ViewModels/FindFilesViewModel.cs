@@ -380,6 +380,17 @@ public sealed partial class FindFilesViewModel : ObservableObject
     [RelayCommand]
     void EditSearch() => IsSearchOpen = true;
 
+    /// <summary>A search has run, so the form can fold back to its one line.</summary>
+    [ObservableProperty]
+    public partial bool HasSearched { get; private set; }
+
+    [RelayCommand]
+    void HideSearch()
+    {
+        if (HasSearched)
+            IsSearchOpen = false;
+    }
+
     /// <summary>'Name contains "budget" · Word, Excel, .dwg · Modified in the last year · 3 places'.</summary>
     public string SearchSummary
     {
@@ -592,6 +603,7 @@ public sealed partial class FindFilesViewModel : ObservableObject
         // What's still in the extensions box counts: show it as a badge too.
         AddExtensionDraft();
         OnPropertyChanged(nameof(SearchSummary));
+        HasSearched = true;
         IsSearchOpen = false;
         _query = Query(DateTimeOffset.Now);
         _found.Clear();
