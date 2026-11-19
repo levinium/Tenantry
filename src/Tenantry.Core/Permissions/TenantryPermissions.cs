@@ -104,6 +104,10 @@ public static class TenantryPermissions
         // Reported messages (Phase 12d, 2026-11-10): the submissions list and sending a message,
         // link or file to Microsoft (security/threatSubmission answered 401 without it, seen live).
         "ThreatSubmission.ReadWrite.All",
+        // Reporting a delivered message from message trace (2026-11-19): Microsoft is pointed at the
+        // message in its mailbox, found by its internet message ID. Basic (no body or attachments) and
+        // Shared, so it reaches only mailboxes the admin already has access to.
+        "Mail.ReadBasic.Shared",
         // Intune scripts and remediations, and Intune roles and scope tags (Phase 13, 2026-11-11):
         // their lists were refused (403) without these, seen live.
         "DeviceManagementScripts.ReadWrite.All",

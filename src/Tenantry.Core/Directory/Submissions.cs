@@ -68,6 +68,23 @@ public sealed record ThreatSubmission(string Id, string Kind, bool ByUser, strin
     /// <summary>The categories a submission can be sent as, and an admin review's verdicts.</summary>
     public static IReadOnlyList<(string Value, string Label)> SubmitAs { get; } =
         [("notJunk", "Not Junk (Wrongly Blocked)"), ("spam", "Spam"), ("phishing", "Phishing"), ("malware", "Malware")];
+
+    /// <summary>
+    /// A traced message Microsoft can be sent: one held in quarantine, or one that reached the
+    /// mailbox (the inbox or junk). Failed, pending and expanded (a group's copy) ones can't.
+    /// </summary>
+    public static bool CanSendTraced(TracedMessage message) =>
+        message.MessageId is { Length: > 0 } && message.Recipient.Length > 0 && message.Status is "Delivered" or "FilteredAsSpam" or "Quarantined";
+}
+
+/// <summary>
+/// The admin can't open the recipient's mailbox, so Microsoft can't be pointed at the message.
+/// Admins can't read other people's mail by default; Full Access to the mailbox allows it.
+/// </summary>
+public sealed class MailboxNotOpenException(string mailbox)
+    : Exception($"You can't open {mailbox}'s mailbox, so Tenantry can't point Microsoft at the message. Give yourself Full Access to the mailbox, or report it in the Defender portal.")
+{
+    public string Mailbox { get; } = mailbox;
 }
 
 /// <summary>Where Outlook's Report button sends people's reports.</summary>
@@ -131,6 +148,12 @@ public interface ISubmissionRecords
 
     /// <summary>Sends a quarantined message (downloaded from quarantine) to Microsoft as <paramref name="category"/>.</summary>
     Task<ThreatSubmission> SubmitQuarantinedAsync(string identity, string recipient, string category, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a message from message trace: from quarantine when it's held there, otherwise from the
+    /// recipient's mailbox, which needs the admin to be able to open it (<see cref="MailboxNotOpenException"/>).
+    /// </summary>
+    Task<ThreatSubmission> SubmitTracedAsync(TracedMessage message, string category, CancellationToken cancellationToken = default);
 
     Task<ThreatSubmission> SubmitUrlAsync(string url, string category, CancellationToken cancellationToken = default);
 

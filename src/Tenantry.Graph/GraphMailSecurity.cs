@@ -188,7 +188,8 @@ public sealed partial class GraphUserRecords : IMailSecurity
                 Str(r, "RecipientAddress") ?? "",
                 Str(r, "Subject") is { Length: > 0 } s ? s : "(no subject)",
                 Str(r, "Status") ?? "",
-                r.TryGetProperty("Size", out var size) && size.ValueKind == JsonValueKind.Number ? size.GetInt64() : null))
+                r.TryGetProperty("Size", out var size) && size.ValueKind == JsonValueKind.Number ? size.GetInt64() : null,
+                Str(r, "MessageId")))
             .ToArray();
     }
 

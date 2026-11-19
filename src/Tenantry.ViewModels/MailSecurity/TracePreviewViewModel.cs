@@ -23,7 +23,7 @@ public sealed record TraceActions(Action<string> TraceSender, Action<string> Tra
 /// A message from the trace results in the preview pane, with every step it went through (read when
 /// shown) and any failure explained in words. Moving on to another row cancels the read, so arrowing
 /// through results doesn't pile them up. From here: trace everything from the sender or to the
-/// recipient, find a quarantined message, or block or allow the sender.
+/// recipient, find a quarantined message, block or allow the sender, or send it to Microsoft.
 /// </summary>
 public sealed partial class TracePreviewViewModel : ObservableObject, IDisposable
 {
@@ -45,6 +45,7 @@ public sealed partial class TracePreviewViewModel : ObservableObject, IDisposabl
         _pipeline = pipeline;
         _canEdit = canEdit ?? Availability.Yes;
         _listed = listed;
+        SubmitAs = SubmitCategories.First(c => c.Value == (message.Status == "Quarantined" ? "notJunk" : "phishing"));
         if (_pipeline is not null)
             _pipeline.Changed += OnPendingChanged;
         _ = LoadAsync();
@@ -187,6 +188,85 @@ public sealed partial class TracePreviewViewModel : ObservableObject, IDisposabl
         _pipeline!.Stage(new AddListEntry(SenderTarget, ListKind.Sender, block, block ? ListExpiry.Never : ListExpiry.AllowDefault,
             $"{(block ? "Blocked" : "Allowed")} from message trace: \"{Message.Subject}\""));
     }
+
+    // ---- Send to Microsoft -------------------------------------------------------------------
+
+    /// <summary>Defender's Submissions page, for a message Tenantry can't reach.</summary>
+    public const string DefenderSubmissions = "https://security.microsoft.com/reportsubmission?viewid=email";
+
+    /// <summary>Delivered, sent to junk or quarantined, and Graph's submissions are there.</summary>
+    public bool CanSubmit => _records is ISubmissionRecords && ThreatSubmission.CanSendTraced(Message);
+
+    public static IReadOnlyList<SubmitChoice> SubmitCategories => QuarantinePreviewViewModel.SubmitCategories;
+
+    /// <summary>Quarantined: most likely held wrongly ("not junk"). Delivered: most likely phishing that got through.</summary>
+    [ObservableProperty]
+    public partial SubmitChoice SubmitAs { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSendNow))]
+    public partial bool IsSubmitting { get; private set; }
+
+    /// <summary>Sent once already: a second send would only make a duplicate submission.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSendNow))]
+    public partial bool IsSubmitted { get; private set; }
+
+    public bool CanSendNow => !IsSubmitting && !IsSubmitted;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSubmitNote))]
+    public partial string? SubmitNote { get; private set; }
+
+    public bool HasSubmitNote => SubmitNote is not null;
+
+    /// <summary>The mailbox couldn't be opened: offer Defender's Submissions page and the ID it asks for.</summary>
+    [ObservableProperty]
+    public partial bool ShowDefender { get; private set; }
+
+    public string SubmitHint => Message.Status == "Quarantined"
+        ? "Sent from quarantine, so nothing in the mailbox is touched."
+        : "Microsoft reads it from the recipient's mailbox, which you need access to (Full Access).";
+
+    [RelayCommand]
+    async Task Submit()
+    {
+        if (_records is not ISubmissionRecords submissions || !CanSubmit || !CanSendNow)
+            return;
+        IsSubmitting = true;
+        SubmitNote = null;
+        ShowDefender = false;
+        try
+        {
+            await submissions.SubmitTracedAsync(Message, SubmitAs.Value, _lifetime.Token);
+            IsSubmitted = true;
+            SubmitNote = $"Sent to Microsoft as {SubmitAs.Label.Split(' ')[0].ToLowerInvariant()}. Its verdict shows in Reported Messages when it's ready.";
+        }
+        catch (MailboxNotOpenException e)
+        {
+            SubmitNote = e.Message;
+            ShowDefender = true;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // Moved on to another row.
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            SubmitNote = $"Microsoft didn't take it: {Friendly.Message(e)}";
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    [RelayCommand]
+    void OpenDefender() => Platform.OpenUrl(DefenderSubmissions);
+
+    /// <summary>Defender's form asks for the Network Message ID, which is the trace ID.</summary>
+    [RelayCommand]
+    void CopyNetworkMessageId() => Platform.CopyText(Message.TraceId);
 
     void OnPendingChanged(object? sender, EventArgs e)
     {

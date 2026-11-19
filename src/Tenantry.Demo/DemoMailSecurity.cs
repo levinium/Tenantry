@@ -141,7 +141,7 @@ public sealed partial class DemoUserRecords : IMailSecurity
             return new TracedMessage($"demo-t-{i}", search.Start.AddMinutes(random.NextDouble() * span),
                 search.Sender ?? (inbound ? outside : inside), search.Recipient ?? (inbound ? inside : outside),
                 search.Subject is { } s ? $"{s} {i}" : Subjects[random.Next(Subjects.Length)],
-                search.Status ?? statuses[random.Next(statuses.Length)], random.Next(4_000, 900_000));
+                search.Status ?? statuses[random.Next(statuses.Length)], random.Next(4_000, 900_000), $"<demo-t-{i}@mail.example>");
         });
         return messages.OrderByDescending(m => m.Received).ToArray();
     }

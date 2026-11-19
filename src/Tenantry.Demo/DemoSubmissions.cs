@@ -49,6 +49,17 @@ public sealed partial class DemoUserRecords : ISubmissionRecords
             m.Received, DateTimeOffset.UtcNow, "admin@northgate.example", null, null, null));
     }
 
+    /// <summary>Quarantined ones always go; delivered ones only from mailboxes the demo admin "can open" (about two in three).</summary>
+    public Task<ThreatSubmission> SubmitTracedAsync(TracedMessage message, string category, CancellationToken cancellationToken = default)
+    {
+        if (!ThreatSubmission.CanSendTraced(message))
+            throw new InvalidOperationException("Only a message that was delivered, sent to junk or quarantined can be sent to Microsoft.");
+        if (message.Status != "Quarantined" && StableSeed(message.Recipient) % 3 == 0)
+            throw new MailboxNotOpenException(message.Recipient);
+        return Task.FromResult(Added(new ThreatSubmission($"demo-s-{Guid.NewGuid():N}", "email", false, category, "running", null, "underInvestigation", message.Subject,
+            message.Sender, message.Recipient, message.Received, DateTimeOffset.UtcNow, "admin@northgate.example", null, null, null)));
+    }
+
     public Task<ThreatSubmission> SubmitUrlAsync(string url, string category, CancellationToken cancellationToken = default) =>
         Task.FromResult(Added(new ThreatSubmission($"demo-s-{Guid.NewGuid():N}", "url", false, category, "running", null, "underInvestigation", url, null, null, null,
             DateTimeOffset.UtcNow, "admin@northgate.example", null, null, null)));

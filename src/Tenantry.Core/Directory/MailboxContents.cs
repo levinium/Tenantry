@@ -109,7 +109,10 @@ public enum TraceDirection
 }
 
 /// <summary>One message as message trace saw it, to or from this mailbox.</summary>
-public sealed record TracedMessage(string TraceId, DateTimeOffset Received, string Sender, string Recipient, string Subject, string Status, long? Size);
+/// <param name="TraceId">Exchange's message trace ID, which Defender calls the Network Message ID.</param>
+/// <param name="MessageId">The internet message ID ("&lt;…@…&gt;"), which finds the message in quarantine or a mailbox.</param>
+public sealed record TracedMessage(string TraceId, DateTimeOffset Received, string Sender, string Recipient, string Subject, string Status, long? Size,
+    string? MessageId = null);
 
 /// <summary>One step a traced message went through (received, spam filtering, delivered…).</summary>
 public sealed record TraceEvent(DateTimeOffset Date, string Event, string Action, string Detail);

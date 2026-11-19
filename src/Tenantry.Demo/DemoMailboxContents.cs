@@ -102,7 +102,7 @@ public sealed partial class DemoUserRecords : IMailboxContents
                 var other = $"{(char)('a' + random.Next(26))}.{Subjects[random.Next(Subjects.Length)].Split(' ')[0].ToLowerInvariant().Trim(':')}@{(random.NextDouble() < 0.6 ? DemoTenantDirectory.Domain : "mail.example")}";
                 return new TracedMessage($"trace-{i}", now.AddMinutes(-random.Next(days * 24 * 60)),
                     direction == TraceDirection.Received ? other : address, direction == TraceDirection.Received ? address : other,
-                    Subjects[random.Next(Subjects.Length)], statuses[random.Next(statuses.Length)], random.Next(4_000, 900_000));
+                    Subjects[random.Next(Subjects.Length)], statuses[random.Next(statuses.Length)], random.Next(4_000, 900_000), $"<trace-{i}@mail.example>");
             })
             .OrderByDescending(m => m.Received)
             .ToArray();

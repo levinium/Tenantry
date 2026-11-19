@@ -67,6 +67,48 @@ public sealed partial class GraphUserRecords : ISubmissionRecords
         return ToSubmission(await graph.PostAsync($"{Submissions}emailThreats", body, cancellationToken));
     }
 
+    public async Task<ThreatSubmission> SubmitTracedAsync(TracedMessage message, string category, CancellationToken cancellationToken = default)
+    {
+        if (!ThreatSubmission.CanSendTraced(message))
+            throw new InvalidOperationException("Only a message that was delivered, sent to junk or quarantined can be sent to Microsoft.");
+        if (message.Status == "Quarantined")
+        {
+            var held = await Run("Get-QuarantineMessage", new() { ["MessageId"] = message.MessageId, ["RecipientAddress"] = message.Recipient }, cancellationToken);
+            var identity = held.Select(r => Str(r, "Identity")).FirstOrDefault(i => !string.IsNullOrEmpty(i))
+                ?? throw new InvalidOperationException("It isn't in quarantine any more (released, deleted or expired).");
+            return await SubmitQuarantinedAsync(identity, message.Recipient, category, cancellationToken);
+        }
+
+        // A delivered message is pointed at in its mailbox. Graph's user paths take the user's ID or
+        // UPN, and a trace gives the address mail went to, which can be an alias: find the person by it.
+        var address = message.Recipient.Replace("'", "''", StringComparison.Ordinal);
+        var people = await graph.GetAsync($"users?$filter={Uri.EscapeDataString($"proxyAddresses/any(p:p eq 'smtp:{address}')")}&$select=id", cancellationToken);
+        var userId = Items(people).Select(u => Str(u, "id")).FirstOrDefault(i => !string.IsNullOrEmpty(i))
+            ?? throw new InvalidOperationException($"{message.Recipient} isn't a mailbox in this organization.");
+        var filter = Uri.EscapeDataString($"internetMessageId eq '{message.MessageId!.Replace("'", "''", StringComparison.Ordinal)}'");
+        JsonElement found;
+        try
+        {
+            found = await graph.GetAsync($"{Beta}users/{userId}/messages?$filter={filter}&$select=id", cancellationToken);
+        }
+        catch (GraphException e) when (e.Status == System.Net.HttpStatusCode.Forbidden)
+        {
+            // Admins can't read other people's mail unless they have access to the mailbox (seen as ErrorAccessDenied).
+            throw new MailboxNotOpenException(message.Recipient);
+        }
+        var messageId = Items(found).Select(m => Str(m, "id")).FirstOrDefault(i => !string.IsNullOrEmpty(i))
+            ?? throw new InvalidOperationException("It isn't in the mailbox any more (moved out by a rule, deleted and emptied, or purged).");
+        return ToSubmission(await graph.PostAsync($"{Submissions}emailThreats", new JsonObject
+        {
+            ["@odata.type"] = "#microsoft.graph.security.emailUrlThreatSubmission",
+            ["category"] = category, ["recipientEmailAddress"] = message.Recipient,
+            ["messageUrl"] = $"{Beta}users/{userId}/messages/{messageId}",
+        }, cancellationToken));
+    }
+
+    static IEnumerable<JsonElement> Items(JsonElement answer) =>
+        answer.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.Array ? v.EnumerateArray() : [];
+
     public async Task<ThreatSubmission> SubmitUrlAsync(string url, string category, CancellationToken cancellationToken = default) =>
         ToSubmission(await graph.PostAsync($"{Submissions}urlThreats", new JsonObject
         {

@@ -268,6 +268,55 @@ static class InteractionChecks
             m => m.SharePoint.SelectedPage = SharePointAreaViewModel.Pages.Single(p => p.Key == "onedrives")));
         Check("Scale: record pages open quickly", ScaleRecordCheck);
 
+        Check("Message trace: Send to Microsoft shows on delivered and quarantined mail (not failed); sending says where the verdict shows, or offers Defender when the mailbox is closed", () =>
+        {
+            var (window, main, _) = OpenList();
+            main.SelectedSection = main.Sections.Single(s => s.Key == "mail");
+            var mail = main.MailSecurity!;
+            mail.SelectedPage = Tenantry.ViewModels.MailSecurity.MailSecurityViewModel.Pages.Single(p => p.Key == "trace");
+            Settle();
+            Click(window, FindButton(window, b => b.Command == mail.SearchTraceCommand && b.IsEffectivelyVisible));
+            for (var i = 0; i < 50 && mail.Trace.IsLoading; i++)
+                Settle();
+            var rows = mail.Trace.Rows.Cast<TracedMessage>().ToArray();
+
+            Tenantry.ViewModels.MailSecurity.TracePreviewViewModel Show(TracedMessage m)
+            {
+                mail.Trace.PreviewRow(m);
+                for (var i = 0; i < 10; i++)
+                    Settle();
+                return (Tenantry.ViewModels.MailSecurity.TracePreviewViewModel)mail.Trace.PreviewModel!;
+            }
+
+            var failed = Show(rows.First(m => m.Status == "Failed"));
+            Expect(!window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == failed.SubmitCommand && b.IsEffectivelyVisible), "a failed message has no Send to Microsoft");
+
+            foreach (var status in new[] { "Delivered", "Quarantined" })
+            {
+                var message = rows.First(m => m.Status == status);
+                var preview = Show(message);
+                Expect(preview.SubmitAs.Value == (status == "Quarantined" ? "notJunk" : "phishing"), $"{status} starts as {preview.SubmitAs.Value}");
+                Click(window, FindButton(window, b => b.Command == preview.SubmitCommand && b.IsEffectivelyVisible));
+                for (var i = 0; i < 10; i++)
+                    Settle();
+                Expect(preview.HasSubmitNote, $"{status}: sending says what happened");
+                if (preview.ShowDefender)
+                    Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == preview.OpenDefenderCommand && b.IsEffectivelyVisible), "a closed mailbox offers Defender");
+                else
+                    Expect(preview.SubmitNote!.Contains("Reported Messages") && !preview.CanSendNow, $"{status}: sent once, then the button is off: {preview.SubmitNote}");
+            }
+            // A closed mailbox in the demo (about one in three delivered).
+            var closed = rows.Where(m => m.Status == "Delivered").Select(Show).FirstOrDefault(p =>
+            {
+                p.SubmitCommand.Execute(null);
+                for (var i = 0; i < 5; i++)
+                    Settle();
+                return p.ShowDefender;
+            });
+            Expect(closed is not null && closed.SubmitNote!.Contains("Full Access"), "a mailbox the admin can't open says to get Full Access or use Defender");
+            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == closed!.CopyNetworkMessageIdCommand && b.IsEffectivelyVisible), "…with the ID Defender asks for");
+        });
+
         Check("Copying: right-clicking a trace step offers the step, its section and the whole preview, laid out as they read; pointing at the sender shows a copy button that copies it; Ctrl+C in a list copies the ticked rows as a table", () =>
         {
             var (window, main, _) = OpenList();

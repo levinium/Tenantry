@@ -60,6 +60,36 @@
       <TextBlock Classes="caption" Text="{Binding ListedNote}" IsVisible="{Binding HasListedNote}" TextWrapping="Wrap" />
     </StackPanel>
 
+    <!-- Report it to Microsoft: from quarantine, or from the recipient's mailbox -->
+    <StackPanel Spacing="6" IsVisible="{Binding CanSubmit}">
+      <WrapPanel ItemSpacing="8" LineSpacing="8">
+        <ComboBox ItemsSource="{x:Static ms:TracePreviewViewModel.SubmitCategories}" SelectedItem="{Binding SubmitAs}" MinWidth="220" VerticalAlignment="Center" />
+        <Button Command="{Binding SubmitCommand}" IsEnabled="{Binding CanSendNow}" VerticalAlignment="Center"
+                ToolTip.Tip="Send it to Microsoft as what you chose, for a verdict (shown in Reported Messages)" ToolTip.ShowOnDisabled="True">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Flag" FontSize="14" />
+            <TextBlock Text="Send to Microsoft" />
+          </StackPanel>
+        </Button>
+      </WrapPanel>
+      <TextBlock Classes="caption" Text="{Binding SubmitHint}" TextWrapping="Wrap" IsVisible="{Binding !HasSubmitNote}" />
+      <TextBlock Classes="caption" Text="{Binding SubmitNote}" IsVisible="{Binding HasSubmitNote}" TextWrapping="Wrap" />
+      <WrapPanel ItemSpacing="8" LineSpacing="8" IsVisible="{Binding ShowDefender}">
+        <Button Command="{Binding OpenDefenderCommand}" ToolTip.Tip="Open Defender's Submissions page, where Submit to Microsoft for Analysis takes the Network Message ID">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Open" FontSize="14" />
+            <TextBlock Text="Open Defender Submissions" />
+          </StackPanel>
+        </Button>
+        <Button Command="{Binding CopyNetworkMessageIdCommand}" ToolTip.Tip="Copy the ID Defender asks for (the Network Message ID)">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Copy" FontSize="14" />
+            <TextBlock Text="Copy Network Message ID" />
+          </StackPanel>
+        </Button>
+      </WrapPanel>
+    </StackPanel>
+
     <Border Classes="divider" />
     <StackPanel Spacing="6">
       <TextBlock Classes="label" Text="WHAT HAPPENED TO IT" />
