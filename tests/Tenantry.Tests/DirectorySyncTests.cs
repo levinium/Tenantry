@@ -532,8 +532,10 @@ public class DirectorySyncTests
         Sync: new DirectorySync(Graph(http), store, now: () => Now));
 
     [Fact]
-    public async Task First_open_downloads_then_shows_the_list()
+    public void First_open_downloads_then_shows_the_list() => SingleThread.Run(async () =>
     {
+        // One thread, like the app's UI thread: the sync's reload and the first load would
+        // otherwise touch the same list from two threads at once.
         var vm = new MainViewModel(Tenant(FirstRun(), new MemoryEntityStore()), now: () => Now);
         Assert.Equal("Not downloaded yet", vm.SyncText);
 
@@ -544,7 +546,7 @@ public class DirectorySyncTests
         Assert.Null(vm.SyncError);
         Assert.StartsWith("Updated ", vm.SyncText);
         Assert.True(vm.RefreshCommand.CanExecute(null));
-    }
+    });
 
     [Fact]
     public void Reopening_shows_the_copy_then_applies_changes_without_losing_the_users_place() => SingleThread.Run(async () =>
