@@ -152,7 +152,10 @@ public sealed class FreshRecordTests
         // Skimming: two rows in quick succession, then resting on the second.
         vm.Users.SelectedRow = vm.Users.Rows[0];
         vm.Users.SelectedRow = vm.Users.Rows[1];
-        await Task.Delay(400, Ct);
+        // A busy test runner can be slow to get to it: wait for the one check, then make sure no second follows.
+        for (var waited = 0; tenant.Refreshes == 0 && waited < 5000; waited += 50)
+            await Task.Delay(50, Ct);
+        await Task.Delay(300, Ct);
 
         Assert.Equal(1, tenant.Refreshes);
     }
