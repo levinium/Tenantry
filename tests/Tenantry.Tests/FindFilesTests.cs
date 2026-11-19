@@ -86,6 +86,90 @@ public class FindFilesTests
         Assert.False(new FileQuery(Types: new HashSet<string> { "pdf" }).IsEmpty);
     }
 
+    // ---- Everywhere ---------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("budget", NameMatch.Contains, "filename:budget*")]
+    [InlineData("2026 Budget-final", NameMatch.StartsWith, "filename:budget*")]
+    [InlineData(@"^budget\d+", NameMatch.Regex, "")]
+    [InlineData("", NameMatch.Contains, "")]
+    public void Purview_gets_a_broad_name_prefix_and_never_a_regex(string name, NameMatch match, string kql) =>
+        Assert.Equal(kql, new FileQuery(name, match).PurviewQuery());
+
+    [Fact]
+    public void Purview_gets_types_as_filetype_and_dates_as_last_modified()
+    {
+        var query = new FileQuery("plan", Types: new HashSet<string> { "pdf" }, Extensions: ["dwg"],
+            ModifiedAfter: new DateTimeOffset(2025, 11, 19, 0, 0, 0, TimeSpan.Zero), ModifiedBy: "pat", PathContains: "Projects", MinBytes: 5);
+        Assert.Equal("filename:plan* AND (filetype:dwg OR filetype:pdf) AND lastmodifiedtime>=2025-11-19", query.PurviewQuery());
+    }
+
+    [Fact]
+    public async Task Everywhere_makes_a_counting_search_over_every_site_reads_its_counts_and_deletes_it()
+    {
+        GraphUserRecords.EverywhereCheckEvery = TimeSpan.FromMilliseconds(1);
+        var reads = 0;
+        var purview = new FakeCmdlets((cmdlet, _) => cmdlet switch
+        {
+            "Get-ComplianceSearch" => ++reads < 2
+                ? """[{"Name":"x","Status":"InProgress"}]"""
+                : """[{"Name":"x","Status":"Completed","Items":5,"SearchStatistics":"{\"SharePointBinding\":{\"Sources\":[{\"Name\":\"https://contoso.sharepoint.com/sites/finance\",\"ContentItems\":4},{\"Name\":\"https://contoso-my.sharepoint.com/personal/pat_contoso_example\",\"ContentItems\":1},{\"Name\":\"https://contoso.sharepoint.com/sites/empty\",\"ContentItems\":0}]}}"}]""",
+            _ => "[]",
+        });
+        var records = new GraphUserRecords(new GraphClient(new FakeHttp().Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore(), purview);
+
+        var hits = await records.CountEverywhereAsync("filename:budget*", cancellationToken: Ct);
+
+        Assert.Equal([("https://contoso.sharepoint.com/sites/finance", 4L), ("https://contoso-my.sharepoint.com/personal/pat_contoso_example", 1L)], hits.Select(h => (h.Location, h.Items)));
+        Assert.Equal(["New-ComplianceSearch", "Start-ComplianceSearch", "Get-ComplianceSearch", "Get-ComplianceSearch", "Remove-ComplianceSearch"], purview.Calls.Select(c => c.Cmdlet));
+        var made = purview.Calls[0].Parameters;
+        Assert.Contains("\"SharePointLocation\":[\"All\"]", made);
+        Assert.Contains("\"ContentMatchQuery\":\"filename:budget*\"", made);
+        Assert.DoesNotContain("ExchangeLocation", made);
+    }
+
+    [Fact]
+    public async Task Stopping_Everywhere_still_deletes_its_search()
+    {
+        GraphUserRecords.EverywhereCheckEvery = TimeSpan.FromMilliseconds(1);
+        using var stop = new CancellationTokenSource();
+        var purview = new FakeCmdlets((cmdlet, _) =>
+        {
+            if (cmdlet == "Get-ComplianceSearch")
+                stop.Cancel();
+            return cmdlet == "Get-ComplianceSearch" ? """[{"Name":"x","Status":"InProgress"}]""" : "[]";
+        });
+        var records = new GraphUserRecords(new GraphClient(new FakeHttp().Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore(), purview);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => records.CountEverywhereAsync("", cancellationToken: stop.Token));
+
+        Assert.Equal("Remove-ComplianceSearch", purview.Calls[^1].Cmdlet);
+    }
+
+    [Fact]
+    public void Everywhere_fills_the_places_from_Purviews_counts_then_looks_through_them() => SingleThread.Run(async () =>
+    {
+        var (page, _, _, log) = await Demo();
+        Assert.Contains("choose Everywhere", page.Problem);
+        page.IsEverywhere = true;
+        page.NameText = "e";
+        Assert.Null(page.Problem);
+        Assert.EndsWith("everywhere", page.SearchSummary);
+
+        await page.FindCommand.ExecuteAsync(null);
+
+        Assert.NotEmpty(page.Places);
+        Assert.All(page.Places, p => Assert.NotNull(p.PurviewCount));
+        Assert.Equal(page.Places.Select(p => p.PurviewCount).OrderByDescending(n => n), page.Places.Select(p => p.PurviewCount));
+        Assert.Contains("Purview counted", page.Places[0].Detail);
+        Assert.All(page.Places, p => Assert.True(p.State is PlaceState.Done or PlaceState.NoAccess, p.State.ToString()));
+        Assert.NotEmpty(page.Results.Rows);
+        Assert.Single(log.All().Select(e => e.Change).OfType<FilesCountedEverywhere>());
+        // Back to choosing places: Purview's list doesn't stay as a hand-picked one.
+        page.ChoosePlacesCommand.Execute(null);
+        Assert.Empty(page.Places);
+    });
+
     [Fact]
     public void A_runaway_regex_stops_instead_of_hanging() =>
         Assert.False(new FileQuery("^(a+)+$", NameMatch.Regex).Matches(File(new string('a', 40) + "!")));

@@ -197,6 +197,16 @@ if (args.Contains("--files-review"))
         for (var i = 0; i < 5; i++)
             Settle();
         Render(main, $"f03-findfiles-preview-{suffix}");
+        find.Results.IsPreviewOpen = false;
+        find.EditSearchCommand.Execute(null);
+        find.IsEverywhere = true;
+        Settle();
+        Console.WriteLine($"everywhere set: {find.IsEverywhere}, chosen {find.IsChosenPlaces}, can find {find.FindCommand.CanExecute(null)}, problem {find.Problem}");
+        Pump(find.FindCommand.ExecuteAsync(null));
+        Console.WriteLine($"after find: everywhere {find.IsEverywhere}, places {find.Places.Count}, status {find.Status}");
+        for (var i = 0; i < 20; i++)
+            Settle();
+        Render(main, $"f04-findfiles-everywhere-{suffix}");
     }
     return 0;
 

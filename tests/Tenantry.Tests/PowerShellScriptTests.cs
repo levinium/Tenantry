@@ -15,7 +15,7 @@ namespace Tenantry.Tests;
 public sealed class PowerShellScriptTests
 {
     /// <summary>Tenantry's own records: nothing in Microsoft 365 to show.</summary>
-    static readonly HashSet<Type> NoScript = [typeof(SetTestModeChange), typeof(SecretViewed), typeof(SearchExported), typeof(FilesDownloaded), typeof(PowerShellCommand)];
+    static readonly HashSet<Type> NoScript = [typeof(SetTestModeChange), typeof(SecretViewed), typeof(SearchExported), typeof(FilesDownloaded), typeof(FilesCountedEverywhere), typeof(PowerShellCommand)];
 
     static readonly IChangeScripts Scripts = new GraphChangeScripts();
 

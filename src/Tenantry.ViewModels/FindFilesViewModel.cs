@@ -69,7 +69,7 @@ public sealed partial class FilePlaceRow : ObservableObject
     internal FilePlaceRow(SiteSummary site, string detail, Action<FilePlaceRow> remove, Func<FilePlaceRow, Task> addMe)
     {
         Site = site;
-        Detail = detail;
+        _detail = detail;
         _remove = remove;
         _addMe = addMe;
     }
@@ -78,8 +78,13 @@ public sealed partial class FilePlaceRow : ObservableObject
 
     public string Title => Site.Kind == SiteKind.OneDrive && Site.OwnerName is { Length: > 0 } owner ? $"{owner}'s OneDrive" : Site.Title;
 
-    /// <summary>"OneDrive · sign-in blocked", "Team site".</summary>
-    public string Detail { get; }
+    /// <summary>"OneDrive · sign-in blocked", "Team site"; with Purview's count when Everywhere found it.</summary>
+    public string Detail => PurviewCount is { } n ? $"{_detail} · Purview counted {n:N0}" : _detail;
+
+    readonly string _detail;
+
+    /// <summary>How many items Purview counted here (Everywhere); null for a place chosen by hand.</summary>
+    public long? PurviewCount { get; init; }
 
     public string Icon => Site.Kind == SiteKind.OneDrive ? "Cloud" : "Globe";
 
@@ -414,7 +419,7 @@ public sealed partial class FindFilesViewModel : ObservableObject
                 parts.Add($"In folders with \"{folder}\"");
             if (MinSizeText.Trim() is { Length: > 0 } size)
                 parts.Add($"At least {size} MB");
-            parts.Add(Places.Count == 1 ? $"in {Places[0].Title}" : $"in {Places.Count} places");
+            parts.Add(IsEverywhere ? "everywhere" : Places.Count == 1 ? $"in {Places[0].Title}" : $"in {Places.Count} places");
             return string.Join(" · ", parts);
         }
     }
@@ -445,8 +450,8 @@ public sealed partial class FindFilesViewModel : ObservableObject
     {
         get
         {
-            if (Places.Count == 0)
-                return "Add a person's OneDrive or a site to look in.";
+            if (!IsEverywhere && Places.Count == 0)
+                return "Add a person's OneDrive or a site to look in, or choose Everywhere.";
             var query = Query(DateTimeOffset.Now);
             if (query.IsEmpty)
                 return "Say what to look for: part of a name, a type of file, a date or a person.";
@@ -479,6 +484,35 @@ public sealed partial class FindFilesViewModel : ObservableObject
     public PersonPicker AddPerson { get; }
 
     public PersonPicker AddSite { get; }
+
+    /// <summary>
+    /// Look everywhere: Purview counts which sites and OneDrives have matches, and those are looked
+    /// through. Otherwise only the places chosen.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsChosenPlaces))]
+    public partial bool IsEverywhere { get; set; }
+
+    public bool IsChosenPlaces => !IsEverywhere;
+
+    // The two choices set this one setting (each radio button only shows it, so they can't undo each other).
+    [RelayCommand]
+    void ChooseEverywhere() => IsEverywhere = true;
+
+    [RelayCommand]
+    void ChoosePlaces() => IsEverywhere = false;
+
+    /// <summary>Everywhere can be offered: the records can ask Purview.</summary>
+    public bool CanSearchEverywhere => _records is not null;
+
+    partial void OnIsEverywhereChanged(bool value)
+    {
+        // The places Everywhere found aren't a hand-picked list: switching back starts that list empty.
+        if (!value && Places.Any(p => p.PurviewCount is not null) && !IsSearching)
+            Places.Clear();
+        PlacesChanged();
+        OnPropertyChanged(nameof(SearchSummary));
+    }
 
     /// <summary>Keep the site admin access added for the search, instead of it being removed afterwards.</summary>
     [ObservableProperty]
@@ -607,6 +641,8 @@ public sealed partial class FindFilesViewModel : ObservableObject
         IsSearchOpen = false;
         _query = Query(DateTimeOffset.Now);
         _found.Clear();
+        if (IsEverywhere && !await FindPlacesEverywhereAsync())
+            return;
         foreach (var place in Places)
         {
             place.State = PlaceState.Waiting;
@@ -656,6 +692,74 @@ public sealed partial class FindFilesViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(IsSearching))]
     void Stop() => _run?.Cancel();
 
+    /// <summary>
+    /// Everywhere's first step: Purview counts where matches are (minutes), and those places fill the
+    /// list, biggest first. False when there's nothing to look through (none found, stopped, refused).
+    /// </summary>
+    async Task<bool> FindPlacesEverywhereAsync()
+    {
+        _everywhereCapped = false;
+        Places.Clear();
+        PlacesChanged();
+        await RefreshResultsAsync();
+        IsSearching = true;
+        _run = new CancellationTokenSource();
+        var query = _query.PurviewQuery();
+        Status = "Asking Microsoft Purview which sites and OneDrives have matches. This usually takes a few minutes…";
+        try
+        {
+            var hits = await _records!.CountEverywhereAsync(query, new Progress<string>(s => Status = s), _run.Token);
+            var known = _sites().GroupBy(s => Normal(s.Url)).ToDictionary(g => g.Key, g => g.First());
+            var found = hits.Where(h => h.Items > 0).OrderByDescending(h => h.Items).ToArray();
+            foreach (var hit in found)
+            {
+                var site = known.GetValueOrDefault(Normal(hit.Location)) ?? Unlisted(hit.Location);
+                if (Places.Any(p => p.Site.Url.Equals(site.Url, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                Places.Add(new FilePlaceRow(site, DetailOf(site), RemovePlace, AddMeAndSearchAsync) { PurviewCount = hit.Items });
+            }
+            PlacesChanged();
+            _everywhereCapped = found.Length >= IFileSearchRecords.EverywhereMostPlaces;
+            _pipeline?.Record(new FilesCountedEverywhere(new ChangeTarget("tenant", "everywhere", "Every site and OneDrive", null),
+                $"Purview counted matches in {found.Length:N0} {(found.Length == 1 ? "place" : "places")} for: {(query.Length == 0 ? "everything" : query)}"));
+            if (found.Length == 0)
+            {
+                Status = "Purview found no matches in any site or OneDrive.";
+                Results.EmptyText = "Purview found nothing matching anywhere. Files it hasn't indexed yet (very new ones) can be missed: try the places you expect by hand.";
+                return false;
+            }
+            return true;
+        }
+        catch (OperationCanceledException) when (_run.IsCancellationRequested)
+        {
+            Status = "Stopped before Purview finished.";
+            return false;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            Status = $"Purview couldn't search everywhere: {Friendly.Message(e)}";
+            return false;
+        }
+        finally
+        {
+            IsSearching = false;
+        }
+    }
+
+    /// <summary>Purview listed as many places as it does: there may be more with matches.</summary>
+    bool _everywhereCapped;
+
+    static string Normal(string url) => url.Trim().TrimEnd('/').ToLowerInvariant();
+
+    /// <summary>A place Purview named that the local copy doesn't have yet (new since the last sync).</summary>
+    static SiteSummary Unlisted(string url)
+    {
+        var trimmed = url.Trim().TrimEnd('/');
+        var name = Uri.UnescapeDataString(trimmed[(trimmed.LastIndexOf('/') + 1)..]);
+        var kind = trimmed.Contains("/personal/", StringComparison.OrdinalIgnoreCase) ? SiteKind.OneDrive : SiteKind.TeamSite;
+        return new SiteSummary(trimmed, trimmed, name, "", kind, null, null, null, null, false, false, null, 0, 0, 0, "Unlock", "NotArchived", null, null);
+    }
+
     async Task SearchPlaceAsync(FilePlaceRow place, CancellationToken token)
     {
         place.State = PlaceState.Searching;
@@ -683,10 +787,13 @@ public sealed partial class FindFilesViewModel : ObservableObject
         catch (SiteAccessException)
         {
             place.State = PlaceState.NoAccess;
-            place.CanAddMe = CanAddMeAnywhere && !place.AddedMe;
+            // A place the local copy doesn't have yet has no site ID to make you an admin of: Refresh Sites first.
+            place.CanAddMe = CanAddMeAnywhere && !place.AddedMe && place.Site.Id != place.Site.Url;
             place.Note = place.CanAddMe
                 ? KeepAccess ? "Add yourself as a site admin to search it. You'll keep the access." : "Add yourself as a site admin to search it. The access is removed again when the search is done."
-                : "Only its members and site admins can see its files.";
+                : place.Site.Id == place.Site.Url
+                    ? "It's new since Tenantry last read the sites: Refresh Sites, then search again to add yourself here."
+                    : "Only its members and site admins can see its files.";
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -900,6 +1007,8 @@ public sealed partial class FindFilesViewModel : ObservableObject
             extras.Add(locked == 1 ? "1 place you can't see inside" : $"{locked} places you can't see inside");
         if (failed > 0)
             extras.Add(failed == 1 ? "1 couldn't be searched" : $"{failed} couldn't be searched");
+        if (IsEverywhere && _everywhereCapped)
+            extras.Add($"Purview lists only {IFileSearchRecords.EverywhereMostPlaces} places with matches, so there may be more: narrow the search to find them");
         Status = $"Done · {found}{capped}" + (extras.Count > 0 ? " · " + string.Join(", ", extras) : "");
         Results.EmptyText = "Nothing matched in the places searched.";
     }

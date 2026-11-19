@@ -184,6 +184,7 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(PurgeSearch), "purgeSearch")]
 [JsonDerivedType(typeof(SearchExported), "searchExported")]
 [JsonDerivedType(typeof(FilesDownloaded), "filesDownloaded")]
+[JsonDerivedType(typeof(FilesCountedEverywhere), "filesCountedEverywhere")]
 [JsonDerivedType(typeof(CreateRetentionPolicy), "createRetentionPolicy")]
 [JsonDerivedType(typeof(UpdateRetentionPolicy), "updateRetentionPolicy")]
 [JsonDerivedType(typeof(SetRetentionPolicyEnabled), "setRetentionPolicyEnabled")]
@@ -1551,6 +1552,21 @@ public sealed record FilesDownloaded(ChangeTarget Site, string What) : ChangeOp
     public override string Key => "downloaded";
     public override string Label => "Files Downloaded";
     public override string Before => "In Microsoft 365";
+    public override string After => What;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
+/// A record in the change log that Find Files asked Purview where matches are across every site and
+/// OneDrive (a content search that only counts, deleted once read). Written as it happens, never staged.
+/// </summary>
+public sealed record FilesCountedEverywhere(ChangeTarget Tenant, string What) : ChangeOp
+{
+    public override ChangeTarget Target => Tenant;
+    public override string Key => "counted";
+    public override string Label => "Find Files Everywhere";
+    public override string Before => "Every site and OneDrive";
     public override string After => What;
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;

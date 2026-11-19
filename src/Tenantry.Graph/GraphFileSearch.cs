@@ -133,6 +133,57 @@ public sealed partial class GraphUserRecords : IFileSearchRecords
         }
     }
 
+    /// <summary>How long Everywhere waits for Purview before giving up (its search carries on, then is deleted).</summary>
+    static readonly TimeSpan EverywhereGiveUp = TimeSpan.FromMinutes(30);
+
+    /// <summary>How often Everywhere asks Purview whether its search is done (tests shorten it).</summary>
+    public static TimeSpan EverywhereCheckEvery { get; set; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Everywhere: a Purview content search over every site and OneDrive that only counts, read for its
+    /// per-place counts, then deleted (even when stopped). Its name says what made it, in case it's seen.
+    /// </summary>
+    public async Task<IReadOnlyList<EdLocationHits>> CountEverywhereAsync(string query, IProgress<string>? status = null, CancellationToken cancellationToken = default)
+    {
+        var name = $"Tenantry Find Files {DateTime.UtcNow:yyyyMMdd-HHmmss}";
+        await Compliance("New-ComplianceSearch", new()
+        {
+            ["Name"] = name,
+            ["SharePointLocation"] = new[] { "All" },
+            ["ContentMatchQuery"] = query,
+            ["Description"] = "Made by Tenantry's Find Files to count where matching files are. Deleted once read.",
+        }, cancellationToken);
+        try
+        {
+            await StartEdSearchAsync(name, cancellationToken);
+            var started = DateTimeOffset.UtcNow;
+            while (true)
+            {
+                await Task.Delay(EverywhereCheckEvery, cancellationToken);
+                var detail = await GetEdSearchAsync(name, cancellationToken);
+                var waited = DateTimeOffset.UtcNow - started;
+                if (detail.HasRun)
+                    return [.. detail.Hits.Where(h => h.Items > 0 && h.Location.StartsWith("https://", StringComparison.OrdinalIgnoreCase))];
+                if (detail.Search.Status is "Failed" or "Stopped")
+                    throw new InvalidOperationException($"Purview's search {detail.Search.Status.ToLowerInvariant()}{(detail.Errors is { } e ? $": {e}" : ".")}");
+                if (waited > EverywhereGiveUp)
+                    throw new TimeoutException("Purview hadn't finished after half an hour. Try again later, or choose the places to look in.");
+                status?.Report($"Asking Microsoft Purview which sites and OneDrives have matches ({(int)waited.TotalMinutes} min {waited.Seconds:00} s so far; usually a few minutes)…");
+            }
+        }
+        finally
+        {
+            try
+            {
+                await Compliance("Remove-ComplianceSearch", new() { ["Identity"] = name, ["Confirm"] = false }, CancellationToken.None);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                // Left behind: it only counted, and its name and description say what it was.
+            }
+        }
+    }
+
     /// <summary>The file's content: Graph answers with a short-lived download address, followed without the token.</summary>
     public async Task DownloadAsync(FoundFile file, Stream to, IProgress<long>? progress = null, CancellationToken cancellationToken = default)
     {

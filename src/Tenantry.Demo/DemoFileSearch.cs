@@ -50,6 +50,17 @@ public sealed partial class DemoUserRecords : IFileSearchRecords
         }
     }
 
+    /// <summary>The demo's Everywhere: a short wait, then about half the sites and a few OneDrives with counts.</summary>
+    public async Task<IReadOnlyList<EdLocationHits>> CountEverywhereAsync(string query, IProgress<string>? status = null, CancellationToken cancellationToken = default)
+    {
+        status?.Report("Asking Microsoft Purview which sites and OneDrives have matches (0 min 05 s so far; usually a few minutes)…");
+        await Task.Delay(300, cancellationToken);
+        var sites = await directory.GetSitesAsync(cancellationToken);
+        var random = new Random(StableSeed(query) + 17);
+        return [.. sites.Where(s => s.Kind != SiteKind.System && !s.IsArchived && random.NextDouble() < (s.Kind == SiteKind.OneDrive ? 0.15 : 0.5))
+            .Select(s => new EdLocationHits(s.Url, random.Next(1, 40), null))];
+    }
+
     /// <summary>A demo folder holds a few files, and one subfolder with one more.</summary>
     public async IAsyncEnumerable<FoundFile> ListFolderAsync(FoundFile folder, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {

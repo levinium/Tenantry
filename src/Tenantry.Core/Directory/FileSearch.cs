@@ -102,6 +102,33 @@ public sealed record FileQuery(
         }
     }
 
+    /// <summary>
+    /// The search as Purview's query (KQL) for Everywhere: broad on purpose, since every file in the
+    /// places it reports is checked here exactly. Names go as a prefix of their longest word
+    /// (Purview matches whole words and prefixes); a regular expression isn't sent at all. Types and
+    /// dates go as they are; who changed it, folders and sizes aren't sent. Empty matches everything.
+    /// </summary>
+    public string PurviewQuery()
+    {
+        var parts = new List<string>();
+        if (Match != NameMatch.Regex && Name.Trim().Length > 0)
+        {
+            var word = Regex.Split(Name.Trim(), @"[^\p{L}\p{N}]+").OrderByDescending(w => w.Length).FirstOrDefault(w => w.Length > 0);
+            if (word is not null)
+                parts.Add($"filename:{word.ToLowerInvariant()}*");
+        }
+        if (AllowedExtensions is { Count: > 0 } extensions)
+        {
+            var types = extensions.OrderBy(e => e, StringComparer.Ordinal).Select(e => $"filetype:{e.ToLowerInvariant()}").ToArray();
+            parts.Add(types.Length == 1 ? types[0] : $"({string.Join(" OR ", types)})");
+        }
+        if (ModifiedAfter is { } after)
+            parts.Add($"lastmodifiedtime>={after.UtcDateTime:yyyy-MM-dd}");
+        if (ModifiedBefore is { } before)
+            parts.Add($"lastmodifiedtime<{before.UtcDateTime:yyyy-MM-dd}");
+        return string.Join(" AND ", parts);
+    }
+
     public bool Matches(FoundFile file)
     {
         if (!NameMatches(file.Name))
@@ -189,6 +216,9 @@ public sealed record FoundFile(
 /// <summary>Lists a site's or OneDrive's files, live from Microsoft 365.</summary>
 public interface IFileSearchRecords
 {
+    /// <summary>The most places a Purview search's statistics list (a broad search over every site gave exactly 200, seen live 2026-11-19).</summary>
+    const int EverywhereMostPlaces = 200;
+
     /// <summary>
     /// Every file in every document library of the place, a library at a time. Throws
     /// <see cref="SiteAccessException"/> when the admin can't see inside it, and
@@ -202,6 +232,16 @@ public interface IFileSearchRecords
 
     /// <summary>Copies a file's content into <paramref name="to"/>, reporting bytes written.</summary>
     Task DownloadAsync(FoundFile file, Stream to, IProgress<long>? progress = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Everywhere: which sites and OneDrives Purview counts matches in for <paramref name="query"/>
+    /// (KQL; empty is everything). A content search over every site is made, run and read, then
+    /// deleted; it only counts. Takes minutes; <paramref name="status"/> says how far it's got.
+    /// </summary>
+    /// <returns>Each place's address and how many items Purview counted there (places with none left out).
+    /// Purview lists at most <see cref="EverywhereMostPlaces"/> places (seen live).</returns>
+    Task<IReadOnlyList<EdLocationHits>> CountEverywhereAsync(string query, IProgress<string>? status = null, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Searching everywhere needs Microsoft Purview, which isn't connected for this tenant.");
 }
 
 /// <summary>The Find Files list's fields.</summary>

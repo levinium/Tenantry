@@ -201,13 +201,34 @@
       <DockPanel>
         <StackPanel DockPanel.Dock="Top" Spacing="8">
           <TextBlock Classes="h3" Text="Where to Look" />
-          <WrapPanel ItemSpacing="8" LineSpacing="8" IsEnabled="{Binding CanEditPlaces}">
+          <StackPanel Spacing="4" IsEnabled="{Binding CanEditPlaces}">
+            <RadioButton Content="Places I Choose" IsChecked="{Binding IsChosenPlaces, Mode=OneWay}" Command="{Binding ChoosePlacesCommand}" />
+            <RadioButton Content="Everywhere" IsChecked="{Binding IsEverywhere, Mode=OneWay}" Command="{Binding ChooseEverywhereCommand}" IsVisible="{Binding CanSearchEverywhere}"
+                         ToolTip.Tip="Every site and OneDrive: Microsoft Purview finds which have matches, then each of those is looked through" />
+          </StackPanel>
+          <WrapPanel ItemSpacing="8" LineSpacing="8" IsEnabled="{Binding CanEditPlaces}" IsVisible="{Binding IsChosenPlaces}">
             <views:AddButton DataContext="{Binding AddPerson}" Text="Add a Person's OneDrive"
                              Hint="Includes people who have left: their OneDrive stays until it's deleted" />
             <views:AddButton DataContext="{Binding AddSite}" Text="Add a Site" />
           </WrapPanel>
-          <TextBlock Classes="muted" TextWrapping="Wrap" IsVisible="{Binding !HasPlaces}"
-                     Text="Add the OneDrives and sites to look through. Every file in each is checked, in every folder." />
+          <TextBlock Classes="muted" TextWrapping="Wrap"
+                     Text="Add the OneDrives and sites to look through. Every file in each is checked, in every folder.">
+            <TextBlock.IsVisible>
+              <MultiBinding Converter="{x:Static BoolConverters.And}">
+                <Binding Path="!HasPlaces" />
+                <Binding Path="IsChosenPlaces" />
+              </MultiBinding>
+            </TextBlock.IsVisible>
+          </TextBlock>
+          <TextBlock Classes="muted" TextWrapping="Wrap"
+                     Text="Microsoft Purview first finds which sites and OneDrives have matches (usually a few minutes), using the files it has indexed. Those places then show here, most matches first, and every file in each is checked exactly.">
+            <TextBlock.IsVisible>
+              <MultiBinding Converter="{x:Static BoolConverters.And}">
+                <Binding Path="IsEverywhere" />
+                <Binding Path="!HasPlaces" />
+              </MultiBinding>
+            </TextBlock.IsVisible>
+          </TextBlock>
         </StackPanel>
         <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,8,0,0">
           <CheckBox Content="Keep site admin access added for the search" IsChecked="{Binding KeepAccess}" IsVisible="{Binding CanAddMeAnywhere}"

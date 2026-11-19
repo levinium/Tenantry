@@ -1374,6 +1374,29 @@ static class InteractionChecks
             for (var i = 0; i < 20 && lockedRow.IsBusy; i++)
                 Settle();
             Expect(lockedRow.IsNoAccess && lockedRow.Note?.Contains("couldn't be added") == true, $"Test mode refuses it with a reason: {lockedRow.Note}");
+
+            // Everywhere: Purview's places fill the list with their counts and are looked through.
+            find.EditSearchCommand.Execute(null);
+            Settle();
+            var everywhere = window.GetVisualDescendants().OfType<RadioButton>().First(r => r.IsEffectivelyVisible && r.Content as string == "Everywhere");
+            Click(window, everywhere);
+            Settle();
+            Expect(find.IsEverywhere && !window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.DataContext == find.AddSite),
+                "Everywhere hides the add buttons");
+            Click(window, Need("Find Files", b => b.Command == find.FindCommand && b.IsEffectivelyVisible));
+            for (var i = 0; i < 300 && (find.IsSearching || find.Places.Count == 0 || find.Status?.StartsWith("Done") != true); i++)
+            {
+                Settle();
+                Thread.Sleep(10);
+            }
+            Expect(find.Places.Count > 0 && find.Places.All(p => p.PurviewCount is not null), $"Purview's places fill the list ({find.Places.Count}; {find.Status})");
+            Expect(window.GetVisualDescendants().OfType<TextBlock>().Any(b => b.IsEffectivelyVisible && b.Text?.Contains("Purview counted") == true), "…each with Purview's count");
+            Expect(find.Status?.StartsWith("Done") == true, $"…and are looked through: {find.Status}");
+            Click(window, Need("Edit Search", b => b.Command == find.EditSearchCommand && b.IsEffectivelyVisible));
+            Settle();
+            Click(window, window.GetVisualDescendants().OfType<RadioButton>().First(r => r.IsEffectivelyVisible && r.Content as string == "Places I Choose"));
+            Settle();
+            Expect(find.Places.Count == 0 && find.IsChosenPlaces, "back to choosing places starts an empty list");
         });
 
         Check("Mail & security: the sidebar opens it, the Message trace chip switches page, Search fills the list", () =>
