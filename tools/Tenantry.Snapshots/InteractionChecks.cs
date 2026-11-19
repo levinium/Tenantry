@@ -1223,6 +1223,10 @@ static class InteractionChecks
             var find = main.SharePoint.FindFiles!;
             Expect(main.SharePoint.ShowFindFilesPage && main.SelectedTab is SharePointAreaViewModel, "Find Their Files opens Find Files in SharePoint & OneDrive");
             Expect(find.Places.Count == 1 && find.Places[0].Title.Contains(owner.DisplayName), $"…looking in their OneDrive ({string.Join(", ", find.Places.Select(p => p.Title))})");
+            // No results yet: the list's select-all box isn't ticked ("all of none" showed as ticked).
+            var resultsGrid = window.GetVisualDescendants().OfType<DataGrid>().First(g => g.IsEffectivelyVisible && g.DataContext == find.Results);
+            var selectAll = resultsGrid.GetVisualDescendants().OfType<CheckBox>().FirstOrDefault(c => c.FindAncestorOfType<DataGridColumnHeader>() is not null);
+            Expect(selectAll is not null && selectAll.IsChecked == false, $"an empty list's select-all box is unticked ({selectAll?.IsChecked})");
             var findButton = FindButton(window, b => b.Command == find.FindCommand && b.IsEffectivelyVisible);
             Expect(!findButton.IsEffectivelyEnabled && find.HasProblem, "Find Files waits for something to look for");
 
@@ -1344,6 +1348,15 @@ static class InteractionChecks
             Expect(!find.IsSearching && find.Status?.StartsWith("Done") == true, $"the search finishes: {find.Status}");
             var rows = find.Results.Rows.Cast<FoundFile>().ToArray();
             Expect(rows.Length > 0 && rows.Any(r => r.IsFolder) && rows.All(r => r.Name.Contains('e', StringComparison.OrdinalIgnoreCase)), $"matches show, folders among them ({rows.Length})");
+            // The search folds to one line, so the results get the room; Edit Search opens it again.
+            var nameBox = window.GetVisualDescendants().OfType<TextBox>().First(t => t.PlaceholderText?.StartsWith("Part of the file name") == true);
+            Expect(!nameBox.IsEffectivelyVisible && window.GetVisualDescendants().OfType<TextBlock>().Any(b => b.IsEffectivelyVisible && b.Text == find.SearchSummary),
+                $"after Find Files the search is one line: {find.SearchSummary}");
+            Click(window, Need("Edit Search", b => b.Command == find.EditSearchCommand && b.IsEffectivelyVisible));
+            Settle();
+            Expect(nameBox.IsEffectivelyVisible, "Edit Search opens it again");
+            find.IsSearchOpen = false;
+            Settle();
             var lockedRow = find.Places.Single(p => p.Site.Id == locked.Id);
             Expect(lockedRow.IsNoAccess, "the locked site says it can't be seen inside");
             Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == lockedRow.AddMeCommand && b.IsEffectivelyVisible), "…with Add Me and Search");

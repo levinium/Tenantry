@@ -225,6 +225,21 @@ public class FindFilesTests
     });
 
     [Fact]
+    public void The_one_line_summary_says_everything_searched_for() => SingleThread.Run(async () =>
+    {
+        var (page, _, sites, _) = await Demo();
+        page.Add(sites.First(s => s.Kind == SiteKind.OneDrive));
+        page.NameText = "budget";
+        page.NameMatch = FindFilesViewModel.NameMatches.Single(m => m.Value == NameMatch.StartsWith);
+        page.Types.Single(t => t.Type.Key == "word").IsOn = true;
+        page.ExtensionDraft = "dwg";
+        page.AddExtensionDraft();
+        page.Modified = FindFilesViewModel.ModifiedChoices.Single(m => m.Value == 365);
+        page.ModifiedByText = "pat";
+        Assert.Equal($"Name starts with \"budget\" · Word, .dwg · Modified in the last year · By pat · in {page.Places[0].Title}", page.SearchSummary);
+    });
+
+    [Fact]
     public void The_extensions_box_keeps_only_what_can_be_in_an_extension() => SingleThread.Run(async () =>
     {
         var (page, _, _, _) = await Demo();
@@ -247,8 +262,14 @@ public class FindFilesTests
             page.Add(place);
         page.Types.Single(t => t.Type.Key == "excel").IsOn = true;
 
+        Assert.True(page.IsSearchOpen);
         await page.FindCommand.ExecuteAsync(null);
 
+        // The search folds to one line so the results get the room; Edit Search opens it again.
+        Assert.False(page.IsSearchOpen);
+        Assert.Equal("Excel · in 2 places", page.SearchSummary);
+        page.EditSearchCommand.Execute(null);
+        Assert.True(page.IsSearchOpen);
         Assert.All(page.Places, p => Assert.Equal(PlaceState.Done, p.State));
         var rows = page.Results.Rows.Cast<FoundFile>().ToArray();
         Assert.NotEmpty(rows);

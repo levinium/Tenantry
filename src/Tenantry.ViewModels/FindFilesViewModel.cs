@@ -370,6 +370,44 @@ public sealed partial class FindFilesViewModel : ObservableObject
     [RelayCommand]
     void ToggleMore() => ShowMore = !ShowMore;
 
+    /// <summary>
+    /// The full search form shows; after Find Files it folds to one line (<see cref="SearchSummary"/>)
+    /// so the results get the room, until Edit Search.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsSearchOpen { get; set; } = true;
+
+    [RelayCommand]
+    void EditSearch() => IsSearchOpen = true;
+
+    /// <summary>'Name contains "budget" · Word, Excel, .dwg · Modified in the last year · 3 places'.</summary>
+    public string SearchSummary
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (NameText.Trim() is { Length: > 0 } name)
+                parts.Add(NameMatch.Value switch
+                {
+                    Core.Directory.NameMatch.StartsWith => $"Name starts with \"{name}\"",
+                    Core.Directory.NameMatch.Regex => $"Name matches {name}",
+                    _ => $"Name contains \"{name}\"",
+                });
+            var kinds = TickedTypes.Select(k => k.Label).Concat(TypedExtensions.Select(e => "." + e)).ToArray();
+            parts.Add(kinds.Length == 0 ? "Any type" : string.Join(", ", kinds));
+            if (Modified.Value != 0)
+                parts.Add("Modified " + Modified.Label.ToLowerInvariant());
+            if (ModifiedByText.Trim() is { Length: > 0 } by)
+                parts.Add($"By {by}");
+            if (FolderText.Trim() is { Length: > 0 } folder)
+                parts.Add($"In folders with \"{folder}\"");
+            if (MinSizeText.Trim() is { Length: > 0 } size)
+                parts.Add($"At least {size} MB");
+            parts.Add(Places.Count == 1 ? $"in {Places[0].Title}" : $"in {Places.Count} places");
+            return string.Join(" · ", parts);
+        }
+    }
+
     partial void OnNameTextChanged(string value) => CriteriaChanged();
     partial void OnNameMatchChanged(SearchChoice<NameMatch> value) => CriteriaChanged();
     partial void OnModifiedChanged(SearchChoice<int> value) => CriteriaChanged();
@@ -413,7 +451,7 @@ public sealed partial class FindFilesViewModel : ObservableObject
 
     void CriteriaChanged()
     {
-        foreach (var name in new[] { nameof(TickedTypes), nameof(HasTickedTypes), nameof(HasBadges), nameof(HasTypeFilter), nameof(TypeButtonText), nameof(TypeSummary) })
+        foreach (var name in new[] { nameof(TickedTypes), nameof(HasTickedTypes), nameof(HasBadges), nameof(HasTypeFilter), nameof(SearchSummary), nameof(TypeButtonText), nameof(TypeSummary) })
             OnPropertyChanged(name);
         OnPropertyChanged(nameof(Problem));
         OnPropertyChanged(nameof(HasProblem));
@@ -521,6 +559,8 @@ public sealed partial class FindFilesViewModel : ObservableObject
             return false;
         Places.Clear();
         Add(drive);
+        // A new place to look in: the search starts open, to say what to look for.
+        IsSearchOpen = true;
         return true;
     }
 
@@ -551,6 +591,8 @@ public sealed partial class FindFilesViewModel : ObservableObject
             return;
         // What's still in the extensions box counts: show it as a badge too.
         AddExtensionDraft();
+        OnPropertyChanged(nameof(SearchSummary));
+        IsSearchOpen = false;
         _query = Query(DateTimeOffset.Now);
         _found.Clear();
         foreach (var place in Places)

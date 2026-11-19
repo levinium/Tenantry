@@ -10,7 +10,33 @@
   <DockPanel>
     <!-- What to look for -->
     <Border DockPanel.Dock="Top" Classes="card" Margin="0,0,0,8">
-      <StackPanel Spacing="10">
+      <Panel>
+      <!-- After a search: one line saying what was searched for, so the results get the room -->
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="10" IsVisible="{Binding !IsSearchOpen}">
+        <ic:FluentIcon Icon="DocumentSearch" FontSize="16" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Text="{Binding SearchSummary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                   ToolTip.Tip="{Binding SearchSummary}" />
+        <Button Grid.Column="2" Command="{Binding EditSearchCommand}" VerticalAlignment="Center" ToolTip.Tip="Change what to look for">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Edit" FontSize="14" />
+            <TextBlock Text="Edit Search" />
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="3" Classes="accent" Command="{Binding FindCommand}" VerticalAlignment="Center" IsVisible="{Binding !IsSearching}"
+                ToolTip.Tip="Look through the same places again" ToolTip.ShowOnDisabled="True">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
+            <TextBlock Text="Search Again" />
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="4" Command="{Binding StopCommand}" IsVisible="{Binding IsSearching}" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ic:FluentIcon Icon="Stop" FontSize="14" />
+            <TextBlock Text="Stop" />
+          </StackPanel>
+        </Button>
+      </Grid>
+      <StackPanel Spacing="10" IsVisible="{Binding IsSearchOpen}">
         <TextBlock Classes="h3" Text="Search" />
         <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
           <ComboBox ItemsSource="{x:Static vm:FindFilesViewModel.NameMatches}" SelectedItem="{Binding NameMatch}" MinWidth="190" VerticalAlignment="Center" />
@@ -84,6 +110,17 @@
                 <TextBlock Text="Any Type" />
               </StackPanel>
             </Button>
+            <StackPanel Spacing="4">
+              <TextBlock Classes="label" Text="MODIFIED" />
+              <ComboBox ItemsSource="{x:Static vm:FindFilesViewModel.ModifiedChoices}" SelectedItem="{Binding Modified}" MinWidth="190" />
+            </StackPanel>
+            <Button Command="{Binding ToggleMoreCommand}" VerticalAlignment="Bottom">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Options" FontSize="14" />
+                <TextBlock Text="More Options" IsVisible="{Binding !ShowMore}" />
+                <TextBlock Text="Fewer Options" IsVisible="{Binding ShowMore}" />
+              </StackPanel>
+            </Button>
           </WrapPanel>
           <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasExtensionNote}">
             <ic:FluentIcon Icon="Info" FontSize="13" VerticalAlignment="Center" />
@@ -131,11 +168,7 @@
           </WrapPanel>
           <TextBlock Classes="caption" Text="{Binding TypeSummary}" TextWrapping="Wrap" />
         </StackPanel>
-        <WrapPanel ItemSpacing="10" LineSpacing="8">
-          <StackPanel Spacing="4">
-            <TextBlock Classes="label" Text="MODIFIED" />
-            <ComboBox ItemsSource="{x:Static vm:FindFilesViewModel.ModifiedChoices}" SelectedItem="{Binding Modified}" MinWidth="190" />
-          </StackPanel>
+        <WrapPanel ItemSpacing="10" LineSpacing="8" IsVisible="{Binding ShowMore}">
           <StackPanel Spacing="4" IsVisible="{Binding ShowMore}">
             <TextBlock Classes="label" Text="CHANGED OR MADE BY" />
             <TextBox Text="{Binding ModifiedByText}" PlaceholderText="Name or address" Width="200" />
@@ -148,16 +181,10 @@
             <TextBlock Classes="label" Text="AT LEAST (MB)" />
             <TextBox Text="{Binding MinSizeText}" PlaceholderText="Any size" Width="110" />
           </StackPanel>
-          <Button Command="{Binding ToggleMoreCommand}" VerticalAlignment="Bottom">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <ic:FluentIcon Icon="Options" FontSize="14" />
-              <TextBlock Text="More Options" IsVisible="{Binding !ShowMore}" />
-              <TextBlock Text="Fewer Options" IsVisible="{Binding ShowMore}" />
-            </StackPanel>
-          </Button>
         </WrapPanel>
         <TextBlock Classes="caption" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
       </StackPanel>
+      </Panel>
     </Border>
 
     <!-- Where to look -->

@@ -433,7 +433,8 @@ public partial class DataListView : UserControl
         var total = _vm?.Rows.Count ?? 0;
         // Checked when every row is, cleared when none is, and in between when only some are.
         // One row on its own is the row being previewed, not a selection (as the list counts it).
-        _selectAll.IsChecked = count <= 1 && total > 1 ? false : count >= total ? true : null;
+        // An empty list, or one with nothing ticked, shows unticked (not "all of none").
+        _selectAll.IsChecked = total == 0 || count == 0 || (count <= 1 && total > 1) ? false : count >= total ? true : null;
     }
 
     void UpdateItems()
