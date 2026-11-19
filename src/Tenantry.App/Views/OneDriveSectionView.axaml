@@ -73,7 +73,15 @@
                 <TextBlock Text="Copied" IsVisible="{Binding Copied}" />
               </StackPanel>
             </Button>
+            <Button Command="{Binding FindTheirFilesCommand}" IsVisible="{Binding CanFindFiles}"
+                    ToolTip.Tip="Look for files in this OneDrive by name, type, date or who changed them (Find Files)">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="DocumentSearch" FontSize="14" />
+                <TextBlock Text="Find Their Files" />
+              </StackPanel>
+            </Button>
           </WrapPanel>
+          <TextBlock Classes="caption" Text="{Binding FindNote}" IsVisible="{Binding HasFindNote}" TextWrapping="Wrap" />
         </StackPanel>
       </Border>
 

@@ -122,6 +122,9 @@
     <DataTemplate DataType="rec:RoleSettingsSection">
       <views:RoleSettingsSectionView />
     </DataTemplate>
+    <DataTemplate DataType="vm:FoundFilePreviewViewModel">
+      <views:FoundFilePreviewView />
+    </DataTemplate>
     <DataTemplate DataType="rec:DeletedSitePreviewViewModel">
       <views:DeletedSitePreviewView />
     </DataTemplate>

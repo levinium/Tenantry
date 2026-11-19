@@ -99,7 +99,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
                     new Records.NewSiteViewModel(siteMaking, _index, SharePointRoot(), _sites, _tenant.Account, CloseDialog,
                         SharePoint!.Deleted.Rows.OfType<DeletedSite>().Select(d => d.Url).ToArray()))))
             : new ListPrimaryAction("New Site", "GlobeAdd", false, tenant.Changes is null ? "This tenant can't be edited" : _manageSites.Reason ?? "");
-        SharePoint = new SharePointAreaViewModel(sites, oneDrives, tenant.Records as IDeletedSiteRecords, tenant.Changes, _manageSites, tenant.ListState, _now);
+        SharePoint = new SharePointAreaViewModel(sites, oneDrives, tenant.Records as IDeletedSiteRecords, tenant.Changes, _manageSites, tenant.ListState, _now,
+            tenant.Records is IFileSearchRecords files
+                ? new FindFilesViewModel(files, () => _sites, _index, tenant.Changes, _manageSites, tenant.Account, tenant.ListState, _now)
+                : null);
         // Security & Compliance: admin roles (8a), read live.
         _manageRoles = Evaluate(Capabilities.ManageRoles);
         SecurityArea = new SecurityAreaViewModel(tenant.Records as IRoleRecords, tenant.Changes, tenant.ListState, _now, OpenRole,
@@ -973,6 +976,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     }
 
     /// <summary>Opens the compromised-account response for one person or several.</summary>
+    /// <summary>From a person's OneDrive tab: Find Files, looking in their OneDrive.</summary>
+    public bool FindFiles(UserSummary person)
+    {
+        if (SharePoint.FindFiles is not { } find || !find.StartFor(person))
+            return false;
+        SelectedSection = Sections.First(s => s.Key == "sharepoint");
+        SharePoint.ShowFindFiles();
+        return true;
+    }
+
     public void RespondToCompromise(IReadOnlyList<UserSummary> people)
     {
         if (_tenant.Changes is not { } pipeline || people.Count == 0 || !Evaluate(Capabilities.EditUsers).IsAvailable)

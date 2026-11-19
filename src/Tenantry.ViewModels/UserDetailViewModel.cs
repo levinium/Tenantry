@@ -172,7 +172,7 @@ public sealed partial class UserDetailViewModel : TabViewModel, IDisposable
         new LicensesSection(User, _records, _pipeline, _canEdit),
         new GroupsAccessSection(User, _index, _pipeline, _canEdit, _records, _openGroup, _openUser),
         new MailSection(User, _records, _pipeline, _canEdit, _index, OpenConvertMailbox),
-        new OneDriveSection(User, _records as IOneDriveRecords, _pipeline, _canEdit, _index),
+        new OneDriveSection(User, _records as IOneDriveRecords, _pipeline, _canEdit, _index, _workflows),
         new SecuritySection(User, _records as ISecurityRecords, _pipeline, _canEdit, _openDialog, _closeDialog),
         new DevicesSection(User, _records as IDeviceRecords, _pipeline, _canEdit, _records as IAppActivationRecords),
         new ActivitySection(User, _records as IActivityRecords, _pipeline),

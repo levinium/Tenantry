@@ -35,11 +35,14 @@ public sealed partial class OneDriveSection : RecordSection, IDisposable
     readonly ChangePipeline? _pipeline;
     readonly Availability _canEdit;
     readonly IDirectoryIndex _index;
+    readonly Workflows.IWorkflowLauncher? _workflows;
     IReadOnlyList<SiteAdmin>? _admins;
     bool _loaded;
 
-    public OneDriveSection(UserSummary user, IOneDriveRecords? records, ChangePipeline? pipeline, Availability canEdit, IDirectoryIndex index)
+    public OneDriveSection(UserSummary user, IOneDriveRecords? records, ChangePipeline? pipeline, Availability canEdit, IDirectoryIndex index,
+        Workflows.IWorkflowLauncher? workflows = null)
     {
+        _workflows = workflows;
         _user = user;
         _records = records;
         _pipeline = pipeline;
@@ -83,7 +86,7 @@ public sealed partial class OneDriveSection : RecordSection, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDrive), nameof(IsNotSetUp), nameof(UsedText), nameof(UsedPercent), nameof(HasQuota), nameof(IsNearlyFull),
-        nameof(DeletedText), nameof(HasDeleted), nameof(LastChangedText), nameof(Url))]
+        nameof(DeletedText), nameof(HasDeleted), nameof(LastChangedText), nameof(Url), nameof(CanFindFiles))]
     public partial OneDriveInfo? Drive { get; private set; }
 
     public bool HasDrive => Drive is not null;
@@ -165,6 +168,25 @@ public sealed partial class OneDriveSection : RecordSection, IDisposable
             return;
         Platform.CopyText(url);
         Copied = true;
+    }
+
+    // ---- Find their files -------------------------------------------------------------------
+
+    /// <summary>Find Files, looking in this OneDrive (a leaver's lost files, for example).</summary>
+    public bool CanFindFiles => _workflows is not null && Drive is not null;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFindNote))]
+    public partial string? FindNote { get; private set; }
+
+    public bool HasFindNote => FindNote is not null;
+
+    [RelayCommand]
+    void FindTheirFiles()
+    {
+        if (_workflows is null)
+            return;
+        FindNote = _workflows.FindFiles(_user) ? null : "Find Files can't start on this OneDrive yet: wait for a running search to finish, or Refresh Sites if the OneDrive is new.";
     }
 
     // ---- Not set up yet ---------------------------------------------------------------------

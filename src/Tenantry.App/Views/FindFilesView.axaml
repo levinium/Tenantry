@@ -1,0 +1,161 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:listviews="using:Tenantry.App.Lists"
+             xmlns:conv="using:Tenantry.App.Converters"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.FindFilesView"
+             x:DataType="vm:FindFilesViewModel">
+  <DockPanel>
+    <!-- What to look for -->
+    <Border DockPanel.Dock="Top" Classes="card" Margin="0,0,0,8">
+      <StackPanel Spacing="10">
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+          <ComboBox ItemsSource="{x:Static vm:FindFilesViewModel.NameMatches}" SelectedItem="{Binding NameMatch}" MinWidth="190" VerticalAlignment="Center" />
+          <TextBox Grid.Column="1" Text="{Binding NameText}" PlaceholderText="Part of the file name, for example budget" VerticalAlignment="Center" />
+          <Button Grid.Column="2" Classes="accent" Command="{Binding FindCommand}" IsDefault="True" VerticalAlignment="Center"
+                  ToolTip.Tip="Look through every file in the places on the left" ToolTip.ShowOnDisabled="True">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="DocumentSearch" FontSize="14" />
+              <TextBlock Text="Find Files" />
+            </StackPanel>
+          </Button>
+          <Button Grid.Column="3" Command="{Binding StopCommand}" IsVisible="{Binding IsSearching}" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="Stop" FontSize="14" />
+              <TextBlock Text="Stop" />
+            </StackPanel>
+          </Button>
+        </Grid>
+        <StackPanel Spacing="4">
+          <TextBlock Classes="label" Text="TYPE (NONE TICKED: ANY)" />
+          <ItemsControl ItemsSource="{Binding Types}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel ItemSpacing="14" LineSpacing="2" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:FileTypeToggle">
+                <CheckBox Content="{Binding Label}" IsChecked="{Binding IsOn}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+        <WrapPanel ItemSpacing="10" LineSpacing="8">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="label" Text="MODIFIED" />
+            <ComboBox ItemsSource="{x:Static vm:FindFilesViewModel.ModifiedChoices}" SelectedItem="{Binding Modified}" MinWidth="190" />
+          </StackPanel>
+          <StackPanel Spacing="4" IsVisible="{Binding ShowMore}">
+            <TextBlock Classes="label" Text="CHANGED OR MADE BY" />
+            <TextBox Text="{Binding ModifiedByText}" PlaceholderText="Name or address" Width="200" />
+          </StackPanel>
+          <StackPanel Spacing="4" IsVisible="{Binding ShowMore}">
+            <TextBlock Classes="label" Text="FOLDER CONTAINS" />
+            <TextBox Text="{Binding FolderText}" PlaceholderText="For example Projects" Width="180" />
+          </StackPanel>
+          <StackPanel Spacing="4" IsVisible="{Binding ShowMore}">
+            <TextBlock Classes="label" Text="OTHER EXTENSIONS" />
+            <TextBox Text="{Binding ExtensionsText}" PlaceholderText="For example dwg, psd" Width="170" />
+          </StackPanel>
+          <StackPanel Spacing="4" IsVisible="{Binding ShowMore}">
+            <TextBlock Classes="label" Text="AT LEAST (MB)" />
+            <TextBox Text="{Binding MinSizeText}" PlaceholderText="Any size" Width="110" />
+          </StackPanel>
+          <Button Command="{Binding ToggleMoreCommand}" VerticalAlignment="Bottom">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="Options" FontSize="14" />
+              <TextBlock Text="More Options" IsVisible="{Binding !ShowMore}" />
+              <TextBlock Text="Fewer Options" IsVisible="{Binding ShowMore}" />
+            </StackPanel>
+          </Button>
+        </WrapPanel>
+        <TextBlock Classes="caption" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <!-- Where to look -->
+    <Border DockPanel.Dock="Left" Classes="card" Width="320" Margin="0,0,8,0" VerticalAlignment="Stretch">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Spacing="8">
+          <TextBlock Classes="h3" Text="Where to Look" />
+          <WrapPanel ItemSpacing="8" LineSpacing="8" IsEnabled="{Binding CanEditPlaces}">
+            <views:AddButton DataContext="{Binding AddPerson}" Text="Add a Person's OneDrive"
+                             Hint="Includes people who have left: their OneDrive stays until it's deleted" />
+            <views:AddButton DataContext="{Binding AddSite}" Text="Add a Site" />
+          </WrapPanel>
+          <TextBlock Classes="muted" TextWrapping="Wrap" IsVisible="{Binding !HasPlaces}"
+                     Text="Add the OneDrives and sites to look through. Every file in each is checked, in every folder." />
+        </StackPanel>
+        <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,8,0,0">
+          <CheckBox Content="Keep site admin access added for the search" IsChecked="{Binding KeepAccess}" IsVisible="{Binding CanAddMeAnywhere}"
+                    ToolTip.Tip="Otherwise the access Add Me and Search gives you is removed again when that place has been searched" />
+          <Button Command="{Binding ClearPlacesCommand}" IsVisible="{Binding HasPlaces}" IsEnabled="{Binding CanEditPlaces}" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="Dismiss" FontSize="14" />
+              <TextBlock Text="Clear the List" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+        <ScrollViewer Margin="0,8,0,0">
+          <ItemsControl ItemsSource="{Binding Places}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:FilePlaceRow">
+                <Border Classes="valuerow">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <ic:FluentIcon Icon="{Binding Icon, Converter={x:Static conv:IconName.Instance}}" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0" />
+                    <StackPanel Grid.Column="1" Spacing="2">
+                      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Panel Width="12" Height="12" VerticalAlignment="Center" IsVisible="{Binding IsBusy}">
+                          <Ellipse Classes="spintrack" />
+                          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                            <Arc.RenderTransform>
+                              <RotateTransform />
+                            </Arc.RenderTransform>
+                          </Arc>
+                        </Panel>
+                        <ic:FluentIcon Icon="LockClosed" FontSize="12" IsVisible="{Binding IsNoAccess}" VerticalAlignment="Center" />
+                        <TextBlock Classes="caption" Classes.error="{Binding IsFailed}" Text="{Binding StateText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                      </StackPanel>
+                      <TextBlock Classes="caption" Text="{Binding Note}" IsVisible="{Binding HasNote}" TextWrapping="Wrap" />
+                      <Button Command="{Binding AddMeCommand}" IsVisible="{Binding CanAddMe}" HorizontalAlignment="Left" Margin="0,4,0,0"
+                              ToolTip.Tip="Make yourself a site admin here (logged), then search it">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <ic:FluentIcon Icon="PersonAdd" FontSize="14" />
+                          <TextBlock Text="Add Me and Search" />
+                        </StackPanel>
+                      </Button>
+                    </StackPanel>
+                    <Button Grid.Column="2" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}" VerticalAlignment="Top" Padding="6"
+                            ToolTip.Tip="Don't look here">
+                      <ic:FluentIcon Icon="Dismiss" FontSize="12" />
+                    </Button>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+
+    <!-- What was found -->
+    <DockPanel>
+      <TextBlock DockPanel.Dock="Top" Classes="caption" Text="{Binding Status}" IsVisible="{Binding HasStatus}" Margin="0,0,0,8" TextWrapping="Wrap" />
+      <ContentControl Content="{Binding Results}">
+        <ContentControl.DataTemplates>
+          <listviews:ListViewCache />
+        </ContentControl.DataTemplates>
+      </ContentControl>
+    </DockPanel>
+  </DockPanel>
+</UserControl>

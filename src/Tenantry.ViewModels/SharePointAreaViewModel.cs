@@ -10,9 +10,9 @@ using Tenantry.ViewModels.MailSecurity;
 namespace Tenantry.ViewModels;
 
 /// <summary>
-/// The SharePoint &amp; OneDrive area: one tab with three pages. Sites (team, communication, channel
+/// The SharePoint &amp; OneDrive area: one tab with four pages. Sites (team, communication, channel
 /// and system sites) and OneDrives show the same local copy of every site collection; Deleted Sites
-/// is read live from SharePoint when first shown (and on Refresh).
+/// is read live from SharePoint when first shown (and on Refresh); Find Files looks for lost files.
 /// </summary>
 public sealed partial class SharePointAreaViewModel : TabViewModel
 {
@@ -24,11 +24,13 @@ public sealed partial class SharePointAreaViewModel : TabViewModel
         new("sites", "Sites", "Globe"),
         new("onedrives", "OneDrives", "Cloud"),
         new("deleted", "Deleted Sites", "Delete"),
+        new("findfiles", "Find Files", "DocumentSearch"),
     ];
 
     public SharePointAreaViewModel(DataListViewModel sites, DataListViewModel oneDrives, IDeletedSiteRecords? deleted = null, ChangePipeline? pipeline = null,
-        Availability? canEdit = null, IListStateStore? listState = null, Func<DateTimeOffset>? now = null)
+        Availability? canEdit = null, IListStateStore? listState = null, Func<DateTimeOffset>? now = null, FindFilesViewModel? findFiles = null)
     {
+        FindFiles = findFiles;
         Sites = sites;
         OneDrives = oneDrives;
         _deleted = deleted;
@@ -58,13 +60,22 @@ public sealed partial class SharePointAreaViewModel : TabViewModel
 
     public DataListViewModel Deleted { get; }
 
+    /// <summary>Find Files (16): lost files in chosen sites and OneDrives; null where it isn't available.</summary>
+    public FindFilesViewModel? FindFiles { get; }
+
+    public bool HasFindFiles => FindFiles is not null;
+
+    /// <summary>Opens Find Files.</summary>
+    public void ShowFindFiles() => SelectedPage = Pages.Single(p => p.Key == "findfiles");
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowSites), nameof(ShowOneDrives), nameof(ShowDeleted))]
+    [NotifyPropertyChangedFor(nameof(ShowSites), nameof(ShowOneDrives), nameof(ShowDeleted), nameof(ShowFindFilesPage))]
     public partial MailSecurityPage SelectedPage { get; set; }
 
     public bool ShowSites => SelectedPage.Key == "sites";
     public bool ShowOneDrives => SelectedPage.Key == "onedrives";
     public bool ShowDeleted => SelectedPage.Key == "deleted";
+    public bool ShowFindFilesPage => SelectedPage.Key == "findfiles";
 
     partial void OnSelectedPageChanged(MailSecurityPage value)
     {

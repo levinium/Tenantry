@@ -1199,6 +1199,63 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Find Files: a person's OneDrive tab opens it on their OneDrive; Find Files lists what matches with folders; a locked site offers Add Me and Search; a result offers Download", () =>
+        {
+            var (window, main, _) = OpenList();
+            Button Need(string what, Func<Button, bool> match) =>
+                window.GetVisualDescendants().OfType<Button>().FirstOrDefault(match) ?? throw new InvalidOperationException($"expected {what} to be on screen");
+            var owner = main.Users.Rows.Cast<UserSummary>().First(u => main.SharePoint.OneDrives.Rows.Cast<SiteSummary>()
+                .Any(s => string.Equals(s.OwnerEmail, u.UserPrincipalName, StringComparison.OrdinalIgnoreCase)));
+            main.OpenUser(owner);
+            Settle();
+            var page = (Tenantry.ViewModels.UserDetailViewModel)main.SelectedTab!;
+            var oneDrive = page.Sections.OfType<Tenantry.ViewModels.Records.OneDriveSection>().Single();
+            page.SelectedSection = oneDrive;
+            for (var i = 0; i < 30 && !oneDrive.HasDrive; i++)
+                Settle();
+            Expect(oneDrive.CanFindFiles, $"the OneDrive tab offers Find Their Files (drive {oneDrive.HasDrive}, error {oneDrive.LoadError}, {oneDrive.Unavailable})");
+            for (var i = 0; i < 10; i++)
+                Settle();
+            var buttons = window.GetVisualDescendants().OfType<Button>().Where(b => b.Command == oneDrive.FindTheirFilesCommand).ToArray();
+            Expect(buttons.Any(b => b.IsEffectivelyVisible), $"Find Their Files shows ({buttons.Length} found, views {window.GetVisualDescendants().OfType<Tenantry.App.Views.OneDriveSectionView>().Count()}, tab {main.SelectedTab?.GetType().Name})");
+            Click(window, Need("Find Their Files", b => b.Command == oneDrive.FindTheirFilesCommand && b.IsEffectivelyVisible));
+            Settle();
+            var find = main.SharePoint.FindFiles!;
+            Expect(main.SharePoint.ShowFindFilesPage && main.SelectedTab is SharePointAreaViewModel, "Find Their Files opens Find Files in SharePoint & OneDrive");
+            Expect(find.Places.Count == 1 && find.Places[0].Title.Contains(owner.DisplayName), $"…looking in their OneDrive ({string.Join(", ", find.Places.Select(p => p.Title))})");
+            var findButton = FindButton(window, b => b.Command == find.FindCommand && b.IsEffectivelyVisible);
+            Expect(!findButton.IsEffectivelyEnabled && find.HasProblem, "Find Files waits for something to look for");
+
+            // A locked site too (no owner in the demo: the admin isn't a member).
+            find.AddSite.Browse();
+            var locked = main.SharePoint.Sites.Rows.Cast<SiteSummary>().First(s => s.OwnerName is null && s.Kind != SiteKind.System && !s.IsArchived);
+            find.AddSite.PickCommand.Execute(find.AddSite.Results.First(o => o.Id == locked.Id));
+            window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.PlaceholderText?.StartsWith("Part of the file name") == true).Text = "e";
+            Settle();
+            Click(window, Need("button 2", b => b.Command == find.FindCommand && b.IsEffectivelyVisible));
+            for (var i = 0; i < 100 && find.IsSearching; i++)
+                Settle();
+            Expect(!find.IsSearching && find.Status?.StartsWith("Done") == true, $"the search finishes: {find.Status}");
+            var rows = find.Results.Rows.Cast<FoundFile>().ToArray();
+            Expect(rows.Length > 0 && rows.Any(r => r.IsFolder) && rows.All(r => r.Name.Contains('e', StringComparison.OrdinalIgnoreCase)), $"matches show, folders among them ({rows.Length})");
+            var lockedRow = find.Places.Single(p => p.Site.Id == locked.Id);
+            Expect(lockedRow.IsNoAccess, "the locked site says it can't be seen inside");
+            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == lockedRow.AddMeCommand && b.IsEffectivelyVisible), "…with Add Me and Search");
+
+            find.Results.PreviewRow(rows.First(r => !r.IsFolder));
+            for (var i = 0; i < 5; i++)
+                Settle();
+            var preview = (Tenantry.ViewModels.FoundFilePreviewViewModel)find.Results.PreviewModel!;
+            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == preview.DownloadCommand && b.IsEffectivelyVisible && b.IsEffectivelyEnabled), "a found file offers Download");
+            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == preview.OpenCommand && b.IsEffectivelyVisible), "…and Open");
+
+            // Test mode is on here: adding the admin to a real site is refused, and says so.
+            Click(window, Need("button 3", b => b.Command == lockedRow.AddMeCommand && b.IsEffectivelyVisible));
+            for (var i = 0; i < 20 && lockedRow.IsBusy; i++)
+                Settle();
+            Expect(lockedRow.IsNoAccess && lockedRow.Note?.Contains("couldn't be added") == true, $"Test mode refuses it with a reason: {lockedRow.Note}");
+        });
+
         Check("Mail & security: the sidebar opens it, the Message trace chip switches page, Search fills the list", () =>
         {
             var (window, main, _) = OpenList();

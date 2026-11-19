@@ -159,6 +159,55 @@ if (args.Contains("--wide-check"))
     return 0;
 }
 
+if (args.Contains("--files-review"))
+{
+    // Find Files: empty, then a search over a OneDrive and a locked site, with a result previewed.
+    foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+    {
+        Application.Current!.RequestedThemeVariant = theme;
+        var suffix = theme == ThemeVariant.Light ? "light" : "dark";
+        var demo = connector.ConnectDemo();
+        var main = new MainViewModel(demo with
+        {
+            IsDemo = false,
+            ListState = new Tenantry.Core.Lists.MemoryListStateStore(),
+            Changes = new Tenantry.Core.Changes.ChangePipeline(new NoopExecutor(), new Tenantry.Core.Changes.ChangeLog(new Tenantry.Core.Cache.MemoryEntityStore()),
+                new Tenantry.Core.Changes.MemoryTestModeStore(true), demo.Account),
+        }, () => { });
+        Pump(main.InitializeAsync());
+        main.SelectedSection = main.Sections.Single(s => s.Key == "sharepoint");
+        main.SharePoint.ShowFindFiles();
+        Settle();
+        Render(main, $"f01-findfiles-empty-{suffix}");
+        var find = main.SharePoint.FindFiles!;
+        foreach (var site in main.SharePoint.OneDrives.Rows.Cast<SiteSummary>().Take(2))
+            find.Add(site);
+        find.Add(main.SharePoint.Sites.Rows.Cast<SiteSummary>().First(s => s.OwnerName is null && s.Kind != SiteKind.System && !s.IsArchived));
+        find.NameText = "budget";
+        find.ShowMore = true;
+        Pump(find.FindCommand.ExecuteAsync(null));
+        for (var i = 0; i < 20; i++)
+            Settle();
+        Render(main, $"f02-findfiles-results-{suffix}");
+        find.Results.PreviewRow(find.Results.Rows[0]);
+        for (var i = 0; i < 5; i++)
+            Settle();
+        Render(main, $"f03-findfiles-preview-{suffix}");
+    }
+    return 0;
+
+    // Async work continues on the UI thread: keep it running instead of blocking it.
+    static void Pump(Task task)
+    {
+        for (var i = 0; i < 3000 && !task.IsCompleted; i++)
+        {
+            Settle();
+            Thread.Sleep(5);
+        }
+        task.GetAwaiter().GetResult();
+    }
+}
+
 if (args.Contains("--mail-review"))
 {
     foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })

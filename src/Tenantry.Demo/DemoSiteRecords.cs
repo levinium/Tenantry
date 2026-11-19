@@ -36,8 +36,13 @@ public sealed partial class DemoUserRecords : ISiteRecords, IDeletedSiteRecords
         switch (change)
         {
             case SetSiteAdmin admin:
-                if (admin.New && string.Equals(admin.Person.Address, Account, StringComparison.OrdinalIgnoreCase))
-                    SelfAdmin.Add(admin.Site.Id);
+                if (string.Equals(admin.Person.Address, Account, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (admin.New)
+                        SelfAdmin.Add(admin.Site.Id);
+                    else
+                        SelfAdmin.Remove(admin.Site.Id);
+                }
                 return new ApplyResult(ChangeOutcome.Applied);
             case SetSiteGroupMember:
                 return new ApplyResult(ChangeOutcome.Applied);

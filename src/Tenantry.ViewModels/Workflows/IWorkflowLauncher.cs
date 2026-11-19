@@ -8,4 +8,7 @@ public interface IWorkflowLauncher
     void Offboard(IReadOnlyList<UserSummary> people);
 
     void RespondToCompromise(IReadOnlyList<UserSummary> people);
+
+    /// <summary>Opens Find Files on the person's OneDrive; false when they have none (or a search is running).</summary>
+    bool FindFiles(UserSummary person) => false;
 }

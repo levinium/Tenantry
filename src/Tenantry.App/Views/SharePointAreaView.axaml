@@ -5,6 +5,7 @@
              xmlns:conv="using:Tenantry.App.Converters"
              xmlns:listviews="using:Tenantry.App.Lists"
              xmlns:ic="using:FluentIcons.Avalonia"
+             xmlns:views="using:Tenantry.App.Views"
              x:Class="Tenantry.App.Views.SharePointAreaView"
              x:DataType="vm:SharePointAreaViewModel">
   <DockPanel>
@@ -63,6 +64,12 @@
           </ContentControl.DataTemplates>
         </ContentControl>
       </DockPanel>
+
+      <!-- Find Files: lost files in chosen sites and OneDrives -->
+      <Panel IsVisible="{Binding ShowFindFilesPage}">
+        <views:FindFilesView DataContext="{Binding FindFiles}" IsVisible="{Binding $parent[UserControl].((vm:SharePointAreaViewModel)DataContext).HasFindFiles}" />
+        <TextBlock Classes="muted" Text="Find Files isn't available for this tenant." IsVisible="{Binding !HasFindFiles}" />
+      </Panel>
     </Panel>
   </DockPanel>
 </UserControl>

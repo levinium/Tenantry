@@ -183,6 +183,7 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(DeleteHold), "deleteHold")]
 [JsonDerivedType(typeof(PurgeSearch), "purgeSearch")]
 [JsonDerivedType(typeof(SearchExported), "searchExported")]
+[JsonDerivedType(typeof(FilesDownloaded), "filesDownloaded")]
 [JsonDerivedType(typeof(CreateRetentionPolicy), "createRetentionPolicy")]
 [JsonDerivedType(typeof(UpdateRetentionPolicy), "updateRetentionPolicy")]
 [JsonDerivedType(typeof(SetRetentionPolicyEnabled), "setRetentionPolicyEnabled")]
@@ -1538,6 +1539,21 @@ public abstract record SiteChange(ChangeTarget Site, string SiteUrl) : ChangeOp
     public override ChangeOp Since(ChangeOp earlier) => this;
 
     public static ChangeTarget TargetFor(Directory.SiteSummary site) => new("site", site.Id, site.Title, site.Alias);
+}
+
+/// <summary>
+/// A record in the change log that Find Files downloaded a file or folder from a site or OneDrive
+/// to this computer (nothing in Microsoft 365 changes). Written as it happens, never staged.
+/// </summary>
+public sealed record FilesDownloaded(ChangeTarget Site, string What) : ChangeOp
+{
+    public override ChangeTarget Target => Site;
+    public override string Key => "downloaded";
+    public override string Label => "Files Downloaded";
+    public override string Before => "In Microsoft 365";
+    public override string After => What;
+    public override bool IsNoChange => false;
+    public override ChangeOp Since(ChangeOp earlier) => this;
 }
 
 /// <summary>
