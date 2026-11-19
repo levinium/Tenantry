@@ -48,6 +48,18 @@ public sealed partial class FileTypeToggle(FileType type, Action changed) : Obse
     void Untick() => IsOn = false;
 }
 
+/// <summary>An extension typed in, shown as a badge (".dwg") with an × to take it off.</summary>
+public sealed partial class ExtensionBadge(string extension, Action<ExtensionBadge> remove) : ObservableObject
+{
+    /// <summary>Without the dot: "dwg".</summary>
+    public string Extension => extension;
+
+    public string Text => "." + extension;
+
+    [RelayCommand]
+    void Remove() => remove(this);
+}
+
 /// <summary>One site or OneDrive the search looks in, with how it's going.</summary>
 public sealed partial class FilePlaceRow : ObservableObject
 {
@@ -192,9 +204,70 @@ public sealed partial class FindFilesViewModel : ObservableObject
 
     public ObservableCollection<FileTypeToggle> Types { get; }
 
-    /// <summary>More extensions, separated by commas or spaces ("dwg, .psd"); with or without the dot.</summary>
+    /// <summary>
+    /// What's being typed in the extensions box. A comma, space or semicolon turns what's before it
+    /// into a badge (<see cref="Extensions"/>); Enter or leaving the box does the same for the rest.
+    /// </summary>
     [ObservableProperty]
-    public partial string ExtensionsText { get; set; } = "";
+    public partial string ExtensionDraft { get; set; } = "";
+
+    /// <summary>The extensions picked, as badges with an × each.</summary>
+    public ObservableCollection<ExtensionBadge> Extensions { get; } = [];
+
+    public bool HasExtensions => Extensions.Count > 0;
+
+    /// <summary>"dwg", from ".DWG", "*.dwg" or "dwg"; null when nothing usable is left.</summary>
+    internal static string? CleanExtension(string typed)
+    {
+        var cleaned = new string(typed.Trim().TrimStart('*').TrimStart('.').Where(c => char.IsLetterOrDigit(c) || c is '_' or '-').ToArray()).ToLowerInvariant();
+        return cleaned.Length == 0 ? null : cleaned;
+    }
+
+    void AddExtension(string typed)
+    {
+        if (CleanExtension(typed) is not { } extension || Extensions.Any(e => e.Extension == extension))
+            return;
+        Extensions.Add(new ExtensionBadge(extension, RemoveExtension));
+        OnPropertyChanged(nameof(HasExtensions));
+        CriteriaChanged();
+    }
+
+    void RemoveExtension(ExtensionBadge badge)
+    {
+        Extensions.Remove(badge);
+        OnPropertyChanged(nameof(HasExtensions));
+        CriteriaChanged();
+    }
+
+    /// <summary>Enter, or leaving the box: what's typed becomes badges.</summary>
+    [RelayCommand]
+    public void AddExtensionDraft()
+    {
+        var typed = ExtensionDraft;
+        ExtensionDraft = "";
+        foreach (var part in typed.Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries))
+            AddExtension(part);
+    }
+
+    /// <summary>Backspace in an empty box takes the last badge off.</summary>
+    public void RemoveLastExtension()
+    {
+        if (ExtensionDraft.Length == 0 && Extensions.Count > 0)
+            RemoveExtension(Extensions[^1]);
+    }
+
+    partial void OnExtensionDraftChanged(string value)
+    {
+        // Everything before the last separator becomes badges; the rest stays in the box.
+        var cut = value.LastIndexOfAny([',', ' ', ';']);
+        if (cut >= 0)
+        {
+            ExtensionDraft = value[(cut + 1)..];
+            foreach (var part in value[..cut].Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries))
+                AddExtension(part);
+        }
+        CriteriaChanged();
+    }
 
     /// <summary>The ticked types, shown as chips beside the Type button (each with its ×).</summary>
     public IReadOnlyList<FileTypeToggle> TickedTypes => [.. Types.Where(t => t.IsOn)];
@@ -212,9 +285,9 @@ public sealed partial class FindFilesViewModel : ObservableObject
         var n => $"{n} Types",
     };
 
-    /// <summary>The extensions typed in, cleaned up: no dots or stars, no repeats.</summary>
-    IReadOnlyList<string> TypedExtensions => [.. ExtensionsText.Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries)
-        .Select(e => e.Trim().TrimStart('*').TrimStart('.').ToLowerInvariant()).Where(e => e.Length > 0).Distinct()];
+    /// <summary>The badges, and what's still being typed (it counts before it becomes a badge).</summary>
+    IReadOnlyList<string> TypedExtensions =>
+        [.. Extensions.Select(e => e.Extension).Concat(CleanExtension(ExtensionDraft) is { } draft ? [draft] : []).Distinct()];
 
     /// <summary>"Looking for .xls, .xlsx, .csv and .dwg"; "Any type of file" when nothing narrows it.</summary>
     public string TypeSummary
@@ -236,7 +309,10 @@ public sealed partial class FindFilesViewModel : ObservableObject
     {
         foreach (var t in Types)
             t.IsOn = false;
-        ExtensionsText = "";
+        ExtensionDraft = "";
+        Extensions.Clear();
+        OnPropertyChanged(nameof(HasExtensions));
+        CriteriaChanged();
     }
 
     [ObservableProperty]
@@ -260,7 +336,6 @@ public sealed partial class FindFilesViewModel : ObservableObject
 
     partial void OnNameTextChanged(string value) => CriteriaChanged();
     partial void OnNameMatchChanged(SearchChoice<NameMatch> value) => CriteriaChanged();
-    partial void OnExtensionsTextChanged(string value) => CriteriaChanged();
     partial void OnModifiedChanged(SearchChoice<int> value) => CriteriaChanged();
     partial void OnModifiedByTextChanged(string value) => CriteriaChanged();
     partial void OnFolderTextChanged(string value) => CriteriaChanged();
@@ -274,7 +349,7 @@ public sealed partial class FindFilesViewModel : ObservableObject
             ? (long)(mb * 1_048_576) : null;
         return new FileQuery(NameText.Trim(), NameMatch.Value,
             Types.Where(t => t.IsOn).Select(t => t.Type.Key).ToHashSet(),
-            ExtensionsText.Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries),
+            TypedExtensions,
             days > 0 ? now.AddDays(-days) : null, days < 0 ? now.AddDays(days) : null,
             ModifiedByText.Trim() is { Length: > 0 } who ? who : null, minBytes, null,
             FolderText.Trim() is { Length: > 0 } folder ? folder : null);
@@ -438,6 +513,8 @@ public sealed partial class FindFilesViewModel : ObservableObject
     {
         if (!CanFind())
             return;
+        // What's still in the extensions box counts: show it as a badge too.
+        AddExtensionDraft();
         _query = Query(DateTimeOffset.Now);
         _found.Clear();
         foreach (var place in Places)

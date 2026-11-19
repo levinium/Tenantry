@@ -179,8 +179,19 @@ public class FindFilesTests
         Assert.Equal([pdf], page.TickedTypes);
 
         // Typed ones join in, with or without the dot or a star, and repeats count once.
-        page.ExtensionsText = ".DWG, *.psd pdf";
+        // A comma or space makes a badge, always shown with its dot; what's still being typed counts too.
+        page.ExtensionDraft = ".DWG, *.psd pdf";
+        Assert.Equal([".dwg", ".psd"], page.Extensions.Select(e => e.Text));
+        Assert.Equal("pdf", page.ExtensionDraft);
         Assert.Equal("Only .pdf, .dwg and .psd files.", page.TypeSummary);
+        page.AddExtensionDraft();
+        Assert.Equal([".dwg", ".psd", ".pdf"], page.Extensions.Select(e => e.Text));
+        page.ExtensionDraft = "dwg ";
+        Assert.Equal(3, page.Extensions.Count);
+        page.Extensions.Single(e => e.Extension == "pdf").RemoveCommand.Execute(null);
+        page.RemoveLastExtension();
+        Assert.Equal([".dwg"], page.Extensions.Select(e => e.Text));
+        page.ExtensionDraft = "psd,";
         page.Types.Single(t => t.Type.Key == "visio").IsOn = true;
         Assert.Equal("2 Types", page.TypeButtonText);
         Assert.True(page.Query(Now).Matches(File("plan.dwg")));
@@ -191,7 +202,8 @@ public class FindFilesTests
         pdf.UntickCommand.Execute(null);
         Assert.DoesNotContain(pdf, page.TickedTypes);
         page.ClearTypesCommand.Execute(null);
-        Assert.Equal(("Any Type", ""), (page.TypeButtonText, page.ExtensionsText));
+        Assert.Equal(("Any Type", ""), (page.TypeButtonText, page.ExtensionDraft));
+        Assert.Empty(page.Extensions);
         Assert.False(page.HasTypeFilter);
     });
 

@@ -1243,13 +1243,23 @@ static class InteractionChecks
             Click(window, Need("the PDF chip's ×", b => b.Command == pdfToggle.UntickCommand && b.IsEffectivelyVisible));
             Settle();
             Expect(!pdfToggle.IsOn && find.TypeButtonText == "Any Type", "the chip's × unticks it");
-            var typed = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.PlaceholderText?.StartsWith("Or type extensions") == true);
-            typed.Text = "dwg, .psd";
+            var typed = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.Name == "ExtensionBox");
+            typed.Focus();
+            window.KeyTextInput("dwg,.psd");
             Settle();
+            typed.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+            Settle();
+            Expect(find.Extensions.Select(e => e.Text).SequenceEqual([".dwg", ".psd"]) && find.ExtensionDraft.Length == 0,
+                $"typing makes badges with their dots: {string.Join(" ", find.Extensions.Select(e => e.Text))} / '{find.ExtensionDraft}'");
             Expect(find.TypeSummary == "Only .dwg and .psd files.", $"typed extensions count: {find.TypeSummary}");
+            Expect(!find.IsSearching, "Enter in the box makes a badge, it doesn't start the search");
+            var dwg = find.Extensions[0];
+            Click(window, Need("the .dwg badge's ×", b => b.Command == dwg.RemoveCommand && b.IsEffectivelyVisible));
+            Settle();
+            Expect(find.Extensions.Count == 1, "a badge's × takes it off");
             Click(window, Need("Any Type", b => b.Command == find.ClearTypesCommand && b.IsEffectivelyVisible));
             Settle();
-            Expect(find.ExtensionsText.Length == 0 && !find.HasTypeFilter, "Any Type clears them");
+            Expect(find.Extensions.Count == 0 && !find.HasTypeFilter, "Any Type clears them");
 
             // A locked site too (no owner in the demo: the admin isn't a member).
             find.AddSite.Browse();
