@@ -1257,6 +1257,24 @@ static class InteractionChecks
             Click(window, Need("the .dwg badge's ×", b => b.Command == dwg.RemoveCommand && b.IsEffectivelyVisible));
             Settle();
             Expect(find.Extensions.Count == 1, "a badge's × takes it off");
+            // Only what can be in an extension gets into the box; a refused character says why (Mark, 2026-11-19).
+            typed.Focus();
+            window.KeyTextInput("d/w?g");
+            Settle();
+            Expect(typed.Text == "dwg" && find.HasExtensionNote, $"invalid characters don't show ('{typed.Text}', note {find.ExtensionNote})");
+            Expect(window.GetVisualDescendants().OfType<TextBlock>().Any(b => b.IsEffectivelyVisible && b.Text == find.ExtensionNote), "…and the note says why");
+            window.KeyTextInput("x");
+            Settle();
+            Expect(!find.HasExtensionNote, "the note goes with the next good keystroke");
+            typed.Text = "a<b, .c";
+            for (var i = 0; i < 5; i++)
+                Settle();
+            Expect(find.Extensions.Any(x => x.Text == ".ab") && typed.Text == "c",
+                $"pasted text is cleaned up too ({string.Join(" ", find.Extensions.Select(x => x.Text))}; box '{typed.Text}')");
+            foreach (var extra in find.Extensions.Where(x => x.Extension is "dwgx" or "ab").ToArray())
+                extra.RemoveCommand.Execute(null);
+            typed.Text = "";
+            Settle();
             // The box stays put as badges are added (they go on the row below it).
             var boxAt = typed.TranslatePoint(default, window);
             typed.Focus();

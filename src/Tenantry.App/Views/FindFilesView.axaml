@@ -85,6 +85,10 @@
               </StackPanel>
             </Button>
           </WrapPanel>
+          <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasExtensionNote}">
+            <ic:FluentIcon Icon="Info" FontSize="13" VerticalAlignment="Center" />
+            <TextBlock Classes="caption" Text="{Binding ExtensionNote}" TextWrapping="Wrap" VerticalAlignment="Center" />
+          </StackPanel>
           <WrapPanel ItemSpacing="6" LineSpacing="6" IsVisible="{Binding HasBadges}">
             <ItemsControl ItemsSource="{Binding TickedTypes}" IsVisible="{Binding HasTickedTypes}">
               <ItemsControl.ItemsPanel>

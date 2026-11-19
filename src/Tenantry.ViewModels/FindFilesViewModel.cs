@@ -220,9 +220,36 @@ public sealed partial class FindFilesViewModel : ObservableObject
     /// <summary>"dwg", from ".DWG", "*.dwg" or "dwg"; null when nothing usable is left.</summary>
     internal static string? CleanExtension(string typed)
     {
-        var cleaned = new string(typed.Trim().TrimStart('*').TrimStart('.').Where(c => char.IsLetterOrDigit(c) || c is '_' or '-').ToArray()).ToLowerInvariant();
+        var cleaned = new string(typed.Where(IsExtensionCharacter).ToArray()).ToLowerInvariant();
         return cleaned.Length == 0 ? null : cleaned;
     }
+
+    /// <summary>What an extension is made of: letters, numbers, - and _.</summary>
+    public static bool IsExtensionCharacter(char c) => char.IsLetterOrDigit(c) || c is '_' or '-';
+
+    /// <summary>What separates extensions in the box.</summary>
+    public static bool IsExtensionSeparator(char c) => c is ',' or ' ' or ';';
+
+    /// <summary>
+    /// What the extensions box keeps of typed or pasted text: extension characters and separators.
+    /// A dot or star (".dwg", "*.dwg") goes quietly, since the dot is shown for you; anything else
+    /// that can't be in an extension says so (<see cref="ExtensionNote"/>).
+    /// </summary>
+    public string KeepForExtensionBox(string text)
+    {
+        var kept = new string(text.Where(c => IsExtensionCharacter(c) || IsExtensionSeparator(c)).ToArray());
+        var refused = text.Where(c => !IsExtensionCharacter(c) && !IsExtensionSeparator(c) && c is not ('.' or '*') && !char.IsControl(c)).Distinct().ToArray();
+        ExtensionNote = refused.Length == 0 ? null
+            : $"{string.Join(" ", refused)} can't be in an extension: use letters, numbers, - and _. The dot is added for you.";
+        return kept;
+    }
+
+    /// <summary>Why something just typed in the extensions box didn't appear; cleared by the next keystroke.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasExtensionNote))]
+    public partial string? ExtensionNote { get; private set; }
+
+    public bool HasExtensionNote => ExtensionNote is not null;
 
     void AddExtension(string typed)
     {

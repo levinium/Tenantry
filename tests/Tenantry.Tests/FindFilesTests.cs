@@ -225,6 +225,20 @@ public class FindFilesTests
     });
 
     [Fact]
+    public void The_extensions_box_keeps_only_what_can_be_in_an_extension() => SingleThread.Run(async () =>
+    {
+        var (page, _, _, _) = await Demo();
+        Assert.Equal("dwg", page.KeepForExtensionBox("d/w?g"));
+        Assert.Contains("/ ?", page.ExtensionNote);
+        Assert.Contains("letters, numbers, - and _", page.ExtensionNote);
+        // Dots and stars go quietly (the dot is shown for you); separators stay.
+        Assert.Equal("dwg, psd my-ext", page.KeepForExtensionBox(".dwg, *.psd my-ext"));
+        Assert.Null(page.ExtensionNote);
+        Assert.Equal("", page.KeepForExtensionBox("<>"));
+        Assert.True(page.HasExtensionNote);
+    });
+
+    [Fact]
     public void Matching_files_from_each_place_show_with_counts() => SingleThread.Run(async () =>
     {
         var (page, _, sites, _) = await Demo();
