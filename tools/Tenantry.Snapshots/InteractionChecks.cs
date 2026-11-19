@@ -1257,6 +1257,19 @@ static class InteractionChecks
             Click(window, Need("the .dwg badge's ×", b => b.Command == dwg.RemoveCommand && b.IsEffectivelyVisible));
             Settle();
             Expect(find.Extensions.Count == 1, "a badge's × takes it off");
+            // The box stays put as badges are added (they go on the row below it).
+            var boxAt = typed.TranslatePoint(default, window);
+            typed.Focus();
+            window.KeyTextInput("aa,bb,cc,dd,");
+            for (var i = 0; i < 5; i++)
+                Settle();
+            Expect(find.Extensions.Count == 5, $"four more badges ({string.Join(" ", find.Extensions.Select(x => x.Text))})");
+            Expect(string.IsNullOrEmpty(typed.Text) && find.ExtensionDraft.Length == 0, $"the box is empty once its text is a badge (box '{typed.Text}', draft '{find.ExtensionDraft}')");
+            Expect(typed.TranslatePoint(default, window)?.X == boxAt?.X, $"the box doesn't move right as badges are added ({boxAt} then {typed.TranslatePoint(default, window)})");
+            foreach (var extra in find.Extensions.Where(x => x.Extension is "aa" or "bb" or "cc" or "dd").ToArray())
+                extra.RemoveCommand.Execute(null);
+            Settle();
+            Expect(find.Extensions.Count == 1, $"the extra badges came off ({string.Join(" ", find.Extensions.Select(x => x.Text))}; draft '{find.ExtensionDraft}')");
             // Mark, 2026-11-19: adding and removing badges in a row once broke ("Border already has a visual parent AdornerLayer").
             for (var round = 0; round < 4; round++)
             {
@@ -1264,8 +1277,10 @@ static class InteractionChecks
                 window.KeyTextInput($"x{round},y{round},");
                 Settle();
                 var first = find.Extensions[0];
+                var before = find.Extensions.Count;
                 Click(window, Need("a badge's ×", b => b.Command == first.RemoveCommand && b.IsEffectivelyVisible));
                 Settle();
+                Expect(find.Extensions.Count == before - 1, $"round {round}: the × took {first.Text} off ({before} then {find.Extensions.Count}; {string.Join(" ", find.Extensions.Select(x => x.Text))})");
                 typed.Focus();
                 window.KeyTextInput($"z{round}");
                 typed.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
@@ -1276,7 +1291,7 @@ static class InteractionChecks
                 Click(window, Need("a type chip's ×", b => b.Command == tick.UntickCommand && b.IsEffectivelyVisible));
                 Settle();
             }
-            Expect(find.Extensions.Count == 9, $"badges kept up through adding and removing ({find.Extensions.Count})");
+            Expect(find.Extensions.Count == 9, $"badges kept up through adding and removing ({string.Join(" ", find.Extensions.Select(x => x.Text))})");
             // From the keyboard (Mark, 2026-11-19: Tab out of the box once threw): Tab makes a badge once focus
             // has moved, the badges' × aren't Tab stops, and Backspace in the empty box takes the last off.
             for (var round = 0; round < 4; round++)
@@ -1288,7 +1303,7 @@ static class InteractionChecks
                 Settle();
                 Expect(find.Extensions.Count == 10 && find.Extensions[^1].Text == $".k{round}" && find.ExtensionDraft.Length == 0,
                     $"Tab out of the box makes a badge ({string.Join(" ", find.Extensions.Select(x => x.Text))})");
-                Expect(window.FocusManager?.GetFocusedElement() is not Button { Command: var c } || find.Extensions.All(x => x.RemoveCommand != c), "Tab doesn't stop on a badge's ×");
+                Expect(window.FocusManager?.GetFocusedElement() == typed, $"Tab with something typed stays in the box (focus on {window.FocusManager?.GetFocusedElement()?.GetType().Name})");
                 typed.Focus();
                 window.KeyPress(Key.Back, RawInputModifiers.None, PhysicalKey.Backspace, null);
                 window.KeyRelease(Key.Back, RawInputModifiers.None, PhysicalKey.Backspace, null);

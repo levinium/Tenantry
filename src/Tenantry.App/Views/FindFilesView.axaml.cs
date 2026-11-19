@@ -16,11 +16,17 @@ public partial class FindFilesView : UserControl
         // badges while Avalonia moves focus drew the next control's focus outline twice and threw
         // "Border already has a visual parent AdornerLayer" (Mark, 2026-11-19).
         ExtensionBox.LostFocus += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(() => (DataContext as FindFilesViewModel)?.AddExtensionDraft());
-        // A comma or space turns what's before it into a badge: keep typing at the end of what's left.
-        ExtensionBox.PropertyChanged += (_, e) =>
+        // A comma or space turns what's before it into a badge, once the box has finished taking the
+        // keystroke (text changed from inside that update isn't shown); typing carries on after what's left.
+        ExtensionBox.TextChanged += (_, _) =>
         {
-            if (e.Property == TextBox.TextProperty && ExtensionBox.Text is { } text && ExtensionBox.CaretIndex > text.Length)
-                ExtensionBox.CaretIndex = text.Length;
+            if (ExtensionBox.Text?.IndexOfAny([',', ' ', ';']) is null or < 0)
+                return;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                (DataContext as FindFilesViewModel)?.TakeFinishedExtensions();
+                ExtensionBox.CaretIndex = ExtensionBox.Text?.Length ?? 0;
+            });
         };
     }
 
@@ -30,7 +36,9 @@ public partial class FindFilesView : UserControl
             return;
         switch (e.Key)
         {
-            case Key.Enter when find.ExtensionDraft.Trim().Length > 0:
+            // Enter or Tab with something typed: it becomes a badge and you stay in the box for the next.
+            // Tab in an empty box moves on as usual.
+            case Key.Enter or Key.Tab when find.ExtensionDraft.Trim().Length > 0:
                 find.AddExtensionDraft();
                 e.Handled = true;
                 break;

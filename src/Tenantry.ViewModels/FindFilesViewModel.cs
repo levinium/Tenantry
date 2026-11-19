@@ -206,7 +206,8 @@ public sealed partial class FindFilesViewModel : ObservableObject
 
     /// <summary>
     /// What's being typed in the extensions box. A comma, space or semicolon turns what's before it
-    /// into a badge (<see cref="Extensions"/>); Enter or leaving the box does the same for the rest.
+    /// into a badge (<see cref="Extensions"/>, by <see cref="TakeFinishedExtensions"/>); Enter, Tab or
+    /// leaving the box does the same for the rest.
     /// </summary>
     [ObservableProperty]
     public partial string ExtensionDraft { get; set; } = "";
@@ -256,23 +257,31 @@ public sealed partial class FindFilesViewModel : ObservableObject
             RemoveExtension(Extensions[^1]);
     }
 
-    partial void OnExtensionDraftChanged(string value)
+    partial void OnExtensionDraftChanged(string value) => CriteriaChanged();
+
+    /// <summary>
+    /// After a comma, space or semicolon is typed: everything before the last one becomes badges and
+    /// the rest stays in the box. The view calls it once the box has finished its own update (changing
+    /// the text from inside that update isn't shown in the box).
+    /// </summary>
+    public void TakeFinishedExtensions()
     {
-        // Everything before the last separator becomes badges; the rest stays in the box.
+        var value = ExtensionDraft;
         var cut = value.LastIndexOfAny([',', ' ', ';']);
-        if (cut >= 0)
-        {
-            ExtensionDraft = value[(cut + 1)..];
-            foreach (var part in value[..cut].Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries))
-                AddExtension(part);
-        }
-        CriteriaChanged();
+        if (cut < 0)
+            return;
+        ExtensionDraft = value[(cut + 1)..];
+        foreach (var part in value[..cut].Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries))
+            AddExtension(part);
     }
 
     /// <summary>The ticked types, shown as chips beside the Type button (each with its ×).</summary>
     public IReadOnlyList<FileTypeToggle> TickedTypes => [.. Types.Where(t => t.IsOn)];
 
     public bool HasTickedTypes => TickedTypes.Count > 0;
+
+    /// <summary>The row of badges under the Type and Extensions controls has something to show.</summary>
+    public bool HasBadges => HasTickedTypes || HasExtensions;
 
     /// <summary>Kinds ticked or extensions typed: Any Type clears them.</summary>
     public bool HasTypeFilter => HasTickedTypes || TypedExtensions.Count > 0;
@@ -377,7 +386,7 @@ public sealed partial class FindFilesViewModel : ObservableObject
 
     void CriteriaChanged()
     {
-        foreach (var name in new[] { nameof(TickedTypes), nameof(HasTickedTypes), nameof(HasTypeFilter), nameof(TypeButtonText), nameof(TypeSummary) })
+        foreach (var name in new[] { nameof(TickedTypes), nameof(HasTickedTypes), nameof(HasBadges), nameof(HasTypeFilter), nameof(TypeButtonText), nameof(TypeSummary) })
             OnPropertyChanged(name);
         OnPropertyChanged(nameof(Problem));
         OnPropertyChanged(nameof(HasProblem));

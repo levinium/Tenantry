@@ -64,6 +64,20 @@ public class FindFilesTests
     }
 
     [Fact]
+    public void Found_files_filter_by_extension_with_the_extensions_found_offered()
+    {
+        var engine = new Tenantry.Core.Lists.ListEngine<FoundFile>(FoundFileFields.All);
+        var rows = engine.Prepare([File("a.xlsx"), File("b.XLSX"), File("c.dwg"), File("README"), File("Projects") with { IsFolder = true }]);
+        var all = Tenantry.Core.Lists.ListQuery.Empty;
+
+        var offered = engine.Facet(rows, all, FoundFileFields.Extension, Now).ToDictionary(f => f.Value, f => f.Count);
+        Assert.Equal(new Dictionary<string, int> { [".xlsx"] = 2, [".dwg"] = 1, ["No Extension"] = 1, ["Folder"] = 1 }, offered);
+
+        var dwg = all with { Where = Tenantry.Core.Lists.ConditionGroup.All(new Tenantry.Core.Lists.ChoiceCondition(FoundFileFields.Extension, [".dwg"], [])) };
+        Assert.Equal(["c.dwg"], engine.Run(rows, dwg, Now).Select(f => f.Name));
+    }
+
+    [Fact]
     public void A_broken_regex_says_why_and_an_empty_search_is_refused()
     {
         Assert.NotNull(new FileQuery("budget(", NameMatch.Regex).Problem);
@@ -181,17 +195,20 @@ public class FindFilesTests
         // Typed ones join in, with or without the dot or a star, and repeats count once.
         // A comma or space makes a badge, always shown with its dot; what's still being typed counts too.
         page.ExtensionDraft = ".DWG, *.psd pdf";
+        page.TakeFinishedExtensions();
         Assert.Equal([".dwg", ".psd"], page.Extensions.Select(e => e.Text));
         Assert.Equal("pdf", page.ExtensionDraft);
         Assert.Equal("Only .pdf, .dwg and .psd files.", page.TypeSummary);
         page.AddExtensionDraft();
         Assert.Equal([".dwg", ".psd", ".pdf"], page.Extensions.Select(e => e.Text));
         page.ExtensionDraft = "dwg ";
+        page.TakeFinishedExtensions();
         Assert.Equal(3, page.Extensions.Count);
         page.Extensions.Single(e => e.Extension == "pdf").RemoveCommand.Execute(null);
         page.RemoveLastExtension();
         Assert.Equal([".dwg"], page.Extensions.Select(e => e.Text));
         page.ExtensionDraft = "psd,";
+        page.TakeFinishedExtensions();
         page.Types.Single(t => t.Type.Key == "visio").IsOn = true;
         Assert.Equal("2 Types", page.TypeButtonText);
         Assert.True(page.Query(Now).Matches(File("plan.dwg")));

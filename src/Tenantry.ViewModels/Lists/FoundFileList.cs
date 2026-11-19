@@ -31,6 +31,7 @@ public static class FoundFileList
                 Text = f => f.Name, Subtitle = f => f.Path, Initials = f => F.TypeOf(f) is var t && t.Length > 0 ? t[..Math.Min(2, t.Length)].ToUpperInvariant() : "?" },
             new() { Key = F.Place, Header = "Site or OneDrive", Cell = CellKind.Text, MinWidth = 160, DefaultWidth = 220, Text = f => f.PlaceTitle },
             new() { Key = F.Type, Header = "Type", Cell = CellKind.Text, MinWidth = 100, DefaultWidth = 120, Text = F.TypeOf },
+            new() { Key = F.Extension, Header = "Extension", Cell = CellKind.Text, MinWidth = 90, DefaultWidth = 110, Text = F.ExtensionOf },
             new() { Key = F.Modified, Header = "Modified", Cell = CellKind.Date, MinWidth = 130, DefaultWidth = 150, Date = f => f.Modified },
             new() { Key = F.ModifiedBy, Header = "Modified By", Cell = CellKind.Text, MinWidth = 140, DefaultWidth = 180, Text = f => f.ModifiedBy ?? f.ModifiedByEmail },
             new() { Key = F.Size, Header = "Size (MB)", Cell = CellKind.Number, MinWidth = 100, DefaultWidth = 110, Number = f => Math.Round(f.Size / 1_048_576.0, 1) },

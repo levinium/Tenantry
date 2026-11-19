@@ -187,7 +187,8 @@ if (args.Contains("--files-review"))
         find.ShowMore = true;
         foreach (var kind in new[] { "excel", "word" })
             find.Types.Single(t => t.Type.Key == kind).IsOn = true;
-        find.ExtensionDraft = "dwg, .psd ";
+        find.ExtensionDraft = "dwg, .psd";
+        find.AddExtensionDraft();
         Pump(find.FindCommand.ExecuteAsync(null));
         for (var i = 0; i < 20; i++)
             Settle();

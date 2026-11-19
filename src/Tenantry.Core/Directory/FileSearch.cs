@@ -209,6 +209,7 @@ public static class FoundFileFields
 {
     public const string Name = "name";
     public const string Type = "type";
+    public const string Extension = "extension";
     public const string Place = "place";
     public const string Path = "path";
     public const string Size = "size";
@@ -221,10 +222,14 @@ public static class FoundFileFields
     public static string TypeOf(FoundFile f) => f.IsFolder ? "Folder" :
         FileType.All.FirstOrDefault(t => t.Extensions.Contains(f.Extension))?.Label ?? (f.Extension.Length > 0 ? f.Extension.ToUpperInvariant() : "No Extension");
 
+    /// <summary>".xlsx"; "Folder" for a folder, "No Extension" for a file without one.</summary>
+    public static string ExtensionOf(FoundFile f) => f.IsFolder ? "Folder" : f.Extension.Length > 0 ? "." + f.Extension.ToLowerInvariant() : "No Extension";
+
     public static IReadOnlyList<Field<FoundFile>> All { get; } =
     [
         new() { Key = Name, Label = "Name", Kind = FieldKind.Text, Searchable = true, Aliases = ["file"], Text = f => f.Name },
         new() { Key = Type, Label = "Type", Kind = FieldKind.Choice, Aliases = ["kind"], Text = TypeOf },
+        new() { Key = Extension, Label = "Extension", Kind = FieldKind.Choice, Aliases = ["ext"], Text = ExtensionOf },
         new() { Key = Place, Label = "Site or OneDrive", Kind = FieldKind.Choice, Searchable = true, Aliases = ["site", "onedrive"], Text = f => f.PlaceTitle },
         new() { Key = Path, Label = "Folder", Kind = FieldKind.Text, Searchable = true, Aliases = ["folder", "library"], Text = f => f.Path },
         new() { Key = Size, Label = "Size (MB)", Kind = FieldKind.Number, Number = f => Math.Round(f.Size / 1_048_576.0, 1) },
