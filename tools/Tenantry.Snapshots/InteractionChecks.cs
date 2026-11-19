@@ -1226,6 +1226,31 @@ static class InteractionChecks
             var findButton = FindButton(window, b => b.Command == find.FindCommand && b.IsEffectivelyVisible);
             Expect(!findButton.IsEffectivelyEnabled && find.HasProblem, "Find Files waits for something to look for");
 
+            // Type: the list shows each kind with its extensions; ticking stays in the list and adds a chip; the chip's × unticks it.
+            var typeButton = Need("the Type button", b => b.Name == "TypeButton" && b.IsEffectivelyVisible);
+            Click(window, typeButton);
+            var typeList = (Flyout)typeButton.Flyout!;
+            Expect(typeList.IsOpen, "the Type list opens");
+            var pdfBox = (typeList.Content as Control)!.GetLogicalDescendants().OfType<CheckBox>().First(c => c.DataContext is FileTypeToggle { Type.Key: "pdf" });
+            Expect(pdfBox.GetLogicalDescendants().OfType<TextBlock>().Any(t => t.Text == ".pdf"), "each kind shows its extensions");
+            Click(pdfBox);
+            Settle();
+            Expect(typeList.IsOpen, "ticking a kind keeps the list open");
+            Expect(find.TypeButtonText == "PDF" && find.TypeSummary == "Only .pdf files.", $"the button and summary say so: {find.TypeButtonText}; {find.TypeSummary}");
+            typeList.Hide();
+            Settle();
+            var pdfToggle = find.Types.Single(t => t.Type.Key == "pdf");
+            Click(window, Need("the PDF chip's ×", b => b.Command == pdfToggle.UntickCommand && b.IsEffectivelyVisible));
+            Settle();
+            Expect(!pdfToggle.IsOn && find.TypeButtonText == "Any Type", "the chip's × unticks it");
+            var typed = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.PlaceholderText?.StartsWith("Or type extensions") == true);
+            typed.Text = "dwg, .psd";
+            Settle();
+            Expect(find.TypeSummary == "Only .dwg and .psd files.", $"typed extensions count: {find.TypeSummary}");
+            Click(window, Need("Any Type", b => b.Command == find.ClearTypesCommand && b.IsEffectivelyVisible));
+            Settle();
+            Expect(find.ExtensionsText.Length == 0 && !find.HasTypeFilter, "Any Type clears them");
+
             // A locked site too (no owner in the demo: the admin isn't a member).
             find.AddSite.Browse();
             var locked = main.SharePoint.Sites.Rows.Cast<SiteSummary>().First(s => s.OwnerName is null && s.Kind != SiteKind.System && !s.IsArchived);

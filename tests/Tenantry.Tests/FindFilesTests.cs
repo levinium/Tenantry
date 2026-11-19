@@ -165,6 +165,37 @@ public class FindFilesTests
     });
 
     [Fact]
+    public void The_type_choice_says_which_extensions_it_looks_for_and_takes_typed_ones() => SingleThread.Run(async () =>
+    {
+        var (page, _, _, _) = await Demo();
+        Assert.Equal(("Any Type", "Any type of file (and folders)."), (page.TypeButtonText, page.TypeSummary));
+        Assert.False(page.HasTypeFilter);
+
+        var pdf = page.Types.Single(t => t.Type.Key == "pdf");
+        Assert.Equal(".pdf", pdf.ExtensionsText);
+        Assert.StartsWith(".doc, .docx", page.Types.Single(t => t.Type.Key == "word").ExtensionsText);
+        pdf.IsOn = true;
+        Assert.Equal(("PDF", "Only .pdf files."), (page.TypeButtonText, page.TypeSummary));
+        Assert.Equal([pdf], page.TickedTypes);
+
+        // Typed ones join in, with or without the dot or a star, and repeats count once.
+        page.ExtensionsText = ".DWG, *.psd pdf";
+        Assert.Equal("Only .pdf, .dwg and .psd files.", page.TypeSummary);
+        page.Types.Single(t => t.Type.Key == "visio").IsOn = true;
+        Assert.Equal("2 Types", page.TypeButtonText);
+        Assert.True(page.Query(Now).Matches(File("plan.dwg")));
+        Assert.True(page.Query(Now).Matches(File("flow.vsdx")));
+        Assert.False(page.Query(Now).Matches(File("notes.docx")));
+
+        // A chip's × unticks its kind; Any Type clears everything.
+        pdf.UntickCommand.Execute(null);
+        Assert.DoesNotContain(pdf, page.TickedTypes);
+        page.ClearTypesCommand.Execute(null);
+        Assert.Equal(("Any Type", ""), (page.TypeButtonText, page.ExtensionsText));
+        Assert.False(page.HasTypeFilter);
+    });
+
+    [Fact]
     public void Matching_files_from_each_place_show_with_counts() => SingleThread.Run(async () =>
     {
         var (page, _, sites, _) = await Demo();

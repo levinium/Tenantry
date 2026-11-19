@@ -36,10 +36,16 @@ public sealed partial class FileTypeToggle(FileType type, Action changed) : Obse
 
     public string Label => type.Label;
 
+    /// <summary>".doc, .docx, .docm…": what ticking it looks for, shown beside it.</summary>
+    public string ExtensionsText => string.Join(", ", type.Extensions.Select(e => "." + e));
+
     [ObservableProperty]
     public partial bool IsOn { get; set; }
 
     partial void OnIsOnChanged(bool value) => changed();
+
+    [RelayCommand]
+    void Untick() => IsOn = false;
 }
 
 /// <summary>One site or OneDrive the search looks in, with how it's going.</summary>
@@ -186,9 +192,52 @@ public sealed partial class FindFilesViewModel : ObservableObject
 
     public ObservableCollection<FileTypeToggle> Types { get; }
 
-    /// <summary>More extensions, separated by commas or spaces ("dwg, psd").</summary>
+    /// <summary>More extensions, separated by commas or spaces ("dwg, .psd"); with or without the dot.</summary>
     [ObservableProperty]
     public partial string ExtensionsText { get; set; } = "";
+
+    /// <summary>The ticked types, shown as chips beside the Type button (each with its ×).</summary>
+    public IReadOnlyList<FileTypeToggle> TickedTypes => [.. Types.Where(t => t.IsOn)];
+
+    public bool HasTickedTypes => TickedTypes.Count > 0;
+
+    /// <summary>Kinds ticked or extensions typed: Any Type clears them.</summary>
+    public bool HasTypeFilter => HasTickedTypes || TypedExtensions.Count > 0;
+
+    /// <summary>The Type button: "Any Type", "Excel", or "3 Types".</summary>
+    public string TypeButtonText => TickedTypes.Count switch
+    {
+        0 => "Any Type",
+        1 => TickedTypes[0].Label,
+        var n => $"{n} Types",
+    };
+
+    /// <summary>The extensions typed in, cleaned up: no dots or stars, no repeats.</summary>
+    IReadOnlyList<string> TypedExtensions => [.. ExtensionsText.Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries)
+        .Select(e => e.Trim().TrimStart('*').TrimStart('.').ToLowerInvariant()).Where(e => e.Length > 0).Distinct()];
+
+    /// <summary>"Looking for .xls, .xlsx, .csv and .dwg"; "Any type of file" when nothing narrows it.</summary>
+    public string TypeSummary
+    {
+        get
+        {
+            var all = TickedTypes.SelectMany(t => t.Type.Extensions).Concat(TypedExtensions).Distinct(StringComparer.OrdinalIgnoreCase).Select(e => "." + e).ToArray();
+            return all.Length switch
+            {
+                0 => "Any type of file (and folders).",
+                1 => $"Only {all[0]} files.",
+                _ => $"Only {string.Join(", ", all[..^1])} and {all[^1]} files.",
+            };
+        }
+    }
+
+    [RelayCommand]
+    void ClearTypes()
+    {
+        foreach (var t in Types)
+            t.IsOn = false;
+        ExtensionsText = "";
+    }
 
     [ObservableProperty]
     public partial SearchChoice<int> Modified { get; set; }
@@ -253,6 +302,8 @@ public sealed partial class FindFilesViewModel : ObservableObject
 
     void CriteriaChanged()
     {
+        foreach (var name in new[] { nameof(TickedTypes), nameof(HasTickedTypes), nameof(HasTypeFilter), nameof(TypeButtonText), nameof(TypeSummary) })
+            OnPropertyChanged(name);
         OnPropertyChanged(nameof(Problem));
         OnPropertyChanged(nameof(HasProblem));
         FindCommand.NotifyCanExecuteChanged();

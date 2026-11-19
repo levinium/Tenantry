@@ -28,20 +28,72 @@
             </StackPanel>
           </Button>
         </Grid>
-        <StackPanel Spacing="4">
-          <TextBlock Classes="label" Text="TYPE (NONE TICKED: ANY)" />
-          <ItemsControl ItemsSource="{Binding Types}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <WrapPanel ItemSpacing="14" LineSpacing="2" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:FileTypeToggle">
-                <CheckBox Content="{Binding Label}" IsChecked="{Binding IsOn}" />
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+        <!-- Type: kinds of file from a list that shows their extensions, plus any typed in -->
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="TYPE" />
+          <WrapPanel ItemSpacing="8" LineSpacing="8">
+            <Button x:Name="TypeButton" MinWidth="190" HorizontalContentAlignment="Stretch" ToolTip.Tip="Choose kinds of file, each with the extensions it covers">
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <ic:FluentIcon Icon="DocumentMultiple" FontSize="14" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{Binding TypeButtonText}" VerticalAlignment="Center" />
+                <ic:FluentIcon Grid.Column="2" Icon="ChevronDown" FontSize="12" VerticalAlignment="Center" />
+              </Grid>
+              <Button.Flyout>
+                <Flyout Placement="BottomEdgeAlignedLeft">
+                  <StackPanel Width="380" Spacing="8" Margin="4">
+                    <TextBlock Classes="caption" TextWrapping="Wrap" Text="Tick the kinds of file to look for. None ticked looks for every kind." />
+                    <ScrollViewer MaxHeight="380">
+                      <ItemsControl ItemsSource="{Binding Types}">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate>
+                            <StackPanel Spacing="2" />
+                          </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:FileTypeToggle">
+                            <CheckBox IsChecked="{Binding IsOn}" Padding="8,2,0,2">
+                              <StackPanel Spacing="1">
+                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                                <TextBlock Classes="caption" Text="{Binding ExtensionsText}" TextWrapping="Wrap" />
+                              </StackPanel>
+                            </CheckBox>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </ScrollViewer>
+                  </StackPanel>
+                </Flyout>
+              </Button.Flyout>
+            </Button>
+            <ItemsControl ItemsSource="{Binding TickedTypes}" IsVisible="{Binding HasTickedTypes}" VerticalAlignment="Center">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="6" LineSpacing="6" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:FileTypeToggle">
+                  <Border Classes="chip" ToolTip.Tip="{Binding ExtensionsText}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                      <Button Command="{Binding UntickCommand}" Padding="2" VerticalAlignment="Center" ToolTip.Tip="Don't look for this kind">
+                        <ic:FluentIcon Icon="Dismiss" FontSize="10" />
+                      </Button>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBox Text="{Binding ExtensionsText}" PlaceholderText="Or type extensions: dwg, psd, .indd" Width="260" VerticalAlignment="Center"
+                     ToolTip.Tip="Any extensions, separated by commas or spaces, with or without the dot. They're added to the kinds ticked." />
+            <Button Command="{Binding ClearTypesCommand}" VerticalAlignment="Center" IsVisible="{Binding HasTypeFilter}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="Dismiss" FontSize="12" />
+                <TextBlock Text="Any Type" />
+              </StackPanel>
+            </Button>
+          </WrapPanel>
+          <TextBlock Classes="caption" Text="{Binding TypeSummary}" TextWrapping="Wrap" />
         </StackPanel>
         <WrapPanel ItemSpacing="10" LineSpacing="8">
           <StackPanel Spacing="4">
@@ -55,10 +107,6 @@
           <StackPanel Spacing="4" IsVisible="{Binding ShowMore}">
             <TextBlock Classes="label" Text="FOLDER CONTAINS" />
             <TextBox Text="{Binding FolderText}" PlaceholderText="For example Projects" Width="180" />
-          </StackPanel>
-          <StackPanel Spacing="4" IsVisible="{Binding ShowMore}">
-            <TextBlock Classes="label" Text="OTHER EXTENSIONS" />
-            <TextBox Text="{Binding ExtensionsText}" PlaceholderText="For example dwg, psd" Width="170" />
           </StackPanel>
           <StackPanel Spacing="4" IsVisible="{Binding ShowMore}">
             <TextBlock Classes="label" Text="AT LEAST (MB)" />

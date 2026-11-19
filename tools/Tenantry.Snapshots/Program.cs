@@ -185,6 +185,9 @@ if (args.Contains("--files-review"))
         find.Add(main.SharePoint.Sites.Rows.Cast<SiteSummary>().First(s => s.OwnerName is null && s.Kind != SiteKind.System && !s.IsArchived));
         find.NameText = "budget";
         find.ShowMore = true;
+        foreach (var kind in new[] { "excel", "word" })
+            find.Types.Single(t => t.Type.Key == kind).IsOn = true;
+        find.ExtensionsText = "dwg, .psd";
         Pump(find.FindCommand.ExecuteAsync(null));
         for (var i = 0; i < 20; i++)
             Settle();
