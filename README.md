@@ -100,6 +100,7 @@ use them.
 | Mail flow rules are dialogs of conditions | Rules read as sentences, with a plain-words summary, starter templates, and new rules starting in Test mode |
 | A new Conditional Access policy can lock you out the moment it's on | New policies start **report-only**, leave you out by default, and What If shows which policies a sign-in meets and why |
 | "What would this be in PowerShell?" | **Show PowerShell** on any pending change, and a PowerShell console already signed in to your tenant |
+| Finding a file someone lost means opening sites one at a time, if you can open them at all | **Find Files** looks through the OneDrives and sites you choose, or everywhere, recycle bins included, and people who have left too. Restore, download, share or copy what it finds |
 | Licensed-only features appear and then fail | They show switched off, saying which license or role they need |
 
 ![The Users list grouped by department, in the dark theme](docs/screenshots/users-grouped-dark.png)
@@ -113,10 +114,16 @@ use them.
   mail-enabled groups), dynamic rules tested against a person, and who can open or send from a shared
   mailbox.
 - **Mail and security:** quarantine and release requests, message trace with delivery errors
-  explained, mail flow rules, the Tenant Allow/Block List, threat policies, DKIM, SPF and DMARC,
+  explained and messages sent to Microsoft as junk, phishing or not junk, mail flow rules, the Tenant Allow/Block List, threat policies, DKIM, SPF and DMARC,
   connectors, domains, alerts and mail flow reports.
 - **SharePoint and OneDrive:** sites and OneDrives, permissions, sharing, storage limits, lock,
   archive, delete and restore.
+- **Find Files:** look for lost files by name (contains, starts with or a regular expression), type
+  or extension, when they changed, who changed them, size or folder. Search the OneDrives and sites
+  you choose, or everywhere (Microsoft Purview finds which places have matches), including each
+  place's recycle bins and the OneDrives of people who have left. Places you can't open offer to add
+  you as a site admin just for the search. Then restore, download, give someone access, or copy
+  files into another OneDrive or site.
 - **Devices:** Entra and Intune devices together, with remote actions, compliance, apps, BitLocker
   and LAPS; Autopilot; and Intune policies, including a settings catalog editor.
 - **Security and compliance:** admin roles and PIM, Conditional Access, named locations, app
@@ -140,6 +147,10 @@ use them.
 
 ![A device's page, with its actions](docs/screenshots/device-light.png)
 
+![Find Files: matches from two OneDrives, one in a recycle bin](docs/screenshots/find-files-light.png)
+
+![Find Files: giving someone access to a file, or copying it to their OneDrive](docs/screenshots/find-files-actions-light.png)
+
 ![Service health](docs/screenshots/service-health-light.png)
 
 ![The PowerShell console, signed in to the tenant](docs/screenshots/powershell-light.png)
@@ -152,6 +163,9 @@ use them.
 - **The local copy is encrypted.** Each tenant's copy is a database encrypted with a key kept in your
   operating system's secret store (Windows data protection, the macOS Keychain, or the Linux
   keyring), and sign-in tokens are kept the same way.
+- **Find Files keeps what it reads.** The file lists of places you've searched stay in the same
+  encrypted copy, so searching them again reads only what changed. **Forget Kept Lists** deletes
+  them. They are never shown for a place you can no longer open.
 - **New passwords are shown once.** Passwords Tenantry makes when resetting someone are shown to you
   after applying and never stored.
 - **It's kept in your user folder:** `%APPDATA%\Tenantry` on Windows, `~/.config/Tenantry` on macOS

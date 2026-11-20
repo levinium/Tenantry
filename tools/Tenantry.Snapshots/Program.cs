@@ -167,7 +167,9 @@ if (args.Contains("--files-review"))
         Application.Current!.RequestedThemeVariant = theme;
         var suffix = theme == ThemeVariant.Light ? "light" : "dark";
         var demo = connector.ConnectDemo();
-        var main = new MainViewModel(demo with
+        // --as-demo: as the README's other screenshots look (the demo banner, not Test mode's).
+        var asDemo = args.Contains("--as-demo");
+        var main = new MainViewModel(asDemo ? demo with { ListState = new Tenantry.Core.Lists.MemoryListStateStore() } : demo with
         {
             IsDemo = false,
             ListState = new Tenantry.Core.Lists.MemoryListStateStore(),
