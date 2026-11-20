@@ -91,9 +91,11 @@ public sealed partial class GraphUserRecords : ISubmissionRecords
         {
             found = await graph.GetAsync($"{Beta}users/{userId}/messages?$filter={filter}&$select=id", cancellationToken);
         }
-        catch (GraphException e) when (e.Status == System.Net.HttpStatusCode.Forbidden)
+        catch (GraphException e) when (e.Status is System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.NotFound)
         {
-            // Admins can't read other people's mail unless they have access to the mailbox (seen as ErrorAccessDenied).
+            // Admins can't read other people's mail unless they have access to the mailbox: Graph says
+            // ErrorAccessDenied, or ErrorItemNotFound for the whole message list (seen live 2026-11-19).
+            // A message that's simply gone gives an empty list, not an error.
             throw new MailboxNotOpenException(message.Recipient);
         }
         var messageId = Items(found).Select(m => Str(m, "id")).FirstOrDefault(i => !string.IsNullOrEmpty(i))

@@ -170,12 +170,15 @@ public sealed class SubmissionTests
         Assert.Contains("\"category\":\"phishing\"", posted);
     }
 
-    [Fact]
-    public async Task A_mailbox_the_admin_cant_open_says_so_and_sends_nothing()
+    [Theory]
+    [InlineData(System.Net.HttpStatusCode.Forbidden, "ErrorAccessDenied")]
+    // Seen live: another person's message list answers "not found" when their mailbox isn't open to the admin.
+    [InlineData(System.Net.HttpStatusCode.NotFound, "ErrorItemNotFound")]
+    public async Task A_mailbox_the_admin_cant_open_says_so_and_sends_nothing(System.Net.HttpStatusCode status, string code)
     {
         var http = new FakeHttp()
             .On(HttpMethod.Get, "users?$filter=", """{"value":[{"id":"u1"}]}""")
-            .On(HttpMethod.Get, "users/u1/messages?$filter=", """{"error":{"code":"ErrorAccessDenied","message":"Access is denied. Check credentials and try again."}}""", System.Net.HttpStatusCode.Forbidden);
+            .On(HttpMethod.Get, "users/u1/messages?$filter=", $$$"""{"error":{"code":"{{{code}}}","message":"Not available."}}""", status);
         var records = new GraphUserRecords(new GraphClient(http.Client(), new FakeTokens(), delay: NoDelay.Instance), new MemoryEntityStore(), new FakeCmdlets((_, _) => "[]"));
 
         var e = await Assert.ThrowsAsync<MailboxNotOpenException>(() => records.SubmitTracedAsync(Traced("FilteredAsSpam"), "phishing", TestContext.Current.CancellationToken));
