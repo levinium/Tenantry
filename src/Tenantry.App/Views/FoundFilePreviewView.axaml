@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:views="using:Tenantry.App.Views"
              xmlns:c="using:Tenantry.App.Controls"
              xmlns:ic="using:FluentIcons.Avalonia"
              x:Class="Tenantry.App.Views.FoundFilePreviewView"
@@ -9,27 +10,27 @@
     <StackPanel Spacing="6">
       <SelectableTextBlock Classes="h3" Text="{Binding Name}" TextWrapping="Wrap" />
       <WrapPanel ItemSpacing="6" LineSpacing="4">
+        <c:Badge Text="{Binding BinText}" Kind="Warning" IsVisible="{Binding IsDeleted}" />
         <c:Badge Text="{Binding TypeText}" Kind="Neutral" />
         <c:Badge Text="{Binding SizeText}" Kind="Neutral" />
       </WrapPanel>
     </StackPanel>
-    <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+    <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
       <TextBlock Classes="factname" Text="Where" />
       <SelectableTextBlock Grid.Column="1" Text="{Binding PlaceText}" TextWrapping="Wrap" />
       <TextBlock Grid.Row="1" Classes="factname" Text="Folder" />
       <SelectableTextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PathText}" TextWrapping="Wrap" />
-      <TextBlock Grid.Row="2" Classes="factname" Text="Last Changed" />
-      <SelectableTextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ModifiedText}" TextWrapping="Wrap" />
-      <TextBlock Grid.Row="3" Classes="factname" Text="Created" />
-      <SelectableTextBlock Grid.Row="3" Grid.Column="1" Text="{Binding CreatedText}" TextWrapping="Wrap" />
+      <TextBlock Grid.Row="2" Classes="factname" Text="Last Changed" IsVisible="{Binding !IsDeleted}" />
+      <SelectableTextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ModifiedText}" TextWrapping="Wrap" IsVisible="{Binding !IsDeleted}" />
+      <TextBlock Grid.Row="2" Classes="factname" Text="Deleted" IsVisible="{Binding IsDeleted}" />
+      <SelectableTextBlock Grid.Row="2" Grid.Column="1" Text="{Binding DeletedText}" TextWrapping="Wrap" IsVisible="{Binding IsDeleted}" />
+      <TextBlock Grid.Row="3" Classes="factname" Text="Emptied For Good" IsVisible="{Binding IsDeleted}" />
+      <SelectableTextBlock Grid.Row="3" Grid.Column="1" Text="{Binding GoneText}" TextWrapping="Wrap" IsVisible="{Binding IsDeleted}" />
+      <TextBlock Grid.Row="4" Classes="factname" Text="Created" />
+      <SelectableTextBlock Grid.Row="4" Grid.Column="1" Text="{Binding CreatedText}" TextWrapping="Wrap" />
     </Grid>
-    <WrapPanel ItemSpacing="8" LineSpacing="8">
-      <Button Classes="accent" Command="{Binding DownloadCommand}" IsEnabled="{Binding CanDownload}" ToolTip.Tip="{Binding DownloadTip}" ToolTip.ShowOnDisabled="True">
-        <StackPanel Orientation="Horizontal" Spacing="6">
-          <ic:FluentIcon Icon="ArrowDownload" FontSize="14" />
-          <TextBlock Text="{Binding DownloadText}" />
-        </StackPanel>
-      </Button>
+    <views:FoundFileActionsView DataContext="{Binding Actions}" />
+    <WrapPanel ItemSpacing="8" LineSpacing="8" IsVisible="{Binding !IsDeleted}">
       <Button Command="{Binding OpenCommand}" IsEnabled="{Binding HasLink}" ToolTip.Tip="Open it in the browser">
         <StackPanel Orientation="Horizontal" Spacing="6">
           <ic:FluentIcon Icon="Open" FontSize="14" />
@@ -44,22 +45,15 @@
       </Button>
       <Button Command="{Binding CopyLinkCommand}" IsEnabled="{Binding HasLink}" ToolTip.Tip="Copy its address, to send to whoever needs it">
         <StackPanel Orientation="Horizontal" Spacing="6">
-          <ic:FluentIcon Icon="Copy" FontSize="14" />
+          <ic:FluentIcon Icon="Link" FontSize="14" />
           <TextBlock Text="Copy Link" />
         </StackPanel>
       </Button>
     </WrapPanel>
     <TextBlock Classes="caption" Text="Copied." IsVisible="{Binding Copied}" />
-    <StackPanel Spacing="6" IsVisible="{Binding HasDownloadNote}">
-      <TextBlock Classes="caption" Text="{Binding DownloadNote}" TextWrapping="Wrap" />
-      <Button Command="{Binding ShowSavedCommand}" IsVisible="{Binding HasSaved}" HorizontalAlignment="Left">
-        <StackPanel Orientation="Horizontal" Spacing="6">
-          <ic:FluentIcon Icon="FolderOpen" FontSize="14" />
-          <TextBlock Text="Show in Folder" />
-        </StackPanel>
-      </Button>
-    </StackPanel>
-    <TextBlock Classes="caption" TextWrapping="Wrap"
-               Text="Open needs access to where it is. Download works for any place searched, even after the access added for the search was removed: you're added again just for the download. To hand files over, give the person access from the OneDrive's or site's page." />
+    <TextBlock Classes="caption" TextWrapping="Wrap" IsVisible="{Binding !IsDeleted}"
+               Text="Open needs access to where it is. Download, Give Access To and Copy To work for any place searched, even after the access added for the search was removed: you're added again just for that." />
+    <TextBlock Classes="caption" TextWrapping="Wrap" IsVisible="{Binding IsDeleted}"
+               Text="Restore puts it back in its folder (and the folder back, if that was deleted too). It's then shown here as it is back in the library, ready to open, download, share or copy." />
   </StackPanel>
 </UserControl>

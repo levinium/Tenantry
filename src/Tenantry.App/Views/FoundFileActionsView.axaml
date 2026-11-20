@@ -1,0 +1,119 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Tenantry.ViewModels"
+             xmlns:views="using:Tenantry.App.Views"
+             xmlns:ic="using:FluentIcons.Avalonia"
+             x:Class="Tenantry.App.Views.FoundFileActionsView"
+             x:DataType="vm:FoundFileActionsViewModel">
+  <!-- One found file (the preview) or several ticked (the selection panel): Restore for what's in a
+       recycle bin; Download, Give Access To and Copy To for the rest. Giving access and copying open
+       a short form under the buttons once someone or somewhere is chosen. -->
+  <StackPanel Spacing="10">
+    <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding DeletedNote}" IsVisible="{Binding HasDeletedNote}" />
+    <WrapPanel ItemSpacing="8" LineSpacing="8">
+      <Button Classes="accent" Command="{Binding RestoreCommand}" IsVisible="{Binding HasDeleted}" IsEnabled="{Binding CanRestore}"
+              ToolTip.Tip="{Binding RestoreTip}" ToolTip.ShowOnDisabled="True">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="ArrowUndo" FontSize="14" />
+          <TextBlock Text="{Binding RestoreText}" />
+        </StackPanel>
+      </Button>
+      <Button Classes="accent" Command="{Binding DownloadCommand}" IsVisible="{Binding HasCurrent}" IsEnabled="{Binding CanDownload}"
+              ToolTip.Tip="{Binding DownloadTip}" ToolTip.ShowOnDisabled="True">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="ArrowDownload" FontSize="14" />
+          <TextBlock Text="{Binding DownloadText}" />
+        </StackPanel>
+      </Button>
+      <Panel IsVisible="{Binding HasCurrent}" IsEnabled="{Binding CanShare}" ToolTip.Tip="{Binding ShareTip}" ToolTip.ShowOnDisabled="True">
+        <views:AddButton DataContext="{Binding SharePicker}" Text="Give Access To"
+                         Hint="People and groups to let open it where it is. They sign in to open it." />
+      </Panel>
+      <Panel IsVisible="{Binding HasCurrent}" IsEnabled="{Binding CanCopy}" ToolTip.Tip="{Binding CopyTip}" ToolTip.ShowOnDisabled="True">
+        <views:AddButton DataContext="{Binding CopyPicker}" Text="Copy To" Multiple="False"
+                         Hint="Whose OneDrive, or which site, the copy goes to. The original stays where it is." />
+      </Panel>
+    </WrapPanel>
+
+    <!-- Give Access To: who, what they can do, and whether they're told. -->
+    <Border Classes="card" Padding="12" IsVisible="{Binding IsShareOpen}">
+      <StackPanel Spacing="8">
+        <TextBlock FontWeight="SemiBold" Text="Give Access To" />
+        <ItemsControl ItemsSource="{Binding ShareWith}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemSpacing="6" LineSpacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:PickedTarget">
+              <Border Classes="chip">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                  <Button Classes="chipx" Command="{Binding RemoveCommand}" Focusable="False">
+                    <ic:FluentIcon Icon="Dismiss" FontSize="10" />
+                  </Button>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <CheckBox Content="They can edit it (otherwise they can only view it)" IsChecked="{Binding ShareCanEdit}" />
+        <CheckBox Content="Email them a link" IsChecked="{Binding ShareSendEmail}" />
+        <TextBox PlaceholderText="A note for the email (optional)" Text="{Binding ShareMessage}" IsVisible="{Binding ShareSendEmail}"
+                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="56" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Classes="accent" Command="{Binding GiveAccessCommand}" IsEnabled="{Binding CanGiveAccess}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="PersonAdd" FontSize="14" />
+              <TextBlock Text="Give Access" />
+            </StackPanel>
+          </Button>
+          <Button Content="Cancel" Command="{Binding CancelShareCommand}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- Copy To: where, and into which folder. -->
+    <Border Classes="card" Padding="12" IsVisible="{Binding IsCopyOpen}">
+      <StackPanel Spacing="8">
+        <TextBlock FontWeight="SemiBold" Text="Copy To" />
+        <TextBlock Text="{Binding CopyDestinationText}" FontWeight="SemiBold" TextWrapping="Wrap" />
+        <TextBlock Classes="factname" Text="FOLDER" />
+        <TextBox Text="{Binding CopyFolder}" PlaceholderText="Blank puts it at the top of the library" />
+        <TextBlock Classes="error" TextWrapping="Wrap" Text="{Binding CopyFolderProblem}" IsVisible="{Binding HasCopyFolderProblem}" />
+        <TextBlock Classes="caption" TextWrapping="Wrap"
+                   Text="It goes in this folder at the top of the main library there, made if it isn't there. Nothing is overwritten: a name already taken gets a number added." />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Classes="accent" Command="{Binding CopyHereCommand}" IsEnabled="{Binding CanCopyHere}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="Copy" FontSize="14" />
+              <TextBlock Text="Copy" />
+            </StackPanel>
+          </Button>
+          <Button Content="Cancel" Command="{Binding CancelCopyCommand}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <StackPanel Spacing="6" IsVisible="{Binding HasNote}">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Panel Width="12" Height="12" VerticalAlignment="Center" IsVisible="{Binding IsBusy}">
+          <Ellipse Classes="spintrack" />
+          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+        </Panel>
+        <TextBlock Classes="caption" Text="{Binding Note}" TextWrapping="Wrap" />
+      </StackPanel>
+      <Button Command="{Binding ShowSavedCommand}" IsVisible="{Binding HasSaved}" HorizontalAlignment="Left">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <ic:FluentIcon Icon="FolderOpen" FontSize="14" />
+          <TextBlock Text="Show in Folder" />
+        </StackPanel>
+      </Button>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

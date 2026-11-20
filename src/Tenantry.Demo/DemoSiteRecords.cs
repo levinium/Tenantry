@@ -46,6 +46,16 @@ public sealed partial class DemoUserRecords : ISiteRecords, IDeletedSiteRecords
                 return new ApplyResult(ChangeOutcome.Applied);
             case SetSiteGroupMember:
                 return new ApplyResult(ChangeOutcome.Applied);
+            case RestoreFiles restore:
+                foreach (var id in restore.BinIds)
+                    _restored.Add(id);
+                return new ApplyResult(ChangeOutcome.Applied);
+            case ShareFiles:
+                return new ApplyResult(ChangeOutcome.Applied);
+            case CopyFiles copy:
+                return (await directory.GetSitesAsync(cancellationToken)).FirstOrDefault(s => s.Id == copy.Site.Id) is { } to && !await CanOpenAsync(to, cancellationToken)
+                    ? new ApplyResult(ChangeOutcome.Failed, "You can't put files there: add yourself as its site admin, or choose somewhere you can open.")
+                    : new ApplyResult(ChangeOutcome.Applied);
             case SetSiteSetting setting:
                 var values = System.Text.Json.Nodes.JsonNode.Parse(setting.Values)!.AsObject();
                 directory.UpdateSite(setting.Site.Id, s => values.Aggregate(s, (site, v) => v.Key switch

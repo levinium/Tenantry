@@ -74,6 +74,60 @@ public sealed partial class DemoUserRecords : IFileSearchRecords
         }
     }
 
+    /// <summary>Recycle bin items restored in this session: gone from the bin, back in their library.</summary>
+    readonly HashSet<string> _restored = [];
+
+    /// <summary>A few deleted files and a folder in each place's bins, some in the second stage.</summary>
+    public async IAsyncEnumerable<FoundFile> ListRecycleBinAsync(SiteSummary place, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        CanSeeInside(place);
+        await Task.Yield();
+        var random = new Random(StableSeed(place.Id) + 18);
+        var now = DateTimeOffset.UtcNow;
+        var count = random.Next(3, 9);
+        var library = place.Kind == SiteKind.OneDrive ? "Documents" : "Shared Documents";
+        for (var i = 0; i < count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var id = $"demo-bin-{place.Id}-{i}";
+            if (_restored.Contains(id))
+                continue;
+            var folder = i == 0;
+            var name = folder ? "Old Projects" : $"{FileWords[random.Next(FileWords.Length)]} {FileYears[random.Next(FileYears.Length)]}.{Extensions[random.Next(Extensions.Length)]}";
+            var deleted = now.AddDays(-random.Next(1, 90)).AddMinutes(-random.Next(1440));
+            yield return new FoundFile(id, "", name, library, FolderNames[random.Next(FolderNames.Length)], place.Id, place.Title, place.Url,
+                random.Next(8_000, 20_000_000), null, null, null, null, place.OwnerName, place.OwnerEmail, null, folder,
+                BinStage: random.NextDouble() < 0.3 ? 2 : 1, Deleted: deleted, DeletedBy: place.OwnerName ?? "Someone");
+        }
+    }
+
+    public Task<FoundFile?> FindRestoredAsync(FoundFile deleted, CancellationToken cancellationToken = default) =>
+        Task.FromResult<FoundFile?>(deleted with
+        {
+            Id = deleted.Id.Replace("demo-bin-", "demo-back-", StringComparison.Ordinal),
+            DriveId = $"demo-d-{deleted.PlaceId}",
+            Library = "Documents",
+            BinStage = 0,
+            Modified = deleted.Deleted,
+            ModifiedBy = deleted.DeletedBy,
+            Deleted = null,
+            DeletedBy = null,
+            WebUrl = $"{deleted.PlaceUrl}/{deleted.Library}/{(deleted.Folder.Length > 0 ? deleted.Folder + "/" : "")}{Uri.EscapeDataString(deleted.Name)}",
+        });
+
+    public Task<bool> CanOpenAsync(SiteSummary place, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            CanSeeInside(place);
+            return Task.FromResult(true);
+        }
+        catch (Exception e) when (e is SiteAccessException or UnauthorizedAccessException)
+        {
+            return Task.FromResult(false);
+        }
+    }
+
     /// <summary>The demo's files are a line of text saying what they stand in for.</summary>
     public async Task DownloadAsync(FoundFile file, Stream to, IProgress<long>? progress = null, CancellationToken cancellationToken = default)
     {

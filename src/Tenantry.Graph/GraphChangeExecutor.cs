@@ -171,6 +171,9 @@ public sealed partial class GraphChangeExecutor(GraphClient graph, IEntityStore 
         OrgChange o => await ApplyOrgAsync(o, cancellationToken),
         SetAuthMethodConfig m => await SetAuthMethodConfigAsync(m, cancellationToken),
         SetSecurityDefaults d => await SetSecurityDefaultsAsync(d, cancellationToken),
+        RestoreFiles r => await RestoreFilesAsync(r, cancellationToken),
+        ShareFiles s => await ShareFilesAsync(s, cancellationToken),
+        CopyFiles c => await CopyFilesAsync(c, cancellationToken),
         _ => new ApplyResult(ChangeOutcome.Failed, $"Tenantry can't apply \"{change.Label}\" changes yet."),
     };
 

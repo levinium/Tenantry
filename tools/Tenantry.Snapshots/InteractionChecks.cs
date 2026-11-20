@@ -1362,12 +1362,76 @@ static class InteractionChecks
             Expect(lockedRow.IsNoAccess, "the locked site says it can't be seen inside");
             Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == lockedRow.AddMeCommand && b.IsEffectivelyVisible), "…with Add Me and Search");
 
-            find.Results.PreviewRow(rows.First(r => !r.IsFolder));
+            find.Results.PreviewRow(rows.First(r => !r.IsFolder && !r.IsDeleted));
             for (var i = 0; i < 5; i++)
                 Settle();
             var preview = (Tenantry.ViewModels.FoundFilePreviewViewModel)find.Results.PreviewModel!;
-            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == preview.DownloadCommand && b.IsEffectivelyVisible && b.IsEffectivelyEnabled), "a found file offers Download");
+            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == preview.Actions.DownloadCommand && b.IsEffectivelyVisible && b.IsEffectivelyEnabled), "a found file offers Download");
             Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == preview.OpenCommand && b.IsEffectivelyVisible), "…and Open");
+
+            // Give Access To: choosing someone opens the form; Test mode refuses a real site, and says why.
+            var actions = preview.Actions;
+            var who = AddVia(window, actions.SharePicker, "a");
+            Settle();
+            Expect(actions.IsShareOpen && window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible && t.Text == who), $"Give Access To shows {who} as a chip");
+            Click(window, Need("Give Access", b => b.Command == actions.GiveAccessCommand && b.IsEffectivelyVisible && b.IsEffectivelyEnabled));
+            for (var i = 0; i < 300 && actions.IsBusy; i++)
+            {
+                Settle();
+                Thread.Sleep(10);
+            }
+            Expect(actions.Note?.Contains("Test mode") == true, $"Test mode refuses giving access on a real site, with the reason: {actions.Note}");
+
+            // Copy To: one place is chosen (the popup closes on the click), then the folder form shows.
+            var copyAdd = window.GetVisualDescendants().OfType<Tenantry.App.Views.AddButton>().First(a => a.DataContext == actions.CopyPicker && a.IsEffectivelyVisible);
+            var copyOpen = copyAdd.GetVisualDescendants().OfType<Button>().First();
+            Click(window, copyOpen);
+            var copyFlyout = (Flyout)copyOpen.Flyout!;
+            Settle();
+            Expect(copyFlyout.IsOpen, "Copy To opens its popup");
+            var place = Buttons(copyFlyout).Where(b => b.IsAttachedToVisualTree() && b.IsEffectivelyVisible).Last(b => b.DataContext is Tenantry.ViewModels.Editing.PickRow);
+            Click(TopLevel.GetTopLevel(place)!, place);
+            Settle();
+            Expect(!copyFlyout.IsOpen && actions.IsCopyOpen, $"choosing a place closes the popup and opens the form ({actions.CopyDestinationText})");
+            var folderBox = window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.Text == FoundFileActionsViewModel.DefaultCopyFolder);
+            folderBox.Text = "a/b";
+            Settle();
+            Expect(!actions.CanCopyHere && window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible && t.Text == actions.CopyFolderProblem),
+                "a folder name with / is refused, with the reason");
+            folderBox.Text = "Recovered Files";
+            Settle();
+            Click(window, Need("Cancel copy", b => b.Command == actions.CancelCopyCommand && b.IsEffectivelyVisible));
+            Settle();
+            Expect(!actions.IsCopyOpen, "Cancel closes the Copy To form");
+
+            // Recycle bins are searched too: something in one offers Restore, not Download.
+            var binned = rows.First(r => r.IsDeleted);
+            find.Results.PreviewRow(binned);
+            for (var i = 0; i < 5; i++)
+                Settle();
+            var binPreview = (Tenantry.ViewModels.FoundFilePreviewViewModel)find.Results.PreviewModel!;
+            Expect(!window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == binPreview.Actions.DownloadCommand && b.IsEffectivelyVisible),
+                "something in a recycle bin can't be downloaded until it's back");
+            Expect(window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible && t.Text == binPreview.GoneText), "…and says when it's emptied for good");
+            Click(window, Need("Restore", b => b.Command == binPreview.Actions.RestoreCommand && b.IsEffectivelyVisible && b.IsEffectivelyEnabled));
+            for (var i = 0; i < 300 && binPreview.Actions.IsBusy; i++)
+            {
+                Settle();
+                Thread.Sleep(10);
+            }
+            Expect(binPreview.Actions.Note?.Contains("Test mode") == true, $"Test mode refuses restoring on a real site, with the reason: {binPreview.Actions.Note}");
+
+            // Several ticked: one panel with Restore for those in a bin and the rest for the others.
+            find.Results.SelectedRows = [rows.First(r => r.IsDeleted), .. rows.Where(r => !r.IsDeleted && !r.IsFolder).Take(2)];
+            for (var i = 0; i < 5; i++)
+                Settle();
+            var ticked = find.Results.PreviewModel as FoundFilesSelectionViewModel;
+            Expect(ticked?.Heading == "3 Ticked", $"ticking three shows the selection panel ({ticked?.Heading})");
+            Expect(window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == ticked!.Actions.RestoreCommand && b.IsEffectivelyVisible)
+                   && window.GetVisualDescendants().OfType<Button>().Any(b => b.Command == ticked!.Actions.DownloadCommand && b.IsEffectivelyVisible && Labelled(b, "Download 2")),
+                "…with Restore and Download 2");
+            find.Results.ClearSelection();
+            Settle();
 
             // Test mode is on here: adding the admin to a real site is refused, and says so.
             Click(window, Need("button 3", b => b.Command == lockedRow.AddMeCommand && b.IsEffectivelyVisible));

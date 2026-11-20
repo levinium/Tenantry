@@ -231,6 +231,8 @@
           </TextBlock>
         </StackPanel>
         <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,8,0,0">
+          <CheckBox Content="Look in recycle bins too" IsChecked="{Binding IncludeRecycleBins}" IsEnabled="{Binding CanEditPlaces}"
+                    ToolTip.Tip="Both stages of each place's recycle bin, where deleted files stay for 93 days. Only site admins can see them." />
           <CheckBox Content="Keep site admin access added for the search" IsChecked="{Binding KeepAccess}" IsVisible="{Binding CanAddMeAnywhere}"
                     ToolTip.Tip="Otherwise the access Add Me and Search gives you is removed again when that place has been searched" />
           <Button Command="{Binding ClearPlacesCommand}" IsVisible="{Binding HasPlaces}" IsEnabled="{Binding CanEditPlaces}" HorizontalAlignment="Left">

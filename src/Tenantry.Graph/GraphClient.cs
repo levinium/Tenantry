@@ -139,7 +139,28 @@ public sealed class GraphClient
         }
     }
 
-    async Task<JsonElement> SendAsync(HttpMethod method, string path, JsonNode? body, CancellationToken cancellationToken)
+    /// <summary>
+    /// A POST that Graph answers with "202 Accepted" and a link to watch (a drive item copy). The
+    /// link needs no token, so it's read without one: it may be on another host.
+    /// </summary>
+    public async Task<Uri?> PostAcceptedAsync(string path, JsonNode body, CancellationToken cancellationToken = default)
+    {
+        Uri? location = null;
+        await SendAsync(HttpMethod.Post, path, body, cancellationToken, r => location = r.Headers.Location);
+        return location;
+    }
+
+    /// <summary>Reads a link Graph handed out (a copy's progress), without a token.</summary>
+    public async Task<JsonElement> GetWithoutTokenAsync(Uri url, CancellationToken cancellationToken = default)
+    {
+        using var response = await _http.GetAsync(url, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw await ToExceptionAsync(response, cancellationToken);
+        var text = await response.Content.ReadAsStringAsync(cancellationToken);
+        return string.IsNullOrWhiteSpace(text) ? default : JsonDocument.Parse(text).RootElement.Clone();
+    }
+
+    async Task<JsonElement> SendAsync(HttpMethod method, string path, JsonNode? body, CancellationToken cancellationToken, Action<HttpResponseMessage>? answered = null)
     {
         var url = Uri.TryCreate(path, UriKind.Absolute, out var absolute) ? absolute : new Uri(_base, path);
         var payload = body?.ToJsonString();
@@ -162,6 +183,7 @@ public sealed class GraphClient
 
             if (response.IsSuccessStatusCode)
             {
+                answered?.Invoke(response);
                 var text = await response.Content.ReadAsStringAsync(cancellationToken);
                 return string.IsNullOrWhiteSpace(text) ? default : JsonDocument.Parse(text).RootElement.Clone();
             }

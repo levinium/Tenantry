@@ -113,6 +113,9 @@ public sealed partial class FilePlaceRow : ObservableObject
     /// <summary>Searched only after adding the admin: downloading from it needs that access again.</summary>
     internal bool NeededAccess { get; set; }
 
+    /// <summary>Its files were searched but its recycle bins were refused (only site admins see them).</summary>
+    internal bool BinsLocked { get; set; }
+
     /// <summary>Offered "Add Me and Search" (a pipeline, an account and the right to change sites).</summary>
     [ObservableProperty]
     public partial bool CanAddMe { get; internal set; }
@@ -182,8 +185,9 @@ public sealed partial class FindFilesViewModel : ObservableObject
         Types = [.. FileType.All.Select(t => new FileTypeToggle(t, CriteriaChanged))];
         AddPerson = new PersonPicker("Person's name or address", () => PlaceOptions(oneDrives: true), Pick) { Multiple = true };
         AddSite = new PersonPicker("Site name or address", () => PlaceOptions(oneDrives: false), Pick) { Multiple = true };
-        Results = DataListViewModel.Create(FoundFileList.Definition(f => new FoundFilePreviewViewModel(f, DownloadAsync)),
+        Results = DataListViewModel.Create(FoundFileList.Definition(f => new FoundFilePreviewViewModel(f, this)),
             _ => Task.FromResult<IReadOnlyList<FoundFile>>([.. _found]), f => Results!.PreviewRow(f), listState, now ?? (() => DateTimeOffset.Now));
+        Results.SelectionPanel = (rows, _) => new FoundFilesSelectionViewModel(rows, this);
         Results.HasRecordPages = false;
         Results.PrimaryAction = null;
         Results.EmptyText = "Choose where to look and what to look for, then Find Files.";
@@ -518,6 +522,13 @@ public sealed partial class FindFilesViewModel : ObservableObject
     [ObservableProperty]
     public partial bool KeepAccess { get; set; }
 
+    /// <summary>
+    /// Look in each place's recycle bins too, both stages (deleted files are kept 93 days). Only site
+    /// admins can see them, so a place you're only a member of offers Add Me to include them.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IncludeRecycleBins { get; set; } = true;
+
     /// <summary>Making yourself a site admin is offered (and how it ends is worth saying).</summary>
     public bool CanAddMeAnywhere => _pipeline is not null && _canEdit.IsAvailable && _me is not null;
 
@@ -760,26 +771,46 @@ public sealed partial class FindFilesViewModel : ObservableObject
         return new SiteSummary(trimmed, trimmed, name, "", kind, null, null, null, null, false, false, null, 0, 0, 0, "Unlock", "NotArchived", null, null);
     }
 
-    async Task SearchPlaceAsync(FilePlaceRow place, CancellationToken token)
+    /// <param name="keepAddedAccess">Retrying after Add Me: the access stays until the last try.</param>
+    async Task SearchPlaceAsync(FilePlaceRow place, CancellationToken token, bool keepAddedAccess = false)
     {
         place.State = PlaceState.Searching;
+        place.BinsLocked = false;
         UpdateStatus(done: false);
         var lastShown = DateTime.UtcNow;
+        async Task TakeAsync(FoundFile file)
+        {
+            if (!_query.Matches(file) || _found.Count >= MaxResults)
+                return;
+            _found.Add(file);
+            place.Found++;
+            // Results show as they're found, without redrawing the list for every file.
+            if (DateTime.UtcNow - lastShown > TimeSpan.FromSeconds(1))
+            {
+                lastShown = DateTime.UtcNow;
+                await RefreshResultsAsync();
+                UpdateStatus(done: false);
+            }
+        }
         try
         {
             var progress = new Progress<int>(n => place.Scanned = n);
             await foreach (var file in _records!.ListFilesAsync(place.Site, progress, token))
+                await TakeAsync(file);
+            if (IncludeRecycleBins)
             {
-                if (!_query.Matches(file) || _found.Count >= MaxResults)
-                    continue;
-                _found.Add(file);
-                place.Found++;
-                // Results show as they're found, without redrawing the list for every file.
-                if (DateTime.UtcNow - lastShown > TimeSpan.FromSeconds(1))
+                try
                 {
-                    lastShown = DateTime.UtcNow;
-                    await RefreshResultsAsync();
-                    UpdateStatus(done: false);
+                    await foreach (var file in _records.ListRecycleBinAsync(place.Site, token))
+                        await TakeAsync(file);
+                }
+                catch (SiteAccessException)
+                {
+                    place.BinsLocked = true;
+                    place.CanAddMe = CanAddMeAnywhere && !place.AddedMe && place.Site.Id != place.Site.Url;
+                    place.Note = place.CanAddMe
+                        ? "Its recycle bins weren't searched: only site admins can see them. Add yourself to include them."
+                        : "Its recycle bins weren't searched: only site admins can see them.";
                 }
             }
             place.State = PlaceState.Done;
@@ -806,7 +837,8 @@ public sealed partial class FindFilesViewModel : ObservableObject
         }
         finally
         {
-            await RemoveAddedAccessAsync(place);
+            if (!keepAddedAccess)
+                await RemoveAddedAccessAsync(place);
             await RefreshResultsAsync();
             UpdateStatus(done: false);
         }
@@ -845,10 +877,9 @@ public sealed partial class FindFilesViewModel : ObservableObject
             // SharePoint can take a moment to let a new site admin in: try again briefly before giving up.
             for (var attempt = 0; ; attempt++)
             {
-                await SearchPlaceAsync(place, _run.Token);
-                if (place.State != PlaceState.NoAccess || attempt >= 2)
+                await SearchPlaceAsync(place, _run.Token, keepAddedAccess: true);
+                if (place.State != PlaceState.NoAccess && !place.BinsLocked || attempt >= 2)
                     break;
-                place.AddedMe = true;
                 await Task.Delay(TimeSpan.FromSeconds(5), _run.Token);
             }
         }
@@ -856,10 +887,13 @@ public sealed partial class FindFilesViewModel : ObservableObject
         {
             place.State = PlaceState.Failed;
             place.Note = "Stopped before it finished.";
-            await RemoveAddedAccessAsync(place);
         }
         finally
         {
+            // After the last try, whatever it found: the access added for it goes (unless kept).
+            await RemoveAddedAccessAsync(place);
+            // Still refused after the tries (SharePoint can be slow to let a new admin in): it can be tried again.
+            place.CanAddMe = CanAddMeAnywhere && (place.State == PlaceState.NoAccess || place.BinsLocked);
             if (!wasSearching)
             {
                 IsSearching = false;
@@ -880,9 +914,6 @@ public sealed partial class FindFilesViewModel : ObservableObject
             place.Note = Append(place.Note, "You're still a site admin here, as you chose.");
             return;
         }
-        // While retrying a refusal, the access stays until the last try.
-        if (place.State == PlaceState.NoAccess)
-            return;
         place.AddedMe = false;
         var result = await _pipeline.ApplyNowAsync(SiteAdminChange(place.Site, add: false));
         place.Note = Append(place.Note, result.Succeeded
@@ -895,68 +926,281 @@ public sealed partial class FindFilesViewModel : ObservableObject
     // ---- Downloading --------------------------------------------------------------------------
 
     /// <summary>
-    /// Saves a found file, or everything in a found folder (its subfolders as folders), into a
-    /// folder the admin chooses, and logs it. A place searched only after adding the admin gets that
-    /// access again just for the download, then loses it, unless they chose to keep it.
+    /// Saves found files and folders (a folder with everything in it, its subfolders as folders)
+    /// into a folder the admin chooses, and logs each. Files in a recycle bin are left out: they
+    /// can't be read until they're restored.
     /// </summary>
-    /// <returns>Where it went, or why it didn't; null when no folder was chosen.</returns>
-    internal async Task<(string Text, string? Folder)?> DownloadAsync(FoundFile item, IProgress<string> status, CancellationToken cancellationToken)
+    /// <returns>Where they went, or why they didn't; null when no folder was chosen.</returns>
+    internal async Task<(string Text, string? Folder)?> DownloadAsync(IReadOnlyList<FoundFile> items, IProgress<string> status, CancellationToken cancellationToken)
     {
-        if (_records is null || await Platform.PickFolder() is not { } into)
+        items = [.. items.Where(i => !i.IsDeleted)];
+        if (_records is null || items.Count == 0 || await Platform.PickFolder() is not { } into)
             return null;
-        var place = Places.FirstOrDefault(p => p.Site.Id == item.PlaceId);
+        var files = 0;
+        long bytes = 0;
+        string? savedAs = null;
+        var problems = new List<string>();
+        foreach (var group in items.GroupBy(i => i.PlaceId))
+        {
+            var refused = await WithAccessAsync(group.Key, status, async () =>
+            {
+                foreach (var item in group)
+                {
+                    try
+                    {
+                        var (count, size, saved) = await DownloadOneAsync(item, into, status, cancellationToken);
+                        files += count;
+                        bytes += size;
+                        savedAs = saved;
+                        var what = item.IsFolder ? $"Folder \"{item.Path}/{item.Name}\" ({count:N0} files, {MailDetails.Size(size)})" : $"\"{item.Path}/{item.Name}\" ({MailDetails.Size(size)})";
+                        _pipeline?.Record(new FilesDownloaded(PlaceTarget(item), $"{what} from {item.PlaceTitle} to this computer"));
+                    }
+                    catch (SiteAccessException)
+                    {
+                        return "You can't open where it is. Tick Keep Site Admin Access, use Add Me and Search on its place, then download it.";
+                    }
+                    catch (Exception e) when (e is not OperationCanceledException)
+                    {
+                        problems.Add(items.Count == 1 ? $"It couldn't be downloaded: {Friendly.Message(e)}" : $"{item.Name} couldn't be downloaded: {Friendly.Message(e)}");
+                    }
+                }
+                return null;
+            }, cancellationToken);
+            if (refused is not null)
+                problems.Add(refused);
+        }
+        if (savedAs is null)
+            return (problems.FirstOrDefault() ?? "Nothing was downloaded.", null);
+        var text = items is [{ IsFolder: false }]
+            ? $"Saved to {savedAs}."
+            : $"Saved {files:N0} {(files == 1 ? "file" : "files")} ({MailDetails.Size(bytes)}) to {(items is [{ IsFolder: true }] ? savedAs : into)}.";
+        if (problems.Count > 0)
+            text += $" Not everything: {problems[0]}";
+        return (text, items is [{ IsFolder: true }] ? savedAs : into);
+    }
+
+    /// <summary>One file, or a folder with everything in it; how many files, their size, and where it went.</summary>
+    async Task<(int Files, long Bytes, string Saved)> DownloadOneAsync(FoundFile item, string into, IProgress<string> status, CancellationToken cancellationToken)
+    {
+        if (!item.IsFolder)
+        {
+            var path = UniquePath(into, item.Name, folder: false);
+            status.Report($"Downloading {item.Name}…");
+            return (1, await SaveAsync(item, path, cancellationToken), path);
+        }
+        var saved = UniquePath(into, item.Name, folder: true);
+        Directory.CreateDirectory(saved);
+        var files = 0;
+        long bytes = 0;
+        await foreach (var file in _records!.ListFolderAsync(item, cancellationToken))
+        {
+            var folder = file.Folder.Split('/', StringSplitOptions.RemoveEmptyEntries).Aggregate(saved, (at, part) => Path.Combine(at, Safe(part)));
+            Directory.CreateDirectory(folder);
+            status.Report($"Downloading {file.Name} ({files + 1:N0} so far)…");
+            bytes += await SaveAsync(file, UniquePath(folder, file.Name, folder: false), cancellationToken);
+            files++;
+        }
+        return (files, bytes, saved);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="work"/> where the admin can see inside the place: one searched only after
+    /// adding them gets that access again just for this, then loses it (unless they chose to keep it).
+    /// </summary>
+    /// <returns>Why it couldn't be done, or null when it was.</returns>
+    async Task<string?> WithAccessAsync(string placeId, IProgress<string> status, Func<Task<string?>> work, CancellationToken cancellationToken)
+    {
+        var place = Places.FirstOrDefault(p => p.Site.Id == placeId);
         var regain = place is { NeededAccess: true, AddedMe: false } && !KeepAccess && _pipeline is not null && _me is not null;
         if (regain)
         {
-            status.Report("Adding you as a site admin again for the download…");
-            var added = await _pipeline!.ApplyNowAsync(SiteAdminChange(place!.Site, add: true), cancellationToken);
+            status.Report($"Adding you as a site admin of {place!.Title} again for this…");
+            var added = await _pipeline!.ApplyNowAsync(SiteAdminChange(place.Site, add: true), cancellationToken);
             if (!added.Succeeded)
-                return ($"You couldn't be added to download it: {added.Detail}", null);
+                return $"You couldn't be added to {place.Title}: {added.Detail}";
         }
-        var files = 0;
-        long bytes = 0;
-        string saved;
         try
         {
-            if (item.IsFolder)
-            {
-                saved = UniquePath(into, item.Name, folder: true);
-                Directory.CreateDirectory(saved);
-                await foreach (var file in _records.ListFolderAsync(item, cancellationToken))
-                {
-                    var folder = file.Folder.Split('/', StringSplitOptions.RemoveEmptyEntries).Aggregate(saved, (at, part) => Path.Combine(at, Safe(part)));
-                    Directory.CreateDirectory(folder);
-                    status.Report($"Downloading {file.Name} ({files + 1:N0} so far)…");
-                    bytes += await SaveAsync(file, UniquePath(folder, file.Name, folder: false), cancellationToken);
-                    files++;
-                }
-            }
-            else
-            {
-                saved = UniquePath(into, item.Name, folder: false);
-                status.Report($"Downloading {item.Name}…");
-                bytes = await SaveAsync(item, saved, cancellationToken);
-                files = 1;
-            }
-        }
-        catch (SiteAccessException)
-        {
-            return ("You can't open where it is. Tick Keep Site Admin Access, use Add Me and Search on its place, then download it.", null);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            return ($"It couldn't be downloaded: {Friendly.Message(e)}", null);
+            return await work();
         }
         finally
         {
             if (regain)
                 await _pipeline!.ApplyNowAsync(SiteAdminChange(place!.Site, add: false), CancellationToken.None);
         }
-        var what = item.IsFolder ? $"Folder \"{item.Path}/{item.Name}\" ({files:N0} files, {MailDetails.Size(bytes)})" : $"\"{item.Path}/{item.Name}\" ({MailDetails.Size(bytes)})";
-        _pipeline?.Record(new FilesDownloaded(place is null ? new ChangeTarget("site", item.PlaceId, item.PlaceTitle, item.PlaceUrl) : SiteChange.TargetFor(place.Site),
-            $"{what} from {item.PlaceTitle} to this computer"));
-        return (item.IsFolder ? $"Saved {files:N0} {(files == 1 ? "file" : "files")} ({MailDetails.Size(bytes)}) to {saved}." : $"Saved to {saved}.",
-            item.IsFolder ? saved : into);
+    }
+
+    /// <summary>The change target for a found file's place, as the Sites list knows it (the guard judges its address).</summary>
+    ChangeTarget PlaceTarget(FoundFile file)
+    {
+        var site = Places.FirstOrDefault(p => p.Site.Id == file.PlaceId)?.Site ?? _sites().FirstOrDefault(s => s.Id == file.PlaceId);
+        if (site is not null)
+            return SiteChange.TargetFor(site);
+        var url = file.PlaceUrl.TrimEnd('/');
+        return new ChangeTarget("site", file.PlaceId, file.PlaceTitle, Uri.UnescapeDataString(url[(url.LastIndexOf('/') + 1)..]));
+    }
+
+    /// <summary>"Ada Lovelace's OneDrive" or the site's title.</summary>
+    static string PlaceName(SiteSummary site) => site.Kind == SiteKind.OneDrive && site.OwnerName is { Length: > 0 } owner ? $"{owner}'s OneDrive" : site.Title;
+
+    static FileRef RefOf(FoundFile file) => new(file.DriveId, file.Id, file.Name, file.IsFolder);
+
+    static string Count(int n, string one, string many) => n == 1 ? $"1 {one}" : $"{n:N0} {many}";
+
+    /// <summary>Restoring, giving access and copying change Microsoft 365: they need the right to change sites.</summary>
+    internal bool CanChangeFiles => CanAddMeAnywhere && _records is not null;
+
+    /// <summary>
+    /// Puts recycle bin items back where they were (logged; Test mode guards the place). Each restored
+    /// one is shown as it is back in its library, so it can be opened, shared or copied straight away.
+    /// </summary>
+    internal async Task<string> RestoreAsync(IReadOnlyList<FoundFile> items, IProgress<string> status, CancellationToken cancellationToken)
+    {
+        items = [.. items.Where(i => i.IsDeleted)];
+        if (items.Count == 0 || _pipeline is null || _records is null)
+            return "Nothing to restore.";
+        var back = 0;
+        var problems = new List<string>();
+        foreach (var group in items.GroupBy(i => i.PlaceId))
+        {
+            var first = group.First();
+            var refused = await WithAccessAsync(group.Key, status, async () =>
+            {
+                status.Report($"Restoring {(group.Count() == 1 ? first.Name : Count(group.Count(), "item", "items"))} in {first.PlaceTitle}…");
+                var result = await _pipeline.ApplyNowAsync(new RestoreFiles(PlaceTarget(first), first.PlaceUrl, [.. group.Select(i => i.Id)], [.. group.Select(i => i.Name)]),
+                    cancellationToken);
+                var notBack = result.Remaining is RestoreFiles left ? left.BinIds.ToHashSet(StringComparer.Ordinal)
+                    : result.Succeeded ? [] : group.Select(i => i.Id).ToHashSet(StringComparer.Ordinal);
+                foreach (var item in group.Where(i => !notBack.Contains(i.Id)))
+                {
+                    back++;
+                    FoundFile? restored = null;
+                    try
+                    {
+                        restored = await _records.FindRestoredAsync(item, cancellationToken);
+                    }
+                    catch (Exception e) when (e is not OperationCanceledException)
+                    {
+                        // It's back; it just can't be shown as it is now. Searching again finds it.
+                    }
+                    var index = _found.IndexOf(item);
+                    if (index >= 0)
+                    {
+                        if (restored is null)
+                            _found.RemoveAt(index);
+                        else
+                            _found[index] = restored;
+                    }
+                }
+                return result.Succeeded ? null : result.Detail;
+            }, cancellationToken);
+            if (refused is not null)
+                problems.Add(refused);
+        }
+        await RefreshResultsAsync();
+        var text = back == 0 ? "" : $"Restored {Count(back, "item", "items")} to where {(back == 1 ? "it was" : "they were")}.";
+        return problems.Count == 0 ? text : $"{text} {(back == 0 ? "" : "Not everything: ")}{problems[0]}".Trim();
+    }
+
+    /// <summary>People and groups files can be shared with: people, and groups SharePoint knows (not distribution lists or mailboxes).</summary>
+    internal IEnumerable<PickOption> ShareOptions() =>
+        _index.AllUsers.Where(u => u.AccountEnabled).Select(PickOption.Of)
+            .Concat(_index.AllGroups.Where(g => g.Kind is GroupKind.Microsoft365 or GroupKind.Security or GroupKind.MailEnabledSecurity).Select(PickOption.Of));
+
+    /// <summary>Gives people or groups access to files and folders where they are (logged; Test mode guards the place and everyone given access).</summary>
+    internal async Task<string> ShareAsync(IReadOnlyList<FoundFile> items, IReadOnlyList<ChangeTarget> people, bool canEdit, bool sendEmail, string? message,
+        IProgress<string> status, CancellationToken cancellationToken)
+    {
+        items = [.. items.Where(i => !i.IsDeleted)];
+        if (items.Count == 0 || people.Count == 0 || _pipeline is null)
+            return "Nothing to share.";
+        var shared = 0;
+        var problems = new List<string>();
+        foreach (var group in items.GroupBy(i => i.PlaceId))
+        {
+            var first = group.First();
+            var refused = await WithAccessAsync(group.Key, status, async () =>
+            {
+                status.Report($"Giving access in {first.PlaceTitle}…");
+                var refs = group.Select(RefOf).ToArray();
+                var result = await _pipeline.ApplyNowAsync(new ShareFiles(PlaceTarget(first), refs, people, canEdit, sendEmail, message), cancellationToken);
+                shared += result.Succeeded ? refs.Length : refs.Length - ((result.Remaining as ShareFiles)?.Files.Count ?? refs.Length);
+                return result.Succeeded ? null : result.Detail;
+            }, cancellationToken);
+            if (refused is not null)
+                problems.Add(refused);
+        }
+        var who = FileRef.Describe([.. people.Select(p => p.Name)]);
+        var text = shared == 0 ? "" : $"{who} can now {(canEdit ? "edit" : "open")} {(items.Count == 1 && shared == 1 ? "it" : Count(shared, "item", "items"))}{(sendEmail ? ", and were emailed a link" : "")}.";
+        return problems.Count == 0 ? text : $"{text} {(shared == 0 ? "" : "Not everything: ")}{problems[0]}".Trim();
+    }
+
+    /// <summary>Every site and OneDrive copies can go to.</summary>
+    internal IEnumerable<PickOption> DestinationOptions() =>
+        _sites().Where(s => s.Kind is not SiteKind.System && !s.IsArchived)
+            .OrderBy(s => s.Kind == SiteKind.OneDrive)
+            .Select(s =>
+            {
+                var name = PlaceName(s);
+                var detail = string.Join(" · ", new[] { s.Kind == SiteKind.OneDrive ? "OneDrive" : SiteSummary.KindName(s.Kind), s.Url, Departed(s) }.Where(x => x is not null));
+                return new PickOption(s.Id, name, detail, "site", s.Url, string.Join(' ', name, s.Title, s.Url, s.OwnerEmail).ToLowerInvariant());
+            });
+
+    internal SiteSummary? SiteById(string id) => _sites().FirstOrDefault(s => s.Id == id);
+
+    /// <summary>How long SharePoint is given to let a newly added site admin in, between checks (tests shorten it).</summary>
+    internal static TimeSpan AccessWait { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Copies files and folders into a folder at the top of another place's main library (logged;
+    /// Test mode guards where they go). If the admin can't open that place, they're added as its
+    /// site admin for the copy and removed again (unless they chose to keep it).
+    /// </summary>
+    internal async Task<string> CopyAsync(IReadOnlyList<FoundFile> items, SiteSummary destination, string folder, IProgress<string> status, CancellationToken cancellationToken)
+    {
+        items = [.. items.Where(i => !i.IsDeleted)];
+        if (items.Count == 0 || _pipeline is null || _records is null)
+            return "Nothing to copy.";
+        var there = PlaceName(destination);
+        var addedThere = false;
+        if (!await _records.CanOpenAsync(destination, cancellationToken))
+        {
+            if (!CanAddMeAnywhere || destination.Id == destination.Url)
+                return $"You can't open {there}, so nothing can be put there.";
+            status.Report($"Adding you as a site admin of {there} for the copy…");
+            var added = await _pipeline.ApplyNowAsync(SiteAdminChange(destination, add: true), cancellationToken);
+            if (!added.Succeeded)
+                return $"You couldn't be added to {there}: {added.Detail}";
+            addedThere = true;
+            for (var attempt = 0; attempt < 3 && !await _records.CanOpenAsync(destination, cancellationToken); attempt++)
+                await Task.Delay(AccessWait, cancellationToken);
+        }
+        var copied = 0;
+        var problems = new List<string>();
+        try
+        {
+            foreach (var group in items.GroupBy(i => i.PlaceId))
+            {
+                var first = group.First();
+                var refused = await WithAccessAsync(group.Key, status, async () =>
+                {
+                    var refs = group.Select(RefOf).ToArray();
+                    status.Report($"Copying {(refs.Length == 1 ? first.Name : Count(refs.Length, "item", "items"))} to {there}…");
+                    var result = await _pipeline.ApplyNowAsync(new CopyFiles(SiteChange.TargetFor(destination), destination.Url, folder, refs, first.PlaceTitle), cancellationToken);
+                    copied += result.Succeeded ? refs.Length : refs.Length - ((result.Remaining as CopyFiles)?.Files.Count ?? refs.Length);
+                    return result.Succeeded ? null : result.Detail;
+                }, cancellationToken);
+                if (refused is not null)
+                    problems.Add(refused);
+            }
+        }
+        finally
+        {
+            if (addedThere && !KeepAccess)
+                await _pipeline.ApplyNowAsync(SiteAdminChange(destination, add: false), CancellationToken.None);
+        }
+        var text = copied == 0 ? "" : $"Copied {(items.Count == 1 && copied == 1 ? "it" : Count(copied, "item", "items"))} to {(folder.Length == 0 ? there : $"\"{folder}\" in {there}")}.";
+        return problems.Count == 0 ? text : $"{text} {(copied == 0 ? "" : "Not everything: ")}{problems[0]}".Trim();
     }
 
     async Task<long> SaveAsync(FoundFile file, string path, CancellationToken cancellationToken)
@@ -1011,98 +1255,5 @@ public sealed partial class FindFilesViewModel : ObservableObject
             extras.Add($"Purview lists only {IFileSearchRecords.EverywhereMostPlaces} places with matches, so there may be more: narrow the search to find them");
         Status = $"Done · {found}{capped}" + (extras.Count > 0 ? " · " + string.Join(", ", extras) : "");
         Results.EmptyText = "Nothing matched in the places searched.";
-    }
-}
-
-/// <summary>A found file or folder in the preview pane: where it is, who last changed it, links to it, and Download.</summary>
-public sealed partial class FoundFilePreviewViewModel(FoundFile file, Func<FoundFile, IProgress<string>, CancellationToken, Task<(string Text, string? Folder)?>>? download = null)
-    : ObservableObject
-{
-    public FoundFile File => file;
-
-    public string Name => file.Name;
-    public bool IsFolder => file.IsFolder;
-    public string DownloadText => file.IsFolder ? "Download Folder" : "Download";
-    public string DownloadTip => file.IsFolder
-        ? "Save everything in this folder, with its subfolders, to a folder on this computer (logged)"
-        : "Save a copy to a folder on this computer (logged)";
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanDownload))]
-    public partial bool IsDownloading { get; private set; }
-
-    public bool CanDownload => download is not null && !IsDownloading;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasDownloadNote))]
-    public partial string? DownloadNote { get; private set; }
-
-    public bool HasDownloadNote => DownloadNote is not null;
-
-    /// <summary>Where the download went, to show it.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSaved))]
-    public partial string? SavedIn { get; private set; }
-
-    public bool HasSaved => SavedIn is not null;
-
-    [RelayCommand]
-    async Task Download()
-    {
-        if (!CanDownload)
-            return;
-        IsDownloading = true;
-        SavedIn = null;
-        try
-        {
-            var done = await download!(file, new Progress<string>(text => DownloadNote = text), CancellationToken.None);
-            DownloadNote = done?.Text;
-            SavedIn = done?.Folder;
-        }
-        finally
-        {
-            IsDownloading = false;
-        }
-    }
-
-    [RelayCommand]
-    void ShowSaved()
-    {
-        if (SavedIn is { } folder)
-            Platform.OpenFolder(folder);
-    }
-    public string TypeText => FoundFileFields.TypeOf(file);
-    public string PlaceText => file.PlaceTitle;
-    public string PathText => file.Path;
-    public string SizeText => MailDetails.Size(file.Size);
-    public string ModifiedText => file.Modified is { } at ? $"{at.ToLocalTime():d MMM yyyy h:mm tt}" + (file.ModifiedBy is { } by ? $" by {by}" : "") : "Not known";
-    public string CreatedText => file.Created is { } at ? $"{at.ToLocalTime():d MMM yyyy}" + (file.CreatedBy is { } by ? $" by {by}" : "") : "Not known";
-    public bool HasLink => file.WebUrl is { Length: > 0 };
-    public bool HasFolder => file.FolderUrl is not null;
-
-    [ObservableProperty]
-    public partial bool Copied { get; private set; }
-
-    [RelayCommand]
-    void Open()
-    {
-        if (file.WebUrl is { Length: > 0 } url)
-            Platform.OpenUrl(url);
-    }
-
-    [RelayCommand]
-    void OpenFolder()
-    {
-        if (file.FolderUrl is { } url)
-            Platform.OpenUrl(url);
-    }
-
-    [RelayCommand]
-    void CopyLink()
-    {
-        if (file.WebUrl is not { Length: > 0 } url)
-            return;
-        Platform.CopyText(url);
-        Copied = true;
     }
 }

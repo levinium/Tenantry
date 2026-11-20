@@ -135,9 +135,12 @@ public sealed record FileQuery(
             return false;
         if (AllowedExtensions is { } allowed && !allowed.Contains(file.Extension))
             return false;
-        if (ModifiedAfter is { } after && !(file.Modified >= after))
+        // The recycle bin doesn't say when a file was last changed: when it was deleted stands in
+        // (it was changed then or before), so a lost file isn't missed for want of a date.
+        var changed = file.Modified ?? file.Deleted;
+        if (ModifiedAfter is { } after && !(changed >= after))
             return false;
-        if (ModifiedBefore is { } before && !(file.Modified < before))
+        if (ModifiedBefore is { } before && !(changed < before))
             return false;
         if (MinBytes is { } min && file.Size < min)
             return false;
@@ -148,7 +151,7 @@ public sealed record FileQuery(
         if (!string.IsNullOrWhiteSpace(ModifiedBy))
         {
             var who = ModifiedBy.Trim();
-            if (!new[] { file.ModifiedBy, file.ModifiedByEmail, file.CreatedBy, file.CreatedByEmail }
+            if (!new[] { file.ModifiedBy, file.ModifiedByEmail, file.CreatedBy, file.CreatedByEmail, file.DeletedBy }
                     .Any(p => p?.Contains(who, StringComparison.OrdinalIgnoreCase) == true))
                 return false;
         }
@@ -179,11 +182,14 @@ public sealed record FileQuery(
     }
 }
 
-/// <summary>A file or folder found in a site or OneDrive.</summary>
-/// <param name="Id">The file's ID in its library (Graph's drive item ID).</param>
-/// <param name="Library">The document library it's in ("Documents").</param>
+/// <summary>A file or folder found in a site or OneDrive, or in its recycle bin.</summary>
+/// <param name="Id">The file's ID in its library (Graph's drive item ID); for one in the recycle bin, its ID there.</param>
+/// <param name="DriveId">Graph's ID for its library; "" for one in the recycle bin.</param>
+/// <param name="Library">The document library it's in ("Documents"); for one in the recycle bin, the library's address name ("Shared Documents").</param>
 /// <param name="Folder">Its folder inside the library, "" at the top ("Projects/2026").</param>
 /// <param name="PlaceId">The site's ID in the local copy (<see cref="SiteSummary.Id"/>).</param>
+/// <param name="BinStage">0 when it's where it belongs; 1 in the site's recycle bin; 2 in the second-stage
+/// (site collection) recycle bin, emptied by people's own bin, kept 93 days from deletion in all.</param>
 public sealed record FoundFile(
     string Id,
     string DriveId,
@@ -201,8 +207,17 @@ public sealed record FoundFile(
     string? CreatedBy,
     string? CreatedByEmail,
     string? WebUrl,
-    bool IsFolder = false)
+    bool IsFolder = false,
+    int BinStage = 0,
+    DateTimeOffset? Deleted = null,
+    string? DeletedBy = null)
 {
+    /// <summary>In a recycle bin: it can be restored, but not opened, downloaded, shared or copied until it is.</summary>
+    public bool IsDeleted => BinStage > 0;
+
+    /// <summary>"Recycle Bin" or "Second-Stage Recycle Bin"; "" when it isn't deleted.</summary>
+    public string BinText => BinStage switch { 1 => "Recycle Bin", 2 => "Second-Stage Recycle Bin", _ => "" };
+
     /// <summary>"xlsx"; "" for a folder (a folder named "v1.2" has no extension).</summary>
     public string Extension => IsFolder ? "" : System.IO.Path.GetExtension(Name).TrimStart('.');
 
@@ -234,6 +249,18 @@ public interface IFileSearchRecords
     Task DownloadAsync(FoundFile file, Stream to, IProgress<long>? progress = null, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The files and folders in the place's recycle bins, both stages (<see cref="FoundFile.BinStage"/>).
+    /// Only site admins can see them: throws <see cref="SiteAccessException"/> otherwise.
+    /// </summary>
+    IAsyncEnumerable<FoundFile> ListRecycleBinAsync(SiteSummary place, CancellationToken cancellationToken = default) => AsyncEnumerable.Empty<FoundFile>();
+
+    /// <summary>A file just restored from the recycle bin, as it is back in its library; null when it can't be found there yet.</summary>
+    Task<FoundFile?> FindRestoredAsync(FoundFile deleted, CancellationToken cancellationToken = default) => Task.FromResult<FoundFile?>(null);
+
+    /// <summary>Whether the admin can see inside the place now (so a copy can be put there).</summary>
+    Task<bool> CanOpenAsync(SiteSummary place, CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+    /// <summary>
     /// Everywhere: which sites and OneDrives Purview counts matches in for <paramref name="query"/>
     /// (KQL; empty is everything). A content search over every site is made, run and read, then
     /// deleted; it only counts. Takes minutes; <paramref name="status"/> says how far it's got.
@@ -257,6 +284,12 @@ public static class FoundFileFields
     public const string ModifiedBy = "modifiedby";
     public const string Created = "created";
     public const string CreatedBy = "createdby";
+    public const string Status = "status";
+    public const string Deleted = "deleted";
+    public const string DeletedBy = "deletedby";
+
+    /// <summary>"In Its Library", "Recycle Bin" or "Second-Stage Recycle Bin".</summary>
+    public static string StatusOf(FoundFile f) => f.IsDeleted ? f.BinText : "In Its Library";
 
     /// <summary>"Excel", or the extension in capitals when it's none of the listed kinds.</summary>
     public static string TypeOf(FoundFile f) => f.IsFolder ? "Folder" :
@@ -273,9 +306,13 @@ public static class FoundFileFields
         new() { Key = Place, Label = "Site or OneDrive", Kind = FieldKind.Choice, Searchable = true, Aliases = ["site", "onedrive"], Text = f => f.PlaceTitle },
         new() { Key = Path, Label = "Folder", Kind = FieldKind.Text, Searchable = true, Aliases = ["folder", "library"], Text = f => f.Path },
         new() { Key = Size, Label = "Size (MB)", Kind = FieldKind.Number, Number = f => Math.Round(f.Size / 1_048_576.0, 1) },
-        new() { Key = Modified, Label = "Modified", Kind = FieldKind.Date, Date = f => f.Modified },
+        // A deleted file's deletion stands in (it was changed then or before), as in the search, so it sorts among the rest.
+        new() { Key = Modified, Label = "Modified", Kind = FieldKind.Date, Date = f => f.Modified ?? f.Deleted },
         new() { Key = ModifiedBy, Label = "Modified By", Kind = FieldKind.Text, Searchable = true, Aliases = ["editor"], Text = f => f.ModifiedBy ?? f.ModifiedByEmail },
         new() { Key = Created, Label = "Created", Kind = FieldKind.Date, Date = f => f.Created },
         new() { Key = CreatedBy, Label = "Created By", Kind = FieldKind.Text, Searchable = true, Aliases = ["author"], Text = f => f.CreatedBy ?? f.CreatedByEmail },
+        new() { Key = Status, Label = "Where It Is", Kind = FieldKind.Choice, Aliases = ["bin", "recycle"], Text = StatusOf },
+        new() { Key = Deleted, Label = "Deleted", Kind = FieldKind.Date, Date = f => f.Deleted },
+        new() { Key = DeletedBy, Label = "Deleted By", Kind = FieldKind.Text, Searchable = true, Text = f => f.DeletedBy },
     ];
 }

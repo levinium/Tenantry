@@ -303,6 +303,21 @@ public sealed class SharePointAdmin(HttpClient http, ITokenSource tokens, GraphC
                 "", json, cancellationToken, json);
     }
 
+    /// <summary>
+    /// Everything in a site's recycle bins, both stages (ItemState 1 and 2), newest first. Only site
+    /// admins see the whole of it; Graph's beta recycleBin lists the first stage only (checked live).
+    /// </summary>
+    public Task<JsonElement> GetRecycleBinAsync(string siteUrl, CancellationToken cancellationToken = default) =>
+        GetSiteAsync($"{siteUrl}/_api/site/RecycleBin?$select=Id,LeafName,DirName,ItemState,ItemType,Size,DeletedDate,DeletedByName,DeletedByEmail,AuthorName,AuthorEmail" +
+                     "&$orderby=DeletedDate desc&$top=5000", cancellationToken);
+
+    /// <summary>Puts items back from either stage of a site's recycle bin; they keep their IDs (checked live).</summary>
+    public async Task RestoreFromRecycleBinAsync(string siteUrl, IReadOnlyList<string> ids, CancellationToken cancellationToken = default)
+    {
+        const string json = "application/json;odata=nometadata";
+        await SendAsync(HttpMethod.Post, $"{siteUrl}/_api/site/RecycleBin/RestoreByIds", JsonSerializer.Serialize(new { ids }), json, cancellationToken, json);
+    }
+
     /// <summary>The site's Owners group's ID, or null when it has none (a OneDrive).</summary>
     public async Task<int?> GetOwnerGroupIdAsync(string siteUrl, CancellationToken cancellationToken = default)
     {

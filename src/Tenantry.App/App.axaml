@@ -125,6 +125,9 @@
     <DataTemplate DataType="vm:FoundFilePreviewViewModel">
       <views:FoundFilePreviewView />
     </DataTemplate>
+    <DataTemplate DataType="vm:FoundFilesSelectionViewModel">
+      <views:FoundFilesSelectionView />
+    </DataTemplate>
     <DataTemplate DataType="rec:DeletedSitePreviewViewModel">
       <views:DeletedSitePreviewView />
     </DataTemplate>

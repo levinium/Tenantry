@@ -185,6 +185,9 @@ public sealed record ChangeTarget(string Kind, string Id, string Name, string? A
 [JsonDerivedType(typeof(SearchExported), "searchExported")]
 [JsonDerivedType(typeof(FilesDownloaded), "filesDownloaded")]
 [JsonDerivedType(typeof(FilesCountedEverywhere), "filesCountedEverywhere")]
+[JsonDerivedType(typeof(RestoreFiles), "restoreFiles")]
+[JsonDerivedType(typeof(ShareFiles), "shareFiles")]
+[JsonDerivedType(typeof(CopyFiles), "copyFiles")]
 [JsonDerivedType(typeof(CreateRetentionPolicy), "createRetentionPolicy")]
 [JsonDerivedType(typeof(UpdateRetentionPolicy), "updateRetentionPolicy")]
 [JsonDerivedType(typeof(SetRetentionPolicyEnabled), "setRetentionPolicyEnabled")]
@@ -1570,6 +1573,70 @@ public sealed record FilesCountedEverywhere(ChangeTarget Tenant, string What) : 
     public override string After => What;
     public override bool IsNoChange => false;
     public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>A file or folder Find Files acts on, by where Graph keeps it.</summary>
+public sealed record FileRef(string DriveId, string ItemId, string Name, bool IsFolder = false)
+{
+    /// <summary>"Budget.xlsx", "Budget.xlsx and Notes.docx", or "Budget.xlsx, Notes.docx and 3 more".</summary>
+    public static string Describe(IReadOnlyList<string> names) => names.Count switch
+    {
+        0 => "nothing",
+        1 => names[0],
+        2 => $"{names[0]} and {names[1]}",
+        3 => $"{names[0]}, {names[1]} and {names[2]}",
+        _ => $"{names[0]}, {names[1]} and {names.Count - 2:N0} more",
+    };
+}
+
+/// <summary>
+/// Puts files and folders from a site's or OneDrive's recycle bins (either stage) back where they
+/// were, as SharePoint's own Restore does. Folders come back with what was in them.
+/// </summary>
+/// <param name="BinIds">The items' IDs in the recycle bin.</param>
+public sealed record RestoreFiles(ChangeTarget Site, string SiteUrl, IReadOnlyList<string> BinIds, IReadOnlyList<string> Names) : SiteChange(Site, SiteUrl)
+{
+    public override string Key => "restore";
+    public override string Label => "Restore From the Recycle Bin";
+    public override string Before => "In the recycle bin";
+    public override string After => $"{FileRef.Describe(Names)} back where {(Names.Count == 1 ? "it was" : "they were")}";
+    public override bool IsNoChange => BinIds.Count == 0;
+}
+
+/// <summary>
+/// Gives people or groups access to files and folders where they are (as Share does in OneDrive):
+/// they sign in to open them, and can be emailed a link. Guarded on the place and on everyone given access.
+/// </summary>
+/// <param name="Site">Where the files are.</param>
+/// <param name="People">Users and groups ("user" / "group" targets, Id the Entra object ID).</param>
+public sealed record ShareFiles(ChangeTarget Site, IReadOnlyList<FileRef> Files, IReadOnlyList<ChangeTarget> People, bool CanEdit, bool SendEmail,
+    string? Message = null) : ChangeOp
+{
+    public override ChangeTarget Target => Site;
+    public override string Key => "share";
+    public override string Label => $"Access to {FileRef.Describe([.. Files.Select(f => f.Name)])}";
+    public override string Before => "Not given";
+    public override string After => $"{FileRef.Describe([.. People.Select(p => p.Name)])} can {(CanEdit ? "edit" : "view")}{(SendEmail ? " (emailed a link)" : "")}";
+    public override bool IsNoChange => Files.Count == 0 || People.Count == 0;
+    public override IReadOnlyList<ChangeTarget> Guarded => [Site, .. People];
+    public override ChangeOp Since(ChangeOp earlier) => this;
+}
+
+/// <summary>
+/// Copies files and folders into a folder at the top of another site's or OneDrive's main library
+/// (made when it isn't there). Nothing there is overwritten: a name already taken gets " 1" added.
+/// Guarded on where the copies go; the originals stay as they are.
+/// </summary>
+/// <param name="Site">Where the copies go.</param>
+/// <param name="Folder">The folder they go in ("Recovered Files"); "" for the top of the library.</param>
+/// <param name="FromTitle">Where they're copied from, for the change log.</param>
+public sealed record CopyFiles(ChangeTarget Site, string SiteUrl, string Folder, IReadOnlyList<FileRef> Files, string FromTitle) : SiteChange(Site, SiteUrl)
+{
+    public override string Key => "copy";
+    public override string Label => $"Copy From {FromTitle}";
+    public override string Before => "Not there";
+    public override string After => $"{FileRef.Describe([.. Files.Select(f => f.Name)])} copied to {(Folder.Length == 0 ? "the top of the library" : $"\"{Folder}\"")}";
+    public override bool IsNoChange => Files.Count == 0;
 }
 
 /// <summary>

@@ -97,8 +97,45 @@ public sealed partial class GraphChangeExecutor
         RestoreSite r => PsScript.SharePoint(Ps.Cmdlet("Restore-PnPTenantRecycleBinItem", new Dictionary<string, object?> { ["Url"] = r.SiteUrl, ["Force"] = true })),
         CreateSite { Kind: SiteKind.TeamSite } c => TeamSiteScript(c),
         CreateSite c => CommunicationSiteScript(c),
+        RestoreFiles r => PsScript.SharePoint(Ps.Lines(SiteConnection(r.SiteUrl),
+                $"Invoke-PnPSPRestMethod -Method Post -Url {Ps.Quote(r.SiteUrl + "/_api/site/RecycleBin/RestoreByIds")} -Content {Ps.Value(new Dictionary<string, object?> { ["ids"] = r.BinIds.ToArray() })} -Connection $site"),
+            "Both stages of the site's recycle bin; only its site admins can restore from them."),
+        ShareFiles s => PsScript.Graph(Ps.Lines(s.Files.Select(f => Ps.Graph("POST", $"drives/{f.DriveId}/items/{f.ItemId}/invite", ShareBody(s))))),
+        CopyFiles c => CopyScript(c),
         _ => null,
     };
+
+    static JsonObject ShareBody(ShareFiles change)
+    {
+        var body = new JsonObject
+        {
+            ["recipients"] = new JsonArray([.. change.People.Select(p => (JsonNode)new JsonObject { ["objectId"] = p.Id })]),
+            ["roles"] = new JsonArray(change.CanEdit ? "write" : "read"),
+            ["requireSignIn"] = true,
+            ["sendInvitation"] = change.SendEmail,
+        };
+        if (change.SendEmail && !string.IsNullOrWhiteSpace(change.Message))
+            body["message"] = change.Message.Trim();
+        return body;
+    }
+
+    /// <summary>Find the place's main library and the folder (made if it isn't there), then start each copy.</summary>
+    static PsScript CopyScript(CopyFiles change)
+    {
+        var uri = new Uri(change.SiteUrl);
+        var path = uri.AbsolutePath.TrimEnd('/');
+        var steps = new List<string> { Ps.Graph("GET", path.Length == 0 ? $"sites/{uri.Host}/drive" : $"sites/{uri.Host}:{path}:/drive", assignTo: "drive") };
+        // The folder is used when it's there and made when it isn't ("replace" would empty one that's there).
+        steps.Add(change.Folder.Length == 0
+            ? Ps.Graph("GET", $"drives/{Ps.Ref("drive", "id")}/root", assignTo: "folder")
+            : $"try {{ {Ps.Graph("GET", $"drives/{Ps.Ref("drive", "id")}/root:/{Uri.EscapeDataString(change.Folder)}", assignTo: "folder")} }} catch {{\n" +
+              Ps.Graph("POST", $"drives/{Ps.Ref("drive", "id")}/root/children",
+                  new JsonObject { ["name"] = change.Folder, ["folder"] = new JsonObject(), ["@microsoft.graph.conflictBehavior"] = "fail" }, assignTo: "folder") + "\n}");
+        foreach (var file in change.Files)
+            steps.Add(Ps.Graph("POST", $"drives/{file.DriveId}/items/{file.ItemId}/copy?@microsoft.graph.conflictBehavior=rename",
+                new JsonObject { ["parentReference"] = new JsonObject { ["driveId"] = Ps.Ref("drive", "id"), ["id"] = Ps.Ref("folder", "id") } }));
+        return PsScript.Graph(Ps.Lines(steps), "Each copy runs on Microsoft's side and can take a while for a big folder.");
+    }
 
     /// <summary>A connection to one site, made with the SharePoint token PnP already holds.</summary>
     static string SiteConnection(string siteUrl) =>

@@ -439,20 +439,20 @@ public class FindFilesTests
             await page.FindCommand.ExecuteAsync(null);
             var rows = page.Results.Rows.Cast<FoundFile>().ToArray();
 
-            var file = Preview(page, rows.First(f => !f.IsFolder));
-            await file.DownloadCommand.ExecuteAsync(null);
+            var file = Preview(page, rows.First(f => !f.IsFolder && !f.IsDeleted));
+            await file.Actions.DownloadCommand.ExecuteAsync(null);
             Assert.True(System.IO.File.Exists(Path.Combine(into, file.Name)));
-            Assert.StartsWith("Saved to ", file.DownloadNote);
+            Assert.StartsWith("Saved to ", file.Actions.Note);
             // A second copy doesn't overwrite the first.
-            await file.DownloadCommand.ExecuteAsync(null);
+            await file.Actions.DownloadCommand.ExecuteAsync(null);
             Assert.Equal(2, Directory.GetFiles(into).Length);
 
-            var folder = Preview(page, rows.First(f => f.IsFolder));
-            Assert.Equal("Download Folder", folder.DownloadText);
-            await folder.DownloadCommand.ExecuteAsync(null);
-            Assert.Equal(Path.Combine(into, folder.Name), folder.SavedIn);
-            Assert.NotEmpty(Directory.GetFiles(folder.SavedIn!));
-            Assert.True(System.IO.File.Exists(Path.Combine(folder.SavedIn!, "Older", "Notes.txt")), "subfolders keep their place");
+            var folder = Preview(page, rows.First(f => f.IsFolder && !f.IsDeleted));
+            Assert.Equal("Download Folder", folder.Actions.DownloadText);
+            await folder.Actions.DownloadCommand.ExecuteAsync(null);
+            Assert.Equal(Path.Combine(into, folder.Name), folder.Actions.SavedIn);
+            Assert.NotEmpty(Directory.GetFiles(folder.Actions.SavedIn!));
+            Assert.True(System.IO.File.Exists(Path.Combine(folder.Actions.SavedIn!, "Older", "Notes.txt")), "subfolders keep their place");
             Assert.Equal(3, log.All().Select(e => e.Change).OfType<FilesDownloaded>().Count());
         }
         finally
@@ -475,12 +475,12 @@ public class FindFilesTests
             page.NameText = "e";
             await page.FindCommand.ExecuteAsync(null);
             await page.Places[0].AddMeCommand.ExecuteAsync(null);
-            var found = page.Results.Rows.Cast<FoundFile>().First(f => !f.IsFolder);
+            var found = page.Results.Rows.Cast<FoundFile>().First(f => !f.IsFolder && !f.IsDeleted);
 
             var preview = Preview(page, found);
-            await preview.DownloadCommand.ExecuteAsync(null);
+            await preview.Actions.DownloadCommand.ExecuteAsync(null);
 
-            Assert.StartsWith("Saved to ", preview.DownloadNote);
+            Assert.StartsWith("Saved to ", preview.Actions.Note);
             // Newest first: removed, added (download); removed, added (search).
             Assert.Equal([false, true, false, true], log.All().Select(e => e.Change).OfType<SetSiteAdmin>().Select(a => a.New));
         }

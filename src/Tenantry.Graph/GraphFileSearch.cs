@@ -107,11 +107,91 @@ public sealed partial class GraphUserRecords : IFileSearchRecords
             Text(f, "webUrl"), f.TryGetProperty("folder", out _));
     }
 
+    /// <summary>Enough of a found file's place to read it again.</summary>
+    static SiteSummary PlaceOf(FoundFile file) =>
+        new(file.PlaceId, file.PlaceUrl, file.PlaceTitle, "", SiteKind.TeamSite, null, null, null, null, false, false, null, 0, 0, 0, "", "", null, null);
+
+    public async IAsyncEnumerable<FoundFile> ListRecycleBinAsync(SiteSummary place, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (sharePoint is null)
+            yield break;
+        JsonElement bin;
+        try
+        {
+            bin = await sharePoint.GetRecycleBinAsync(place.Url, cancellationToken);
+        }
+        catch (SharePointException e) when (e.Status is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
+        {
+            throw new SiteAccessException();
+        }
+        foreach (var row in Rows(bin))
+            if (FromBin(row, place) is { } file)
+                yield return file;
+    }
+
+    /// <summary>
+    /// A recycle bin row as a found file. Only files (ItemType 1) and folders (5) are kept: versions,
+    /// list items and whole lists are SharePoint's business. DirName is the folder it was in, from
+    /// the host down ("sites/finance/Shared Documents/2026"), without the leading slash (seen live).
+    /// </summary>
+    internal static FoundFile? FromBin(JsonElement row, SiteSummary place)
+    {
+        var type = row.TryGetProperty("ItemType", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetInt32() : 0;
+        if (type is not (1 or 5) || Text(row, "Id") is not { } id)
+            return null;
+        var dir = "/" + (Text(row, "DirName") ?? "").Trim('/');
+        var sitePath = Uri.UnescapeDataString(new Uri(place.Url).AbsolutePath).TrimEnd('/');
+        var inside = dir.StartsWith(sitePath + "/", StringComparison.OrdinalIgnoreCase) ? dir[(sitePath.Length + 1)..] : dir.TrimStart('/');
+        var slash = inside.IndexOf('/');
+        var stage = row.TryGetProperty("ItemState", out var s) && s.ValueKind == JsonValueKind.Number && s.GetInt32() == 2 ? 2 : 1;
+        return new FoundFile(id, "", Text(row, "LeafName") ?? "A file", slash < 0 ? inside : inside[..slash], slash < 0 ? "" : inside[(slash + 1)..],
+            place.Id, place.Title, place.Url, Long(row, "Size") ?? 0, null, null, null, null,
+            Text(row, "AuthorName") is { Length: > 0 } author ? author : null, Text(row, "AuthorEmail") is { Length: > 0 } email ? email : null,
+            null, type == 5, stage, When(row, "DeletedDate"),
+            Text(row, "DeletedByName") is { Length: > 0 } by ? by : Text(row, "DeletedByEmail") is { Length: > 0 } byEmail ? byEmail : null);
+    }
+
+    public async Task<FoundFile?> FindRestoredAsync(FoundFile deleted, CancellationToken cancellationToken = default)
+    {
+        var place = PlaceOf(deleted);
+        var siteId = await SiteIdAsync(place, cancellationToken);
+        var drives = await FilesReadAsync(place, () => graph.GetAsync($"sites/{siteId}/drives?$select=id,name,webUrl", cancellationToken));
+        // The bin names a library by its address ("Shared Documents"); Graph by its title ("Documents").
+        var drive = Rows(drives).FirstOrDefault(d => Text(d, "webUrl") is { } url
+            && Uri.UnescapeDataString(new Uri(url).AbsolutePath).TrimEnd('/').EndsWith("/" + deleted.Library, StringComparison.OrdinalIgnoreCase));
+        if (drive.ValueKind != JsonValueKind.Object || Text(drive, "id") is not { } driveId)
+            return null;
+        var path = string.Join('/', deleted.Folder.Split('/', StringSplitOptions.RemoveEmptyEntries).Append(deleted.Name).Select(Uri.EscapeDataString));
+        try
+        {
+            var item = await graph.GetAsync($"drives/{driveId}/root:/{path}?$select={DeltaSelect}", cancellationToken);
+            return ToFound(item, driveId, Text(drive, "name") ?? deleted.Library, deleted.Folder, place) with { PlaceTitle = deleted.PlaceTitle };
+        }
+        catch (GraphException e) when (e.Status == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> CanOpenAsync(SiteSummary place, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var siteId = await SiteIdAsync(place, cancellationToken);
+            await FilesReadAsync(place, () => graph.GetAsync($"sites/{siteId}/drive?$select=id", cancellationToken));
+            return true;
+        }
+        catch (Exception e) when (e is SiteAccessException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     public async IAsyncEnumerable<FoundFile> ListFolderAsync(FoundFile folder, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         // Breadth first, with each folder's path below the one asked for.
         var pending = new Queue<(string Id, string Path)>([(folder.Id, "")]);
-        var place = new SiteSummary(folder.PlaceId, folder.PlaceUrl, folder.PlaceTitle, "", SiteKind.TeamSite, null, null, null, null, false, false, null, 0, 0, 0, "", "", null, null);
+        var place = PlaceOf(folder);
         while (pending.TryDequeue(out var at))
         {
             string? next = $"drives/{folder.DriveId}/items/{at.Id}/children?$select={DeltaSelect}&$top=999";

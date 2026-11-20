@@ -197,6 +197,33 @@ if (args.Contains("--files-review"))
         for (var i = 0; i < 5; i++)
             Settle();
         Render(main, $"f03-findfiles-preview-{suffix}");
+
+        // Step 3: something in a recycle bin, the Give Access To and Copy To forms, and several ticked.
+        find.ClearTypesCommand.Execute(null);
+        find.NameText = "o";
+        Pump(find.FindCommand.ExecuteAsync(null));
+        for (var i = 0; i < 20; i++)
+            Settle();
+        var found = find.Results.Rows.Cast<FoundFile>().ToArray();
+        find.Results.PreviewRow(found.First(f => f.IsDeleted));
+        for (var i = 0; i < 5; i++)
+            Settle();
+        Render(main, $"f05-findfiles-bin-{suffix}");
+        find.Results.PreviewRow(found.First(f => !f.IsDeleted && !f.IsFolder));
+        Settle();
+        var actions = ((Tenantry.ViewModels.FoundFilePreviewViewModel)find.Results.PreviewModel!).Actions;
+        actions.SharePicker.Browse();
+        actions.SharePicker.PickCommand.Execute(actions.SharePicker.Results.First());
+        actions.CopyPicker.Browse();
+        actions.CopyPicker.PickCommand.Execute(actions.CopyPicker.Results.First());
+        for (var i = 0; i < 5; i++)
+            Settle();
+        Render(main, $"f06-findfiles-share-copy-{suffix}", height: 1300);
+        find.Results.SelectedRows = [.. found.Where(f => f.IsDeleted).Take(2), .. found.Where(f => !f.IsDeleted && !f.IsFolder).Take(3)];
+        for (var i = 0; i < 5; i++)
+            Settle();
+        Render(main, $"f07-findfiles-ticked-{suffix}");
+        find.Results.ClearSelection();
         find.Results.IsPreviewOpen = false;
         find.EditSearchCommand.Execute(null);
         find.IsEverywhere = true;
