@@ -794,7 +794,16 @@
       </Border>
 
       <Border DockPanel.Dock="Top" Classes="banner error" Margin="0,0,0,8" IsVisible="{Binding LoadError, Converter={x:Static ObjectConverters.IsNotNull}}">
-        <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Margin="12,0,0,0" VerticalAlignment="Top" Command="{Binding CopyErrorDetailsCommand}"
+                  ToolTip.Tip="Copy this error with its full details (what was asked, Microsoft's answer and request IDs) to paste to whoever helps you">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="Copy" FontSize="14" />
+              <TextBlock Text="Copy Details" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <SelectableTextBlock Text="{Binding LoadError}" TextWrapping="Wrap" VerticalAlignment="Center" />
+        </DockPanel>
       </Border>
 
       <!-- The header box ticks every matching row, not just those on screen: said plainly. -->

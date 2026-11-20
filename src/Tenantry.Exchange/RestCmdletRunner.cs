@@ -130,9 +130,13 @@ public sealed class RestCmdletRunner : ICmdletRunner
     {
         string? claims = null;
         var challenged = false;
+        // Every call is a POST; a Get- cmdlet only reads, so it's as safe to repeat as a GET.
+        var isRead = cmdlet.StartsWith("Get-", StringComparison.OrdinalIgnoreCase);
+        var clientRequestId = Guid.NewGuid().ToString();
         for (var attempt = 1; ; attempt++)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Add("client-request-id", clientRequestId);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await _tokens.GetTokenAsync(scopes, claims, cancellationToken));
             request.Headers.Add("X-AnchorMailbox", $"UPN:{anchor}");
             request.Headers.Add("X-CmdletName", cmdlet);
@@ -142,7 +146,22 @@ public sealed class RestCmdletRunner : ICmdletRunner
                 request.Headers.Accept.ParseAdd("application/json");
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
 
-            using var response = await _http.SendAsync(request, cancellationToken);
+            HttpResponseMessage answer;
+            try
+            {
+                answer = await _http.SendAsync(request, cancellationToken);
+            }
+            catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                if (HttpRetry.ShouldRetry(e, attempt, isRead, cancellationToken))
+                {
+                    await _delay(HttpRetry.DelayFor(attempt), cancellationToken);
+                    continue;
+                }
+                RequestDetails.Attach(e, RequestDetails.From(request, null, attempt));
+                throw;
+            }
+            using var response = answer;
             var text = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (response.IsSuccessStatusCode)
@@ -155,7 +174,7 @@ public sealed class RestCmdletRunner : ICmdletRunner
                 continue;
             }
 
-            if (HttpRetry.IsTransient(response.StatusCode) && attempt < HttpRetry.MaxAttempts)
+            if (HttpRetry.ShouldRetry(response.StatusCode, attempt, isRead))
             {
                 if (response.StatusCode == HttpStatusCode.TooManyRequests)
                     Interlocked.Increment(ref _throttled);
@@ -163,7 +182,8 @@ public sealed class RestCmdletRunner : ICmdletRunner
                 continue;
             }
 
-            throw new CmdletException(cmdlet, (int)response.StatusCode, ErrorMessage(text) ?? response.ReasonPhrase ?? "");
+            throw RequestDetails.Attach(new CmdletException(cmdlet, (int)response.StatusCode, ErrorMessage(text) ?? response.ReasonPhrase ?? ""),
+                RequestDetails.From(request, response, attempt));
         }
     }
 

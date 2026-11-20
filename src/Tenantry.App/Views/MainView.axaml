@@ -95,6 +95,66 @@
               <TextBlock Text="{Binding ReadyText}" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
+          <!-- Every failure shown this session, with a full report to copy for whoever helps. -->
+          <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                  DataContext="{x:Static vm:ErrorsViewModel.Current}" x:DataType="vm:ErrorsViewModel" IsVisible="{Binding HasErrors}"
+                  ToolTip.Tip="Errors shown this session, with full details to copy">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <ic:FluentIcon Icon="ErrorCircle" FontSize="18" Foreground="{DynamicResource BadgeWarningFg}" />
+              <TextBlock Text="{Binding ButtonText}" VerticalAlignment="Center" />
+            </StackPanel>
+            <Button.Flyout>
+              <Flyout Placement="RightEdgeAlignedBottom">
+                <DockPanel Width="520" Margin="4">
+                  <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,12">
+                    <TextBlock Classes="h3" Text="Errors This Session" />
+                    <TextBlock Classes="caption" TextWrapping="Wrap"
+                               Text="Copy a report to send to whoever helps you. Each one says what Tenantry asked Microsoft, what came back and the request IDs Microsoft support looks up." />
+                    <TextBlock Classes="caption" TextWrapping="Wrap" Foreground="{DynamicResource BadgeWarningFg}" Text="{x:Static vm:ErrorsViewModel.Caution}" />
+                  </StackPanel>
+                  <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+                    <Button Classes="accent staysopen" Command="{Binding CopyAllCommand}">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ic:FluentIcon Icon="Copy" FontSize="14" />
+                        <TextBlock Text="{Binding CopyAllLabel}" VerticalAlignment="Center" />
+                      </StackPanel>
+                    </Button>
+                    <Button Command="{Binding ClearCommand}" Content="Clear List" />
+                  </StackPanel>
+                  <ScrollViewer MaxHeight="420">
+                    <ItemsControl ItemsSource="{Binding Reports}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Spacing="10" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ErrorRow">
+                          <Border Classes="card" Padding="12,10">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                              <StackPanel Spacing="3">
+                                <TextBlock Classes="caption" Text="{Binding When}" />
+                                <SelectableTextBlock Text="{Binding Shown}" TextWrapping="Wrap" />
+                                <TextBlock Classes="caption" Text="{Binding Summary}" TextWrapping="Wrap" />
+                              </StackPanel>
+                              <Button Grid.Column="1" Classes="staysopen" VerticalAlignment="Top"
+                                      Command="{Binding $parent[ItemsControl].((vm:ErrorsViewModel)DataContext).CopyCommand}" CommandParameter="{Binding}"
+                                      ToolTip.Tip="Copy this error's full report">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                  <ic:FluentIcon Icon="Copy" FontSize="14" />
+                                  <TextBlock Text="{Binding CopyLabel}" VerticalAlignment="Center" />
+                                </StackPanel>
+                              </Button>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </DockPanel>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
           <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <ic:FluentIcon Icon="Key" FontSize="18" />

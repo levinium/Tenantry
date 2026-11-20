@@ -126,7 +126,7 @@ public sealed class GraphClient
             request.Headers.TryAddWithoutValidation(name, value);
         using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         if (!response.IsSuccessStatusCode)
-            throw await ToExceptionAsync(response, cancellationToken);
+            throw RequestDetails.Attach(await ToExceptionAsync(response, cancellationToken), RequestDetails.From(request, response, 1));
         await using var from = await response.Content.ReadAsStreamAsync(cancellationToken);
         var buffer = new byte[81920];
         long total = 0;
@@ -166,6 +166,9 @@ public sealed class GraphClient
         var payload = body?.ToJsonString();
         string? claims = null;
         var challenged = false;
+        var isRead = method == HttpMethod.Get;
+        // One ID for every try, so Microsoft support can find all of them.
+        var clientRequestId = Guid.NewGuid().ToString();
 
         for (var attempt = 1; ; attempt++)
         {
@@ -176,10 +179,26 @@ public sealed class GraphClient
             request.Headers.UserAgent.ParseAdd(ClientName + "/" + ClientVersion);
             request.Headers.Add("ocp-client-name", ClientName);
             request.Headers.Add("ocp-client-version", ClientVersion);
+            request.Headers.Add("client-request-id", clientRequestId);
             if (payload is not null)
                 request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
 
-            using var response = await _http.SendAsync(request, cancellationToken);
+            HttpResponseMessage answer;
+            try
+            {
+                answer = await _http.SendAsync(request, cancellationToken);
+            }
+            catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                if (HttpRetry.ShouldRetry(e, attempt, isRead, cancellationToken))
+                {
+                    await _delay(HttpRetry.DelayFor(attempt), cancellationToken);
+                    continue;
+                }
+                RequestDetails.Attach(e, RequestDetails.From(request, null, attempt));
+                throw;
+            }
+            using var response = answer;
 
             if (response.IsSuccessStatusCode)
             {
@@ -195,13 +214,13 @@ public sealed class GraphClient
                 continue;
             }
 
-            if (HttpRetry.IsTransient(response.StatusCode) && attempt < HttpRetry.MaxAttempts)
+            if (HttpRetry.ShouldRetry(response.StatusCode, attempt, isRead))
             {
                 await _delay(HttpRetry.DelayFor(response, attempt), cancellationToken);
                 continue;
             }
 
-            throw await ToExceptionAsync(response, cancellationToken);
+            throw RequestDetails.Attach(await ToExceptionAsync(response, cancellationToken), RequestDetails.From(request, response, attempt));
         }
     }
 

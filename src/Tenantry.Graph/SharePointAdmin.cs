@@ -416,20 +416,36 @@ public sealed class SharePointAdmin(HttpClient http, ITokenSource tokens, GraphC
                 request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
                 request.Content.Headers.ContentType.CharSet = "utf-8";
             }
-            using var response = await http.SendAsync(request, cancellationToken);
+            var isRead = method == HttpMethod.Get;
+            HttpResponseMessage answer;
+            try
+            {
+                answer = await http.SendAsync(request, cancellationToken);
+            }
+            catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                if (HttpRetry.ShouldRetry(e, attempt, isRead, cancellationToken))
+                {
+                    await _delay(HttpRetry.DelayFor(attempt), cancellationToken);
+                    continue;
+                }
+                RequestDetails.Attach(e, RequestDetails.From(request, null, attempt));
+                throw;
+            }
+            using var response = answer;
             var text = await response.Content.ReadAsStringAsync(cancellationToken);
             if (response.IsSuccessStatusCode)
                 return text;
-            if (HttpRetry.IsTransient(response.StatusCode) && attempt < HttpRetry.MaxAttempts)
+            if (HttpRetry.ShouldRetry(response.StatusCode, attempt, isRead))
             {
                 await _delay(HttpRetry.DelayFor(response, attempt), cancellationToken);
                 continue;
             }
-            throw new SharePointException(response.StatusCode, response.StatusCode switch
+            throw RequestDetails.Attach(new SharePointException(response.StatusCode, response.StatusCode switch
             {
                 HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "Managing OneDrive needs the SharePoint Administrator role.",
                 _ => ErrorText(text) ?? $"SharePoint answered {(int)response.StatusCode}.",
-            });
+            }), RequestDetails.From(request, response, attempt));
         }
     }
 

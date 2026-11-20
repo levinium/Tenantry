@@ -3,12 +3,26 @@ namespace Tenantry.ViewModels;
 /// <summary>Turns sign-in and API failures into sentences an admin can act on.</summary>
 public static class Friendly
 {
+    const string Cancelled = "Sign-in was cancelled.";
+
+    /// <summary>
+    /// The sentence to show. Every failure that reaches the screen passes through here, so its full
+    /// report (request, Microsoft's IDs, where it happened) is kept for the Errors button too.
+    /// </summary>
     public static string Message(Exception e)
+    {
+        var shown = Sentence(e);
+        if (e is not OperationCanceledException && shown != Cancelled)
+            Tenantry.Core.Diagnostics.ErrorLog.Record(e, shown);
+        return shown;
+    }
+
+    static string Sentence(Exception e)
     {
         var text = e.Message;
         if (e is OperationCanceledException || text.Contains("authentication_canceled", StringComparison.OrdinalIgnoreCase)
             || text.Contains("User canceled", StringComparison.OrdinalIgnoreCase))
-            return "Sign-in was cancelled.";
+            return Cancelled;
         if (text.Contains("AADSTS50105", StringComparison.Ordinal))
             return "Your account isn't assigned to Tenantry in this tenant. An admin can assign you under Enterprise applications › Tenantry › Users and groups.";
         if (text.Contains("AADSTS700016", StringComparison.Ordinal))
@@ -30,6 +44,16 @@ public static class Friendly
         if (System.Text.RegularExpressions.Regex.Match(text, @"""Message"":\s*""(?<m>[^""]+?)( - Operation ID[^""]*)?""") is { Success: true } intune)
             return intune.Groups["m"].Value.Trim() is { Length: > 0 } m && m != "An error has occurred"
                 ? m : "Intune refused it without saying why. Check the values, or try it in Microsoft's admin center to see the reason.";
+        // Microsoft's side failed (500s) even after Tenantry tried again: say it's theirs and passing.
+        if (Tenantry.Core.Http.RequestDetails.Of(e) is { Status: >= 500 and < 600 } request)
+        {
+            var tries = request.Attempts > 1 ? $" after {request.Attempts} tries" : "";
+            var reply = text.Length > 300 ? text[..300] + "…" : text;
+            return $"Microsoft's service had a problem and didn't finish the request{tries}. This is usually brief: try again in a few minutes. Microsoft's reply: {reply}";
+        }
+        // No answer at all: the connection dropped or timed out.
+        if (Tenantry.Core.Http.RequestDetails.Of(e) is { Status: null } && e is HttpRequestException or TaskCanceledException or IOException)
+            return $"Couldn't reach Microsoft (the connection failed or timed out). Check the internet connection and try again. Detail: {text}";
         return text.Length > 400 ? text[..400] + "…" : text;
     }
 }

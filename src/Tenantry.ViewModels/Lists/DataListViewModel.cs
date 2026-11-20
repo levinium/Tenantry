@@ -238,6 +238,10 @@ public sealed partial class DataListViewModel : TabViewModel
     /// <summary>Shows an error above the list for a failure outside the list itself (a first download).</summary>
     public void ShowLoadError(string? message) => LoadError = message;
 
+    /// <summary>Copies the error above the list with its full report, to paste to whoever helps.</summary>
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    void CopyErrorDetails() => ErrorsViewModel.CopyDetailsFor(LoadError);
+
     public int Total => _source.Total;
     public bool IsEmpty => !IsLoading && Rows.Count == 0;
 

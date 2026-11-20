@@ -842,6 +842,53 @@ static class InteractionChecks
             window.Close();
         });
 
+        Check("Errors: a failure shows the Errors button, its report copies, and the list banner copies details", () =>
+        {
+            var (window, main, _) = OpenList();
+            var copied = "";
+            var before = Tenantry.ViewModels.Platform.CopyText;
+            Tenantry.ViewModels.Platform.CopyText = text => copied = text;
+            try
+            {
+                Tenantry.Core.Diagnostics.ErrorLog.Clear();
+                Settle();
+                var errors = FindButton(window, b => b.DataContext is ErrorsViewModel && b.Flyout is Flyout);
+                Expect(!errors.IsEffectivelyVisible, "no Errors button before anything failed");
+                var shown = Friendly.Message(new InvalidOperationException("Demo failure for the check."));
+                main.Users.ShowLoadError($"Couldn't download the directory: {shown} Use Refresh (bottom left) to try again.");
+                Settle();
+                Expect(errors.IsEffectivelyVisible, $"the Errors button appeared ({ErrorsViewModel.Current.ButtonText})");
+                Click(window, errors);
+                var panel = (Flyout)errors.Flyout!;
+                Expect(panel.IsOpen, "the Errors panel opened");
+                Expect(ErrorsViewModel.Current.Reports.Count == 1, $"one report listed ({ErrorsViewModel.Current.Reports.Count})");
+                var rowCopy = ((Control)panel.Content!).GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.DataContext is ErrorRow);
+                Expect(rowCopy is not null, "the report has a Copy button");
+                Click(rowCopy!);
+                Expect(copied.Contains("Tenantry error report") && copied.Contains("Demo failure for the check."), "Copy put the report on the clipboard");
+                Expect(panel.IsOpen && ((ErrorRow)rowCopy!.DataContext!).CopyLabel == "Copied", "the panel stays open after Copy and the button says Copied");
+                var panelButtons = ((Control)panel.Content!).GetVisualDescendants().OfType<Button>().ToList();
+                var copyAll = panelButtons.FirstOrDefault(b => b.Command == ErrorsViewModel.Current.CopyAllCommand);
+                Expect(copyAll is not null, "Copy All is there: " + string.Join(", ", panelButtons.Select(b => $"{b.DataContext?.GetType().Name}/{b.Command?.GetType().Name}/{b.IsEffectivelyVisible}")));
+                Click(copyAll!);
+                Expect(copied.Contains("InvalidOperationException") && panel.IsOpen && ErrorsViewModel.Current.CopyAllLabel == "Copied", "Copy All copied the reports and says Copied");
+                panel.Hide();
+                Settle();
+                copied = "";
+                var banner = FindButton(window, b => b.Command == main.Users.CopyErrorDetailsCommand && b.IsEffectivelyVisible);
+                Click(window, banner);
+                Expect(copied.Contains("Shown: Couldn't download the directory:") && copied.Contains("App: Tenantry"), "the banner's Copy Details copied the full report");
+                Tenantry.Core.Diagnostics.ErrorLog.Clear();
+                Settle();
+                Expect(!errors.IsEffectivelyVisible, "clearing hides the button");
+            }
+            finally
+            {
+                Tenantry.ViewModels.Platform.CopyText = before;
+                window.Close();
+            }
+        });
+
         Check("Select from a list: Check matching rows keeps the panel open to show the result", () =>
         {
             var (window, main, _) = OpenList();
