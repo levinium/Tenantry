@@ -1461,6 +1461,20 @@ static class InteractionChecks
             Click(window, window.GetVisualDescendants().OfType<RadioButton>().First(r => r.IsEffectivelyVisible && r.Content as string == "Places I Choose"));
             Settle();
             Expect(find.Places.Count == 0 && find.IsChosenPlaces, "back to choosing places starts an empty list");
+
+            // Kept file lists: the places searched come back in one click; forgetting takes two.
+            var keptCount = find.SearchedBeforeCount;
+            Click(window, Need("Add Places Searched Before", b => b.Command == find.AddSearchedBeforeCommand && b.IsEffectivelyVisible));
+            Settle();
+            Expect(keptCount > 0 && find.Places.Count == keptCount && !find.CanAddSearchedBefore, $"Add Places Searched Before adds the {keptCount} places searched");
+            Expect(window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible && t.Text == find.IndexSummary), $"…and says what's kept: {find.IndexSummary}");
+            var forget = Need("Forget Kept Lists", b => b.Command == find.ForgetIndexCommand && b.IsEffectivelyVisible);
+            Click(window, forget);
+            Settle();
+            Expect(find.HasIndex && Labelled(forget, "Click Again to Forget Them"), "Forget asks for a second click");
+            Click(window, forget);
+            Settle();
+            Expect(!find.HasIndex && !forget.IsEffectivelyVisible, "the second click forgets them");
         });
 
         Check("Mail & security: the sidebar opens it, the Message trace chip switches page, Search fills the list", () =>

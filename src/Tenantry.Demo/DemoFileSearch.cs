@@ -48,6 +48,28 @@ public sealed partial class DemoUserRecords : IFileSearchRecords
                 random.Next(8_000, 40_000_000), modified, editor.Item1, editor.Item2, modified.AddDays(-random.Next(0, 200)), editor.Item1, editor.Item2, url);
             scanned?.Report(i + 1);
         }
+        // Kept, as the real one keeps it: the second search of a place reads only "what changed".
+        var title = place.Kind == SiteKind.OneDrive && place.OwnerName is { Length: > 0 } who ? $"{who}'s OneDrive" : place.Title;
+        lock (_indexed)
+        {
+            var before = _indexed.GetValueOrDefault(place.Id);
+            _indexed[place.Id] = new IndexedPlace(place.Id, place.Url, title, place.Kind, count + FolderNames.Count(f => f.Length > 0),
+                DateTimeOffset.UtcNow, before is null ? count : random.Next(0, 6), before?.IndexedAt);
+        }
+    }
+
+    readonly Dictionary<string, IndexedPlace> _indexed = new(StringComparer.Ordinal);
+
+    public IReadOnlyList<IndexedPlace> IndexedPlaces()
+    {
+        lock (_indexed)
+            return [.. _indexed.Values];
+    }
+
+    public void ForgetIndexed()
+    {
+        lock (_indexed)
+            _indexed.Clear();
     }
 
     /// <summary>The demo's Everywhere: a short wait, then about half the sites and a few OneDrives with counts.</summary>

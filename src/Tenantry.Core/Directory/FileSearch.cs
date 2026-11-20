@@ -261,6 +261,17 @@ public interface IFileSearchRecords
     Task<bool> CanOpenAsync(SiteSummary place, CancellationToken cancellationToken = default) => Task.FromResult(true);
 
     /// <summary>
+    /// Places whose file lists are kept (encrypted, in the tenant's local copy) from an earlier search,
+    /// so searching them again reads only what changed. Only places searched are kept.
+    /// </summary>
+    IReadOnlyList<IndexedPlace> IndexedPlaces() => [];
+
+    /// <summary>Forgets every kept file list; the next search of each place reads it whole again.</summary>
+    void ForgetIndexed()
+    {
+    }
+
+    /// <summary>
     /// Everywhere: which sites and OneDrives Purview counts matches in for <paramref name="query"/>
     /// (KQL; empty is everything). A content search over every site is made, run and read, then
     /// deleted; it only counts. Takes minutes; <paramref name="status"/> says how far it's got.
@@ -269,6 +280,21 @@ public interface IFileSearchRecords
     /// Purview lists at most <see cref="EverywhereMostPlaces"/> places (seen live).</returns>
     Task<IReadOnlyList<EdLocationHits>> CountEverywhereAsync(string query, IProgress<string>? status = null, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("Searching everywhere needs Microsoft Purview, which isn't connected for this tenant.");
+}
+
+/// <summary>A place whose file list is kept from an earlier search.</summary>
+/// <param name="Items">Files and folders in the kept list.</param>
+/// <param name="IndexedAt">When it was last brought up to date.</param>
+/// <param name="Changes">How many changes the last search read (everything, when it was read whole).</param>
+/// <param name="PreviousAt">When it had been brought up to date before that; null when the last search read it whole.</param>
+public sealed record IndexedPlace(string PlaceId, string Url, string Title, SiteKind Kind, int Items, DateTimeOffset IndexedAt, int Changes, DateTimeOffset? PreviousAt)
+{
+    /// <summary>"Read only the 12 changes since 19 Nov 3:40 PM."; null when it was read whole.</summary>
+    public string? RefreshText => PreviousAt is not { } before ? null
+        : Changes == 0 ? $"No changes since {When(before)}: the kept list was used."
+        : $"Read only the {(Changes == 1 ? "1 change" : $"{Changes:N0} changes")} since {When(before)}.";
+
+    static string When(DateTimeOffset at) => at.ToLocalTime().ToString("d MMM h:mm tt", System.Globalization.CultureInfo.CurrentCulture);
 }
 
 /// <summary>The Find Files list's fields.</summary>

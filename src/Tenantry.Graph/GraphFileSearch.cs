@@ -1,6 +1,8 @@
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using Tenantry.Core.Cache;
 using Tenantry.Core.Directory;
 
 namespace Tenantry.Graph;
@@ -15,43 +17,223 @@ public sealed partial class GraphUserRecords : IFileSearchRecords
 {
     const string DeltaSelect = "id,name,size,file,folder,root,parentReference,lastModifiedDateTime,lastModifiedBy,createdDateTime,createdBy,webUrl,deleted";
 
+    // ---- The kept file lists (step 4) ----------------------------------------------------------
+    // Each library searched is kept in the tenant's encrypted local copy: its items (only what a
+    // result needs) under one kind per library, and the delta link that reads what changed since.
+    // A place is only ever read through Graph first, so a kept list never shows a place the admin
+    // can't open now.
+
+    const string IndexPlaces = "fileindex.place";
+
+    static string IndexKind(string driveId) => "fileindex.drive:" + driveId;
+
+    static string IndexMark(string driveId) => "fileindex.delta:" + driveId;
+
     public async IAsyncEnumerable<FoundFile> ListFilesAsync(SiteSummary place, IProgress<int>? scanned = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var siteId = await SiteIdAsync(place, cancellationToken);
         var drives = await FilesReadAsync(place, () => graph.GetAsync($"sites/{siteId}/drives?$select=id,name,driveType", cancellationToken));
-        var seen = 0;
+        var before = IndexedPlaces().FirstOrDefault(p => p.PlaceId == place.Id);
+        var driveIds = new List<string>();
+        var changes = 0;
+        var whole = false;
+        var shown = 0;
         foreach (var drive in Rows(drives))
         {
             if (Text(drive, "id") is not { } driveId)
                 continue;
-            var library = Text(drive, "name") ?? "Documents";
-            var folders = new Dictionary<string, (string Name, string? Parent, bool IsRoot)>(StringComparer.Ordinal);
-            var files = new List<JsonElement>();
-            string? next = $"drives/{driveId}/root/delta?$select={DeltaSelect}";
-            while (next is not null)
+            driveIds.Add(driveId);
+            var (read, readWhole) = await RefreshDriveAsync(place, driveId, scanned, cancellationToken);
+            changes += read;
+            whole |= readWhole;
+            foreach (var file in KeptFiles(driveId, Text(drive, "name") ?? "Documents", place))
             {
-                var url = next;
-                var page = await FilesReadAsync(place, () => graph.GetAsync(url, cancellationToken));
-                foreach (var item in Rows(page))
-                {
-                    if (item.TryGetProperty("deleted", out _) || Text(item, "id") is not { } id)
-                        continue;
-                    var parent = item.TryGetProperty("parentReference", out var p) && p.ValueKind == JsonValueKind.Object ? Text(p, "id") : null;
-                    var isRoot = item.TryGetProperty("root", out _);
-                    if (item.TryGetProperty("folder", out _) || isRoot)
-                        folders[id] = (Text(item, "name") ?? "", parent, isRoot);
-                    if ((item.TryGetProperty("file", out _) || item.TryGetProperty("folder", out _)) && !isRoot)
-                        files.Add(item.Clone());
-                }
-                seen += Rows(page).Count();
-                scanned?.Report(seen);
-                next = page.TryGetProperty("@odata.nextLink", out var link) ? link.GetString() : null;
+                yield return file;
+                if (++shown % 500 == 0)
+                    scanned?.Report(shown);
             }
-            // Folders are results too (a whole folder can be downloaded); the library's top isn't one.
-            foreach (var f in files)
-                yield return ToFound(f, driveId, library, FolderOf(f, folders), place);
         }
+        scanned?.Report(shown);
+        // Libraries gone since last time go from the kept list too.
+        if (before is not null && store.Get(IndexPlaces, place.Id) is { } old && JsonNode.Parse(old)?["drives"] is JsonArray oldDrives)
+            foreach (var gone in oldDrives.Select(d => d?.GetValue<string>()).OfType<string>().Except(driveIds, StringComparer.Ordinal))
+                ForgetDrive(gone);
+        store.Apply(IndexPlaces, [new EntityChange(place.Id, new JsonObject
+        {
+            ["id"] = place.Id,
+            ["url"] = place.Url,
+            ["title"] = place.Kind == SiteKind.OneDrive && place.OwnerName is { Length: > 0 } owner ? $"{owner}'s OneDrive" : place.Title,
+            ["kind"] = place.Kind.ToString(),
+            ["drives"] = new JsonArray([.. driveIds.Select(d => (JsonNode)JsonValue.Create(d)!)]),
+            ["items"] = shown,
+            ["indexedAt"] = DateTimeOffset.UtcNow.ToString("O"),
+            ["changes"] = changes,
+            // Read whole (first time, or Microsoft asked for a fresh start): nothing came from the kept list.
+            ["previousAt"] = whole || before is null ? null : before.IndexedAt.ToString("O"),
+        })]);
+    }
+
+    /// <summary>Brings one library's kept list up to date: what changed since the delta link kept, or all of it.</summary>
+    /// <returns>How many items were read, and whether it was read whole.</returns>
+    async Task<(int Read, bool Whole)> RefreshDriveAsync(SiteSummary place, string driveId, IProgress<int>? scanned, CancellationToken cancellationToken)
+    {
+        if (store.GetMark(IndexMark(driveId))?.Cursor is { } since)
+        {
+            try
+            {
+                return (await ReadDeltaAsync(place, driveId, since, null, scanned, cancellationToken), false);
+            }
+            catch (GraphException e) when (e.Status == HttpStatusCode.Gone)
+            {
+                // Microsoft no longer has the changes since then (resyncRequired): read it whole.
+            }
+        }
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var read = await ReadDeltaAsync(place, driveId, $"drives/{driveId}/root/delta?$select={DeltaSelect}", seen, scanned, cancellationToken);
+        // Read whole: anything kept that wasn't in it is gone.
+        store.RemoveExcept(IndexKind(driveId), seen);
+        return (read, true);
+    }
+
+    /// <summary>Reads delta pages into the kept list, then keeps the link for next time (only once every page is in).</summary>
+    async Task<int> ReadDeltaAsync(SiteSummary place, string driveId, string start, HashSet<string>? seen, IProgress<int>? scanned, CancellationToken cancellationToken)
+    {
+        var kind = IndexKind(driveId);
+        string? next = start, deltaLink = null;
+        var read = 0;
+        while (next is not null)
+        {
+            var url = next;
+            var page = await FilesReadAsync(place, () => graph.GetAsync(url, cancellationToken));
+            var changes = new List<EntityChange>();
+            foreach (var item in Rows(page))
+            {
+                if (Text(item, "id") is not { } id)
+                    continue;
+                if (item.TryGetProperty("deleted", out _))
+                {
+                    changes.Add(EntityChange.Removed(id));
+                    seen?.Remove(id);
+                }
+                else
+                {
+                    changes.Add(new EntityChange(id, Kept(item)));
+                    seen?.Add(id);
+                }
+            }
+            store.Apply(kind, changes);
+            read += changes.Count;
+            scanned?.Report(read);
+            next = page.TryGetProperty("@odata.nextLink", out var link) ? link.GetString() : null;
+            if (page.TryGetProperty("@odata.deltaLink", out var delta))
+                deltaLink = delta.GetString();
+        }
+        if (deltaLink is not null)
+            store.SetMark(IndexMark(driveId), new SyncMark(deltaLink, DateTimeOffset.UtcNow));
+        return read;
+    }
+
+    /// <summary>Only what a result needs: no hashes, no sharing details, no content.</summary>
+    static JsonObject Kept(JsonElement item)
+    {
+        var kept = new JsonObject { ["id"] = Text(item, "id"), ["name"] = Text(item, "name") };
+        foreach (var marker in new[] { "file", "folder", "root" })
+            if (item.TryGetProperty(marker, out _))
+                kept[marker] = new JsonObject();
+        if (item.TryGetProperty("parentReference", out var p) && p.ValueKind == JsonValueKind.Object && Text(p, "id") is { } parent)
+            kept["parentReference"] = new JsonObject { ["id"] = parent };
+        foreach (var name in new[] { "size" })
+            if (item.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number)
+                kept[name] = v.GetInt64();
+        foreach (var name in new[] { "lastModifiedDateTime", "createdDateTime", "webUrl" })
+            if (Text(item, name) is { } text)
+                kept[name] = text;
+        foreach (var name in new[] { "lastModifiedBy", "createdBy" })
+            if (item.TryGetProperty(name, out var by) && by.ValueKind == JsonValueKind.Object && by.TryGetProperty("user", out var u) && u.ValueKind == JsonValueKind.Object)
+                kept[name] = new JsonObject { ["user"] = new JsonObject { ["displayName"] = Text(u, "displayName"), ["email"] = Text(u, "email") } };
+        return kept;
+    }
+
+    /// <summary>
+    /// A library's kept files and folders, folders first, each with its folder path put together from
+    /// the folders kept. Anything whose folders don't lead back to the library's top (left behind
+    /// when a folder was deleted) is dropped from the list.
+    /// </summary>
+    IEnumerable<FoundFile> KeptFiles(string driveId, string library, SiteSummary place)
+    {
+        var kind = IndexKind(driveId);
+        var items = new List<JsonElement>();
+        var folders = new Dictionary<string, (string Name, string? Parent, bool IsRoot)>(StringComparer.Ordinal);
+        foreach (var json in store.All(kind))
+        {
+            var item = JsonDocument.Parse(json).RootElement;
+            if (Text(item, "id") is not { } id)
+                continue;
+            var isRoot = item.TryGetProperty("root", out _);
+            var parent = item.TryGetProperty("parentReference", out var p) && p.ValueKind == JsonValueKind.Object ? Text(p, "id") : null;
+            if (item.TryGetProperty("folder", out _) || isRoot)
+                folders[id] = (Text(item, "name") ?? "", parent, isRoot);
+            if (!isRoot && (item.TryGetProperty("file", out _) || item.TryGetProperty("folder", out _)))
+                items.Add(item);
+        }
+        var orphans = new List<EntityChange>();
+        var found = new List<FoundFile>();
+        foreach (var item in items)
+        {
+            if (!ReachesTop(item, folders))
+            {
+                orphans.Add(EntityChange.Removed(Text(item, "id")!));
+                continue;
+            }
+            found.Add(ToFound(item, driveId, library, FolderOf(item, folders), place));
+        }
+        if (orphans.Count > 0)
+            store.Apply(kind, orphans);
+        return found.OrderByDescending(f => f.IsFolder).ThenBy(f => f.Path, StringComparer.OrdinalIgnoreCase).ThenBy(f => f.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    static bool ReachesTop(JsonElement item, IReadOnlyDictionary<string, (string Name, string? Parent, bool IsRoot)> folders)
+    {
+        var at = item.TryGetProperty("parentReference", out var p) && p.ValueKind == JsonValueKind.Object ? Text(p, "id") : null;
+        for (var depth = 0; at is not null && depth < 64; depth++)
+        {
+            if (!folders.TryGetValue(at, out var folder))
+                return false;
+            if (folder.IsRoot)
+                return true;
+            at = folder.Parent;
+        }
+        return false;
+    }
+
+    public IReadOnlyList<IndexedPlace> IndexedPlaces() =>
+    [
+        .. store.All(IndexPlaces).Select(json => JsonNode.Parse(json) as JsonObject).OfType<JsonObject>().Select(o => new IndexedPlace(
+            o["id"]?.GetValue<string>() ?? "",
+            o["url"]?.GetValue<string>() ?? "",
+            o["title"]?.GetValue<string>() ?? "",
+            Enum.TryParse<SiteKind>(o["kind"]?.GetValue<string>(), out var kind) ? kind : SiteKind.TeamSite,
+            o["items"]?.GetValue<int>() ?? 0,
+            DateTimeOffset.TryParse(o["indexedAt"]?.GetValue<string>(), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var at) ? at : DateTimeOffset.MinValue,
+            o["changes"]?.GetValue<int>() ?? 0,
+            DateTimeOffset.TryParse(o["previousAt"]?.GetValue<string>(), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var was) ? was : null))
+            .Where(p => p.PlaceId.Length > 0),
+    ];
+
+    public void ForgetIndexed()
+    {
+        foreach (var json in store.All(IndexPlaces))
+            if (JsonNode.Parse(json)?["drives"] is JsonArray drives)
+                foreach (var drive in drives.Select(d => d?.GetValue<string>()).OfType<string>())
+                    ForgetDrive(drive);
+        store.RemoveExcept(IndexPlaces, new HashSet<string>());
+    }
+
+    void ForgetDrive(string driveId)
+    {
+        store.RemoveExcept(IndexKind(driveId), new HashSet<string>());
+        store.SetMark(IndexMark(driveId), new SyncMark(null, DateTimeOffset.UtcNow));
     }
 
     /// <summary>Graph's ID for the site at this address ("sites/{host}:/sites/finance").</summary>

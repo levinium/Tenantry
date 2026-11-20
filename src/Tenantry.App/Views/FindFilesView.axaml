@@ -210,6 +210,13 @@
             <views:AddButton DataContext="{Binding AddPerson}" Text="Add a Person's OneDrive"
                              Hint="Includes people who have left: their OneDrive stays until it's deleted" />
             <views:AddButton DataContext="{Binding AddSite}" Text="Add a Site" />
+            <Button Command="{Binding AddSearchedBeforeCommand}" IsVisible="{Binding CanAddSearchedBefore}"
+                    ToolTip.Tip="Every place searched before whose file list is kept: searching them again reads only what changed">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ic:FluentIcon Icon="History" FontSize="14" />
+                <TextBlock Text="{Binding AddSearchedBeforeText}" />
+              </StackPanel>
+            </Button>
           </WrapPanel>
           <TextBlock Classes="muted" TextWrapping="Wrap"
                      Text="Add the OneDrives and sites to look through. Every file in each is checked, in every folder.">
@@ -235,6 +242,14 @@
                     ToolTip.Tip="Both stages of each place's recycle bin, where deleted files stay for 93 days. Only site admins can see them." />
           <CheckBox Content="Keep site admin access added for the search" IsChecked="{Binding KeepAccess}" IsVisible="{Binding CanAddMeAnywhere}"
                     ToolTip.Tip="Otherwise the access Add Me and Search gives you is removed again when that place has been searched" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding IndexSummary}" IsVisible="{Binding HasIndex}" />
+          <Button Command="{Binding ForgetIndexCommand}" IsVisible="{Binding HasIndex}" IsEnabled="{Binding CanEditPlaces}" HorizontalAlignment="Left"
+                  ToolTip.Tip="Delete the kept file lists from this computer. The next search of each place reads it whole again.">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ic:FluentIcon Icon="Delete" FontSize="14" />
+              <TextBlock Text="{Binding ForgetText}" />
+            </StackPanel>
+          </Button>
           <Button Command="{Binding ClearPlacesCommand}" IsVisible="{Binding HasPlaces}" IsEnabled="{Binding CanEditPlaces}" HorizontalAlignment="Left">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <ic:FluentIcon Icon="Dismiss" FontSize="14" />

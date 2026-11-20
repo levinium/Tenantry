@@ -208,12 +208,12 @@ public class FindFilesTests
             files.Add(f);
 
         // Folders are results too (a whole folder can be downloaded); the library's top isn't.
-        Assert.Equal(["Projects", "2026", "Budget.xlsx", "Top.docx", "Old.pdf"], files.Select(f => f.Name));
+        Assert.Equal(["Projects", "2026", "Top.docx", "Budget.xlsx", "Old.pdf"], files.Select(f => f.Name));
         Assert.Equal([true, true, false, false, false], files.Select(f => f.IsFolder));
         Assert.Equal(("Documents/Projects", "Folder"), (files[1].Path, FoundFileFields.TypeOf(files[1])));
-        var budget = files[2];
+        var budget = files[3];
         Assert.Equal(("Documents/Projects/2026", 2048L, "Pat Lee"), (budget.Path, budget.Size, budget.ModifiedBy));
-        Assert.Equal("Documents", files[3].Path);
+        Assert.Equal("Documents", files[2].Path);
         Assert.Equal("Archive", files[4].Path);
         Assert.Equal("https://contoso.sharepoint.com/sites/finance/Shared%20Documents/Projects/2026", budget.FolderUrl);
     }

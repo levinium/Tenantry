@@ -596,6 +596,77 @@ public sealed partial class FindFilesViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(HasPlaces));
         CriteriaChanged();
+        IndexChanged();
+    }
+
+    // ---- Kept file lists ------------------------------------------------------------------------
+
+    IReadOnlyList<IndexedPlace> Indexed => _records?.IndexedPlaces() ?? [];
+
+    /// <summary>Places searched before that aren't in the list now.</summary>
+    public int SearchedBeforeCount
+    {
+        get
+        {
+            var chosen = Places.Select(p => p.Site.Id).ToHashSet(StringComparer.Ordinal);
+            return Indexed.Count(p => !chosen.Contains(p.PlaceId));
+        }
+    }
+
+    public bool CanAddSearchedBefore => IsChosenPlaces && SearchedBeforeCount > 0;
+
+    public string AddSearchedBeforeText => $"Add Places Searched Before ({SearchedBeforeCount:N0})";
+
+    /// <summary>Every place whose file list is kept: searching them again reads only what changed.</summary>
+    [RelayCommand]
+    void AddSearchedBefore()
+    {
+        if (IsSearching)
+            return;
+        foreach (var kept in Indexed.OrderBy(p => p.Title, StringComparer.CurrentCultureIgnoreCase))
+            Add(_sites().FirstOrDefault(s => s.Id == kept.PlaceId) ?? Unlisted(kept.Url) with { Id = kept.PlaceId, Title = kept.Title, Kind = kept.Kind });
+    }
+
+    public bool HasIndex => Indexed.Count > 0;
+
+    /// <summary>What's kept, so the admin knows it's there.</summary>
+    public string IndexSummary
+    {
+        get
+        {
+            var kept = Indexed;
+            var items = kept.Sum(p => (long)p.Items);
+            return $"Kept from earlier searches, encrypted on this computer: the file lists of {(kept.Count == 1 ? "1 place" : $"{kept.Count:N0} places")} " +
+                   $"({items:N0} files and folders). Searching them again reads only what changed.";
+        }
+    }
+
+    /// <summary>Forgetting asks for a second click.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ForgetText))]
+    public partial bool IsConfirmingForget { get; private set; }
+
+    public string ForgetText => IsConfirmingForget ? "Click Again to Forget Them" : "Forget Kept Lists";
+
+    [RelayCommand]
+    void ForgetIndex()
+    {
+        if (IsSearching)
+            return;
+        if (!IsConfirmingForget)
+        {
+            IsConfirmingForget = true;
+            return;
+        }
+        _records?.ForgetIndexed();
+        IsConfirmingForget = false;
+        IndexChanged();
+    }
+
+    void IndexChanged()
+    {
+        foreach (var name in new[] { nameof(SearchedBeforeCount), nameof(CanAddSearchedBefore), nameof(AddSearchedBeforeText), nameof(HasIndex), nameof(IndexSummary) })
+            OnPropertyChanged(name);
     }
 
     [RelayCommand]
@@ -697,6 +768,7 @@ public sealed partial class FindFilesViewModel : ObservableObject
                 place.CanRemove = !place.IsBusy;
             await RefreshResultsAsync();
             UpdateStatus(done: true);
+            IndexChanged();
         }
     }
 
@@ -814,6 +886,8 @@ public sealed partial class FindFilesViewModel : ObservableObject
                 }
             }
             place.State = PlaceState.Done;
+            if (_records.IndexedPlaces().FirstOrDefault(p => p.PlaceId == place.Site.Id)?.RefreshText is { } kept)
+                place.Note = Append(place.Note, kept);
         }
         catch (SiteAccessException)
         {
@@ -899,6 +973,7 @@ public sealed partial class FindFilesViewModel : ObservableObject
                 IsSearching = false;
                 UpdateStatus(done: true);
             }
+            IndexChanged();
             place.CanRemove = !place.IsBusy;
         }
     }
