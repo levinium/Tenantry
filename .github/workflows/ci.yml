@@ -3,7 +3,8 @@ name: CI
 on:
   # Branches only: a version tag is put on a commit that already passed here, and Packages builds it.
   push:
-    branches: ['**']
+    # Not the updates branch: it holds only the update lists (see release.yml).
+    branches: ['**', '!updates']
   pull_request:
     branches: [main]
   workflow_dispatch:

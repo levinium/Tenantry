@@ -110,3 +110,44 @@ jobs:
       - name: Add to the release
         if: startsWith(github.ref, 'refs/tags/v')
         run: dotnet vpk upload github --repoUrl $env:REPO_URL --channel ${{ matrix.rid }} --tag $env:GITHUB_REF_NAME --merge --publish --token ${{ github.token }} -o releases
+
+  # Tags only: installed copies read the release lists (releases.<rid>.json) from the updates
+  # branch, so their checks don't count as release downloads; packages still come from the
+  # releases. Each list is merged into the branch's copy (same file name: this release's entry wins).
+  feed:
+    name: Publish the update lists
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tenantry-*
+          path: packs
+          merge-multiple: true
+
+      - name: Merge into the updates branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if ! git clone --depth 1 --branch updates "$remote" feed; then
+            git init -b updates feed
+            git -C feed remote add origin "$remote"
+          fi
+          python3 - <<'EOF'
+          import glob, json, os
+          for path in sorted(glob.glob('packs/releases.*.json')):
+              target = os.path.join('feed', os.path.basename(path))
+              new = json.load(open(path, encoding='utf-8-sig'))
+              old = json.load(open(target, encoding='utf-8-sig')) if os.path.exists(target) else {'Assets': []}
+              names = {a['FileName'] for a in new['Assets']}
+              new['Assets'] = [a for a in old['Assets'] if a['FileName'] not in names] + new['Assets']
+              json.dump(new, open(target, 'w', encoding='utf-8'), indent=2)
+              print(os.path.basename(path), len(new['Assets']), 'entries')
+          EOF
+          cd feed
+          git add releases.*.json
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "Update lists for ${GITHUB_REF_NAME}" || exit 0
+          git push origin updates

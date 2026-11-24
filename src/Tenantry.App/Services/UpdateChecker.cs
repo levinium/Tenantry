@@ -7,15 +7,17 @@ using Velopack.Sources;
 namespace Tenantry.App.Services;
 
 /// <summary>
-/// Looks for a newer release on GitHub when the app opens, every few hours, and whenever Settings'
+/// Looks for a newer release when the app opens, every few hours, and whenever Settings'
 /// Check for Updates is clicked; downloads it in the background and offers a restart
 /// (<see cref="AppUpdate"/>). Only installed copies update: a development build or an unpacked
-/// folder does nothing. Releases are pre-releases while the builds are unsigned, so pre-releases
-/// are included.
+/// folder does nothing.
 /// </summary>
 public static class UpdateChecker
 {
     const string Repository = "https://github.com/levinium/Tenantry";
+
+    /// <summary>The release lists, copied here by the Packages workflow (see <see cref="ReleaseFeedSource"/>).</summary>
+    const string Feed = "https://raw.githubusercontent.com/levinium/Tenantry/updates/";
 
     static readonly TimeSpan Every = TimeSpan.FromHours(4);
 
@@ -28,7 +30,7 @@ public static class UpdateChecker
     {
         try
         {
-            var manager = new UpdateManager(new GithubSource(Repository, null, true));
+            var manager = new UpdateManager(new ReleaseFeedSource(Repository, Feed));
             if (!manager.IsInstalled)
                 return;
             _manager = manager;
