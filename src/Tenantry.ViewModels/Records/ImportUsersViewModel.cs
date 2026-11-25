@@ -84,7 +84,8 @@ public sealed partial class ImportUsersViewModel : ObservableObject
     public string TemplateHelp =>
         $"Use Tenantry's template. Its columns: {ColumnsText}. Only Sign-In Name is required. Separate several licenses or groups with a semicolon (;). " +
         "Manager is a sign-in name; Country a two-letter code like US. " +
-        "A file saved by Export (on a group, site or role) works too: change its Job Title or Department column and choose it here. It only updates people who already exist.";
+        "A file saved by Export (the Users list's, or a group's, site's or role's) works too: change its Job Title or Department column and choose it here. " +
+        "Only those two columns are read from it, and it only updates people who already exist.";
 
     // ---- Template ---------------------------------------------------------------------------------
 
@@ -165,9 +166,9 @@ public sealed partial class ImportUsersViewModel : ObservableObject
                 return;
             }
             var headers = rows[0].Select(h => h.Trim()).ToArray();
-            if (IsPeopleExport(headers))
+            if (IsPeopleExport(headers) || IsListExport(headers))
             {
-                var (fromExport, skipped, problem) = FromExport(headers, rows);
+                var (fromExport, skipped, problem) = FromExport(headers, rows, list: IsListExport(headers));
                 if (problem is not null)
                 {
                     FileProblem = problem;
@@ -240,15 +241,23 @@ public sealed partial class ImportUsersViewModel : ObservableObject
         !headers.Contains(SignInColumn, StringComparer.OrdinalIgnoreCase)
         && headers.Contains("Object ID", StringComparer.OrdinalIgnoreCase) && headers.Contains("Address", StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>The Users list's own Export (Save as a CSV File): the name column's second line is the sign-in name.</summary>
+    const string ListSignInColumn = "Name (detail)";
+
+    static bool IsListExport(IReadOnlyList<string> headers) =>
+        !headers.Contains(SignInColumn, StringComparer.OrdinalIgnoreCase) && headers.Contains(ListSignInColumn, StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// An export's rows as template rows: each person (matched by object ID, then address) with
     /// the export's Job Title and Department. Rows for groups, contacts and others are left out; a
     /// person listed more than once with the same values (a selection of groups) counts once.
     /// </summary>
+    /// <param name="list">The Users list's export: people by sign-in name; its other columns (whichever were shown) are read only.</param>
     (IReadOnlyList<(int Line, Dictionary<string, string> Cells)> Rows, int Skipped, string? Problem) FromExport(
-        IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>> rows)
+        IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>> rows, bool list = false)
     {
-        var unknown = headers.Where(h => h.Length > 0 && !ExportOnlyColumns.Contains(h) && !ExportEditableColumns.Contains(h, StringComparer.OrdinalIgnoreCase)).ToArray();
+        var unknown = list ? []
+            : headers.Where(h => h.Length > 0 && !ExportOnlyColumns.Contains(h) && !ExportEditableColumns.Contains(h, StringComparer.OrdinalIgnoreCase)).ToArray();
         if (unknown.Length > 0)
             return ([], 0, $"These columns aren't in Tenantry's export: {string.Join(", ", unknown)}. Change only {string.Join(" and ", ExportEditableColumns)}; leave the other columns as they were.");
         string Get(IReadOnlyList<string> cells, string column)
@@ -263,13 +272,17 @@ public sealed partial class ImportUsersViewModel : ObservableObject
         for (var i = 1; i < rows.Count; i++)
         {
             var cells = rows[i];
-            var type = Get(cells, "Type");
+            // The Users list's Type is Member/Guest/Shared Mailbox (all people); a people export's is User/Group/Contact….
+            var type = list ? "" : Get(cells, "Type");
             if (type.Length > 0 && !type.Equals("User", StringComparison.OrdinalIgnoreCase))
             {
                 skipped++;
                 continue;
             }
-            var signIn = _index.User(Get(cells, "Object ID")) is { } user ? user.UserPrincipalName : Get(cells, "Address");
+            var signIn = list ? Get(cells, ListSignInColumn)
+                : _index.User(Get(cells, "Object ID")) is { } user ? user.UserPrincipalName : Get(cells, "Address");
+            if (signIn.Length == 0 && editable.All(c => Get(cells, c).Length == 0))
+                continue;
             var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [SignInColumn] = signIn };
             foreach (var column in editable)
                 row[column] = Uninert(Get(cells, column));

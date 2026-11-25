@@ -103,6 +103,24 @@ public sealed class ImportTests
     }
 
     [Fact]
+    public async Task The_users_list_export_comes_back_in_with_its_department_column()
+    {
+        // As the Users list's Export saves it (whichever columns were shown), with departments filled in.
+        var import = await Import("""
+            Name,Name (detail),Department,Job Title,Status,Type,Licenses,Last Sign-In
+            Ada Lovelace,ada@contoso.example,Operations,Analyst,Active,Member,Business Basic,2026-01-02 10:00
+            Grace Hopper,grace@contoso.example,,,Active,Shared Mailbox,,
+            Nobody,nobody@contoso.example,Sales,,Active,Member,,
+            """);
+
+        Assert.Null(import.FileProblem);
+        Assert.Equal(["Department: Finance → Operations"], Assert.Single(import.Rows, r => r.Outcome == ImportOutcome.Update).Changes);
+        Assert.Contains(import.Rows, r => r.Outcome == ImportOutcome.NoChange);  // Grace: blank cells leave her as she is
+        Assert.Contains("only updates people who already exist", Assert.Single(import.Rows, r => r.Outcome == ImportOutcome.Problem).Details, StringComparison.Ordinal);
+        Assert.DoesNotContain(import.Rows, r => r.Outcome == ImportOutcome.New);
+    }
+
+    [Fact]
     public async Task An_export_with_an_extra_column_is_refused_and_names_it()
     {
         var import = await Import("Role,Name,Address,Type,Object ID,Department,Shoe Size\nMember,Ada,ada@contoso.example,User,u1,Finance,7");
