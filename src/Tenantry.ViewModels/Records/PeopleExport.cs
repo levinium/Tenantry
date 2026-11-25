@@ -222,9 +222,33 @@ public sealed partial class PeopleExporter : ObservableObject
         Status = null;
     }
 
-    [RelayCommand]
+    /// <summary>Checking for changes before saving: the choices wait.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
+    public partial bool IsChecking { get; private set; }
+
+    bool CanExport => !IsChecking;
+
+    [RelayCommand(CanExecute = nameof(CanExport))]
     async Task Export(ExportChoice choice)
     {
+        // The file should match Microsoft 365 now, not the copy as it was at the last check.
+        IsChecking = true;
+        Status = "Checking Microsoft 365 for changes first…";
+        string? note;
+        try
+        {
+            note = await Freshness.BeforeExportAsync();
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            note = $"Couldn't check for changes ({Friendly.Message(e)}), so this file uses the copy as it was.";
+        }
+        finally
+        {
+            IsChecking = false;
+        }
+        Status = null;
         var entries = _entries().Where(e => choice.Roles is null || choice.Roles.Contains(e.Role)).ToArray();
         var nested = _nested && IncludeNested && PeopleExport.HasGroups(entries);
         var csv = PeopleExport.ToCsv(entries, _index, nested, _containerHeading, _detailHeading);
@@ -232,7 +256,7 @@ public sealed partial class PeopleExporter : ObservableObject
         var count = PeopleExport.Count(entries, _index, nested);
         try
         {
-            Status = await Platform.SaveCsv(name, csv) ? $"Saved {count:N0} {(count == 1 ? "row" : "rows")}." : null;
+            Status = await Platform.SaveCsv(name, csv) ? $"Saved {count:N0} {(count == 1 ? "row" : "rows")}." + (note is null ? "" : " " + note) : note;
         }
         catch (Exception e)
         {

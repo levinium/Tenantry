@@ -409,6 +409,93 @@ public class ChangePipelineTests
     }
 
     [Fact]
+    public async Task While_applying_the_tray_shows_how_far_it_has_got_and_where_each_change_is()
+    {
+        PendingChangesViewModel? tray = null;
+        (string Status, double Percent, ApplyState?[] States, bool Applying)? midway = null;
+        var (pipeline, _, _) = Pipeline(testMode: false, change =>
+        {
+            // The second change, as it's being sent: what does the tray say right now?
+            if (change is SetUserText { Property: "jobTitle" })
+                midway = (tray!.ApplyStatus, tray.ApplyPercent, tray.Rows.Select(r => r.State).ToArray(), tray.IsApplying);
+            return change is SetUserText { Property: "officeLocation" }
+                ? new ApplyResult(ChangeOutcome.Failed, "Microsoft said no.")
+                : new ApplyResult(ChangeOutcome.Applied);
+        });
+        pipeline.Stage(new SetUserText(Real, "department", "Department", "Finance", "IT"));
+        pipeline.Stage(new SetUserText(Real, "jobTitle", "Job Title", "Analyst", "Lead"));
+        pipeline.Stage(new SetUserText(Real, "officeLocation", "Office", "1", "2"));
+        tray = new PendingChangesViewModel(pipeline, "Contoso", showTestMode: false, () => Task.CompletedTask);
+
+        await tray.ApplyCommand.ExecuteAsync(null);
+
+        Assert.NotNull(midway);
+        Assert.True(midway!.Value.Applying);
+        Assert.StartsWith("Applying 2 of 3: Ada Lovelace", midway.Value.Status, StringComparison.Ordinal);
+        Assert.Equal(100.0 / 3, midway.Value.Percent, 3);
+        Assert.Equal([ApplyState.Applied, ApplyState.Applying, ApplyState.Waiting], midway.Value.States);
+        // Afterwards: the one that failed stays, as a plain pending row with its reason.
+        var left = Assert.Single(tray.Rows);
+        Assert.Null(left.State);
+        Assert.Equal("Microsoft said no.", left.Problem);
+        Assert.False(tray.IsApplying);
+        Assert.Equal((3, 1), (tray.ApplyDone, tray.ApplyFailed));
+    }
+
+    [Fact]
+    public async Task A_change_someone_else_made_since_staging_is_shown_and_the_next_apply_goes_ahead()
+    {
+        var (pipeline, executor, _) = Pipeline(testMode: false);
+        pipeline.Stage(new SetUserText(Real, "department", "Department", "Finance", "IT"));
+        pipeline.Stage(new SetUserText(Real, "jobTitle", "Job Title", "Analyst", "Lead"));
+        // Someone else moved Ada to Operations after the department change was staged.
+        var now = new UserSummary("r1", "Ada Lovelace", "ada@contoso.example", null, "Operations", "Analyst", true, UserKind.Member, DateTimeOffset.UnixEpoch, null, []);
+        var index = new ListIndex([now]);
+        var tray = new PendingChangesViewModel(pipeline, "Contoso", showTestMode: false, () => Task.CompletedTask,
+            staleReason: c => StaleCheck.Reason(c, index));
+
+        await tray.ApplyCommand.ExecuteAsync(null);
+
+        Assert.Empty(executor.Applied);
+        Assert.Contains("changed by someone else", tray.Result, StringComparison.Ordinal);
+        Assert.Equal("Changed since you staged this: Department is now \"Operations\".", tray.Rows[0].Problem);
+        Assert.Null(tray.Rows[1].Problem);  // the job title is still as it was
+
+        await tray.ApplyCommand.ExecuteAsync(null);
+        Assert.Equal(2, executor.Applied.Count);
+    }
+
+    [Fact]
+    public void Stale_checks_cover_sign_in_licenses_and_membership()
+    {
+        var ada = new UserSummary("r1", "Ada Lovelace", "ada@contoso.example", null, null, null, false, UserKind.Member, DateTimeOffset.UnixEpoch, null, ["Business Basic"]);
+        var group = new GroupSummary("g1", "Finance", null, null, GroupKind.Security, false, false, null, null, [new GroupMember("r1", "user")]);
+        var index = new ListIndex([ada], [group]);
+        var groupTarget = new ChangeTarget("group", "g1", "Finance", null);
+        Assert.Contains("sign-in is now blocked", StaleCheck.Reason(new SetSignInAllowed(Real, true, false), index));
+        Assert.Null(StaleCheck.Reason(new SetSignInAllowed(Real, false, true), index));
+        Assert.Contains("now have Business Basic", StaleCheck.Reason(new SetLicenseAssigned(Real, "sku", "Business Basic", false, true), index));
+        Assert.Contains("is now a member", StaleCheck.Reason(new SetGroupMembership(groupTarget, Real, "user", GroupRole.Member, false, false, true), index));
+        Assert.Null(StaleCheck.Reason(new SetGroupMembership(groupTarget, Real, "user", GroupRole.Member, false, true, false), index));
+    }
+
+    sealed class ListIndex(IEnumerable<UserSummary> users, IEnumerable<GroupSummary>? groups = null) : IDirectoryIndex
+    {
+        public UserSummary? User(string id) => users.FirstOrDefault(u => u.Id == id);
+        public GroupSummary? Group(string id) => (groups ?? []).FirstOrDefault(g => g.Id == id);
+        public IEnumerable<UserSummary> AllUsers => users;
+        public IEnumerable<GroupSummary> AllGroups => groups ?? [];
+    }
+
+    [Fact]
+    public void Time_left_reads_in_plain_words()
+    {
+        Assert.Equal("less than a minute left", PendingChangesViewModel.TimeLeft(TimeSpan.FromSeconds(40)));
+        Assert.Equal("about a minute left", PendingChangesViewModel.TimeLeft(TimeSpan.FromSeconds(75)));
+        Assert.Equal("about 4 minutes left", PendingChangesViewModel.TimeLeft(TimeSpan.FromMinutes(3.8)));
+    }
+
+    [Fact]
     public async Task A_reset_password_is_shown_once_and_never_logged()
     {
         var (pipeline, _, log) = Pipeline(testMode: true, change => change is ResetPassword

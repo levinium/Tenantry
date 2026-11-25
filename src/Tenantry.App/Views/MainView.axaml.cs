@@ -21,6 +21,7 @@ public partial class MainView : UserControl
             _vm = DataContext as MainViewModel;
             if (_vm is not null)
                 _vm.PropertyChanged += OnViewModelChanged;
+            WatchPending();
         };
 
         // Open tabs shorten their names rather than wrap onto a second row; checked again as tabs
@@ -93,5 +94,31 @@ public partial class MainView : UserControl
         // Typing starts the moment the palette appears.
         if (e.PropertyName == nameof(MainViewModel.IsPaletteOpen) && _vm?.IsPaletteOpen == true)
             Dispatcher.UIThread.Post(() => PaletteBox.Focus(), DispatcherPriority.Input);
+        if (e.PropertyName == nameof(MainViewModel.Pending))
+            WatchPending();
+    }
+
+    Tenantry.ViewModels.Editing.PendingChangesViewModel? _pending;
+
+    /// <summary>While Apply runs, the change being applied stays in view in the tray's list.</summary>
+    void WatchPending()
+    {
+        if (_pending is not null)
+            _pending.PropertyChanged -= OnPendingChanged;
+        _pending = _vm?.Pending;
+        if (_pending is not null)
+            _pending.PropertyChanged += OnPendingChanged;
+    }
+
+    void OnPendingChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(Tenantry.ViewModels.Editing.PendingChangesViewModel.CurrentRow) || _pending?.CurrentRow is not { } row)
+            return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            var index = _pending?.Rows.IndexOf(row) ?? -1;
+            if (index >= 0 && PendingList.ContainerFromIndex(index) is { } container)
+                container.BringIntoView();
+        }, DispatcherPriority.Background);
     }
 }

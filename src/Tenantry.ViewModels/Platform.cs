@@ -30,3 +30,29 @@ public static class Platform
     /// <summary>Shows a folder on this computer in the system's file browser.</summary>
     public static Action<string> OpenFolder { get; set; } = _ => { };
 }
+
+/// <summary>
+/// Brings the local copy of the directory up to date before it matters: changes since the last
+/// check, usually a few seconds, skipped when the copy was checked within the age given. Set by
+/// the open tenant; returns null when up to date, or a note saying why it couldn't be.
+/// </summary>
+public static class Freshness
+{
+    /// <summary>Exports, Import and Apply: Microsoft 365 as it is now (checked within the last few seconds).</summary>
+    public static readonly TimeSpan ForAction = TimeSpan.FromSeconds(15);
+
+    /// <summary>Opening a record or preview, or ticking rows.</summary>
+    public static readonly TimeSpan ForRecord = TimeSpan.FromSeconds(30);
+
+    /// <summary>Coming back to a list or report.</summary>
+    public static readonly TimeSpan ForList = TimeSpan.FromMinutes(2);
+
+    /// <summary>The open tenant's check, given the oldest copy that will do.</summary>
+    public static Func<TimeSpan, Task<string?>>? BringUpToDate { get; set; }
+
+    /// <summary>Checks when the copy is older than <paramref name="maxAge"/>; a note when it couldn't.</summary>
+    public static async Task<string?> EnsureAsync(TimeSpan maxAge) =>
+        BringUpToDate is { } check ? await check(maxAge) : null;
+
+    public static Task<string?> BeforeExportAsync() => EnsureAsync(ForAction);
+}

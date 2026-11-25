@@ -159,6 +159,8 @@ public sealed partial class ImportUsersViewModel : ObservableObject
         IsReading = true;
         try
         {
+            // What each row changes is worked out against the people as they are now, not at the last check.
+            _freshnessNote = await Freshness.EnsureAsync(Freshness.ForAction);
             var rows = Csv.Read(text);
             if (rows.Count == 0)
             {
@@ -211,8 +213,12 @@ public sealed partial class ImportUsersViewModel : ObservableObject
         }
     }
 
+    /// <summary>Why the people couldn't be checked against Microsoft 365 just now, if they couldn't.</summary>
+    string? _freshnessNote;
+
     void Summarize(string? extra)
     {
+        extra = string.Join(" · ", new[] { extra, _freshnessNote }.OfType<string>()) is { Length: > 0 } both ? both : null;
         var counts = Rows.GroupBy(r => r.Outcome).ToDictionary(g => g.Key, g => g.Count());
         Summary = string.Join(" · ", new[]
         {

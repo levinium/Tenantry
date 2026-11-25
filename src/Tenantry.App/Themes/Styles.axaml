@@ -977,6 +977,10 @@
   <Style Selector="Border.valuerow.moved">
     <Setter Property="Background" Value="{DynamicResource BannerInfoBg}" />
   </Style>
+  <!-- The pending change being applied right now. -->
+  <Style Selector="Border.valuerow.current">
+    <Setter Property="Background" Value="{DynamicResource BannerInfoBg}" />
+  </Style>
   <Style Selector="Border.valuerow:pointerover">
     <Setter Property="Background" Value="{DynamicResource SubtleBg}" />
   </Style>  <Style Selector="Border.levelrow">

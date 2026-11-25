@@ -165,6 +165,12 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>During <see cref="ApplyAsync"/>: a change is about to be sent.</summary>
+    public event EventHandler<ChangeOp>? Starting;
+
+    /// <summary>During <see cref="ApplyAsync"/>: a change is done (applied, refused or failed), before the next starts.</summary>
+    public event EventHandler<(ChangeOp Change, ApplyResult Result)>? Finished;
+
     /// <summary>Applies every staged change; returns each change with its result, in order.</summary>
     public async Task<IReadOnlyList<(ChangeOp Change, ApplyResult Result)>> ApplyAsync(
         IProgress<(int Done, int Total)>? progress = null, CancellationToken cancellationToken = default)
@@ -180,6 +186,7 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
         {
             cancellationToken.ThrowIfCancellationRequested();
             var change = batch[i];
+            Starting?.Invoke(this, change);
             ApplyResult result;
             if (change.DependsOn is { } needed && notApplied.TryGetValue((change.Target.Id, needed), out var blocker))
             {
@@ -204,6 +211,7 @@ public sealed class ChangePipeline(IChangeExecutor executor, ChangeLog log, ITes
                 }
             }
             results.Add((change, result));
+            Finished?.Invoke(this, (change, result));
             progress?.Report((i + 1, batch.Length));
         }
         // Successes leave the tray in one pass (a bulk apply can be hundreds of changes).

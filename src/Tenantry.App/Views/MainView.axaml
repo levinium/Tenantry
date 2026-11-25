@@ -351,6 +351,21 @@
               </Button>
             </StackPanel>
           </Grid>
+          <!-- While Apply runs: how far it has got, whose change is going now, and roughly how long is left. -->
+          <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,10,0,0" IsVisible="{Binding IsWorking}">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+              <Panel Width="16" Height="16" VerticalAlignment="Center">
+                <Ellipse Classes="spintrack" />
+                <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                  <Arc.RenderTransform>
+                    <RotateTransform />
+                  </Arc.RenderTransform>
+                </Arc>
+              </Panel>
+              <TextBlock Grid.Column="1" Text="{Binding ApplyStatus}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </Grid>
+            <ProgressBar Minimum="0" Maximum="100" Value="{Binding ApplyPercent}" Height="6" />
+          </StackPanel>
           <!-- Changes that can't be undone (a phone wipe): type the phrase before Apply goes ahead. -->
           <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding TypedConfirms}" Margin="0,10,0,0" IsVisible="{Binding HasTypedConfirms}">
             <ItemsControl.ItemTemplate>
@@ -407,12 +422,12 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
           </ScrollViewer>
-          <ScrollViewer IsVisible="{Binding IsOpen}" MaxHeight="180" Margin="0,10,0,0">
-            <ItemsControl ItemsSource="{Binding Rows}">
+          <ScrollViewer x:Name="PendingScroll" IsVisible="{Binding IsOpen}" MaxHeight="180" Margin="0,10,0,0">
+            <ItemsControl x:Name="PendingList" ItemsSource="{Binding Rows}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="ed:PendingRow">
-                  <Border Classes="valuerow">
-                    <Grid ColumnDefinitions="16,220,*,Auto,Auto" ColumnSpacing="12">
+                  <Border Classes="valuerow" Classes.current="{Binding IsWorking}">
+                    <Grid ColumnDefinitions="16,220,*,Auto,Auto,Auto" ColumnSpacing="12">
                       <ic:FluentIcon Icon="Warning" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}"
                                      VerticalAlignment="Center" IsVisible="{Binding IsCaution}"
                                      ToolTip.Tip="This change takes something away; you'll be asked to confirm" />
@@ -433,14 +448,29 @@
                           <ProgressBar Classes="working" MaxWidth="320" HorizontalAlignment="Left" />
                         </StackPanel>
                       </StackPanel>
-                      <Button Grid.Column="3" Padding="10,3" Command="{Binding ShowPowerShellCommand}" IsVisible="{Binding CanShowPowerShell}" VerticalAlignment="Center"
+                      <!-- While applying: where this change is. -->
+                      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" IsVisible="{Binding HasState}">
+                        <Panel Width="14" Height="14" VerticalAlignment="Center" IsVisible="{Binding IsWorking}">
+                          <Ellipse Classes="spintrack" />
+                          <Arc Classes="spinner" StartAngle="0" SweepAngle="90">
+                            <Arc.RenderTransform>
+                              <RotateTransform />
+                            </Arc.RenderTransform>
+                          </Arc>
+                        </Panel>
+                        <ic:FluentIcon Icon="CheckmarkCircle" FontSize="14" Foreground="{DynamicResource BadgeSuccessFg}" IsVisible="{Binding IsDone}" VerticalAlignment="Center" />
+                        <ic:FluentIcon Icon="ErrorCircle" FontSize="14" Foreground="{DynamicResource BadgeWarningFg}" IsVisible="{Binding IsFailed}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding StateText}" VerticalAlignment="Center" Classes.muted="{Binding IsWaiting}" />
+                      </StackPanel>
+                      <Button Grid.Column="4" Padding="10,3" Command="{Binding ShowPowerShellCommand}" IsVisible="{Binding CanShowPowerShell}" VerticalAlignment="Center"
                               ToolTip.Tip="The PowerShell that makes this change, to copy or run in the console">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                           <ic:FluentIcon Icon="WindowConsole" FontSize="14" />
                           <TextBlock Text="PowerShell" />
                         </StackPanel>
                       </Button>
-                      <Button Grid.Column="4" Classes="rowaction" Command="{Binding RemoveCommand}" VerticalAlignment="Center"
+                      <Button Grid.Column="5" Classes="rowaction" Command="{Binding RemoveCommand}" VerticalAlignment="Center"
+                              IsEnabled="{Binding !HasState}"
                               ToolTip.Tip="Take this change out of the list; nothing is sent">
                         <ic:FluentIcon Icon="ArrowUndo" FontSize="14" />
                       </Button>

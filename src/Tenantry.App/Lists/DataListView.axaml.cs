@@ -882,6 +882,24 @@ public partial class DataListView : UserControl
         });
         if (file is null)
             return;
+        // The file should match Microsoft 365 now: changes since the last check come in first
+        // (the list reloads with them), usually in a few seconds.
+        _vm.ShowLoading("Checking Microsoft 365 for changes before saving…");
+        string? note;
+        try
+        {
+            note = await Tenantry.ViewModels.Freshness.BeforeExportAsync();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            note = $"Couldn't check for changes ({Tenantry.ViewModels.Friendly.Message(ex)}), so the file uses the copy as it was.";
+        }
+        finally
+        {
+            _vm.ShowLoading(null);
+        }
+        if (note is not null)
+            _vm.ShowLoadError(note);
         // A file open in Excel, or a folder that can't be written, says so above the list
         // rather than closing the app.
         try

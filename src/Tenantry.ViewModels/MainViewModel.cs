@@ -34,6 +34,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         _syncInterval = syncInterval;
         LastSyncedAt = tenant.Sync?.LastSyncedAt;
         MissingPermissions = tenant.MissingPermissions ?? [];
+        if (tenant.Sync is not null)
+            Freshness.BringUpToDate = BringUpToDateAsync;
 
         var createUsers = Evaluate(Capabilities.EditUsers);
         Users = DataListViewModel.Create(UserList.Definition(_now, u => NewUserPage(u)), LoadUsersAsync, OpenUser, tenant.ListState, _now);
@@ -155,7 +157,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         if (tenant.Changes is { } changes)
         {
             Pending = new PendingChangesViewModel(changes, tenant.TenantName, showTestMode: !tenant.IsDemo, AfterChangesAppliedAsync,
-                tenant.Scripts is null ? null : ShowPowerShell);
+                tenant.Scripts is null ? null : ShowPowerShell, change => StaleCheck.Reason(change, _index));
         }
         // Several rows checked: the preview pane becomes a selection panel with bulk changes.
         var canEditMany = Evaluate(Capabilities.EditUsers);
@@ -704,9 +706,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         {
             await LoadListsAsync(cancellationToken);
             if (await SyncAsync(null, SyncScope.Changes, cancellationToken) > 0)
-                await ReloadListsAsync(cancellationToken);
+                await FollowLocalCopyAsync();
         }
 
+        _ready = true;
+        // Choosing a record or ticking rows checks first, so what's shown and changed is current.
+        foreach (var list in new[] { Users, Groups, Contacts, Devices, SharePoint.Sites, SharePoint.OneDrives })
+            list.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName is nameof(DataListViewModel.SelectedRow) or nameof(DataListViewModel.SelectedRows))
+                    CheckSoon(Freshness.ForRecord);
+            };
         StartChecking();
     }
 
@@ -714,7 +724,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     {
         try
         {
-            await ReloadListsAsync(_lifetime.Token);
+            await FollowLocalCopyAsync();
             OnPropertyChanged(nameof(SyncTip));
         }
         catch (OperationCanceledException)
@@ -762,7 +772,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     {
         if (await SyncAsync(null, scope, _lifetime.Token) is null)
             throw new InvalidOperationException(SyncError ?? "The sync failed.");
-        await ReloadListsAsync(_lifetime.Token);
+        await FollowLocalCopyAsync();
     }
 
     // ---- Sync status ----------------------------------------------------------------------
@@ -836,7 +846,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     async Task Refresh()
     {
         if (await SyncAsync(null, SyncScope.Refresh, _lifetime.Token) > 0)
-            await ReloadListsAsync(_lifetime.Token);
+            await FollowLocalCopyAsync();
+    }
+
+    /// <summary>
+    /// Before an export: checks for changes now (waiting for a check already running) and reloads
+    /// the lists when there were any. Null when up to date; otherwise a note for the export.
+    /// </summary>
+    async Task<string?> BringUpToDateAsync(TimeSpan maxAge)
+    {
+        var waited = System.Diagnostics.Stopwatch.StartNew();
+        while (IsSyncing && waited.Elapsed < TimeSpan.FromMinutes(2) && !_lifetime.IsCancellationRequested)
+            await Task.Delay(250, _lifetime.Token);
+        if (IsSyncing)
+            return "A check for changes is still running, so this uses the copy as it is.";
+        // Checked recently enough (perhaps by the check just waited for): nothing to ask.
+        if (SyncError is null && LastSyncedAt is { } last && _now() - last < maxAge)
+            return null;
+        var changed = await SyncAsync(null, SyncScope.Changes, _lifetime.Token);
+        if (changed is null)
+            return $"Couldn't check for changes ({SyncError}), so this uses the copy from {(LastSyncedAt is { } at ? Display.Exact(at) : "earlier")}.";
+        if (changed > 0)
+            await FollowLocalCopyAsync();
+        return null;
     }
 
     /// <summary>Runs one sync; returns the number of changes, or null if it failed (see <see cref="SyncError"/>).</summary>
@@ -888,7 +920,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
                 if (!IsSyncing && await SyncAsync(null, SyncScope.Changes, cancellationToken) > 0)
-                    await ReloadListsAsync(cancellationToken);
+                    await FollowLocalCopyAsync();
             }
         }
         catch (OperationCanceledException)
@@ -906,6 +938,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
         SecurityArea.AuditLog.Dispose();
         foreach (var page in Tabs.OfType<EdSearchPageViewModel>().ToArray())
             page.Dispose();
+        // Exports stop checking this tenant (another may already have opened and taken over).
+        if (Freshness.BringUpToDate == (Func<TimeSpan, Task<string?>>)BringUpToDateAsync)
+            Freshness.BringUpToDate = null;
         _lifetime.Cancel();
         _lifetime.Dispose();
         // The background reads (mailbox details, the log archive) stop before the local copy closes.
@@ -917,6 +952,38 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, ISync
     /// The sidebar picks the area; the first tab is always that area's list, so the two never
     /// show the same thing twice. Record tabs after it stay open across areas.
     /// </summary>
+    /// <summary>A record shows Microsoft 365 as it is (within 30 seconds); a list or report within 2 minutes.</summary>
+    partial void OnSelectedTabChanged(TabViewModel? value) =>
+        CheckSoon(value is UserDetailViewModel or GroupDetailViewModel or ContactDetailViewModel or SiteDetailViewModel or DeviceDetailViewModel
+            ? Freshness.ForRecord : Freshness.ForList);
+
+    /// <summary>Set once the tenant's first load and check are done; before that, the opening check covers it.</summary>
+    bool _ready;
+
+    /// <summary>
+    /// Checks for changes behind the screen when the copy is older than <paramref name="maxAge"/>;
+    /// lists and open records update when it's done. Quiet: a failure shows on the status line.
+    /// </summary>
+    void CheckSoon(TimeSpan maxAge)
+    {
+        if (!_ready || _tenant.Sync is null || _lifetime.IsCancellationRequested || IsSyncing
+            || (SyncError is null && LastSyncedAt is { } last && _now() - last < maxAge))
+            return;
+        _ = CheckQuietlyAsync(maxAge);
+    }
+
+    async Task CheckQuietlyAsync(TimeSpan maxAge)
+    {
+        try
+        {
+            await BringUpToDateAsync(maxAge);
+        }
+        catch (OperationCanceledException)
+        {
+            // The tenant closed meanwhile.
+        }
+    }
+
     partial void OnSelectedSectionChanged(NavSection? value)
     {
         foreach (var (section, tab) in AreaTabs)

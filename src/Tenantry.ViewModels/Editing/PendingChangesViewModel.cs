@@ -45,8 +45,39 @@ public sealed partial class PendingRow(ChangeOp change, Action<ChangeOp> remove,
 
     public bool HasProgress => Progress is not null;
 
+    /// <summary>While Apply runs: Waiting, Applying, Applied or Didn't Go Through; null otherwise.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasState), nameof(IsWorking), nameof(IsDone), nameof(IsFailed), nameof(IsWaiting))]
+    public partial ApplyState? State { get; set; }
+
+    public bool HasState => State is not null;
+    public bool IsWaiting => State == ApplyState.Waiting;
+    public bool IsWorking => State == ApplyState.Applying;
+    public bool IsDone => State == ApplyState.Applied;
+    public bool IsFailed => State == ApplyState.Failed;
+
+    public string StateText => State switch
+    {
+        ApplyState.Waiting => "Waiting",
+        ApplyState.Applying => "Applying…",
+        ApplyState.Applied => "Applied",
+        ApplyState.Failed => "Didn't Go Through",
+        _ => "",
+    };
+
+    partial void OnStateChanged(ApplyState? value) => OnPropertyChanged(nameof(StateText));
+
     [RelayCommand]
     void Remove() => remove(Change);
+}
+
+/// <summary>Where one change is while the tray applies them.</summary>
+public enum ApplyState
+{
+    Waiting,
+    Applying,
+    Applied,
+    Failed,
 }
 
 /// <summary>
@@ -111,9 +142,11 @@ public sealed partial class PendingChangesViewModel : ObservableObject
 
     /// <param name="afterApply">Runs after changes apply (reload the lists, refresh open records).</param>
     /// <param name="showPowerShell">Shows the PowerShell for one change or all of them; null hides the buttons.</param>
+    /// <param name="staleReason">Why a staged change's starting point has since changed (someone else changed it), or null.</param>
     public PendingChangesViewModel(ChangePipeline pipeline, string tenantName, bool showTestMode, Func<Task> afterApply,
-        Action<IReadOnlyList<ChangeOp>>? showPowerShell = null)
+        Action<IReadOnlyList<ChangeOp>>? showPowerShell = null, Func<ChangeOp, string?>? staleReason = null)
     {
+        _staleReason = staleReason;
         _pipeline = pipeline;
         _tenantName = tenantName;
         _afterApply = afterApply;
@@ -125,6 +158,9 @@ public sealed partial class PendingChangesViewModel : ObservableObject
             // A new edit starts a new batch: "applied" from the last one would read as if it were pending.
             if (!IsApplying && ResultIsSuccess)
                 Result = null;
+            // A different set of changes is checked against Microsoft 365 again.
+            if (!IsApplying)
+                _staleShown = false;
             Rebuild();
         };
         // Reports can come from a background thread; the rows belong to the UI's.
@@ -141,8 +177,138 @@ public sealed partial class PendingChangesViewModel : ObservableObject
             else
                 ui.Post(_ => Show(), null);
         };
+        void OnUi(Action act)
+        {
+            if (ui is null || SynchronizationContext.Current == ui)
+                act();
+            else
+                ui.Post(_ => act(), null);
+        }
+        _pipeline.Starting += (_, change) => OnUi(() =>
+        {
+            CurrentRow = Rows.FirstOrDefault(r => ReferenceEquals(r.Change, change));
+            if (CurrentRow is { } row)
+                row.State = ApplyState.Applying;
+            ApplyCurrent = change.Target.Name;
+            UpdateApplyStatus();
+        });
+        _pipeline.Finished += (_, done) => OnUi(() =>
+        {
+            foreach (var row in Rows.Where(r => ReferenceEquals(r.Change, done.Change)))
+            {
+                row.State = done.Result.Succeeded ? ApplyState.Applied : ApplyState.Failed;
+                row.Progress = null;
+            }
+            ApplyDone++;
+            if (!done.Result.Succeeded)
+                ApplyFailed++;
+            UpdateApplyStatus();
+        });
         Rebuild();
     }
+
+    // ---- Checking before applying -------------------------------------------------------------------
+
+    readonly Func<ChangeOp, string?>? _staleReason;
+
+    /// <summary>Changes someone else made since staging were shown; the next Apply goes ahead.</summary>
+    bool _staleShown;
+
+    /// <summary>Bringing the local copy up to date before Apply.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsWorking))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCommand), nameof(DiscardAllCommand))]
+    public partial bool IsCheckingFirst { get; private set; }
+
+    /// <summary>Checking first or applying: the progress line shows.</summary>
+    public bool IsWorking => IsCheckingFirst || IsApplying;
+
+    partial void OnIsApplyingChanged(bool value) => OnPropertyChanged(nameof(IsWorking));
+
+    /// <summary>
+    /// Brings the copy up to date, then marks staged changes whose starting point someone else has
+    /// since changed. True when there were some (shown on their rows; Apply again to go ahead).
+    /// </summary>
+    async Task<bool> ShowChangedSinceAsync()
+    {
+        IsCheckingFirst = true;
+        ApplyStatus = "Checking Microsoft 365 for changes first…";
+        string? note;
+        try
+        {
+            note = await Freshness.EnsureAsync(Freshness.ForAction);
+        }
+        finally
+        {
+            IsCheckingFirst = false;
+        }
+        var changed = 0;
+        foreach (var row in Rows)
+        {
+            if (_staleReason?.Invoke(row.Change) is { } reason)
+            {
+                row.Problem = reason;
+                changed++;
+            }
+        }
+        if (changed == 0)
+        {
+            if (note is not null)
+                Result = note;
+            return false;
+        }
+        _staleShown = true;
+        Result = $"{Plural(changed, "change")} {(changed == 1 ? "was" : "were")} changed by someone else after you staged {(changed == 1 ? "it" : "them")} (see below). " +
+                 "Apply again to go ahead anyway, or Undo the ones you don't want.";
+        return true;
+    }
+
+    // ---- Progress while applying --------------------------------------------------------------------
+
+    readonly System.Diagnostics.Stopwatch _applyClock = new();
+
+    /// <summary>The row being applied now, so the list can keep it in view.</summary>
+    [ObservableProperty]
+    public partial PendingRow? CurrentRow { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ApplyPercent))]
+    public partial int ApplyDone { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ApplyPercent))]
+    public partial int ApplyTotal { get; private set; }
+
+    [ObservableProperty]
+    public partial int ApplyFailed { get; private set; }
+
+    /// <summary>Whose change is being sent now.</summary>
+    [ObservableProperty]
+    public partial string? ApplyCurrent { get; private set; }
+
+    public double ApplyPercent => ApplyTotal == 0 ? 0 : 100.0 * ApplyDone / ApplyTotal;
+
+    /// <summary>"Applying 23 of 177 · 1 didn't go through · about 3 minutes left".</summary>
+    [ObservableProperty]
+    public partial string ApplyStatus { get; private set; } = "";
+
+    void UpdateApplyStatus()
+    {
+        var parts = new List<string> { $"Applying {Math.Min(ApplyDone + 1, ApplyTotal):N0} of {ApplyTotal:N0}" + (ApplyCurrent is { } who ? $": {who}" : "") };
+        if (ApplyFailed > 0)
+            parts.Add($"{ApplyFailed:N0} didn't go through");
+        // An estimate once a few are done: the average so far, times what's left.
+        if (ApplyDone >= 3 && ApplyDone < ApplyTotal)
+            parts.Add(TimeLeft(TimeSpan.FromTicks(_applyClock.Elapsed.Ticks / ApplyDone * (ApplyTotal - ApplyDone))));
+        ApplyStatus = string.Join(" · ", parts);
+    }
+
+    public static string TimeLeft(TimeSpan left) => left.TotalSeconds switch
+    {
+        < 60 => "less than a minute left",
+        < 90 => "about a minute left",
+        _ => $"about {Math.Round(left.TotalMinutes):N0} minutes left",
+    };
 
     public ObservableCollection<PendingRow> Rows { get; } = [];
 
@@ -355,21 +521,35 @@ public sealed partial class PendingChangesViewModel : ObservableObject
 
     public bool ApplyIsDanger => IsConfirming;
 
-    bool CanApply => HasChanges && !IsApplying && (!IsConfirming || TypedConfirms.All(t => t.Matches));
+    bool CanApply => HasChanges && !IsApplying && !IsCheckingFirst && (!IsConfirming || TypedConfirms.All(t => t.Matches));
 
     /// <summary>Applies everything; with changes that take something away, the first click asks to confirm.</summary>
     [RelayCommand(CanExecute = nameof(CanApply))]
     async Task Apply()
     {
+        // First: is everything still as it was when staged? (Skipped once that has been shown.)
+        if (!_staleShown && await ShowChangedSinceAsync())
+            return;
         if (CautionCount > 0 && !IsConfirming)
         {
             IsConfirming = true;
             return;
         }
         IsConfirming = false;
-        IsApplying = true;
         Result = null;
         _resultSucceeded = false;
+        foreach (var row in Rows)
+        {
+            row.State = ApplyState.Waiting;
+            row.Problem = null;
+        }
+        ApplyTotal = Rows.Count;
+        ApplyDone = 0;
+        ApplyFailed = 0;
+        ApplyCurrent = null;
+        _applyClock.Restart();
+        UpdateApplyStatus();
+        IsApplying = true;
         try
         {
             var results = await _pipeline.ApplyAsync();
@@ -421,10 +601,15 @@ public sealed partial class PendingChangesViewModel : ObservableObject
         finally
         {
             IsApplying = false;
+            _applyClock.Stop();
+            CurrentRow = null;
+            // Rows still here (didn't go through, or not yet applied) go back to plain pending rows.
+            foreach (var row in Rows)
+                row.State = null;
         }
     }
 
-    bool CanDiscard => HasChanges && !IsApplying;
+    bool CanDiscard => HasChanges && !IsApplying && !IsCheckingFirst;
 
     [RelayCommand(CanExecute = nameof(CanDiscard))]
     void DiscardAll()
