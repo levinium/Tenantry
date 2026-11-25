@@ -52,5 +52,7 @@
         </StackPanel>
       </Button>
     </WrapPanel>
+    <!-- The groups it reaches, and (ticked) the people in them, as CSV. -->
+    <views:PeopleExportButton DataContext="{Binding Exporter}" HorizontalAlignment="Left" IsVisible="{Binding !$parent[UserControl].((it:AssignmentEditor)DataContext).IsEmpty}" />
   </StackPanel>
 </UserControl>

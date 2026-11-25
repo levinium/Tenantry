@@ -251,6 +251,13 @@ public sealed partial class GroupMailEditor : ObservableObject, IDisposable
     public MailPeopleList SendOnBehalf { get; }
     public MailPeopleList SendAs { get; }
 
+    /// <summary>Export: everyone on the six lists above, each row naming its list.</summary>
+    public PeopleExporter Exporter => field ??= new PeopleExporter(() => $"{_group.DisplayName} mail settings",
+        () => new[] { AcceptList, RejectList, Moderators, Bypass, SendOnBehalf, SendAs }
+            .SelectMany(list => list.Rows.Select(r => r.ToExport(list.Title, _index)).OfType<ExportEntry>())
+            .ToArray(),
+        _index, PeopleExporter.Everyone("Everyone on These Lists"));
+
     SetGroupMailValue? PendingValue(string parameter) => _pipeline?.PendingFor(_group.Id, "mail:" + parameter) as SetGroupMailValue;
 
     /// <summary>A switch over one boolean parameter (<paramref name="inverted"/>: on means the parameter is false).</summary>

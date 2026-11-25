@@ -148,12 +148,23 @@ public sealed partial class SelectionPanelViewModel : ObservableObject, ISelecti
     void RespondToCompromise() => _workflows?.RespondToCompromise(_rows.Cast<UserSummary>().ToArray());
 
     public static SelectionPanelViewModel ForGroups(IReadOnlyList<object> rows, Action<object> uncheck, IDirectoryIndex index,
-        ChangePipeline? pipeline, Availability canEdit) =>
-        new(rows, uncheck, "group or mailbox", "groups and mailboxes",
+        ChangePipeline? pipeline, Availability canEdit)
+    {
+        var panel = new SelectionPanelViewModel(rows, uncheck, "group or mailbox", "groups and mailboxes",
             r => (((GroupSummary)r).DisplayName, ((GroupSummary)r).Mail ?? GroupSummary.KindName(((GroupSummary)r).Kind)),
             SummarizeGroups,
             current => BulkActions.ForGroups(() => current().Cast<GroupSummary>().ToArray(), index),
             pipeline, canEdit);
+        // One file for everyone selected, with a Group column; exporting needs no edit rights.
+        panel.Exporter = new PeopleExporter(
+            () => panel._rows.Count == 1 ? ((GroupSummary)panel._rows[0]).DisplayName : $"{panel._rows.Count} groups",
+            () => panel._rows.Cast<GroupSummary>().SelectMany(g => GroupPeopleEditor.ExportEntries(g, g.DisplayName)).ToArray(),
+            index, PeopleExporter.OwnersAndMembers, containerHeading: "Group", detailHeading: "Rights");
+        return panel;
+    }
+
+    /// <summary>Export the people of everything selected (groups only).</summary>
+    public PeopleExporter? Exporter { get; private set; }
 
     public static SelectionPanelViewModel ForDevices(IReadOnlyList<object> rows, Action<object> uncheck, ChangePipeline? pipeline, Availability canEdit,
         Func<DateTimeOffset> now) =>

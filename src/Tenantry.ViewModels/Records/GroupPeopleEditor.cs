@@ -39,10 +39,23 @@ public sealed partial class GroupPeopleEditor : ObservableObject, IDisposable
         MemberPicker = new PersonPicker("Name or address", MemberOptions, o => Add(o, GroupRole.Member));
         AccessPicker = new PersonPicker("Person's name or address", AccessOptions, o =>
             _pipeline?.Stage(new SetMailboxAccess(GroupAccess.Target(_group), o.Target("user"), MailboxRight.FullAccess, false, true)));
+        Exporter = group.IsMailbox
+            ? new PeopleExporter(() => _group.DisplayName, () => ExportEntries(_group), index, PeopleExporter.Everyone(), detailHeading: "Rights")
+            : new PeopleExporter(() => _group.DisplayName, () => ExportEntries(_group), index, PeopleExporter.OwnersAndMembers);
         Rebuild();
         if (_pipeline is not null)
             _pipeline.Changed += OnPendingChanged;
     }
+
+    /// <summary>Export: owners and members as they are now (pending changes aren't included until applied).</summary>
+    public PeopleExporter Exporter { get; }
+
+    /// <summary>A group's owners then members, or a mailbox's people with their rights, for an export.</summary>
+    public static IReadOnlyList<ExportEntry> ExportEntries(GroupSummary group, string? container = null) => group.IsMailbox
+        ? group.Members.Select(m => new ExportEntry("Has Access", m, container, m.Access, group.Id)).ToArray()
+        : group.OwnerList.Select(m => new ExportEntry("Owner", m, container, ContainerId: group.Id))
+            .Concat(group.Members.Select(m => new ExportEntry("Member", m, container, ContainerId: group.Id)))
+            .ToArray();
 
     public bool IsMailbox => _group.IsMailbox;
 

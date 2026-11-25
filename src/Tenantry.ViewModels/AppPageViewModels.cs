@@ -169,7 +169,9 @@ public abstract partial class AppPageViewModel : TabViewModel, IDisposable
         }, pending.FirstOrDefault(p => !p.Add && p.Owner.Id == o.Id), () => new SetAppOwner(Target, new ChangeTarget("user", o.Id, o.Name, o.Detail), false),
             tip: "Stop them managing this app (added to Pending Changes)")).ToList();
         rows.AddRange(pending.Where(p => p.Add).Select(p => Adding(p.Owner.Name, p.Owner.Address, p)));
-        return [new AppCard("Owners", caption, Rows: rows, EmptyText: "Nobody owns this app.", Form: CanEdit ? form : null)];
+        var exporter = new PeopleExporter(() => $"{Target.Name} owners",
+            () => owners.Select(o => ExportEntry.Principal("Owner", o.Id, o.Name, o.Detail, "Person", Index)).ToArray(), Index, PeopleExporter.Everyone());
+        return [new AppCard("Owners", caption, Rows: rows, EmptyText: "Nobody owns this app.", Form: CanEdit ? form : null, Exporter: exporter)];
     }
 
     protected AppPickForm OwnerPicker(Func<IEnumerable<string>> current) =>
@@ -695,11 +697,16 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
         }, pending.OfType<RemoveAppUserAssignment>().FirstOrDefault(r => r.AssignmentId == a.Id),
             () => new RemoveAppUserAssignment(Target, a.Id, a.PrincipalName, a.RoleName ?? "Access"), tip: "Take their access away (added to Pending Changes)")).ToList();
         rows.AddRange(pending.OfType<AddAppUserAssignment>().Select(a => Adding(a.Principal.Name, $"{(a.PrincipalType == "Group" ? "Group" : "Person")} · {a.RoleName}", a)));
+        var assignments = detail.Assignments;
+        var exporter = new PeopleExporter(() => $"{App.Name} users and groups",
+            () => assignments.Select(a => ExportEntry.Principal(a.RoleName ?? "Access", a.PrincipalId, a.PrincipalName, null,
+                a.PrincipalType == "ServicePrincipal" ? "App" : a.PrincipalType == "Group" ? "Group" : "Person", Index, detail: $"Given {Day(a.Created)}")).ToArray(),
+            Index, PeopleExporter.Everyone(), detailHeading: "Given");
         return
         [
             new AppCard("Users & Groups",
                 App.AssignmentRequired ? "Only these people and groups (and members of the groups) can sign in." : "Assignment isn't required, so anyone in the organization can sign in; these are shown the app in My Apps.",
-                Rows: rows, EmptyText: "Nobody has been given access.", Form: CanEdit ? _assignForm : null),
+                Rows: rows, EmptyText: "Nobody has been given access.", Form: CanEdit ? _assignForm : null, Exporter: exporter),
         ];
     }
 
@@ -733,7 +740,11 @@ public sealed partial class EnterpriseAppPageViewModel : AppPageViewModel
                     Detail = g.Resource,
                     Chips = g.Scopes,
                     OpenAction = g.PrincipalId is { } pid && Index.User(pid) is { } u && OpenUserAction is { } open ? () => open(u) : null,
-                }, g.Id, false, $"{g.Resource}: {string.Join(", ", g.Scopes)}", g.PrincipalName ?? "someone"))], EmptyText: "Nobody has consented for themselves."),
+                }, g.Id, false, $"{g.Resource}: {string.Join(", ", g.Scopes)}", g.PrincipalName ?? "someone"))], EmptyText: "Nobody has consented for themselves.",
+                Exporter: new PeopleExporter(() => $"{App.Name} consents",
+                    () => personal.Select(g => ExportEntry.Principal("Consented", g.PrincipalId, g.PrincipalName ?? "Someone", null, "Person", Index,
+                        detail: $"{g.Resource}: {string.Join(" ", g.Scopes)}")).ToArray(),
+                    Index, PeopleExporter.Everyone(), detailHeading: "Permissions")),
         ];
     }
 }

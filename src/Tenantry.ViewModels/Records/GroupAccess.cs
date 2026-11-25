@@ -220,6 +220,16 @@ public sealed partial class ToggleRow(string name, string detail, string typeTex
 public sealed partial class PersonRow(MemberRow row, string? pendingText, bool canRemove, string removeTip, Action toggle, Action? open,
     bool showRemove = true) : ObservableObject
 {
+    /// <summary>Who the row is (for an export).</summary>
+    public MemberRow Member => row;
+
+    /// <summary>
+    /// This row for an export under <paramref name="role"/>, or null while it's only waiting to be
+    /// added (exports show things as they are).
+    /// </summary>
+    public ExportEntry? ToExport(string role, IDirectoryIndex index) => pendingText == "Adding" ? null
+        : ExportEntry.Principal(role, row.User?.Id ?? row.Group?.Id ?? row.Contact?.Id, row.Name, row.Detail, row.TypeText, index);
+
     public string Name => row.Name;
     public string? Detail => row.Detail;
     public string TypeText => row.TypeText;

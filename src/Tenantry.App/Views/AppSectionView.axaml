@@ -22,7 +22,13 @@
           <Border Classes="card">
             <StackPanel Spacing="10">
               <StackPanel Spacing="2">
-                <TextBlock Classes="h3" Text="{Binding Title}" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Classes="h3" Text="{Binding Title}" VerticalAlignment="Center" />
+                  <!-- Cards that list people (owners, members, who has access) can be saved as CSV. -->
+                  <Panel Grid.Column="1" IsVisible="{Binding HasExporter}">
+                    <views:PeopleExportButton DataContext="{Binding Exporter}" />
+                  </Panel>
+                </Grid>
                 <TextBlock Classes="caption" Text="{Binding Caption}" IsVisible="{Binding HasCaption}" TextWrapping="Wrap" />
               </StackPanel>
               <!-- Above the rows: the card's form (an Add button, for lists) on the left, search on the right -->

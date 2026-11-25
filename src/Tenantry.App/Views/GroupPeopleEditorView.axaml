@@ -44,6 +44,9 @@
       </StackPanel>
     </Border>
 
+    <!-- Export everyone listed below (owners and/or members, or people with access) as CSV. -->
+    <views:PeopleExportButton DataContext="{Binding Exporter}" HorizontalAlignment="Left" />
+
     <!-- Groups: owners, then members -->
     <StackPanel Spacing="10" IsVisible="{Binding IsGroup}">
       <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">

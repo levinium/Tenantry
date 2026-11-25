@@ -81,9 +81,11 @@ public sealed partial class AppRow
 
 /// <summary>A card on an app's page: a heading, a line about it, label/value facts and rows.</summary>
 /// <param name="Form">Something to fill in above the rows (add a secret, pick a person, switches), shown through its own template.</param>
+/// <param name="Exporter">For a card listing people (owners, members, who has access): Export beside its heading.</param>
 public sealed record AppCard(string Title, string? Caption = null, IReadOnlyList<SummaryLine>? Facts = null, IReadOnlyList<AppRow>? Rows = null, string? EmptyText = null,
-    object? Form = null)
+    object? Form = null, PeopleExporter? Exporter = null)
 {
+    public bool HasExporter => Exporter is not null;
     public bool HasForm => Form is not null;
     public bool HasCaption => !string.IsNullOrEmpty(Caption);
     public IReadOnlyList<SummaryLine> FactLines => Facts ?? [];

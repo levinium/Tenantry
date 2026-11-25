@@ -77,6 +77,32 @@ public sealed partial class GroupsAccessSection : RecordSection, IDisposable
 
     public bool HasNoGroups => Groups.Count == 0;
 
+    /// <summary>
+    /// Export: the groups and Teams they're in (member, owner or both), the shared mailboxes they
+    /// can use, and who can use their own mailbox (once read), each with the rights.
+    /// </summary>
+    public PeopleExporter Exporter => field ??= new PeopleExporter(() => _user.DisplayName, ExportEntries, _index,
+    [
+        new("Everything on This Tab", "Groups, shared mailboxes and who can use their mailbox, in one file", null, "groups and access"),
+        new("Groups and Teams", "The groups and Teams they're a member or owner of",
+            new HashSet<string>(StringComparer.Ordinal) { "Member", "Owner", "Member and Owner" }, "groups"),
+        new("Shared Mailboxes They Can Use", "Shared mailboxes they have rights to", new HashSet<string>(StringComparer.Ordinal) { "Can Use" }, "shared mailboxes"),
+        new("Who Can Use Their Mailbox", "People with rights to their own mailbox", new HashSet<string>(StringComparer.Ordinal) { "Has Access" }, "mailbox access"),
+    ], detailHeading: "Rights", nested: false);
+
+    IReadOnlyList<ExportEntry> ExportEntries()
+    {
+        static string Rights(IEnumerable<MailboxRight> rights) => string.Join(", ", rights.Order().Select(SetMailboxAccess.RightLabel));
+        var entries = _groups
+            .OrderBy(g => g.Group.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .Select(g => new ExportEntry(g.Member && g.Owner ? "Member and Owner" : g.Owner ? "Owner" : "Member", new GroupMember(g.Group.Id, "group")))
+            .Concat(_mailboxes.OrderBy(m => m.Mailbox.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .Select(m => new ExportEntry("Can Use", new GroupMember(m.Mailbox.Id, "group"), Detail: Rights(m.Rights))))
+            .Concat((_delegates ?? []).Select(d => ExportEntry.Principal("Has Access", d.Person.Id, d.Row.Name, d.Row.Detail, d.Row.TypeText, _index,
+                detail: Rights(d.Rights))));
+        return entries.ToArray();
+    }
+
     public bool HasNoMailboxes => Mailboxes.Count == 0;
 
     public bool HasNoDelegates => Delegates.Count == 0 && IsDelegatesReady;

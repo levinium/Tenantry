@@ -7,6 +7,7 @@
              x:DataType="rec:SitePermissionsSection">
   <StackPanel Spacing="12" MaxWidth="1180" HorizontalAlignment="Stretch">
     <views:DeviceSectionStatusView />
+    <views:PeopleExportButton DataContext="{Binding Exporter}" HorizontalAlignment="Left" />
     <ItemsControl ItemsSource="{Binding Groups}">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate>

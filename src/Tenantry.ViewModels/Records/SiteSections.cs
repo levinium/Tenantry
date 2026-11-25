@@ -117,6 +117,13 @@ public sealed partial class PrincipalRow(SitePrincipal principal, string? detail
             user, group, openUser, openGroup);
     }
 
+    /// <summary>This row for an export, under <paramref name="role"/> ("Site Owners", "Guest").</summary>
+    public ExportEntry ToExport(string role, IDirectoryIndex index) =>
+        ExportEntry.Principal(role, principal.ObjectId, Name, principal.Upn ?? Detail, KindText, index);
+
+    /// <summary>Rows as they are now: people waiting to be added (Pending Changes) are left out.</summary>
+    public static IEnumerable<PrincipalRow> Current(IEnumerable<PrincipalRow> rows) => rows.Where(r => r.StateText != "Adding");
+
     /// <summary>A person from the directory as SharePoint would name them.</summary>
     public static SitePrincipal PersonOf(UserSummary u) =>
         new(u.DisplayName, SetOneDriveAccess.LoginFor(u.UserPrincipalName), u.Kind == UserKind.Guest ? PrincipalKind.Guest : PrincipalKind.Person, Upn: u.UserPrincipalName);
@@ -218,7 +225,13 @@ public sealed class SitePermissionsSection : SiteSection, IDisposable
     {
         if (page.Pipeline is { } pipeline)
             pipeline.Changed += OnPendingChanged;
+        Exporter = new PeopleExporter(() => $"{Site.Title} permissions",
+            () => Groups.SelectMany(card => PrincipalRow.Current(card.Members).Select(m => m.ToExport(card.Name, Page.Index))).ToArray(),
+            page.Index, PeopleExporter.Everyone("Everyone with Access"));
     }
+
+    /// <summary>Export: everyone in every group on this tab, each row naming the group.</summary>
+    public PeopleExporter Exporter { get; }
 
     public override string Key => "permissions";
     public override string Title => "Permissions";
@@ -455,6 +468,15 @@ public sealed class SiteSharingSection(SiteDetailViewModel page) : SiteSection(p
     public ObservableCollection<LinkSummaryRow> Links { get; } = [];
     public ObservableCollection<PrincipalRow> SharedWith { get; } = [];
     public ObservableCollection<PrincipalRow> Guests { get; } = [];
+
+    /// <summary>Export: who links were shared with, and the site's guests.</summary>
+    public PeopleExporter Exporter => field ??= new PeopleExporter(() => $"{Site.Title} sharing",
+        () => SharedWith.Select(r => r.ToExport("Shared With", Page.Index)).Concat(Guests.Select(r => r.ToExport("Guest", Page.Index))).ToArray(),
+        Page.Index,
+        [
+            new("Shared With and Guests", "Everyone links were shared with, and every guest", null, null),
+            new("Guests Only", "Only the site's guests", new HashSet<string>(StringComparer.Ordinal) { "Guest" }, "guests"),
+        ]);
 
     public bool HasNoLinks => !IsLoading && Links.Count == 0 && Note is null;
     public bool HasSharedWith => SharedWith.Count > 0;

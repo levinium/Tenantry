@@ -15,6 +15,10 @@
       <TextBlock Classes="h2" Text="{Binding Heading}" />
       <TextBlock Classes="caption" TextWrapping="Wrap"
                  Text="Changes made here apply to every one of them and go to Pending Changes for review." />
+      <!-- Groups: everyone in them, one file with a Group column. -->
+      <Panel HorizontalAlignment="Left" Margin="0,6,0,0" IsVisible="{Binding Exporter, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <views:PeopleExportButton DataContext="{Binding Exporter}" />
+      </Panel>
     </StackPanel>
 
     <!-- Who -->

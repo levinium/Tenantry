@@ -66,10 +66,12 @@
   </UserControl.DataTemplates>
 
   <StackPanel Spacing="12">
-    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
       <ic:FluentIcon Icon="Mail" FontSize="20" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" />
       <TextBlock Grid.Column="1" Classes="h3" Text="Mail" VerticalAlignment="Center" />
-      <Button Grid.Column="2" Command="{Binding ReloadCommand}" ToolTip.Tip="Read the mail settings from Exchange again">
+      <!-- Who can send, moderators, send as and on behalf: one file, each row naming its list. -->
+      <views:PeopleExportButton Grid.Column="2" DataContext="{Binding Exporter}" IsVisible="{Binding $parent[UserControl].((rec:GroupMailEditor)DataContext).IsReady}" />
+      <Button Grid.Column="3" Command="{Binding ReloadCommand}" ToolTip.Tip="Read the mail settings from Exchange again">
         <StackPanel Orientation="Horizontal" Spacing="6">
           <ic:FluentIcon Icon="ArrowSync" FontSize="14" />
           <TextBlock Text="Refresh" />

@@ -299,7 +299,10 @@ public sealed partial class EdCasePageViewModel : CardPageViewModel
         return
         [
             new AppCard("Members", "Members see the case and can work on its searches and holds. They also need an eDiscovery role in Purview.", Rows: rows,
-                EmptyText: "Nobody is a member.", Form: _ctx.Editable ? _memberForm : null),
+                EmptyText: "Nobody is a member.", Form: _ctx.Editable ? _memberForm : null,
+                Exporter: new PeopleExporter(() => $"{Case.Name} members",
+                    () => detail.Members.Select(m => ExportEntry.Principal("Member", null, m.Name, m.Address, "Person", _ctx.Index)).ToArray(),
+                    _ctx.Index, PeopleExporter.Everyone())),
         ];
     }
 }

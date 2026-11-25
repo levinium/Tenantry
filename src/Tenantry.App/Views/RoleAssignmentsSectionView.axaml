@@ -73,7 +73,10 @@
     <!-- Who holds it -->
     <Border Classes="card">
       <StackPanel Spacing="10">
-        <TextBlock Classes="h3" Text="Who Holds It" />
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="h3" Text="Who Holds It" VerticalAlignment="Center" />
+          <views:PeopleExportButton Grid.Column="1" DataContext="{Binding Exporter}" />
+        </Grid>
         <TextBlock Classes="muted" Text="Nobody holds this role." IsVisible="{Binding HasNoRows}" />
         <c:ReadableWidth>
         <ItemsControl ItemsSource="{Binding Rows}">

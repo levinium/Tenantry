@@ -71,6 +71,26 @@ public sealed partial class AssignmentEditor : ObservableObject
         if (pipeline is not null)
             pipeline.Changed += (_, _) => Fill();
         Fill();
+        Exporter = new Records.PeopleExporter(() => $"{policy.Name} assignments", () => _current.Select(a => ExportEntry(a, index)).ToArray(), index,
+            Records.PeopleExporter.Everyone(), detailHeading: "Filter");
+    }
+
+    /// <summary>
+    /// Export: who it's assigned to now (pending changes aren't included). With "Include people
+    /// in nested groups" ticked, the people each group reaches are listed too.
+    /// </summary>
+    public Records.PeopleExporter Exporter { get; }
+
+    static Records.ExportEntry ExportEntry(IntuneAssignment a, IDirectoryIndex index)
+    {
+        var role = (a.Intent is { } intent ? $"{IntuneAssignment.IntentText(intent)}: " : "") + (a.Kind == AssignmentKind.ExcludeGroup ? "Left Out" : "Included");
+        var filter = a.FilterName is null ? null : $"{(a.FilterMode == "exclude" ? "Except" : "Only")} devices matching {a.FilterName}";
+        return a.Kind switch
+        {
+            AssignmentKind.AllUsers => Records.ExportEntry.Principal(role, null, "All Users", null, "Everyone", index, filter),
+            AssignmentKind.AllDevices => Records.ExportEntry.Principal(role, null, "All Devices", null, "Everyone", index, filter),
+            _ => Records.ExportEntry.Principal(role, a.GroupId, a.GroupName ?? "A group", null, "Group", index, filter),
+        };
     }
 
     public bool CanEdit { get; }

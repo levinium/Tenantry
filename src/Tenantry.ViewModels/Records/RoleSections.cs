@@ -83,6 +83,15 @@ public sealed partial class RoleAssignmentsSection : RecordSection
 
     public bool HasNoRows => Rows.Count == 0;
 
+    /// <summary>Export: everyone who holds the role now (Active, Eligible or Activated), with where and until when.</summary>
+    public PeopleExporter Exporter => field ??= new PeopleExporter(() => $"{_page.Role.Role.Name} assignments",
+        () => _page.Role.Grants.Select(g => ExportEntry.Principal(
+            g.Activated ? "Activated" : g.Kind == RoleGrantKind.Eligible ? "Eligible" : "Active",
+            g.PrincipalId, g.PrincipalName, g.PrincipalDetail, RoleGrant.TypeName(g.PrincipalType), _page.Index,
+            detail: $"{(g.ScopeId == "/" ? "Whole organization" : g.ScopeName)} · {(g.End is { } end ? $"until {end.ToLocalTime():yyyy-MM-dd}" : "permanent")}"))
+            .ToArray(),
+        _page.Index, PeopleExporter.Everyone(), detailHeading: "Scope and End");
+
     // ---- Giving the role ------------------------------------------------------------------------
 
     public PersonPicker Picker { get; }

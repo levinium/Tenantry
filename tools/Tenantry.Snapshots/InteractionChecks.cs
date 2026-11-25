@@ -889,6 +889,154 @@ static class InteractionChecks
             }
         });
 
+        Check("Export people: a group's Export offers owners and members, owners, members and nested people; it saves CSV and says how many; the selection panel exports several groups", () =>
+        {
+            var (window, main, _) = OpenList();
+            var saved = new List<(string Name, string Csv)>();
+            var before = Tenantry.ViewModels.Platform.SaveCsv;
+            Tenantry.ViewModels.Platform.SaveCsv = (name, csv) => { saved.Add((name, csv)); return Task.FromResult(true); };
+            try
+            {
+                main.SelectedSection = main.Sections.Single(s => s.Key == "groups");
+                main.Groups.LoadAsync().GetAwaiter().GetResult();
+                Settle();
+                var groups = main.Groups.Rows.Cast<GroupSummary>().ToArray();
+                var announcements = groups.Single(g => g.DisplayName == "Announcements");
+                var allStaff = groups.Single(g => g.DisplayName == "All Staff");
+                main.OpenGroup(announcements);
+                Settle();
+                var page = (GroupDetailViewModel)main.SelectedTab!;
+                var exports = window.GetVisualDescendants().OfType<Button>().Where(b => b.DataContext == page.People.Exporter && b.Flyout is Flyout).ToList();
+                Expect(exports.Any(b => b.IsEffectivelyVisible), $"the group page shows Export ({exports.Count} found, visible {exports.Count(b => b.IsEffectivelyVisible)})");
+                var export = exports.First(b => b.IsEffectivelyVisible);
+                export.BringIntoView();
+                Settle();
+                Click(window, export);
+                var flyout = (Flyout)export.Flyout!;
+                Expect(flyout.IsOpen, "Export opened its popup");
+                var choices = Buttons(flyout).Where(b => b.DataContext is ExportChoice).ToList();
+                Expect(choices.Select(b => ((ExportChoice)b.DataContext!).Label).SequenceEqual(["Owners and Members", "Owners Only", "Members Only"]),
+                    "three choices: " + string.Join(", ", choices.Select(b => ((ExportChoice)b.DataContext!).Label)));
+                var nested = ((Control)flyout.Content!).GetVisualDescendants().OfType<CheckBox>().Single();
+                Expect(nested.IsEffectivelyVisible, "the nested-groups tickbox shows (it nests All Staff)");
+
+                Click(choices[2]);
+                Settle();
+                Expect(saved.Count == 1 && saved[0].Name.StartsWith("Announcements members ", StringComparison.Ordinal), $"saved {saved.LastOrDefault().Name}");
+                var flat = Tenantry.Core.Lists.Csv.Read(saved[0].Csv);
+                Expect(flat.Count == 2 && flat[1][1] == "All Staff" && flat[1][3] == "Group", "direct only: one row, the nested group");
+                Expect(flyout.IsOpen && page.People.Exporter.Status == "Saved 1 row.", $"the popup stays open and says so ({page.People.Exporter.Status})");
+
+                nested.IsChecked = true;
+                Settle();
+                Click(choices[0]);
+                Settle();
+                var deep = Tenantry.Core.Lists.Csv.Read(saved[1].Csv);
+                var direct = GroupPeopleEditor.ExportEntries(announcements).Count;
+                Expect(deep[0][^1] == "Through Group" && deep.Count == 1 + direct + allStaff.Members.Count
+                    && deep.Count(r => r[^1] == "All Staff") == allStaff.Members.Count, $"with nested people: All Staff's {allStaff.Members.Count} people, each marked ({deep.Count - 1} rows)");
+                flyout.Hide();
+                Settle();
+
+                // Several groups ticked: one file with a Group column.
+                main.SelectedTab = main.Tabs[0];
+                main.Groups.IsPreviewOpen = true;
+                Settle();
+                var leadership = groups.Single(g => g.DisplayName == "Leadership");
+                main.Groups.SelectedRows = [leadership, allStaff];
+                Settle();
+                var panel = (SelectionPanelViewModel)main.Groups.PreviewModel!;
+                var bulk = FindButton(window, b => b.DataContext == panel.Exporter && b.Flyout is Flyout && b.IsEffectivelyVisible);
+                Click(window, bulk);
+                var bulkFlyout = (Flyout)bulk.Flyout!;
+                Click(Buttons(bulkFlyout).First(b => b.DataContext is ExportChoice { Label: "Owners and Members" }));
+                Settle();
+                var both = Tenantry.Core.Lists.Csv.Read(saved[2].Csv);
+                Expect(both[0][0] == "Group" && saved[2].Name.StartsWith("2 groups ", StringComparison.Ordinal), $"a Group column, named for the selection ({saved[2].Name})");
+                var expected = GroupPeopleEditor.ExportEntries(leadership).Count + GroupPeopleEditor.ExportEntries(allStaff).Count;
+                Expect(both.Count == 1 + expected && both.Skip(1).Select(r => r[0]).Distinct().Count() == 2, $"everyone from both ({both.Count - 1} of {expected})");
+                bulkFlyout.Hide();
+            }
+            finally
+            {
+                Tenantry.ViewModels.Platform.SaveCsv = before;
+                window.Close();
+            }
+        });
+
+        Check("Export people elsewhere: a person's Groups & Access, a site's Permissions and a role's holders each save a CSV from their Export", () =>
+        {
+            var saved = new List<(string Name, string Csv)>();
+            var before = Tenantry.ViewModels.Platform.SaveCsv;
+            Tenantry.ViewModels.Platform.SaveCsv = (name, csv) => { saved.Add((name, csv)); return Task.FromResult(true); };
+            // Finds the Export for this exporter, clicks it and its first choice, and returns the rows saved.
+            IReadOnlyList<IReadOnlyList<string>> ExportVia(Window window, PeopleExporter exporter, string where)
+            {
+                var found = window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.DataContext == exporter && b.Flyout is Flyout && b.IsEffectivelyVisible);
+                Expect(found is not null, $"{where} shows Export");
+                var button = found!;
+                button.BringIntoView();
+                Settle();
+                Click(window, button);
+                var flyout = (Flyout)button.Flyout!;
+                Expect(flyout.IsOpen, $"{where}: Export opened");
+                var count = saved.Count;
+                Click(Buttons(flyout).First(b => b.DataContext is ExportChoice));
+                Settle();
+                Expect(saved.Count == count + 1, $"{where}: a file was saved");
+                flyout.Hide();
+                Settle();
+                var rows = Tenantry.Core.Lists.Csv.Read(saved[^1].Csv);
+                Expect(rows[0].Contains("Role") && rows[0].Contains("Object ID"), $"{where}: the usual columns ({string.Join(", ", rows[0])})");
+                return rows;
+            }
+            try
+            {
+                var (userWindow, _, userPage) = OpenRecord(p => p.User.Kind == UserKind.Member);
+                var access = userPage.Sections.OfType<GroupsAccessSection>().Single();
+                userPage.SelectedSection = access;
+                access.LoadAsync().GetAwaiter().GetResult();
+                Settle();
+                var groupRows = ExportVia(userWindow, access.Exporter, "Groups & Access");
+                Expect(groupRows.Count - 1 >= access.Groups.Count(g => !g.HasPending), $"every group they're in ({groupRows.Count - 1} rows, {access.Groups.Count} groups)");
+                Expect(!access.Exporter.HasNested, "no nested-groups tickbox on someone's own groups");
+                userWindow.Close();
+
+                var (window, main, _) = OpenList();
+                main.Groups.LoadAsync().GetAwaiter().GetResult();
+                main.SharePoint.Sites.LoadAsync().GetAwaiter().GetResult();
+                main.OpenSite(main.SharePoint.Sites.Rows.Cast<SiteSummary>().First(s => s.GroupId is not null && s.Kind == SiteKind.TeamSite && s.OwnerName is not null && !s.IsArchived));
+                var site = (SiteDetailViewModel)main.SelectedTab!;
+                var permissions = site.Sections.OfType<SitePermissionsSection>().Single();
+                site.SelectedSection = permissions;
+                for (var i = 0; i < 10; i++)
+                    Settle();
+                var siteRows = ExportVia(window, permissions.Exporter, "Site Permissions");
+                var cards = permissions.Groups.Select(g => g.Name).ToHashSet();
+                Expect(siteRows.Count > 1 && siteRows.Skip(1).All(r => cards.Contains(r[0])), "each row names its site group");
+
+                main.OpenRole(main.AppsArea.Security.Roles.Rows.Count > 0
+                    ? main.AppsArea.Security.Roles.Rows.Cast<RoleSummary>().First(r => r.Grants.Count > 0)
+                    : LoadRoles(main).First(r => r.Grants.Count > 0));
+                var role = (RoleDetailViewModel)main.SelectedTab!;
+                for (var i = 0; i < 5; i++)
+                    Settle();
+                var roleRows = ExportVia(window, role.Assignments.Exporter, "Role Assignments");
+                Expect(roleRows.Count - 1 == role.Role.Grants.Count && roleRows[0][^1] == "Scope and End", $"one row per assignment with scope and end ({roleRows.Count - 1})");
+                window.Close();
+            }
+            finally
+            {
+                Tenantry.ViewModels.Platform.SaveCsv = before;
+            }
+
+            static IReadOnlyList<RoleSummary> LoadRoles(MainViewModel main)
+            {
+                main.AppsArea.Security.Roles.LoadAsync().GetAwaiter().GetResult();
+                return main.AppsArea.Security.Roles.Rows.Cast<RoleSummary>().ToArray();
+            }
+        });
+
         Check("Select from a list: Check matching rows keeps the panel open to show the result", () =>
         {
             var (window, main, _) = OpenList();

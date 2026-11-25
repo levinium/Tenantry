@@ -65,4 +65,25 @@ public static class Csv
 
     public static string Write(IEnumerable<IEnumerable<string>> rows) =>
         string.Join("\r\n", rows.Select(r => string.Join(',', r.Select(Quote)))) + "\r\n";
+
+    /// <summary>
+    /// As <see cref="Write"/>, for values that came from the tenant: none can run as a spreadsheet
+    /// formula when the file is opened (see <see cref="Inert"/>).
+    /// </summary>
+    public static string WriteInert(IEnumerable<IEnumerable<string>> rows) =>
+        Write(rows.Select(r => r.Select(Inert)));
+
+    /// <summary>
+    /// Text a spreadsheet would run as a formula (a guest named "=HYPERLINK(…)") gets a leading
+    /// apostrophe, so Excel shows it as text. Plain numbers and phone numbers ("-5", "+1 555 0100")
+    /// are left alone.
+    /// </summary>
+    public static string Inert(string value)
+    {
+        if (value.Length == 0 || value[0] is not ('=' or '@' or '+' or '-' or '\t' or '\r'))
+            return value;
+        if (value[0] is '+' or '-' && value.Skip(1).All(ch => char.IsDigit(ch) || ch is ' ' or '.' or ',' or '-' or '(' or ')'))
+            return value;
+        return "'" + value;
+    }
 }

@@ -21,6 +21,9 @@
       </StackPanel>
     </Border>
 
+    <!-- Export: everything on this tab, or one of its lists. -->
+    <views:PeopleExportButton DataContext="{Binding Exporter}" HorizontalAlignment="Left" />
+
     <!-- Groups and teams: Member and Owner as checkboxes -->
     <Border Classes="card">
       <StackPanel Spacing="12">
