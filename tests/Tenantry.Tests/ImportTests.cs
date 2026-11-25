@@ -78,6 +78,39 @@ public sealed class ImportTests
     }
 
     [Fact]
+    public async Task An_export_comes_back_in_with_only_the_changed_departments_and_never_makes_anyone()
+    {
+        // Export the Finance group plus Grace and a nested group, as the Export button writes it.
+        var group = new GroupSummary("g9", "Staff", null, null, GroupKind.Security, false, false, null, null,
+            [new GroupMember("u1", "user"), new GroupMember("u2", "user"), new GroupMember("g1", "group")]);
+        var csv = PeopleExport.ToCsv(GroupPeopleEditor.ExportEntries(group), new Index(), expandNested: true);
+        var rows = Csv.Read(csv).Select(r => r.ToList()).ToList();
+        var dept = rows[0].IndexOf("Department");
+        rows[1][dept] = "Operations";  // Ada: Finance → Operations
+        // A stranger nobody can match, and Ada again (as a selection of two groups would list her) with the same change.
+        rows.Add([.. rows[1].Select((v, i) => rows[0][i] switch { "Object ID" => "u404", "Address" => "nobody@contoso.example", "Name" => "Nobody", _ => v })]);
+        rows.Add([.. rows[1]]);
+        var import = await Import(Csv.Write(rows));
+
+        Assert.Null(import.FileProblem);
+        Assert.Contains("1 row for groups, contacts or others left out", import.Summary, StringComparison.Ordinal);
+        var ada = Assert.Single(import.Rows, r => r.Outcome == ImportOutcome.Update);
+        Assert.Equal(["Department: Finance → Operations"], ada.Changes);
+        Assert.Contains(import.Rows, r => r.Outcome == ImportOutcome.NoChange);  // Grace, unchanged
+        var stranger = Assert.Single(import.Rows, r => r.Outcome == ImportOutcome.Problem);
+        Assert.Contains("only updates people who already exist", stranger.Details, StringComparison.Ordinal);
+        Assert.DoesNotContain(import.Rows, r => r.Outcome == ImportOutcome.New);
+    }
+
+    [Fact]
+    public async Task An_export_with_an_extra_column_is_refused_and_names_it()
+    {
+        var import = await Import("Role,Name,Address,Type,Object ID,Department,Shoe Size\nMember,Ada,ada@contoso.example,User,u1,Finance,7");
+        Assert.Contains("Shoe Size", import.FileProblem);
+        Assert.Empty(import.Rows);
+    }
+
+    [Fact]
     public async Task A_new_person_is_created_with_their_licenses_groups_and_manager()
     {
         var import = await Import("""

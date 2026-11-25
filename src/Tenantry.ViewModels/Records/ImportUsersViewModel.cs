@@ -83,7 +83,8 @@ public sealed partial class ImportUsersViewModel : ObservableObject
 
     public string TemplateHelp =>
         $"Use Tenantry's template. Its columns: {ColumnsText}. Only Sign-In Name is required. Separate several licenses or groups with a semicolon (;). " +
-        "Manager is a sign-in name; Country a two-letter code like US.";
+        "Manager is a sign-in name; Country a two-letter code like US. " +
+        "A file saved by Export (on a group, site or role) works too: change its Job Title or Department column and choose it here. It only updates people who already exist.";
 
     // ---- Template ---------------------------------------------------------------------------------
 
@@ -164,6 +165,19 @@ public sealed partial class ImportUsersViewModel : ObservableObject
                 return;
             }
             var headers = rows[0].Select(h => h.Trim()).ToArray();
+            if (IsPeopleExport(headers))
+            {
+                var (fromExport, skipped, problem) = FromExport(headers, rows);
+                if (problem is not null)
+                {
+                    FileProblem = problem;
+                    return;
+                }
+                foreach (var row in await PlanAsync(fromExport, updateOnly: true))
+                    Rows.Add(row);
+                Summarize(skipped == 0 ? null : $"{skipped:N0} {(skipped == 1 ? "row" : "rows")} for groups, contacts or others left out");
+                return;
+            }
             var unknown = headers.Where(h => h.Length > 0 && !Columns.Contains(h, StringComparer.OrdinalIgnoreCase)).ToArray();
             if (unknown.Length > 0)
             {
@@ -182,14 +196,7 @@ public sealed partial class ImportUsersViewModel : ObservableObject
                 .ToDictionary(g => g.Key, g => g.First().Item2, StringComparer.OrdinalIgnoreCase))).ToArray();
             foreach (var row in await PlanAsync(data))
                 Rows.Add(row);
-            var counts = Rows.GroupBy(r => r.Outcome).ToDictionary(g => g.Key, g => g.Count());
-            Summary = string.Join(" · ", new[]
-            {
-                Count(counts, ImportOutcome.New, "new person", "new people"),
-                Count(counts, ImportOutcome.Update, "update", "updates"),
-                Count(counts, ImportOutcome.NoChange, "already as the file says", "already as the file says"),
-                Count(counts, ImportOutcome.Problem, "row needs fixing", "rows need fixing"),
-            }.OfType<string>());
+            Summarize(null);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -203,12 +210,89 @@ public sealed partial class ImportUsersViewModel : ObservableObject
         }
     }
 
+    void Summarize(string? extra)
+    {
+        var counts = Rows.GroupBy(r => r.Outcome).ToDictionary(g => g.Key, g => g.Count());
+        Summary = string.Join(" · ", new[]
+        {
+            Count(counts, ImportOutcome.New, "new person", "new people"),
+            Count(counts, ImportOutcome.Update, "update", "updates"),
+            Count(counts, ImportOutcome.NoChange, "already as the file says", "already as the file says"),
+            Count(counts, ImportOutcome.Problem, "row needs fixing", "rows need fixing"),
+            extra,
+        }.OfType<string>());
+    }
+
+    // ---- Tenantry's own people exports ---------------------------------------------------------------
+
+    /// <summary>Columns a people export writes that describe the row, not the person's editable details: read for matching, never changed.</summary>
+    static readonly HashSet<string> ExportOnlyColumns = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Group", "Role", "Name", "Address", "Type", "Sign-In", "Guest", "Licensed", "Object ID", "Through Group",
+        "Rights", "Scope and End", "Given", "Permissions", "Filter",
+    };
+
+    /// <summary>Details an export carries that Import can change (the template's names for them).</summary>
+    static readonly string[] ExportEditableColumns = ["Job Title", "Department"];
+
+    /// <summary>A file saved by Export on a group, site, role…: it has Object ID and Address instead of the template's Sign-In Name.</summary>
+    static bool IsPeopleExport(IReadOnlyList<string> headers) =>
+        !headers.Contains(SignInColumn, StringComparer.OrdinalIgnoreCase)
+        && headers.Contains("Object ID", StringComparer.OrdinalIgnoreCase) && headers.Contains("Address", StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// An export's rows as template rows: each person (matched by object ID, then address) with
+    /// the export's Job Title and Department. Rows for groups, contacts and others are left out; a
+    /// person listed more than once with the same values (a selection of groups) counts once.
+    /// </summary>
+    (IReadOnlyList<(int Line, Dictionary<string, string> Cells)> Rows, int Skipped, string? Problem) FromExport(
+        IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>> rows)
+    {
+        var unknown = headers.Where(h => h.Length > 0 && !ExportOnlyColumns.Contains(h) && !ExportEditableColumns.Contains(h, StringComparer.OrdinalIgnoreCase)).ToArray();
+        if (unknown.Length > 0)
+            return ([], 0, $"These columns aren't in Tenantry's export: {string.Join(", ", unknown)}. Change only {string.Join(" and ", ExportEditableColumns)}; leave the other columns as they were.");
+        string Get(IReadOnlyList<string> cells, string column)
+        {
+            var i = headers.ToList().FindIndex(h => h.Equals(column, StringComparison.OrdinalIgnoreCase));
+            return i >= 0 && i < cells.Count ? cells[i].Trim() : "";
+        }
+        var editable = ExportEditableColumns.Where(c => headers.Contains(c, StringComparer.OrdinalIgnoreCase)).ToArray();
+        var result = new List<(int Line, Dictionary<string, string> Cells)>();
+        var shown = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        var skipped = 0;
+        for (var i = 1; i < rows.Count; i++)
+        {
+            var cells = rows[i];
+            var type = Get(cells, "Type");
+            if (type.Length > 0 && !type.Equals("User", StringComparison.OrdinalIgnoreCase))
+            {
+                skipped++;
+                continue;
+            }
+            var signIn = _index.User(Get(cells, "Object ID")) is { } user ? user.UserPrincipalName : Get(cells, "Address");
+            var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [SignInColumn] = signIn };
+            foreach (var column in editable)
+                row[column] = Uninert(Get(cells, column));
+            // The same person twice with the same values (in two selected groups) is one update.
+            if (shown.TryGetValue(signIn, out var earlier) && editable.All(c => earlier[c] == row[c]))
+                continue;
+            shown.TryAdd(signIn, row);
+            result.Add((i + 1, row));
+        }
+        return (result, skipped, null);
+    }
+
+    /// <summary>Undoes the apostrophe Export puts before text a spreadsheet would run as a formula.</summary>
+    static string Uninert(string value) =>
+        value.Length > 1 && value[0] == '\'' && value[1] is '=' or '@' or '+' or '-' ? value[1..] : value;
+
     static string? Count(Dictionary<ImportOutcome, int> counts, ImportOutcome outcome, string one, string many) =>
         counts.GetValueOrDefault(outcome) switch { 0 => null, 1 => $"1 {one}", var n => $"{n} {many}" };
 
     // ---- Planning ---------------------------------------------------------------------------------
 
-    async Task<IReadOnlyList<ImportRow>> PlanAsync(IReadOnlyList<(int Line, Dictionary<string, string> Cells)> data)
+    /// <param name="updateOnly">From an export: someone not in the directory is a problem, never a new person.</param>
+    async Task<IReadOnlyList<ImportRow>> PlanAsync(IReadOnlyList<(int Line, Dictionary<string, string> Cells)> data, bool updateOnly = false)
     {
         var domains = _records is null ? [] : await _records.GetDomainsAsync();
         var catalog = _records is null ? [] : await _records.GetLicenseCatalogAsync();
@@ -255,6 +339,11 @@ public sealed partial class ImportUsersViewModel : ObservableObject
             if (!seen.Add(upn))
                 problems.Add($"{upn} is in the file more than once.");
             var person = byAddress.GetValueOrDefault(upn);
+            if (updateOnly && person is null)
+            {
+                plans.Add(new ImportRow(line, upn, "", ImportOutcome.Problem, [], ["Not found in the directory. An exported file only updates people who already exist."], []));
+                continue;
+            }
 
             // Yes/No columns.
             bool? YesNo(string column)
