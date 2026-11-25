@@ -12,15 +12,6 @@
     {
       "PackageId": "Tenantry",
       "Version": "0.2.6",
-      "Type": "Full",
-      "FileName": "Tenantry-0.2.6-osx-arm64-full.nupkg",
-      "SHA1": "71831A11C59E15B4A0F4C8B98301F769BA4890EF",
-      "SHA256": "990EC022F2F41E04B4696777D135D375119F3519F288AB4EF9E9CAC54A33143F",
-      "Size": 59710761
-    },
-    {
-      "PackageId": "Tenantry",
-      "Version": "0.2.6",
       "Type": "Delta",
       "FileName": "Tenantry-0.2.6-osx-arm64-delta.nupkg",
       "SHA1": "FDC8313D1E8E564311A62B017F720906276D7865",
@@ -35,6 +26,33 @@
       "SHA1": "BEFD48592D94D52A3EF49B40A0504BD1C84DA486",
       "SHA256": "CB2524D21AED12865EA44EF41871805781AC3026714E1503F0ECA1714FE2C916",
       "Size": 59710137
+    },
+    {
+      "PackageId": "Tenantry",
+      "Version": "0.2.7",
+      "Type": "Full",
+      "FileName": "Tenantry-0.2.7-osx-arm64-full.nupkg",
+      "SHA1": "1380F3072F87203EEDE4841ABF0FD74F5319D02C",
+      "SHA256": "B7E472110719FD7BDDFDC9B731AD745988F8E0190A94607F2D75C3775CF598DB",
+      "Size": 59723874
+    },
+    {
+      "PackageId": "Tenantry",
+      "Version": "0.2.7",
+      "Type": "Delta",
+      "FileName": "Tenantry-0.2.7-osx-arm64-delta.nupkg",
+      "SHA1": "89453B57F1E421EAB6E701D1C6DEBE9B9AA7A122",
+      "SHA256": "366A09D1C8E55846A0F0C437D9B4405F6EBB25A0AB449955CC94E553FB982532",
+      "Size": 1543770
+    },
+    {
+      "PackageId": "Tenantry",
+      "Version": "0.2.6",
+      "Type": "Full",
+      "FileName": "Tenantry-0.2.6-osx-arm64-full.nupkg",
+      "SHA1": "71831A11C59E15B4A0F4C8B98301F769BA4890EF",
+      "SHA256": "990EC022F2F41E04B4696777D135D375119F3519F288AB4EF9E9CAC54A33143F",
+      "Size": 59710761
     }
   ]
 }

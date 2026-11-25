@@ -12,15 +12,6 @@
     {
       "PackageId": "Tenantry",
       "Version": "0.2.6",
-      "Type": "Full",
-      "FileName": "Tenantry-0.2.6-win-arm64-full.nupkg",
-      "SHA1": "AFF1C984B63625028FFDF7E0B25F5A0BC4A99256",
-      "SHA256": "A26279FE176E563ADDCCCC39090FD2860EB7E569898FFFE14F5479A7A290EF85",
-      "Size": 59277876
-    },
-    {
-      "PackageId": "Tenantry",
-      "Version": "0.2.6",
       "Type": "Delta",
       "FileName": "Tenantry-0.2.6-win-arm64-delta.nupkg",
       "SHA1": "EC82978234944B35B680E854A95B6D5AEE23AB00",
@@ -35,6 +26,33 @@
       "SHA1": "1A81C37AE0AB8BC971A0531D3CEEA70DA7D4318E",
       "SHA256": "C09C1DFD8A025784A750CC37C9987C3A5077DE61CC3FF65847D315A7A7EF6E1A",
       "Size": 59277264
+    },
+    {
+      "PackageId": "Tenantry",
+      "Version": "0.2.7",
+      "Type": "Full",
+      "FileName": "Tenantry-0.2.7-win-arm64-full.nupkg",
+      "SHA1": "2FEAED4E620E14CB42826F98BD59419ABBF7C844",
+      "SHA256": "C1D42B523DE6DBC847A4BBB1A87C178154D77E7AC038CDDBD7F8B10C415509D2",
+      "Size": 59291009
+    },
+    {
+      "PackageId": "Tenantry",
+      "Version": "0.2.7",
+      "Type": "Delta",
+      "FileName": "Tenantry-0.2.7-win-arm64-delta.nupkg",
+      "SHA1": "382CC9EA3140EAC58D4B982310834F666B6239E8",
+      "SHA256": "17745278675A9F7B8116904487A96B6BBF63147DABC85F4DE811B0C241A83F80",
+      "Size": 1572849
+    },
+    {
+      "PackageId": "Tenantry",
+      "Version": "0.2.6",
+      "Type": "Full",
+      "FileName": "Tenantry-0.2.6-win-arm64-full.nupkg",
+      "SHA1": "AFF1C984B63625028FFDF7E0B25F5A0BC4A99256",
+      "SHA256": "A26279FE176E563ADDCCCC39090FD2860EB7E569898FFFE14F5479A7A290EF85",
+      "Size": 59277876
     }
   ]
 }
